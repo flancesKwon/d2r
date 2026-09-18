@@ -1,0 +1,89 @@
+<script setup>
+import { ref } from 'vue'
+import patchData from '../data/patchNotes.json'
+
+const notes = patchData
+const selected = ref(null)
+</script>
+
+<template>
+  <div class="items-page patch-page">
+  <header>
+    <div class="logo">
+      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
+        <span class="logo-mark"></span>디아사전
+      </router-link>
+    </div>
+    <div class="crumb"><router-link to="/">메인</router-link> / <b>패치노트</b></div>
+  </header>
+
+  <div class="patch-hero">
+    <div class="patch-hero-inner">
+      <div class="eyebrow">업데이트 기록</div>
+      <h1>패치노트</h1>
+      <p>밸런스 조정, 버그 수정, 시즌 소식을 한 곳에서 확인하세요.</p>
+    </div>
+  </div>
+
+  <div class="grid-wrap patch-list-wrap">
+    <div class="patch-list">
+      <button class="patch-row" v-for="n in notes" :key="n.id" @click="selected = n">
+        <div class="patch-row-top">
+          <span class="patch-version">v{{ n.version }}</span>
+          <span class="patch-tag" v-for="t in n.tags" :key="t">{{ t }}</span>
+        </div>
+        <div class="patch-title">{{ n.title }}</div>
+        <div class="patch-summary">{{ n.summary }}</div>
+        <div class="patch-date">{{ n.date }}</div>
+      </button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" v-if="selected" @click.self="selected = null">
+    <div class="modal-panel patch-modal">
+      <button class="modal-close" @click="selected = null">✕</button>
+      <div class="d-eyebrow">v{{ selected.version }} · {{ selected.date }}</div>
+      <h1 class="d-name patch-modal-title">{{ selected.title }}</h1>
+      <div class="patch-tag-row">
+        <span class="patch-tag" v-for="t in selected.tags" :key="t">{{ t }}</span>
+      </div>
+      <p class="patch-modal-summary">{{ selected.summary }}</p>
+      <div v-for="(sec, i) in selected.sections" :key="i">
+        <div class="d-section-title">{{ sec.heading }}</div>
+        <div class="affix-list">
+          <div class="affix-line" v-for="(line, j) in sec.items" :key="j">
+            <span class="a-text">{{ line }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</template>
+
+<style scoped>
+.patch-hero{background:linear-gradient(180deg, #17130F, var(--bg)); border-bottom:1px solid var(--border-soft);}
+.patch-hero-inner{max-width:1180px; margin:0 auto; padding:40px 24px 28px;}
+.patch-hero .eyebrow{font-size:13px; color:var(--gold-dim); font-weight:600; margin-bottom:10px;}
+.patch-hero h1{font-size:28px; margin-bottom:10px; color:var(--gold);}
+.patch-hero p{font-size:14px; color:var(--text-muted);}
+
+.patch-list-wrap{max-width:860px;}
+.patch-list{display:flex; flex-direction:column; gap:10px;}
+.patch-row{
+  display:block; width:100%; text-align:left; border:1px solid var(--border-soft); background:var(--panel);
+  padding:18px 20px; cursor:pointer; transition:border-color .15s, transform .1s;
+}
+.patch-row:hover{border-color:var(--gold-dim); transform:translateY(-1px);}
+.patch-row-top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+.patch-version{font-family:'Noto Serif KR', serif; font-weight:700; color:var(--gold); font-size:13px;}
+.patch-tag{font-size:10.5px; color:var(--text-muted); border:1px solid var(--border); padding:2px 8px;}
+.patch-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; margin-bottom:6px;}
+.patch-summary{font-size:13px; color:var(--text-muted); margin-bottom:8px; line-height:1.5;}
+.patch-date{font-size:11px; color:var(--text-dim);}
+
+.patch-modal{max-width:680px;}
+.patch-modal-title{font-size:24px; margin:10px 0 12px;}
+.patch-tag-row{display:flex; gap:6px; margin-bottom:16px;}
+.patch-modal-summary{font-size:13.5px; color:var(--text-muted); margin-bottom:22px; line-height:1.6;}
+</style>
