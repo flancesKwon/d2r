@@ -474,21 +474,25 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               vector-effect="non-scaling-stroke"
             />
           </svg>
-          <button
+          <div
             v-for="n in treeLayout.nodes" :key="n.skillIdx"
-            class="sim-tree-node"
-            :style="{ left: n.x + '%', top: n.y + '%', '--node-color': nodeColor(n.skill) || 'var(--gold-dim)' }"
-            :class="{
-              invested: skillPoint(activeTab, n.skillIdx) > 0,
-              maxed: skillPoint(activeTab, n.skillIdx) >= 20,
-              locked: skillPoint(activeTab, n.skillIdx) === 0 && !canIncreaseSkill(activeTab, n.skillIdx),
-              selected: selectedNode && selectedNode.tabIdx === activeTab && selectedNode.skillIdx === n.skillIdx,
-            }"
-            @click="onNodeClick(n.skillIdx)"
+            class="sim-tree-node-ring"
+            :style="{ left: n.x + '%', top: n.y + '%', '--node-color': nodeColor(n.skill) || 'var(--gold)', '--pct': (skillPoint(activeTab, n.skillIdx) / 20) * 100 }"
+            :class="{ invested: skillPoint(activeTab, n.skillIdx) > 0, maxed: skillPoint(activeTab, n.skillIdx) >= 20 }"
           >
-            <svg class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
+            <button
+              class="sim-tree-node"
+              :class="{
+                invested: skillPoint(activeTab, n.skillIdx) > 0,
+                locked: skillPoint(activeTab, n.skillIdx) === 0 && !canIncreaseSkill(activeTab, n.skillIdx),
+                selected: selectedNode && selectedNode.tabIdx === activeTab && selectedNode.skillIdx === n.skillIdx,
+              }"
+              @click="onNodeClick(n.skillIdx)"
+            >
+              <svg class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
+            </button>
             <span class="sim-node-badge" v-if="skillPoint(activeTab, n.skillIdx) > 0">{{ skillPoint(activeTab, n.skillIdx) }}</span>
-          </button>
+          </div>
           <button class="sim-tree-reset" title="이 계열 초기화" @click="resetTab(activeTab)">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
           </button>
@@ -610,60 +614,43 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-tabs small{color:var(--text-dim);}
 
 .sim-tree-frame{
-  position:relative; border:1px solid var(--gold-dim);
-  background:
-    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.05), transparent 30%),
-    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
-    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
-    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%),
-    repeating-linear-gradient(115deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 14px),
-    repeating-linear-gradient(25deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 10px),
-    linear-gradient(180deg, #34302c, #1d1a17);
-  padding:14px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 40px rgba(0,0,0,0.6);
+  position:relative; border:1px solid var(--border-soft); background:var(--panel);
+  padding:16px;
 }
-.sim-tree-frame::before, .sim-tree-frame::after{
-  content:''; position:absolute; width:9px; height:9px; border:1px solid var(--gold-dim); transform:rotate(45deg); top:-5px;
-}
-.sim-tree-frame::before{left:-5px;}
-.sim-tree-frame::after{right:-5px;}
 
-.sim-tree-canvas{position:relative; width:100%; height:420px;}
+.sim-tree-canvas{position:relative; width:100%; height:400px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tree-edge{fill:none; stroke:#0a0806; stroke-width:4px; stroke-linecap:square; stroke-linejoin:round; transition:stroke .15s;}
-.sim-tree-edge.lit{stroke:#8f773d;}
+.sim-tree-edge{fill:none; stroke:var(--border); stroke-width:1.5px; stroke-linecap:round; transition:stroke .15s;}
+.sim-tree-edge.lit{stroke:var(--gold-dim);}
+
+.sim-tree-node-ring{
+  position:absolute; width:50px; height:50px; padding:3px; border-radius:50%; transform:translate(-50%,-50%);
+  background:conic-gradient(var(--node-color) calc(var(--pct) * 1%), var(--border-soft) 0);
+}
+.sim-tree-node-ring.maxed{background:conic-gradient(var(--gold) calc(var(--pct) * 1%), var(--border-soft) 0);}
 
 .sim-tree-node{
-  position:absolute; width:54px; height:54px; transform:translate(-50%,-50%);
-  border-radius:5px; border:2px solid #5a4c38;
-  background:
-    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
-    linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
+  width:100%; height:100%; border-radius:50%; border:none; background:var(--panel-2);
   color:var(--text-dim); display:flex; align-items:center; justify-content:center;
-  transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
+  transition:color .15s, transform .1s, box-shadow .15s;
 }
-.sim-tree-node::after{
-  content:''; position:absolute; inset:3px; border:1px solid rgba(0,0,0,0.55); border-radius:3px; pointer-events:none;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);
-}
-.sim-tree-node:hover{transform:translate(-50%,-50%) scale(1.06); border-color:var(--node-color);}
-.sim-tree-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
-.sim-tree-node.invested{border-color:var(--node-color); color:var(--text); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 12px -1px var(--node-color);}
-.sim-tree-node.maxed{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 16px -1px var(--gold);}
-.sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:3px;}
-.sim-node-icon{width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
+.sim-tree-node:hover{transform:scale(1.08); color:var(--text);}
+.sim-tree-node.locked{opacity:0.4; cursor:default;}
+.sim-tree-node.invested{color:var(--text);}
+.sim-tree-node.selected{box-shadow:0 0 0 2px var(--bg), 0 0 0 3.5px var(--gold);}
+.sim-node-icon{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none;}
 .sim-node-badge{
-  position:absolute; right:-5px; bottom:-5px; min-width:20px; height:16px; padding:0 4px; border-radius:3px;
-  background:#0b0a08; color:#fff; font-size:11px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
-  display:flex; align-items:center; justify-content:center; border:1px solid #4a3f30;
+  position:absolute; right:-2px; bottom:-2px; min-width:17px; height:17px; padding:0 3px; border-radius:50%;
+  background:var(--gold); color:#1B1714; font-size:10px; font-weight:800; font-family:'Noto Sans KR', sans-serif;
+  display:flex; align-items:center; justify-content:center; border:2px solid var(--panel);
 }
 
 .sim-tree-reset{
-  position:absolute; left:-8px; bottom:-8px; width:26px; height:26px; border-radius:50%;
-  background:#0b0a08; border:1px solid #4a3f30; color:var(--text-dim); z-index:2;
+  position:absolute; left:0; bottom:-4px; width:24px; height:24px; border-radius:50%;
+  background:transparent; border:1px solid var(--border); color:var(--text-dim);
   display:flex; align-items:center; justify-content:center;
 }
-.sim-tree-reset svg{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.8;}
+.sim-tree-reset svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:1.8;}
 .sim-tree-reset:hover{color:var(--blood); border-color:var(--blood);}
 
 .sim-node-detail{
