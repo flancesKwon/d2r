@@ -1,11 +1,15 @@
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
 import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
 import { CLASS_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
+
+const route = useRoute()
+const router = useRouter()
 
 const classKeys = Object.keys(classStats)
 const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
@@ -48,7 +52,9 @@ function resetEquip() {
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = ''))
 }
 
+let skipClassReset = false
 watch(selectedClass, () => {
+  if (skipClassReset) return
   resetAll()
   activeTab.value = 0
 })
@@ -92,6 +98,91 @@ const skillLocationByName = computed(() => {
     })
   })
   return map
+})
+
+// ---- 빌드 공유 링크 ----
+const shareUrl = ref('')
+const shareCopied = ref(false)
+
+function encodeShareCode(payload) {
+  const json = JSON.stringify(payload)
+  return btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+function decodeShareCode(code) {
+  try {
+    let b64 = code.replace(/-/g, '+').replace(/_/g, '/')
+    while (b64.length % 4) b64 += '='
+    return JSON.parse(decodeURIComponent(escape(atob(b64))))
+  } catch (e) {
+    return null
+  }
+}
+
+function buildSharePayload() {
+  const sk = {}
+  classTabs.value.forEach((tab, tabIdx) => {
+    tab.skills.forEach((skill, skillIdx) => {
+      const p = skillPoint(tabIdx, skillIdx)
+      if (p > 0) sk[skill.name] = p
+    })
+  })
+  return {
+    c: selectedClass.value,
+    l: level.value,
+    st: { ...allocatedStats },
+    sk,
+    qs: Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, questSkillDone[q.key]])),
+    qt: Object.fromEntries(STAT_QUESTS.map((q) => [q.key, questStatDone[q.key]])),
+    eq: { ...equippedItems },
+  }
+}
+
+async function applyShareState(data) {
+  if (!data || !classStats[data.c] || !skillData[data.c]) return
+  skipClassReset = true
+  selectedClass.value = data.c
+  await nextTick()
+  skipClassReset = false
+
+  level.value = Math.min(99, Math.max(1, Number(data.l) || 1))
+  STAT_KEYS.forEach((k) => (allocatedStats[k] = Number(data.st?.[k]) || 0))
+  Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
+  if (data.sk) {
+    Object.entries(data.sk).forEach(([name, pts]) => {
+      const loc = skillLocationByName.value[name]
+      if (loc) allocatedSkills[skillKey(loc.tabIdx, loc.skillIdx)] = Number(pts) || 0
+    })
+  }
+  SKILL_QUESTS.forEach((q) => {
+    if (Array.isArray(data.qs?.[q.key])) questSkillDone[q.key] = data.qs[q.key].map(Boolean)
+  })
+  STAT_QUESTS.forEach((q) => {
+    if (Array.isArray(data.qt?.[q.key])) questStatDone[q.key] = data.qt[q.key].map(Boolean)
+  })
+  SLOT_DEFS.forEach((s) => (equippedItems[s.key] = (data.eq && data.eq[s.key]) || ''))
+}
+
+async function shareLink() {
+  const code = encodeShareCode(buildSharePayload())
+  router.replace({ path: '/simulator', query: { b: code } }).catch(() => {})
+  shareUrl.value = `${window.location.origin}${window.location.pathname}#/simulator?b=${code}`
+  shareCopied.value = false
+  try {
+    await navigator.clipboard.writeText(shareUrl.value)
+    shareCopied.value = true
+  } catch (e) {
+    // 클립보드 권한이 없으면 링크를 화면에 그대로 보여줘서 수동 복사하게 함
+  }
+}
+
+onMounted(() => {
+  if (typeof route.query.b === 'string') {
+    applyShareState(decodeShareCode(route.query.b))
+  }
 })
 
 function skillPointByName(name) {
@@ -242,6 +333,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         <input type="number" min="1" max="99" v-model="clampedLevel" />
       </label>
       <button class="sim-reset-btn" @click="resetAll">빌드 초기화</button>
+      <button class="sim-reset-btn sim-share-btn" @click="shareLink">빌드 공유 링크 만들기</button>
+    </div>
+
+    <div class="sim-share-box" v-if="shareUrl">
+      <input class="sim-share-input" type="text" :value="shareUrl" readonly @focus="$event.target.select()" />
+      <span class="sim-share-status">{{ shareCopied ? '링크가 복사됐어요' : '복사가 안 되면 위 링크를 직접 선택해서 복사해주세요' }}</span>
     </div>
 
     <div class="side-block sim-panel sim-quest-box">
@@ -370,6 +467,16 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-field input:focus{outline:none; border-color:var(--gold-dim);}
 .sim-reset-btn{border:1px solid var(--border); color:var(--text-muted); padding:9px 16px; font-size:12.5px; height:38px;}
 .sim-reset-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+.sim-share-btn{border-color:var(--gold-dim); color:var(--gold);}
+.sim-share-btn:hover{background:var(--panel);}
+
+.sim-share-box{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:-8px 0 24px;}
+.sim-share-input{
+  flex:1; min-width:220px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  padding:9px 12px; font-size:12.5px; font-family:inherit;
+}
+.sim-share-input:focus{outline:none; border-color:var(--gold-dim);}
+.sim-share-status{font-size:11.5px; color:var(--text-dim);}
 
 .sim-quest-box{margin-bottom:20px;}
 .sim-quest-row{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border-soft);}
