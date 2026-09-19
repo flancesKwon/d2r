@@ -38,7 +38,7 @@
         <div class="dropdown">
           <router-link to="/items?cat=runeword">룬워드 계산기</router-link>
           <router-link to="/simulator">스킬·스탯 시뮬레이터</router-link>
-          <a href="#">시세 게시판</a><a href="#">레더 시즌 정보</a>
+          <router-link to="/market">시세 게시판</router-link><router-link to="/ladder">레더 시즌 정보</router-link>
         </div>
       </div>
       <router-link to="/items">아이템 사전</router-link>
@@ -166,7 +166,7 @@
   <footer>
     <div class="footer-inner">
       <span>비공식 팬 제작 사이트 · Blizzard Entertainment와 무관</span>
-      <nav><router-link to="/community?cat=공략">가이드 제보</router-link><router-link to="/patch">패치노트</router-link><a href="#">문의</a></nav>
+      <nav><router-link to="/community?cat=공략">가이드 제보</router-link><router-link to="/patch">패치노트</router-link><router-link to="/community?cat=질문">문의</router-link></nav>
     </div>
   </footer>
   </div>
