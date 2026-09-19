@@ -7,6 +7,14 @@ import itemsData from '../data/items.json'
 import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
+import skillIconManifest from '../data/skillIconManifest.json'
+
+const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
+const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
+function realIconUrl(classKey, skillName) {
+  const fname = skillIconManifest[classKey]?.[skillName]
+  return fname ? iconUrlByFilename[fname] : null
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -484,7 +492,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                   :title="n.skill.name"
                   @click="onNodeClick(tabIdx, n.skillIdx)"
                 >
-                  <svg class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
+                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-icon-img" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
+                  <svg v-else class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
                 </button>
                 <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
               </div>
@@ -659,6 +668,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px -1px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
 .sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
+.sim-node-icon-img{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:3px;}
 .sim-node-badge{
   position:absolute; right:-4px; bottom:-4px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
   background:#0b0a08; color:#fff; font-size:10px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
