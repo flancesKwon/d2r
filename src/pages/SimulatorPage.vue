@@ -292,7 +292,9 @@ function layoutForTab(tabIdx) {
       const to = positions[skillIdx]
       if (reqIdx !== -1 && from && to) {
         const midY = (from.y + to.y) / 2
-        edges.push({ srcIdx: reqIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${to.y}` })
+        const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
+        const endY = to.y - arrowGap
+        edges.push({ srcIdx: reqIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
       }
     })
   })
@@ -483,11 +485,20 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <div class="sim-tree-frame">
             <div class="sim-tree-canvas">
               <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <marker id="tree-arrow" markerWidth="3.2" markerHeight="3.2" refX="2.6" refY="1.6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L3.2,1.6 L0,3.2 Z" fill="#8f8c80" />
+                  </marker>
+                  <marker id="tree-arrow-lit" markerWidth="3.2" markerHeight="3.2" refX="2.6" refY="1.6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L3.2,1.6 L0,3.2 Z" fill="var(--gold)" />
+                  </marker>
+                </defs>
                 <path
                   v-for="(e, i) in treeLayouts[tabIdx].edges" :key="i"
                   :d="e.path"
                   class="sim-tree-edge"
                   :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0 }"
+                  :marker-end="skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
                   vector-effect="non-scaling-stroke"
                 />
               </svg>
@@ -662,48 +673,49 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-columns{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:4px;}
 .sim-tree-col-panel{display:flex; flex-direction:column; min-width:0;}
 .sim-tree-col-head{
-  font-size:12.5px; color:var(--gold); margin-bottom:0; text-align:center; font-family:'Noto Serif KR', serif; font-weight:700;
+  font-size:13px; color:#dcd9d0; margin-bottom:0; text-align:center; font-family:'Noto Serif KR', serif; font-weight:700;
+  letter-spacing:0.3px;
   display:flex; flex-direction:column; gap:2px; justify-content:center;
-  border:1px solid var(--gold-dim); border-bottom:none; background:linear-gradient(180deg, #3a342c, #24201a);
-  padding:8px 6px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 4px rgba(0,0,0,0.5);
+  border:1px solid #57554e; border-bottom:1px solid #171613; background:linear-gradient(180deg, #4c4a44, #302f2b);
+  padding:9px 6px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 4px rgba(0,0,0,0.5);
 }
-.sim-tree-col-head small{color:var(--text-muted); font-size:10.5px; font-family:'Noto Sans KR', sans-serif; font-weight:400;}
+.sim-tree-col-head small{color:#8f8c82; font-size:10.5px; font-family:'Noto Sans KR', sans-serif; font-weight:400;}
 
 .sim-tree-frame{
-  position:relative; border:1px solid var(--gold-dim); flex:1;
+  position:relative; border:1px solid #57554e; border-top:none; flex:1;
   background:
-    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.09), transparent 30%),
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.06), transparent 30%),
     radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
     radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
-    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.06), transparent 35%),
-    repeating-linear-gradient(115deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 12px),
-    repeating-linear-gradient(25deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 9px),
-    linear-gradient(180deg, #4a443b, #2a251f);
-  padding:10px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
+    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%),
+    repeating-linear-gradient(115deg, rgba(0,0,0,0.14) 0 2px, transparent 2px 12px),
+    repeating-linear-gradient(25deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, #47453f, #292824);
+  padding:10px; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.5);
 }
 
 .sim-tree-detail-wrap{margin-top:14px;}
 
 .sim-tree-canvas{position:relative; width:100%; height:480px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tree-edge{fill:none; stroke:#6b6156; stroke-width:3px; stroke-linecap:square; stroke-linejoin:round; transition:stroke .15s; opacity:0.8;}
-.sim-tree-edge.lit{stroke:var(--gold-dim); opacity:1;}
+.sim-tree-edge{fill:none; stroke:#8f8c80; stroke-width:2.4px; stroke-linecap:butt; stroke-linejoin:miter; transition:stroke .15s; opacity:0.85;}
+.sim-tree-edge.lit{stroke:var(--gold); opacity:1;}
 
-.sim-tree-node-ring{position:absolute; width:46px; height:46px; transform:translate(-50%,-50%);}
+.sim-tree-node-ring{position:absolute; width:44px; height:44px; transform:translate(-50%,-50%);}
 
 .sim-tree-node{
-  width:100%; height:100%; border-radius:4px; border:2px solid #6b5d47;
+  width:100%; height:100%; border-radius:2px; border:1.5px solid #8a877c;
   background:
-    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.08), transparent 35%),
     linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
   color:var(--text-dim); display:flex; align-items:center; justify-content:center; padding:2px;
   transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
 }
 .sim-tree-node:hover{transform:scale(1.08); border-color:var(--gold-dim);}
 .sim-tree-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
-.sim-tree-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 9px -1px var(--gold-dim);}
-.sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px 0px var(--gold);}
+.sim-tree-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 9px -1px var(--gold-dim);}
+.sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px 0px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
 .sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
 .sim-node-icon-img{width:100%; height:100%; object-fit:cover; pointer-events:none; border-radius:2px;}
