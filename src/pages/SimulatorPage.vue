@@ -3,8 +3,8 @@ import { ref, reactive, computed, watch } from 'vue'
 import classStats from '../data/classStats.json'
 import skillData from '../data/skills.json'
 import { CLASS_ICONS } from '../icons.js'
+import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 
-const TIER_LEVEL_REQ = [1, 6, 12, 18, 24, 30]
 const classKeys = Object.keys(classStats)
 const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
 const STAT_LABELS = { str: '힘', dex: '민첩', vit: '활력', nrg: '에너지' }
@@ -68,9 +68,27 @@ function skillPoint(tabIdx, skillIdx) {
   return allocatedSkills[skillKey(tabIdx, skillIdx)] || 0
 }
 
-function tierPointSum(tabIdx, tier) {
-  const tab = classTabs.value[tabIdx]
-  return tab.skills.reduce((sum, s, i) => (s.tier === tier ? sum + skillPoint(tabIdx, i) : sum), 0)
+// 스킬 이름 -> {tabIdx, skillIdx} 조회용 (같은 클래스 내 다른 스킬 선행/시너지 참조에 사용)
+const skillLocationByName = computed(() => {
+  const map = {}
+  classTabs.value.forEach((tab, tabIdx) => {
+    tab.skills.forEach((s, skillIdx) => {
+      map[s.name] = { tabIdx, skillIdx }
+    })
+  })
+  return map
+})
+
+function skillPointByName(name) {
+  const loc = skillLocationByName.value[name]
+  return loc ? skillPoint(loc.tabIdx, loc.skillIdx) : 0
+}
+
+// 이 스킬을 선행 스킬로 요구하는 다른 스킬 중 포인트가 찍혀 있는 게 있는지
+function hasDependents(name) {
+  return classTabs.value.some((tab) =>
+    tab.skills.some((s) => s.reqSkills && s.reqSkills.includes(name) && skillPointByName(s.name) > 0)
+  )
 }
 
 function canIncreaseSkill(tabIdx, skillIdx) {
@@ -78,8 +96,8 @@ function canIncreaseSkill(tabIdx, skillIdx) {
   const current = skillPoint(tabIdx, skillIdx)
   if (remainingSkillPoints.value <= 0) return false
   if (current >= 20) return false
-  if (level.value < TIER_LEVEL_REQ[skill.tier - 1]) return false
-  if (skill.tier > 1 && tierPointSum(tabIdx, skill.tier - 1) < 1) return false
+  if (level.value < skill.reqLevel) return false
+  if (skill.reqSkills && skill.reqSkills.some((name) => skillPointByName(name) < 1)) return false
   return true
 }
 
@@ -87,15 +105,21 @@ function canDecreaseSkill(tabIdx, skillIdx) {
   const skill = classTabs.value[tabIdx].skills[skillIdx]
   const current = skillPoint(tabIdx, skillIdx)
   if (current <= 0) return false
-  if (current === 1) {
-    const tierTotalAfter = tierPointSum(tabIdx, skill.tier) - 1
-    if (tierTotalAfter === 0) {
-      for (let t = skill.tier + 1; t <= 6; t++) {
-        if (tierPointSum(tabIdx, t) > 0) return false
-      }
-    }
-  }
+  if (current === 1 && hasDependents(skill.name)) return false
   return true
+}
+
+function skillDamage(tabIdx, skillIdx) {
+  const skill = classTabs.value[tabIdx].skills[skillIdx]
+  const lvl = skillPoint(tabIdx, skillIdx)
+  if (!lvl || !skill.dmg) return null
+  return computeSkillDamage(skill, lvl, skillPointByName)
+}
+
+function synergySources(skill) {
+  const list = [...(skill.synergyPhy || []), ...(skill.synergyEle || [])]
+  const seen = new Set()
+  return list.filter((s) => (seen.has(s.skill) ? false : seen.add(s.skill)))
 }
 
 function increaseSkill(tabIdx, skillIdx) {
@@ -155,7 +179,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     <div class="patch-hero-inner">
       <div class="eyebrow">빌드 계획 도구</div>
       <h1>스킬·스탯 시뮬레이터</h1>
-      <p>레벨에 맞춰 스탯과 스킬 포인트를 미리 찍어보고 빌드를 계획해보세요. (팬 제작 참고용 수치, 실제 게임과 약간 다를 수 있어요)</p>
+      <p>레벨에 맞춰 스탯과 스킬 포인트를 미리 찍어보고 빌드를 계획해보세요. 스킬 데미지·시너지는 실제 게임 데이터 기준이에요 (단, 무기 데미지·아이템 옵션·오라/마스터리 효과는 아직 반영되지 않아요).</p>
     </div>
   </div>
 
@@ -232,13 +256,31 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <div class="sim-tree-grid">
         <div v-for="(tab, tabIdx) in classTabs" :key="tab.name" class="sim-tree-col" v-show="activeTab === tabIdx">
           <div class="sim-skill-line" v-for="(skill, skillIdx) in tab.skills" :key="skill.name">
-            <div class="sim-skill-info">
-              <span class="sim-skill-name">{{ skill.name }}</span>
-              <span class="sim-skill-tier">요구 레벨 {{ TIER_LEVEL_REQ[skill.tier - 1] }}</span>
+            <div class="sim-skill-row">
+              <div class="sim-skill-info">
+                <span class="sim-skill-name">{{ skill.name }}</span>
+                <span class="sim-skill-tier">
+                  요구 레벨 {{ skill.reqLevel }}
+                  <template v-if="skill.reqSkills && skill.reqSkills.length"> · 선행: {{ skill.reqSkills.join(', ') }}</template>
+                </span>
+              </div>
+              <button class="sim-pm" @click="decreaseSkill(tabIdx, skillIdx)" :disabled="!canDecreaseSkill(tabIdx, skillIdx)">−</button>
+              <span class="sim-skill-value">{{ skillPoint(tabIdx, skillIdx) }}</span>
+              <button class="sim-pm" @click="increaseSkill(tabIdx, skillIdx)" :disabled="!canIncreaseSkill(tabIdx, skillIdx)">+</button>
             </div>
-            <button class="sim-pm" @click="decreaseSkill(tabIdx, skillIdx)" :disabled="!canDecreaseSkill(tabIdx, skillIdx)">−</button>
-            <span class="sim-skill-value">{{ skillPoint(tabIdx, skillIdx) }}</span>
-            <button class="sim-pm" @click="increaseSkill(tabIdx, skillIdx)" :disabled="!canIncreaseSkill(tabIdx, skillIdx)">+</button>
+            <div class="sim-skill-detail" v-if="skillPoint(tabIdx, skillIdx) > 0 && (skill.dmg || synergySources(skill).length)">
+              <div class="sim-dmg-line" v-if="skillDamage(tabIdx, skillIdx)?.ele">
+                {{ ELEMENT_LABELS[skillDamage(tabIdx, skillIdx).ele.type] }} 데미지 {{ skillDamage(tabIdx, skillIdx).ele.min }}~{{ skillDamage(tabIdx, skillIdx).ele.max }}
+                <span class="sim-syn-pct" v-if="skillDamage(tabIdx, skillIdx).ele.percent">(시너지 +{{ skillDamage(tabIdx, skillIdx).ele.percent }}%)</span>
+              </div>
+              <div class="sim-dmg-line" v-if="skillDamage(tabIdx, skillIdx)?.phy">
+                물리 데미지 {{ skillDamage(tabIdx, skillIdx).phy.min }}~{{ skillDamage(tabIdx, skillIdx).phy.max }} <small>(무기 데미지 제외, 스킬 자체 수치)</small>
+                <span class="sim-syn-pct" v-if="skillDamage(tabIdx, skillIdx).phy.percent">(시너지 +{{ skillDamage(tabIdx, skillIdx).phy.percent }}%)</span>
+              </div>
+              <div class="sim-syn-line" v-if="synergySources(skill).length">
+                시너지 제공: <span v-for="(s, i) in synergySources(skill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ s.skill }}(+{{ s.percent }}%/lv)</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -300,12 +342,17 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-tabs{margin-bottom:16px;}
 .sim-tree-tabs small{color:var(--text-dim);}
 .sim-tree-col{display:flex; flex-direction:column; gap:1px;}
-.sim-skill-line{display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px solid var(--border-soft); border-top:none;}
+.sim-skill-line{padding:10px 14px; border:1px solid var(--border-soft); border-top:none;}
 .sim-skill-line:first-child{border-top:1px solid var(--border-soft);}
+.sim-skill-row{display:flex; align-items:center; gap:10px;}
 .sim-skill-info{flex:1; display:flex; flex-direction:column; gap:2px; min-width:0;}
 .sim-skill-name{font-size:13.5px; color:var(--text);}
 .sim-skill-tier{font-size:10.5px; color:var(--text-dim);}
 .sim-skill-value{width:22px; text-align:center; font-size:14px; color:var(--gold); font-weight:700; flex:none;}
+.sim-skill-detail{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-soft); font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;}
+.sim-dmg-line small{color:var(--text-dim); font-size:10.5px;}
+.sim-syn-pct{color:var(--gold-dim); margin-left:4px;}
+.sim-syn-line{color:var(--text-dim); font-size:11.5px;}
 
 @media (max-width:800px){
   .sim-top-grid{grid-template-columns:1fr;}
