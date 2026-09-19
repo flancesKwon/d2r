@@ -8,7 +8,7 @@
     <div class="header-top">
       <div class="logo"><span class="logo-mark"></span>디아사전</div>
       <div class="search-pill"><span class="label">가이드 · 아이템 검색</span><span class="chev">▾</span></div>
-      <div class="header-icons"><span>⚙</span></div>
+      <div class="header-icons"><router-link to="/signup" class="signup-link">회원가입</router-link><span>⚙</span></div>
     </div>
     <nav class="subnav">
       <router-link to="/" class="active">메인</router-link>
@@ -37,10 +37,12 @@
         <a href="#">자료실<span class="chev">▾</span></a>
         <div class="dropdown">
           <router-link to="/items?cat=runeword">룬워드 계산기</router-link>
-          <a href="#">시세 게시판</a><a href="#">레더 시즌 정보</a>
+          <router-link to="/simulator">스킬·스탯 시뮬레이터</router-link>
+          <router-link to="/market">시세 게시판</router-link><router-link to="/ladder">레더 시즌 정보</router-link>
         </div>
       </div>
       <router-link to="/items">아이템 사전</router-link>
+      <router-link to="/simulator">스킬 시뮬레이터</router-link>
       <router-link to="/patch">패치노트</router-link>
     </nav>
   </header>
@@ -164,7 +166,7 @@
   <footer>
     <div class="footer-inner">
       <span>비공식 팬 제작 사이트 · Blizzard Entertainment와 무관</span>
-      <nav><router-link to="/community?cat=공략">가이드 제보</router-link><router-link to="/patch">패치노트</router-link><a href="#">문의</a></nav>
+      <nav><router-link to="/community?cat=공략">가이드 제보</router-link><router-link to="/patch">패치노트</router-link><router-link to="/community?cat=질문">문의</router-link></nav>
     </div>
   </footer>
   </div>

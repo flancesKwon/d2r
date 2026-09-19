@@ -1,0 +1,549 @@
+<script setup>
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import classStats from '../data/classStats.json'
+import skillData from '../data/skills.json'
+import itemsData from '../data/items.json'
+import { CLASS_ICONS } from '../icons.js'
+import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
+import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
+
+const route = useRoute()
+const router = useRouter()
+
+const classKeys = Object.keys(classStats)
+const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
+const STAT_LABELS = { str: '힘', dex: '민첩', vit: '활력', nrg: '에너지' }
+const DIFFS = ['노말', '나이트메어', '헬']
+
+// 난이도마다 반복 지급되는 퀘스트 보상 (덴 오브 이블/라다멘트의 둥지/타락한 천사는 스킬 포인트,
+// 람 에센의 책은 스탯 포인트를 줌 — 전 난이도 클리어 시 스킬 12개, 스탯 15개가 최대치)
+const SKILL_QUESTS = [
+  { key: 'denOfEvil', act: 1, name: '지옥의 소굴', points: 1 },
+  { key: 'radament', act: 2, name: '라다멘트의 둥지', points: 1 },
+  { key: 'izual', act: 4, name: '타락한 천사 (이주얼)', points: 2 },
+]
+const STAT_QUESTS = [{ key: 'lamEsen', act: 3, name: '람 에센의 책', points: 5 }]
+
+const selectedClass = ref('amazon')
+const level = ref(1)
+const activeTab = ref(0)
+
+const allocatedStats = reactive({ str: 0, dex: 0, vit: 0, nrg: 0 })
+const allocatedSkills = reactive({})
+const questSkillDone = reactive(Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, [false, false, false]])))
+const questStatDone = reactive(Object.fromEntries(STAT_QUESTS.map((q) => [q.key, [false, false, false]])))
+const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, ''])))
+
+const itemsBySlot = buildItemsBySlot(itemsData)
+const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
+
+const itemAgg = computed(() => {
+  const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
+  return aggregateItemStats(full, selectedClass.value)
+})
+
+function resetAll() {
+  STAT_KEYS.forEach((k) => (allocatedStats[k] = 0))
+  Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
+}
+
+function resetEquip() {
+  SLOT_DEFS.forEach((s) => (equippedItems[s.key] = ''))
+}
+
+let skipClassReset = false
+watch(selectedClass, () => {
+  if (skipClassReset) return
+  resetAll()
+  activeTab.value = 0
+})
+
+const classInfo = computed(() => classStats[selectedClass.value])
+const classTabs = computed(() => skillData[selectedClass.value].tabs)
+
+const clampedLevel = computed({
+  get: () => level.value,
+  set: (v) => {
+    const n = Math.round(Number(v) || 1)
+    level.value = Math.min(99, Math.max(1, n))
+  },
+})
+
+const questStatBonus = computed(() => STAT_QUESTS.reduce((sum, q) => sum + q.points * questStatDone[q.key].filter(Boolean).length, 0))
+const questSkillBonus = computed(() => SKILL_QUESTS.reduce((sum, q) => sum + q.points * questSkillDone[q.key].filter(Boolean).length, 0))
+
+const totalStatPoints = computed(() => questStatBonus.value + 5 * (level.value - 1))
+const spentStatPoints = computed(() => STAT_KEYS.reduce((sum, k) => sum + allocatedStats[k], 0))
+const remainingStatPoints = computed(() => totalStatPoints.value - spentStatPoints.value)
+
+const totalSkillPoints = computed(() => questSkillBonus.value + (level.value - 1))
+const spentSkillPoints = computed(() => Object.values(allocatedSkills).reduce((sum, v) => sum + v, 0))
+const remainingSkillPoints = computed(() => totalSkillPoints.value - spentSkillPoints.value)
+
+function skillKey(tabIdx, skillIdx) {
+  return `${selectedClass.value}-${tabIdx}-${skillIdx}`
+}
+
+function skillPoint(tabIdx, skillIdx) {
+  return allocatedSkills[skillKey(tabIdx, skillIdx)] || 0
+}
+
+// 스킬 이름 -> {tabIdx, skillIdx} 조회용 (같은 클래스 내 다른 스킬 선행/시너지 참조에 사용)
+const skillLocationByName = computed(() => {
+  const map = {}
+  classTabs.value.forEach((tab, tabIdx) => {
+    tab.skills.forEach((s, skillIdx) => {
+      map[s.name] = { tabIdx, skillIdx }
+    })
+  })
+  return map
+})
+
+// ---- 빌드 공유 링크 ----
+const shareUrl = ref('')
+const shareCopied = ref(false)
+
+function encodeShareCode(payload) {
+  const json = JSON.stringify(payload)
+  return btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+function decodeShareCode(code) {
+  try {
+    let b64 = code.replace(/-/g, '+').replace(/_/g, '/')
+    while (b64.length % 4) b64 += '='
+    return JSON.parse(decodeURIComponent(escape(atob(b64))))
+  } catch (e) {
+    return null
+  }
+}
+
+function buildSharePayload() {
+  const sk = {}
+  classTabs.value.forEach((tab, tabIdx) => {
+    tab.skills.forEach((skill, skillIdx) => {
+      const p = skillPoint(tabIdx, skillIdx)
+      if (p > 0) sk[skill.name] = p
+    })
+  })
+  return {
+    c: selectedClass.value,
+    l: level.value,
+    st: { ...allocatedStats },
+    sk,
+    qs: Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, questSkillDone[q.key]])),
+    qt: Object.fromEntries(STAT_QUESTS.map((q) => [q.key, questStatDone[q.key]])),
+    eq: { ...equippedItems },
+  }
+}
+
+async function applyShareState(data) {
+  if (!data || !classStats[data.c] || !skillData[data.c]) return
+  skipClassReset = true
+  selectedClass.value = data.c
+  await nextTick()
+  skipClassReset = false
+
+  level.value = Math.min(99, Math.max(1, Number(data.l) || 1))
+  STAT_KEYS.forEach((k) => (allocatedStats[k] = Number(data.st?.[k]) || 0))
+  Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
+  if (data.sk) {
+    Object.entries(data.sk).forEach(([name, pts]) => {
+      const loc = skillLocationByName.value[name]
+      if (loc) allocatedSkills[skillKey(loc.tabIdx, loc.skillIdx)] = Number(pts) || 0
+    })
+  }
+  SKILL_QUESTS.forEach((q) => {
+    if (Array.isArray(data.qs?.[q.key])) questSkillDone[q.key] = data.qs[q.key].map(Boolean)
+  })
+  STAT_QUESTS.forEach((q) => {
+    if (Array.isArray(data.qt?.[q.key])) questStatDone[q.key] = data.qt[q.key].map(Boolean)
+  })
+  SLOT_DEFS.forEach((s) => (equippedItems[s.key] = (data.eq && data.eq[s.key]) || ''))
+}
+
+async function shareLink() {
+  const code = encodeShareCode(buildSharePayload())
+  router.replace({ path: '/simulator', query: { b: code } }).catch(() => {})
+  shareUrl.value = `${window.location.origin}${window.location.pathname}#/simulator?b=${code}`
+  shareCopied.value = false
+  try {
+    await navigator.clipboard.writeText(shareUrl.value)
+    shareCopied.value = true
+  } catch (e) {
+    // 클립보드 권한이 없으면 링크를 화면에 그대로 보여줘서 수동 복사하게 함
+  }
+}
+
+onMounted(() => {
+  if (typeof route.query.b === 'string') {
+    applyShareState(decodeShareCode(route.query.b))
+  }
+})
+
+function skillPointByName(name) {
+  const loc = skillLocationByName.value[name]
+  return loc ? skillPoint(loc.tabIdx, loc.skillIdx) : 0
+}
+
+// 이 스킬을 선행 스킬로 요구하는 다른 스킬 중 포인트가 찍혀 있는 게 있는지
+function hasDependents(name) {
+  return classTabs.value.some((tab) =>
+    tab.skills.some((s) => s.reqSkills && s.reqSkills.includes(name) && skillPointByName(s.name) > 0)
+  )
+}
+
+function canIncreaseSkill(tabIdx, skillIdx) {
+  const skill = classTabs.value[tabIdx].skills[skillIdx]
+  const current = skillPoint(tabIdx, skillIdx)
+  if (remainingSkillPoints.value <= 0) return false
+  if (current >= 20) return false
+  if (level.value < skill.reqLevel) return false
+  if (skill.reqSkills && skill.reqSkills.some((name) => skillPointByName(name) < 1)) return false
+  return true
+}
+
+function canDecreaseSkill(tabIdx, skillIdx) {
+  const skill = classTabs.value[tabIdx].skills[skillIdx]
+  const current = skillPoint(tabIdx, skillIdx)
+  if (current <= 0) return false
+  if (current === 1 && hasDependents(skill.name)) return false
+  return true
+}
+
+function effectiveSkillLevel(tabIdx, skillIdx) {
+  const skill = classTabs.value[tabIdx].skills[skillIdx]
+  const hard = skillPoint(tabIdx, skillIdx)
+  if (hard <= 0) return 0
+  const bonus = itemSkillBonus(itemAgg.value, skill.name, classTabs.value[tabIdx].name)
+  return hard + bonus
+}
+
+function skillDamage(tabIdx, skillIdx) {
+  const skill = classTabs.value[tabIdx].skills[skillIdx]
+  const hard = skillPoint(tabIdx, skillIdx)
+  if (!hard || !skill.dmg) return null
+  return computeSkillDamage(skill, effectiveSkillLevel(tabIdx, skillIdx), skillPointByName)
+}
+
+function synergySources(skill) {
+  const list = [...(skill.synergyPhy || []), ...(skill.synergyEle || [])]
+  const seen = new Set()
+  return list.filter((s) => (seen.has(s.skill) ? false : seen.add(s.skill)))
+}
+
+function increaseSkill(tabIdx, skillIdx) {
+  if (!canIncreaseSkill(tabIdx, skillIdx)) return
+  const key = skillKey(tabIdx, skillIdx)
+  allocatedSkills[key] = (allocatedSkills[key] || 0) + 1
+}
+
+function decreaseSkill(tabIdx, skillIdx) {
+  if (!canDecreaseSkill(tabIdx, skillIdx)) return
+  const key = skillKey(tabIdx, skillIdx)
+  const next = (allocatedSkills[key] || 0) - 1
+  if (next <= 0) delete allocatedSkills[key]
+  else allocatedSkills[key] = next
+}
+
+function increaseStat(key) {
+  if (remainingStatPoints.value <= 0) return
+  allocatedStats[key]++
+}
+
+function decreaseStat(key) {
+  if (allocatedStats[key] <= 0) return
+  allocatedStats[key]--
+}
+
+const displayStats = computed(() => {
+  const b = classInfo.value.base
+  const g = itemAgg.value
+  return STAT_KEYS.map((k) => ({
+    key: k,
+    label: STAT_LABELS[k],
+    base: b[k],
+    added: allocatedStats[k],
+    gear: g[k],
+    total: b[k] + allocatedStats[k] + g[k],
+  }))
+})
+
+const derivedStats = computed(() => {
+  const c = classInfo.value
+  const g = itemAgg.value
+  const lvl = level.value
+  const ac = Math.round((g.acFlat || 0) * (1 + (g.acPercent || 0) / 100))
+  return {
+    life: Math.round(c.life + c.lifePerLevel * (lvl - 1) + c.lifePerVit * allocatedStats.vit + g.life),
+    mana: Math.round(c.mana + c.manaPerLevel * (lvl - 1) + c.manaPerNrg * allocatedStats.nrg + g.mana),
+    stamina: Math.round(c.stamina + c.staminaPerLevel * (lvl - 1) + c.staminaPerVit * allocatedStats.vit),
+    armor: ac,
+    resist: {
+      fire: Math.min(75, Math.round(g.resist.fire)),
+      cold: Math.min(75, Math.round(g.resist.cold)),
+      ltng: Math.min(75, Math.round(g.resist.ltng)),
+      pois: Math.min(75, Math.round(g.resist.pois)),
+    },
+    weaponDamage: g.weaponDamage ? { min: Math.round(g.weaponDamage.min), max: Math.round(g.weaponDamage.max) } : null,
+  }
+})
+
+const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.reduce((sum, s, i) => sum + skillPoint(tabIdx, i), 0)))
+</script>
+
+<template>
+  <div class="items-page simulator-page">
+  <header>
+    <div class="logo">
+      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
+        <span class="logo-mark"></span>디아사전
+      </router-link>
+    </div>
+    <div class="crumb"><router-link to="/">메인</router-link> / <b>스킬·스탯 시뮬레이터</b></div>
+  </header>
+
+  <div class="patch-hero">
+    <div class="patch-hero-inner">
+      <div class="eyebrow">빌드 계획 도구</div>
+      <h1>스킬·스탯 시뮬레이터</h1>
+      <p>레벨·스탯·스킬 포인트에 장비까지 껴서 데미지·생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요. 스킬 데미지·시너지는 실제 게임 데이터 기준이에요 (오라/마스터리 효과, 근접 스킬의 무기-스킬 결합 계산은 아직 단순화된 상태예요).</p>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-inner">
+      <div class="cat-tabs sim-class-tabs">
+        <button v-for="c in classKeys" :key="c" :class="{ active: selectedClass === c }" @click="selectedClass = c">
+          <span class="sim-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[c]"></svg></span>
+          {{ classStats[c].name }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-wrap sim-wrap">
+    <div class="sim-controls">
+      <label class="sim-field">
+        <span>캐릭터 레벨</span>
+        <input type="number" min="1" max="99" v-model="clampedLevel" />
+      </label>
+      <button class="sim-reset-btn" @click="resetAll">빌드 초기화</button>
+      <button class="sim-reset-btn sim-share-btn" @click="shareLink">빌드 공유 링크 만들기</button>
+    </div>
+
+    <div class="sim-share-box" v-if="shareUrl">
+      <input class="sim-share-input" type="text" :value="shareUrl" readonly @focus="$event.target.select()" />
+      <span class="sim-share-status">{{ shareCopied ? '링크가 복사됐어요' : '복사가 안 되면 위 링크를 직접 선택해서 복사해주세요' }}</span>
+    </div>
+
+    <div class="side-block sim-panel sim-quest-box">
+      <h3>퀘스트 보너스 <span class="sim-remaining">스킬 포인트 +{{ questSkillBonus }} · 스탯 포인트 +{{ questStatBonus }}</span></h3>
+      <div class="sim-quest-row" v-for="q in SKILL_QUESTS" :key="q.key">
+        <span class="sim-quest-name">{{ q.name }} <small>(Act{{ q.act }} · 클리어당 스킬 +{{ q.points }})</small></span>
+        <div class="sim-quest-diffs">
+          <label class="sim-quest-diff" v-for="(d, i) in DIFFS" :key="d">
+            <input type="checkbox" v-model="questSkillDone[q.key][i]" />{{ d }}
+          </label>
+        </div>
+      </div>
+      <div class="sim-quest-row" v-for="q in STAT_QUESTS" :key="q.key">
+        <span class="sim-quest-name">{{ q.name }} <small>(Act{{ q.act }} · 클리어당 스탯 +{{ q.points }})</small></span>
+        <div class="sim-quest-diffs">
+          <label class="sim-quest-diff" v-for="(d, i) in DIFFS" :key="d">
+            <input type="checkbox" v-model="questStatDone[q.key][i]" />{{ d }}
+          </label>
+        </div>
+      </div>
+      <div class="note-box sim-note">덴 오브 이블(+1)·라다멘트의 둥지(+1)·타락한 천사/이주얼(+2) 스킬 포인트, 람 에센의 책(+5) 스탯 포인트 — 난이도마다 반복 지급돼서 전부 깨면 스킬 12개, 스탯 15개 최대.</div>
+    </div>
+
+    <div class="side-block sim-panel sim-equip-box">
+      <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
+      <div class="sim-equip-grid">
+        <label class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key">
+          <span>{{ s.label }}</span>
+          <select v-model="equippedItems[s.key]">
+            <option value="">비어있음</option>
+            <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
+              {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
+            </option>
+          </select>
+        </label>
+      </div>
+      <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요.</div>
+    </div>
+
+    <div class="sim-top-grid">
+      <div class="side-block sim-panel">
+        <h3>스탯 포인트 <span class="sim-remaining" :class="{ warn: remainingStatPoints < 0 }">남은 포인트 {{ remainingStatPoints }} / {{ totalStatPoints }}</span></h3>
+        <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
+          <span class="sim-stat-label">{{ s.label }}</span>
+          <button class="sim-pm" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0">−</button>
+          <span class="sim-stat-value">{{ s.total }}<small>(기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template>)</small></span>
+          <button class="sim-pm" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0">+</button>
+        </div>
+      </div>
+
+      <div class="side-block sim-panel">
+        <h3>예상 능력치</h3>
+        <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
+        <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
+        <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
+        <div class="sim-derived-row"><span>방어력 (장비)</span><b>{{ derivedStats.armor }}</b></div>
+        <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 물리 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
+        <div class="sim-derived-row">
+          <span>저항 (화/냉/전/독)</span>
+          <b>{{ derivedStats.resist.fire }}% / {{ derivedStats.resist.cold }}% / {{ derivedStats.resist.ltng }}% / {{ derivedStats.resist.pois }}%</b>
+        </div>
+        <div class="note-box sim-note">스탯 성장 공식은 커뮤니티 자료 기준 근사치예요. 저항은 75% 상한 적용, 방어력은 장비 고정치×(1+%증가)만 반영했어요.</div>
+      </div>
+    </div>
+
+    <div class="sim-skill-section">
+      <div class="sim-skill-head">
+        <h3>스킬 포인트 <span class="sim-remaining" :class="{ warn: remainingSkillPoints < 0 }">남은 포인트 {{ remainingSkillPoints }} / {{ totalSkillPoints }}</span></h3>
+      </div>
+      <div class="cat-tabs sub-tabs sim-tree-tabs">
+        <button v-for="(tab, i) in classTabs" :key="tab.name" :class="{ active: activeTab === i }" @click="activeTab = i">
+          {{ tab.name }} <small>({{ tabSpent[i] }})</small>
+        </button>
+      </div>
+      <div class="sim-tree-grid">
+        <div v-for="(tab, tabIdx) in classTabs" :key="tab.name" class="sim-tree-col" v-show="activeTab === tabIdx">
+          <div class="sim-skill-line" v-for="(skill, skillIdx) in tab.skills" :key="skill.name">
+            <div class="sim-skill-row">
+              <div class="sim-skill-info">
+                <span class="sim-skill-name">{{ skill.name }}</span>
+                <span class="sim-skill-tier">
+                  요구 레벨 {{ skill.reqLevel }}
+                  <template v-if="skill.reqSkills && skill.reqSkills.length"> · 선행: {{ skill.reqSkills.join(', ') }}</template>
+                </span>
+              </div>
+              <button class="sim-pm" @click="decreaseSkill(tabIdx, skillIdx)" :disabled="!canDecreaseSkill(tabIdx, skillIdx)">−</button>
+              <span class="sim-skill-value">{{ skillPoint(tabIdx, skillIdx) }}</span>
+              <button class="sim-pm" @click="increaseSkill(tabIdx, skillIdx)" :disabled="!canIncreaseSkill(tabIdx, skillIdx)">+</button>
+            </div>
+            <div class="sim-skill-detail" v-if="skillPoint(tabIdx, skillIdx) > 0 && (skill.dmg || synergySources(skill).length)">
+              <div class="sim-dmg-line" v-if="effectiveSkillLevel(tabIdx, skillIdx) !== skillPoint(tabIdx, skillIdx)">
+                유효 스킬 레벨 {{ effectiveSkillLevel(tabIdx, skillIdx) }} <small>(하드포인트 {{ skillPoint(tabIdx, skillIdx) }} + 장비 {{ effectiveSkillLevel(tabIdx, skillIdx) - skillPoint(tabIdx, skillIdx) }})</small>
+              </div>
+              <div class="sim-dmg-line" v-if="skillDamage(tabIdx, skillIdx)?.ele">
+                {{ ELEMENT_LABELS[skillDamage(tabIdx, skillIdx).ele.type] }} 데미지 {{ skillDamage(tabIdx, skillIdx).ele.min }}~{{ skillDamage(tabIdx, skillIdx).ele.max }}
+                <span class="sim-syn-pct" v-if="skillDamage(tabIdx, skillIdx).ele.percent">(시너지 +{{ skillDamage(tabIdx, skillIdx).ele.percent }}%)</span>
+              </div>
+              <div class="sim-dmg-line" v-if="skillDamage(tabIdx, skillIdx)?.phy">
+                물리 데미지 {{ skillDamage(tabIdx, skillIdx).phy.min }}~{{ skillDamage(tabIdx, skillIdx).phy.max }} <small>(무기 데미지 제외, 스킬 자체 수치)</small>
+                <span class="sim-syn-pct" v-if="skillDamage(tabIdx, skillIdx).phy.percent">(시너지 +{{ skillDamage(tabIdx, skillIdx).phy.percent }}%)</span>
+              </div>
+              <div class="sim-syn-line" v-if="synergySources(skill).length">
+                시너지 제공: <span v-for="(s, i) in synergySources(skill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ s.skill }}(+{{ s.percent }}%/lv)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</template>
+
+<style scoped>
+.sim-wrap{max-width:960px;}
+.sim-class-tabs button{display:flex; align-items:center; gap:7px;}
+.sim-class-icon{width:16px; height:16px; display:inline-flex; flex:none;}
+.sim-class-icon svg{width:100%; height:100%; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+
+.sim-controls{display:flex; flex-wrap:wrap; align-items:end; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border-soft);}
+.sim-field{display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-muted);}
+.sim-field input{
+  width:120px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  padding:9px 12px; font-size:14px; font-family:inherit;
+}
+.sim-field input:focus{outline:none; border-color:var(--gold-dim);}
+.sim-reset-btn{border:1px solid var(--border); color:var(--text-muted); padding:9px 16px; font-size:12.5px; height:38px;}
+.sim-reset-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+.sim-share-btn{border-color:var(--gold-dim); color:var(--gold);}
+.sim-share-btn:hover{background:var(--panel);}
+
+.sim-share-box{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:-8px 0 24px;}
+.sim-share-input{
+  flex:1; min-width:220px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  padding:9px 12px; font-size:12.5px; font-family:inherit;
+}
+.sim-share-input:focus{outline:none; border-color:var(--gold-dim);}
+.sim-share-status{font-size:11.5px; color:var(--text-dim);}
+
+.sim-quest-box{margin-bottom:20px;}
+.sim-quest-row{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border-soft);}
+.sim-quest-row:first-of-type{border-top:none;}
+.sim-quest-name{font-size:13px; color:var(--text);}
+.sim-quest-name small{color:var(--text-dim); font-weight:400;}
+.sim-quest-diffs{display:flex; gap:12px; flex:none;}
+.sim-quest-diff{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-muted); cursor:pointer;}
+.sim-quest-diff input{accent-color:var(--gold-dim); cursor:pointer;}
+
+.sim-equip-box{margin-bottom:20px;}
+.sim-equip-box h3{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:14px;}
+.sim-equip-reset{height:auto; padding:6px 12px; font-size:11.5px;}
+.sim-equip-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:10px 16px;}
+.sim-equip-slot{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--text-muted);}
+.sim-equip-slot select{
+  background:var(--panel); border:1px solid var(--border); color:var(--text);
+  padding:8px 10px; font-size:12.5px; font-family:inherit; max-width:100%;
+}
+.sim-equip-slot select:focus{outline:none; border-color:var(--gold-dim);}
+@media (max-width:560px){ .sim-equip-grid{grid-template-columns:1fr;} }
+
+.sim-top-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;}
+.sim-panel{padding:18px 20px;}
+.sim-panel h3{font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px;}
+.sim-remaining{font-size:11.5px; color:var(--text-dim); font-weight:400;}
+.sim-remaining.warn{color:var(--blood);}
+
+.sim-stat-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--border-soft);}
+.sim-stat-row:first-of-type{border-top:none;}
+.sim-stat-label{width:48px; font-size:13px; color:var(--text-muted); flex:none;}
+.sim-stat-value{flex:1; font-size:14px; color:var(--text); font-weight:600;}
+.sim-stat-value small{color:var(--text-dim); font-weight:400; font-size:11px; margin-left:4px;}
+
+.sim-pm{
+  width:28px; height:28px; border:1px solid var(--border); color:var(--text-muted); font-size:15px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.sim-pm:hover:not(:disabled){border-color:var(--gold-dim); color:var(--gold);}
+.sim-pm:disabled{opacity:0.35; cursor:default;}
+
+.sim-derived-row{display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--border-soft); font-size:13.5px; color:var(--text-muted);}
+.sim-derived-row:first-of-type{border-top:none;}
+.sim-derived-row b{color:var(--gold); font-size:15px;}
+.sim-note{margin-top:12px; margin-bottom:0;}
+
+.sim-skill-head h3{font-size:15px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+.sim-tree-tabs{margin-bottom:16px;}
+.sim-tree-tabs small{color:var(--text-dim);}
+.sim-tree-col{display:flex; flex-direction:column; gap:1px;}
+.sim-skill-line{padding:10px 14px; border:1px solid var(--border-soft); border-top:none;}
+.sim-skill-line:first-child{border-top:1px solid var(--border-soft);}
+.sim-skill-row{display:flex; align-items:center; gap:10px;}
+.sim-skill-info{flex:1; display:flex; flex-direction:column; gap:2px; min-width:0;}
+.sim-skill-name{font-size:13.5px; color:var(--text);}
+.sim-skill-tier{font-size:10.5px; color:var(--text-dim);}
+.sim-skill-value{width:22px; text-align:center; font-size:14px; color:var(--gold); font-weight:700; flex:none;}
+.sim-skill-detail{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-soft); font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;}
+.sim-dmg-line small{color:var(--text-dim); font-size:10.5px;}
+.sim-syn-pct{color:var(--gold-dim); margin-left:4px;}
+.sim-syn-line{color:var(--text-dim); font-size:11.5px;}
+
+@media (max-width:800px){
+  .sim-top-grid{grid-template-columns:1fr;}
+}
+@media (max-width:560px){
+  .sim-controls{flex-direction:column; align-items:stretch;}
+  .sim-field input{width:100%;}
+}
+</style>

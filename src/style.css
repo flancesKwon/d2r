@@ -191,6 +191,8 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
   .search-pill:hover{border-color:var(--gold-dim); color:var(--text);}
   .search-pill .chev{font-size:10px; color:var(--text-dim);}
   .header-icons{display:flex; align-items:center; gap:16px; color:var(--text-dim); font-size:14px;}
+  .header-icons .signup-link{font-size:12.5px; color:var(--text-muted);}
+  .header-icons .signup-link:hover{color:var(--gold);}
 
   .subnav{max-width:1180px; margin:0 auto; padding:0 24px; display:flex; gap:26px; font-size:14px;}
   .subnav a{padding:12px 2px; color:var(--text-muted); border-bottom:2px solid transparent; display:inline-block;}

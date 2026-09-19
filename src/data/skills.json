@@ -1,0 +1,4962 @@
+{
+  "amazon": {
+    "tabs": [
+      {
+        "name": "궁술",
+        "skills": [
+          {
+            "name": "매직 애로우",
+            "nameEn": "Magic Arrow",
+            "reqLevel": 1,
+            "dmg": {
+              "phy": {
+                "min": [
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  8,
+                  1
+                ],
+                "max": [
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  8,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "파이어 애로우",
+            "nameEn": "Fire Arrow",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  1,
+                  2,
+                  3,
+                  6,
+                  12,
+                  24,
+                  8,
+                  1
+                ],
+                "max": [
+                  4,
+                  2,
+                  3,
+                  7,
+                  14,
+                  27,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "익스플로딩 애로우",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "콜드 애로우",
+            "nameEn": "Cold Arrow",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  6,
+                  4,
+                  5,
+                  8,
+                  16,
+                  42,
+                  7,
+                  1
+                ],
+                "max": [
+                  8,
+                  4,
+                  5,
+                  9,
+                  17,
+                  44,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "아이스 애로우",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "멀티플 샷",
+            "nameEn": "Multiple Shot",
+            "reqLevel": 6,
+            "reqSkills": [
+              "매직 애로우"
+            ]
+          },
+          {
+            "name": "익스플로딩 애로우",
+            "nameEn": "Exploding Arrow",
+            "reqLevel": 12,
+            "reqSkills": [
+              "파이어 애로우",
+              "멀티플 샷"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  5,
+                  6,
+                  12,
+                  14,
+                  16,
+                  20,
+                  8,
+                  1
+                ],
+                "max": [
+                  13,
+                  7,
+                  13,
+                  15,
+                  18,
+                  23,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 애로우",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "아이스 애로우",
+            "nameEn": "Ice Arrow",
+            "reqLevel": 18,
+            "reqSkills": [
+              "콜드 애로우"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  6,
+                  6,
+                  12,
+                  18,
+                  26,
+                  36,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  6,
+                  13,
+                  19,
+                  27,
+                  38,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "콜드 애로우",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "가이디드 애로우",
+            "nameEn": "Guided Arrow",
+            "reqLevel": 18,
+            "reqSkills": [
+              "콜드 애로우",
+              "멀티플 샷"
+            ]
+          },
+          {
+            "name": "스트레이프",
+            "nameEn": "Strafe",
+            "reqLevel": 24,
+            "reqSkills": [
+              "가이디드 애로우"
+            ]
+          },
+          {
+            "name": "이몰레이션 애로우",
+            "nameEn": "Immolation Arrow",
+            "reqLevel": 24,
+            "reqSkills": [
+              "익스플로딩 애로우"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  12,
+                  12,
+                  23,
+                  34,
+                  36,
+                  38,
+                  8,
+                  1
+                ],
+                "max": [
+                  23,
+                  12,
+                  23,
+                  34,
+                  36,
+                  38,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "익스플로딩 애로우",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "프리징 애로우",
+            "nameEn": "Freezing Arrow",
+            "reqLevel": 30,
+            "reqSkills": [
+              "아이스 애로우"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  40,
+                  10,
+                  15,
+                  20,
+                  22,
+                  24,
+                  8,
+                  1
+                ],
+                "max": [
+                  50,
+                  10,
+                  15,
+                  20,
+                  22,
+                  24,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "콜드 애로우",
+                "percent": 12
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "창술",
+        "skills": [
+          {
+            "name": "잽",
+            "nameEn": "Jab",
+            "reqLevel": 1
+          },
+          {
+            "name": "포이즌 재블린",
+            "nameEn": "Poison Javelin",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  32,
+                  16,
+                  32,
+                  48,
+                  64,
+                  96,
+                  0,
+                  25
+                ],
+                "max": [
+                  48,
+                  16,
+                  36,
+                  52,
+                  68,
+                  100,
+                  0,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "플레이그 재블린",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "임페일",
+            "nameEn": "Impale",
+            "reqLevel": 12,
+            "reqSkills": [
+              "잽"
+            ]
+          },
+          {
+            "name": "라이트닝 볼트",
+            "nameEn": "Lightning Bolt",
+            "reqLevel": 12,
+            "reqSkills": [
+              "포이즌 재블린"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  40,
+                  12,
+                  18,
+                  28,
+                  48,
+                  88,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "라이트닝 스트라이크",
+                "percent": 3
+              },
+              {
+                "skill": "파워 스트라이크",
+                "percent": 3
+              },
+              {
+                "skill": "차지드 스트라이크",
+                "percent": 3
+              },
+              {
+                "skill": "라이트닝 퓨리",
+                "percent": 3
+              }
+            ]
+          },
+          {
+            "name": "파워 스트라이크",
+            "nameEn": "Power Strike",
+            "reqLevel": 6,
+            "reqSkills": [
+              "잽"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  16,
+                  18,
+                  36,
+                  54,
+                  72,
+                  90,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "라이트닝 스트라이크",
+                "percent": 14
+              },
+              {
+                "skill": "라이트닝 볼트",
+                "percent": 14
+              },
+              {
+                "skill": "차지드 스트라이크",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "차지드 스트라이크",
+            "nameEn": "Charged Strike",
+            "reqLevel": 18,
+            "reqSkills": [
+              "파워 스트라이크",
+              "라이트닝 볼트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  30,
+                  12,
+                  16,
+                  20,
+                  24,
+                  28,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "라이트닝 스트라이크",
+                "percent": 14
+              },
+              {
+                "skill": "라이트닝 볼트",
+                "percent": 14
+              },
+              {
+                "skill": "파워 스트라이크",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "플레이그 재블린",
+            "nameEn": "Plague Javelin",
+            "reqLevel": 18,
+            "reqSkills": [
+              "라이트닝 볼트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  12,
+                  8,
+                  16,
+                  26,
+                  55,
+                  80,
+                  3,
+                  25
+                ],
+                "max": [
+                  18,
+                  8,
+                  16,
+                  26,
+                  55,
+                  80,
+                  3,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "포이즌 재블린",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "펜드",
+            "nameEn": "Fend",
+            "reqLevel": 24,
+            "reqSkills": [
+              "임페일"
+            ]
+          },
+          {
+            "name": "라이트닝 스트라이크",
+            "nameEn": "Lightning Strike",
+            "reqLevel": 30,
+            "reqSkills": [
+              "차지드 스트라이크"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  25,
+                  10,
+                  15,
+                  20,
+                  25,
+                  30,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "차지드 스트라이크",
+                "percent": 11
+              },
+              {
+                "skill": "라이트닝 볼트",
+                "percent": 11
+              },
+              {
+                "skill": "파워 스트라이크",
+                "percent": 11
+              }
+            ]
+          },
+          {
+            "name": "라이트닝 퓨리",
+            "nameEn": "Lightning Fury",
+            "reqLevel": 30,
+            "reqSkills": [
+              "플레이그 재블린"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  40,
+                  20,
+                  30,
+                  40,
+                  50,
+                  50,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "차지드 스트라이크",
+                "percent": 1
+              },
+              {
+                "skill": "라이트닝 볼트",
+                "percent": 1
+              },
+              {
+                "skill": "파워 스트라이크",
+                "percent": 1
+              },
+              {
+                "skill": "라이트닝 스트라이크",
+                "percent": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "패시브 & 마법",
+        "skills": [
+          {
+            "name": "이너 사이트",
+            "nameEn": "Inner Sight",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "min": [
+                  40,
+                  25,
+                  45,
+                  60,
+                  80,
+                  100,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "크리티컬 스트라이크",
+            "nameEn": "Critical Strike",
+            "reqLevel": 1
+          },
+          {
+            "name": "닷지",
+            "nameEn": "Dodge",
+            "reqLevel": 6
+          },
+          {
+            "name": "슬로우 미사일",
+            "nameEn": "Slow Missiles",
+            "reqLevel": 12,
+            "reqSkills": [
+              "이너 사이트"
+            ]
+          },
+          {
+            "name": "어보이드",
+            "nameEn": "Avoid",
+            "reqLevel": 12,
+            "reqSkills": [
+              "닷지"
+            ]
+          },
+          {
+            "name": "페네트레이트",
+            "nameEn": "Penetrate",
+            "reqLevel": 18,
+            "reqSkills": [
+              "크리티컬 스트라이크"
+            ]
+          },
+          {
+            "name": "디코이",
+            "nameEn": "Dopplezon",
+            "reqLevel": 24,
+            "reqSkills": [
+              "슬로우 미사일"
+            ]
+          },
+          {
+            "name": "이베이드",
+            "nameEn": "Evade",
+            "reqLevel": 24,
+            "reqSkills": [
+              "어보이드"
+            ]
+          },
+          {
+            "name": "발키리",
+            "nameEn": "Valkyrie",
+            "reqLevel": 30,
+            "reqSkills": [
+              "디코이",
+              "이베이드"
+            ]
+          },
+          {
+            "name": "피어스",
+            "nameEn": "Pierce",
+            "reqLevel": 30,
+            "reqSkills": [
+              "페네트레이트"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "sorc": {
+    "tabs": [
+      {
+        "name": "화염 마법",
+        "skills": [
+          {
+            "name": "파이어 볼트",
+            "nameEn": "Fire Bolt",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  6,
+                  3,
+                  4,
+                  8,
+                  18,
+                  54,
+                  7,
+                  1
+                ],
+                "max": [
+                  12,
+                  3,
+                  6,
+                  10,
+                  20,
+                  56,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어볼",
+                "percent": 16
+              },
+              {
+                "skill": "메테오",
+                "percent": 16
+              }
+            ]
+          },
+          {
+            "name": "웜스",
+            "nameEn": "Warmth",
+            "reqLevel": 1
+          },
+          {
+            "name": "인페르노",
+            "nameEn": "Inferno",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  36,
+                  24,
+                  30,
+                  34,
+                  38,
+                  42,
+                  3,
+                  25
+                ],
+                "max": [
+                  72,
+                  25,
+                  31,
+                  35,
+                  39,
+                  43,
+                  3,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "웜스",
+                "percent": 16
+              }
+            ]
+          },
+          {
+            "name": "블레이즈",
+            "nameEn": "Blaze",
+            "reqLevel": 12,
+            "reqSkills": [
+              "인페르노"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  4,
+                  3,
+                  5,
+                  7,
+                  9,
+                  11,
+                  4,
+                  75
+                ],
+                "max": [
+                  8,
+                  3,
+                  6,
+                  8,
+                  10,
+                  12,
+                  4,
+                  75
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "웜스",
+                "percent": 6
+              }
+            ]
+          },
+          {
+            "name": "파이어볼",
+            "nameEn": "Fire Ball",
+            "reqLevel": 12,
+            "reqSkills": [
+              "파이어 볼트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  12,
+                  13,
+                  23,
+                  28,
+                  33,
+                  38,
+                  7,
+                  1
+                ],
+                "max": [
+                  28,
+                  15,
+                  25,
+                  30,
+                  35,
+                  40,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 볼트",
+                "percent": 14
+              },
+              {
+                "skill": "메테오",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "파이어월",
+            "nameEn": "Fire Wall",
+            "reqLevel": 18,
+            "reqSkills": [
+              "블레이즈"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  15,
+                  9,
+                  14,
+                  21,
+                  21,
+                  21,
+                  4,
+                  75
+                ],
+                "max": [
+                  20,
+                  9,
+                  14,
+                  21,
+                  21,
+                  21,
+                  4,
+                  75
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "웜스",
+                "percent": 4
+              },
+              {
+                "skill": "인페르노",
+                "percent": 1
+              }
+            ]
+          },
+          {
+            "name": "인챈트",
+            "nameEn": "Enchant",
+            "reqLevel": 18,
+            "reqSkills": [
+              "웜스",
+              "파이어볼"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  16,
+                  3,
+                  7,
+                  11,
+                  15,
+                  19,
+                  7,
+                  1
+                ],
+                "max": [
+                  20,
+                  5,
+                  9,
+                  13,
+                  17,
+                  21,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "웜스",
+                "percent": 9
+              }
+            ]
+          },
+          {
+            "name": "메테오",
+            "nameEn": "Meteor",
+            "reqLevel": 24,
+            "reqSkills": [
+              "파이어볼",
+              "파이어월"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  80,
+                  23,
+                  39,
+                  79,
+                  81,
+                  83,
+                  8,
+                  1
+                ],
+                "max": [
+                  100,
+                  25,
+                  41,
+                  81,
+                  83,
+                  85,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 볼트",
+                "percent": 5
+              },
+              {
+                "skill": "파이어볼",
+                "percent": 5
+              }
+            ]
+          },
+          {
+            "name": "파이어 마스터리",
+            "nameEn": "Fire Mastery",
+            "reqLevel": 30
+          },
+          {
+            "name": "히드라",
+            "nameEn": "Hydra",
+            "reqLevel": 30,
+            "reqSkills": [
+              "인챈트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  28,
+                  11,
+                  15,
+                  19,
+                  23,
+                  27,
+                  7,
+                  1
+                ],
+                "max": [
+                  39,
+                  13,
+                  17,
+                  21,
+                  25,
+                  29,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 볼트",
+                "percent": 3
+              },
+              {
+                "skill": "파이어볼",
+                "percent": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "냉기 마법",
+        "skills": [
+          {
+            "name": "아이스 볼트",
+            "nameEn": "Ice Bolt",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  6,
+                  2,
+                  4,
+                  6,
+                  8,
+                  10,
+                  7,
+                  1
+                ],
+                "max": [
+                  10,
+                  3,
+                  5,
+                  7,
+                  9,
+                  11,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "프로스트 노바",
+                "percent": 15
+              },
+              {
+                "skill": "아이스 블래스트",
+                "percent": 15
+              },
+              {
+                "skill": "글레이셜 스파이크",
+                "percent": 15
+              },
+              {
+                "skill": "블리자드",
+                "percent": 15
+              },
+              {
+                "skill": "프로즌 오브",
+                "percent": 15
+              }
+            ]
+          },
+          {
+            "name": "프로즌 아머",
+            "nameEn": "Frozen Armor",
+            "reqLevel": 1
+          },
+          {
+            "name": "프로스트 노바",
+            "nameEn": "Frost Nova",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  4,
+                  6,
+                  8,
+                  10,
+                  12,
+                  14,
+                  7,
+                  1
+                ],
+                "max": [
+                  8,
+                  7,
+                  9,
+                  11,
+                  13,
+                  15,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "블리자드",
+                "percent": 10
+              },
+              {
+                "skill": "프로즌 오브",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "아이스 블래스트",
+            "nameEn": "Ice Blast",
+            "reqLevel": 6,
+            "reqSkills": [
+              "아이스 볼트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  16,
+                  14,
+                  28,
+                  42,
+                  56,
+                  70,
+                  7,
+                  1
+                ],
+                "max": [
+                  24,
+                  15,
+                  29,
+                  43,
+                  57,
+                  71,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "아이스 볼트",
+                "percent": 8
+              },
+              {
+                "skill": "블리자드",
+                "percent": 8
+              },
+              {
+                "skill": "프로즌 오브",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "쉬버 아머",
+            "nameEn": "Shiver Armor",
+            "reqLevel": 12,
+            "reqSkills": [
+              "아이스 블래스트",
+              "프로즌 아머"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  12,
+                  6,
+                  8,
+                  10,
+                  12,
+                  14,
+                  7,
+                  1
+                ],
+                "max": [
+                  16,
+                  7,
+                  9,
+                  11,
+                  13,
+                  15,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "프로즌 아머",
+                "percent": 9
+              },
+              {
+                "skill": "칠링 아머",
+                "percent": 9
+              }
+            ]
+          },
+          {
+            "name": "글레이셜 스파이크",
+            "nameEn": "Glacial Spike",
+            "reqLevel": 18,
+            "reqSkills": [
+              "아이스 블래스트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  32,
+                  14,
+                  26,
+                  28,
+                  30,
+                  32,
+                  7,
+                  1
+                ],
+                "max": [
+                  48,
+                  15,
+                  27,
+                  29,
+                  31,
+                  33,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "아이스 볼트",
+                "percent": 5
+              },
+              {
+                "skill": "아이스 블래스트",
+                "percent": 5
+              },
+              {
+                "skill": "프로즌 오브",
+                "percent": 5
+              }
+            ]
+          },
+          {
+            "name": "블리자드",
+            "nameEn": "Blizzard",
+            "reqLevel": 24,
+            "reqSkills": [
+              "프로스트 노바",
+              "글레이셜 스파이크"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  45,
+                  15,
+                  30,
+                  45,
+                  55,
+                  65,
+                  8,
+                  1
+                ],
+                "max": [
+                  75,
+                  16,
+                  31,
+                  46,
+                  56,
+                  66,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "아이스 볼트",
+                "percent": 5
+              },
+              {
+                "skill": "아이스 블래스트",
+                "percent": 5
+              },
+              {
+                "skill": "글레이셜 스파이크",
+                "percent": 5
+              }
+            ]
+          },
+          {
+            "name": "칠링 아머",
+            "nameEn": "Chilling Armor",
+            "reqLevel": 24,
+            "reqSkills": [
+              "쉬버 아머"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  16,
+                  8,
+                  10,
+                  12,
+                  14,
+                  16,
+                  7,
+                  1
+                ],
+                "max": [
+                  20,
+                  9,
+                  11,
+                  13,
+                  15,
+                  17,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "프로즌 아머",
+                "percent": 9
+              },
+              {
+                "skill": "쉬버 아머",
+                "percent": 9
+              }
+            ]
+          },
+          {
+            "name": "프로즌 오브",
+            "nameEn": "Frozen Orb",
+            "reqLevel": 30,
+            "reqSkills": [
+              "블리자드"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  80,
+                  20,
+                  24,
+                  28,
+                  29,
+                  30,
+                  7,
+                  1
+                ],
+                "max": [
+                  90,
+                  21,
+                  25,
+                  29,
+                  30,
+                  31,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "아이스 볼트",
+                "percent": 2
+              }
+            ]
+          },
+          {
+            "name": "콜드 마스터리",
+            "nameEn": "Cold Mastery",
+            "reqLevel": 30
+          }
+        ]
+      },
+      {
+        "name": "번개 마법",
+        "skills": [
+          {
+            "name": "차지드 볼트",
+            "nameEn": "Charged Bolt",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  4,
+                  1,
+                  1,
+                  2,
+                  3,
+                  4,
+                  7,
+                  1
+                ],
+                "max": [
+                  8,
+                  1,
+                  1,
+                  2,
+                  3,
+                  4,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "라이트닝",
+                "percent": 6
+              }
+            ]
+          },
+          {
+            "name": "스태틱 필드",
+            "nameEn": "Static Field",
+            "reqLevel": 6
+          },
+          {
+            "name": "텔레키네시스",
+            "nameEn": "Telekinesis",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  8,
+                  1
+                ],
+                "max": [
+                  2,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  8,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "노바",
+            "nameEn": "Nova",
+            "reqLevel": 12,
+            "reqSkills": [
+              "스태틱 필드"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  8,
+                  1
+                ],
+                "max": [
+                  20,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "스태틱 필드",
+                "percent": 5
+              }
+            ]
+          },
+          {
+            "name": "라이트닝",
+            "nameEn": "Lightning",
+            "reqLevel": 12,
+            "reqSkills": [
+              "차지드 볼트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  40,
+                  8,
+                  12,
+                  20,
+                  28,
+                  36,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "차지드 볼트",
+                "percent": 8
+              },
+              {
+                "skill": "체인 라이트닝",
+                "percent": 8
+              },
+              {
+                "skill": "노바",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "체인 라이트닝",
+            "nameEn": "Chain Lightning",
+            "reqLevel": 18,
+            "reqSkills": [
+              "라이트닝"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  40,
+                  11,
+                  13,
+                  15,
+                  15,
+                  15,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "차지드 볼트",
+                "percent": 4
+              },
+              {
+                "skill": "라이트닝",
+                "percent": 4
+              },
+              {
+                "skill": "노바",
+                "percent": 4
+              }
+            ]
+          },
+          {
+            "name": "텔레포트",
+            "nameEn": "Teleport",
+            "reqLevel": 18,
+            "reqSkills": [
+              "텔레키네시스"
+            ]
+          },
+          {
+            "name": "썬더 스톰",
+            "nameEn": "Thunder Storm",
+            "reqLevel": 24,
+            "reqSkills": [
+              "노바",
+              "체인 라이트닝"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  10,
+                  10,
+                  11,
+                  11,
+                  11,
+                  8,
+                  1
+                ],
+                "max": [
+                  100,
+                  10,
+                  10,
+                  11,
+                  11,
+                  11,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "스태틱 필드",
+                "percent": 7
+              }
+            ]
+          },
+          {
+            "name": "에너지 실드",
+            "nameEn": "Energy Shield",
+            "reqLevel": 24,
+            "reqSkills": [
+              "텔레포트",
+              "체인 라이트닝"
+            ],
+            "dmg": {
+              "ele": {
+                "min": [
+                  20,
+                  5,
+                  2,
+                  1,
+                  1,
+                  1,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "라이트닝 마스터리",
+            "nameEn": "Lightning Mastery",
+            "reqLevel": 30
+          }
+        ]
+      }
+    ]
+  },
+  "necro": {
+    "tabs": [
+      {
+        "name": "저주",
+        "skills": [
+          {
+            "name": "앰플리파이 데미지",
+            "nameEn": "Amplify Damage",
+            "reqLevel": 1
+          },
+          {
+            "name": "딤 비전",
+            "nameEn": "Dim Vision",
+            "reqLevel": 6
+          },
+          {
+            "name": "위켄",
+            "nameEn": "Weaken",
+            "reqLevel": 6,
+            "reqSkills": [
+              "앰플리파이 데미지"
+            ]
+          },
+          {
+            "name": "아이언 메이든",
+            "nameEn": "Iron Maiden",
+            "reqLevel": 12,
+            "reqSkills": [
+              "앰플리파이 데미지"
+            ]
+          },
+          {
+            "name": "테러",
+            "nameEn": "Terror",
+            "reqLevel": 12,
+            "reqSkills": [
+              "위켄"
+            ]
+          },
+          {
+            "name": "컨퓨즈",
+            "nameEn": "Confuse",
+            "reqLevel": 18,
+            "reqSkills": [
+              "딤 비전"
+            ]
+          },
+          {
+            "name": "라이프 탭",
+            "nameEn": "Life Tap",
+            "reqLevel": 18,
+            "reqSkills": [
+              "아이언 메이든"
+            ]
+          },
+          {
+            "name": "어트랙트",
+            "nameEn": "Attract",
+            "reqLevel": 24,
+            "reqSkills": [
+              "컨퓨즈"
+            ]
+          },
+          {
+            "name": "데크리피파이",
+            "nameEn": "Decrepify",
+            "reqLevel": 24,
+            "reqSkills": [
+              "테러"
+            ]
+          },
+          {
+            "name": "로우어 레지스트",
+            "nameEn": "Lower Resist",
+            "reqLevel": 30,
+            "reqSkills": [
+              "라이프 탭",
+              "데크리피파이"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "시체 소환",
+        "skills": [
+          {
+            "name": "스켈레톤 마스터리",
+            "nameEn": "Skeleton Mastery",
+            "reqLevel": 1,
+            "reqSkills": [
+              "레이즈 스켈레톤"
+            ]
+          },
+          {
+            "name": "레이즈 스켈레톤",
+            "nameEn": "Raise Skeleton",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "min": [
+                  0,
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "클레이 골렘",
+            "nameEn": "Clay Golem",
+            "reqLevel": 6
+          },
+          {
+            "name": "골렘 마스터리",
+            "nameEn": "Golem Mastery",
+            "reqLevel": 12,
+            "reqSkills": [
+              "클레이 골렘"
+            ]
+          },
+          {
+            "name": "레이즈 스켈레탈 메이지",
+            "nameEn": "Raise Skeletal Mage",
+            "reqLevel": 12,
+            "reqSkills": [
+              "레이즈 스켈레톤"
+            ]
+          },
+          {
+            "name": "블러드 골렘",
+            "nameEn": "BloodGolem",
+            "reqLevel": 18,
+            "reqSkills": [
+              "클레이 골렘"
+            ]
+          },
+          {
+            "name": "서몬 레지스트",
+            "nameEn": "Summon Resist",
+            "reqLevel": 24,
+            "reqSkills": [
+              "골렘 마스터리"
+            ]
+          },
+          {
+            "name": "아이언 골렘",
+            "nameEn": "IronGolem",
+            "reqLevel": 24,
+            "reqSkills": [
+              "블러드 골렘"
+            ],
+            "dmg": {
+              "ele": {
+                "min": [
+                  15,
+                  6,
+                  12,
+                  18,
+                  24,
+                  30,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "파이어 골렘",
+            "nameEn": "FireGolem",
+            "reqLevel": 30,
+            "reqSkills": [
+              "아이언 골렘"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  10,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  8,
+                  1
+                ],
+                "max": [
+                  27,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  8,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "리바이브",
+            "nameEn": "Revive",
+            "reqLevel": 30,
+            "reqSkills": [
+              "레이즈 스켈레탈 메이지",
+              "아이언 골렘"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "독/뼈 마법",
+        "skills": [
+          {
+            "name": "티스",
+            "nameEn": "Teeth",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "mag",
+                "min": [
+                  4,
+                  2,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  1
+                ],
+                "max": [
+                  8,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "본 월",
+                "percent": 15
+              },
+              {
+                "skill": "본 프리즌",
+                "percent": 15
+              },
+              {
+                "skill": "본 스피어",
+                "percent": 15
+              },
+              {
+                "skill": "본 스피릿",
+                "percent": 15
+              }
+            ]
+          },
+          {
+            "name": "본 아머",
+            "nameEn": "Bone Armor",
+            "reqLevel": 1
+          },
+          {
+            "name": "포이즌 대거",
+            "nameEn": "Poison Dagger",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  18,
+                  10,
+                  15,
+                  20,
+                  23,
+                  26,
+                  1,
+                  25
+                ],
+                "max": [
+                  40,
+                  10,
+                  15,
+                  20,
+                  23,
+                  26,
+                  1,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "포이즌 익스플로전",
+                "percent": 20
+              },
+              {
+                "skill": "포이즌 노바",
+                "percent": 20
+              }
+            ]
+          },
+          {
+            "name": "콥스 익스플로전",
+            "nameEn": "Corpse Explosion",
+            "reqLevel": 6,
+            "reqSkills": [
+              "티스"
+            ]
+          },
+          {
+            "name": "본 월",
+            "nameEn": "Bone Wall",
+            "reqLevel": 12,
+            "reqSkills": [
+              "본 아머"
+            ]
+          },
+          {
+            "name": "포이즌 익스플로전",
+            "nameEn": "Poison Explosion",
+            "reqLevel": 18,
+            "reqSkills": [
+              "포이즌 대거",
+              "콥스 익스플로전"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  8,
+                  2,
+                  4,
+                  6,
+                  8,
+                  10,
+                  4,
+                  25
+                ],
+                "max": [
+                  24,
+                  2,
+                  4,
+                  6,
+                  8,
+                  10,
+                  4,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "포이즌 대거",
+                "percent": 15
+              },
+              {
+                "skill": "포이즌 노바",
+                "percent": 15
+              }
+            ]
+          },
+          {
+            "name": "본 스피어",
+            "nameEn": "Bone Spear",
+            "reqLevel": 18,
+            "reqSkills": [
+              "콥스 익스플로전"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "mag",
+                "min": [
+                  16,
+                  8,
+                  9,
+                  12,
+                  18,
+                  24,
+                  8,
+                  1
+                ],
+                "max": [
+                  24,
+                  8,
+                  9,
+                  13,
+                  19,
+                  25,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "본 월",
+                "percent": 8
+              },
+              {
+                "skill": "본 프리즌",
+                "percent": 8
+              },
+              {
+                "skill": "티스",
+                "percent": 8
+              },
+              {
+                "skill": "본 스피릿",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "본 프리즌",
+            "nameEn": "Bone Prison",
+            "reqLevel": 24,
+            "reqSkills": [
+              "본 월",
+              "본 스피어"
+            ]
+          },
+          {
+            "name": "포이즌 노바",
+            "nameEn": "Poison Nova",
+            "reqLevel": 30,
+            "reqSkills": [
+              "포이즌 익스플로전"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  16,
+                  4,
+                  6,
+                  9,
+                  14,
+                  16,
+                  4,
+                  25
+                ],
+                "max": [
+                  29,
+                  4,
+                  6,
+                  9,
+                  14,
+                  16,
+                  4,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "포이즌 대거",
+                "percent": 10
+              },
+              {
+                "skill": "포이즌 익스플로전",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "본 스피릿",
+            "nameEn": "Bone Spirit",
+            "reqLevel": 30,
+            "reqSkills": [
+              "본 스피어"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "mag",
+                "min": [
+                  20,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  8,
+                  1
+                ],
+                "max": [
+                  30,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "본 월",
+                "percent": 8
+              },
+              {
+                "skill": "본 프리즌",
+                "percent": 8
+              },
+              {
+                "skill": "티스",
+                "percent": 8
+              },
+              {
+                "skill": "본 스피어",
+                "percent": 8
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "paladin": {
+    "tabs": [
+      {
+        "name": "돌격 기술",
+        "skills": [
+          {
+            "name": "새크리파이스",
+            "nameEn": "Sacrifice",
+            "reqLevel": 1
+          },
+          {
+            "name": "스마이트",
+            "nameEn": "Smite",
+            "reqLevel": 1
+          },
+          {
+            "name": "젤",
+            "nameEn": "Zeal",
+            "reqLevel": 12,
+            "reqSkills": [
+              "새크리파이스"
+            ]
+          },
+          {
+            "name": "차지",
+            "nameEn": "Charge",
+            "reqLevel": 12,
+            "reqSkills": [
+              "스마이트"
+            ]
+          },
+          {
+            "name": "벤전스",
+            "nameEn": "Vengeance",
+            "reqLevel": 18,
+            "reqSkills": [
+              "젤"
+            ]
+          },
+          {
+            "name": "홀리 볼트",
+            "nameEn": "Holy Bolt",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "mag",
+                "min": [
+                  8,
+                  8,
+                  10,
+                  13,
+                  16,
+                  20,
+                  8,
+                  1
+                ],
+                "max": [
+                  16,
+                  8,
+                  11,
+                  15,
+                  18,
+                  23,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "피스트 오브 더 헤븐즈",
+                "percent": 50
+              }
+            ]
+          },
+          {
+            "name": "블레스드 해머",
+            "nameEn": "Blessed Hammer",
+            "reqLevel": 18,
+            "reqSkills": [
+              "홀리 볼트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "mag",
+                "min": [
+                  12,
+                  8,
+                  10,
+                  12,
+                  13,
+                  14,
+                  8,
+                  1
+                ],
+                "max": [
+                  16,
+                  8,
+                  10,
+                  12,
+                  13,
+                  14,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "비거",
+                "percent": 14
+              },
+              {
+                "skill": "블레스드 에임",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "컨버전",
+            "nameEn": "Conversion",
+            "reqLevel": 24,
+            "reqSkills": [
+              "벤전스"
+            ]
+          },
+          {
+            "name": "피스트 오브 더 헤븐즈",
+            "nameEn": "Fist of the Heavens",
+            "reqLevel": 30,
+            "reqSkills": [
+              "블레스드 해머",
+              "컨버전"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  150,
+                  15,
+                  30,
+                  45,
+                  55,
+                  65,
+                  8,
+                  1
+                ],
+                "max": [
+                  200,
+                  15,
+                  30,
+                  45,
+                  55,
+                  65,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "홀리 쇼크",
+                "percent": 7
+              }
+            ]
+          },
+          {
+            "name": "홀리 실드",
+            "nameEn": "Holy Shield",
+            "reqLevel": 24,
+            "reqSkills": [
+              "차지",
+              "블레스드 해머"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  3,
+                  2,
+                  3,
+                  4,
+                  4,
+                  4,
+                  8,
+                  1
+                ],
+                "max": [
+                  6,
+                  2,
+                  3,
+                  4,
+                  4,
+                  4,
+                  8,
+                  1
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "공격 오라",
+        "skills": [
+          {
+            "name": "마이트",
+            "nameEn": "Might",
+            "reqLevel": 1
+          },
+          {
+            "name": "홀리 파이어",
+            "nameEn": "Holy Fire",
+            "reqLevel": 6,
+            "reqSkills": [
+              "마이트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  2,
+                  1,
+                  4,
+                  6,
+                  7,
+                  8,
+                  7,
+                  1
+                ],
+                "max": [
+                  6,
+                  2,
+                  5,
+                  7,
+                  8,
+                  9,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "레지스트 파이어",
+                "percent": 21
+              },
+              {
+                "skill": "샐베이션",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "쏜즈",
+            "nameEn": "Thorns",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "min": [
+                  4,
+                  4,
+                  8,
+                  12,
+                  16,
+                  20,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "블레스드 에임",
+            "nameEn": "Blessed Aim",
+            "reqLevel": 12,
+            "reqSkills": [
+              "마이트"
+            ]
+          },
+          {
+            "name": "컨센트레이션",
+            "nameEn": "Concentration",
+            "reqLevel": 18,
+            "reqSkills": [
+              "블레스드 에임"
+            ]
+          },
+          {
+            "name": "홀리 프리즈",
+            "nameEn": "Holy Freeze",
+            "reqLevel": 18,
+            "reqSkills": [
+              "홀리 파이어"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  2,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  8,
+                  1
+                ],
+                "max": [
+                  3,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "레지스트 콜드",
+                "percent": 15
+              },
+              {
+                "skill": "샐베이션",
+                "percent": 7
+              }
+            ]
+          },
+          {
+            "name": "홀리 쇼크",
+            "nameEn": "Holy Shock",
+            "reqLevel": 24,
+            "reqSkills": [
+              "홀리 프리즈"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  6,
+                  8,
+                  10,
+                  12,
+                  15,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "레지스트 라이트닝",
+                "percent": 12
+              },
+              {
+                "skill": "샐베이션",
+                "percent": 4
+              }
+            ]
+          },
+          {
+            "name": "생츄어리",
+            "nameEn": "Sanctuary",
+            "reqLevel": 24,
+            "reqSkills": [
+              "쏜즈",
+              "홀리 프리즈"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "mag",
+                "min": [
+                  8,
+                  4,
+                  4,
+                  5,
+                  5,
+                  6,
+                  8,
+                  1
+                ],
+                "max": [
+                  16,
+                  4,
+                  5,
+                  6,
+                  6,
+                  7,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "클렌징",
+                "percent": 7
+              }
+            ]
+          },
+          {
+            "name": "퍼내티시즘",
+            "nameEn": "Fanaticism",
+            "reqLevel": 30,
+            "reqSkills": [
+              "컨센트레이션"
+            ]
+          },
+          {
+            "name": "컨빅션",
+            "nameEn": "Conviction",
+            "reqLevel": 30,
+            "reqSkills": [
+              "생츄어리"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "방어 오라",
+        "skills": [
+          {
+            "name": "프레이어",
+            "nameEn": "Prayer",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "min": [
+                  2,
+                  1,
+                  1,
+                  2,
+                  2,
+                  3,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "레지스트 파이어",
+            "nameEn": "Resist Fire",
+            "reqLevel": 1
+          },
+          {
+            "name": "디파이언스",
+            "nameEn": "Defiance",
+            "reqLevel": 6
+          },
+          {
+            "name": "레지스트 콜드",
+            "nameEn": "Resist Cold",
+            "reqLevel": 6
+          },
+          {
+            "name": "클렌징",
+            "nameEn": "Cleansing",
+            "reqLevel": 12,
+            "reqSkills": [
+              "프레이어"
+            ]
+          },
+          {
+            "name": "레지스트 라이트닝",
+            "nameEn": "Resist Lightning",
+            "reqLevel": 12
+          },
+          {
+            "name": "비거",
+            "nameEn": "Vigor",
+            "reqLevel": 18,
+            "reqSkills": [
+              "클렌징",
+              "디파이언스"
+            ]
+          },
+          {
+            "name": "메디테이션",
+            "nameEn": "Meditation",
+            "reqLevel": 24,
+            "reqSkills": [
+              "클렌징"
+            ]
+          },
+          {
+            "name": "리뎀션",
+            "nameEn": "Redemption",
+            "reqLevel": 30,
+            "reqSkills": [
+              "비거"
+            ]
+          },
+          {
+            "name": "샐베이션",
+            "nameEn": "Salvation",
+            "reqLevel": 30
+          }
+        ]
+      }
+    ]
+  },
+  "barb": {
+    "tabs": [
+      {
+        "name": "전투 기술",
+        "skills": [
+          {
+            "name": "배쉬",
+            "nameEn": "Bash",
+            "reqLevel": 1
+          },
+          {
+            "name": "립",
+            "nameEn": "Leap",
+            "reqLevel": 6
+          },
+          {
+            "name": "더블 스윙",
+            "nameEn": "Double Swing",
+            "reqLevel": 6,
+            "reqSkills": [
+              "배쉬"
+            ]
+          },
+          {
+            "name": "스턴",
+            "nameEn": "Stun",
+            "reqLevel": 12,
+            "reqSkills": [
+              "배쉬"
+            ]
+          },
+          {
+            "name": "더블 스로우",
+            "nameEn": "Double Throw",
+            "reqLevel": 12,
+            "reqSkills": [
+              "더블 스윙"
+            ]
+          },
+          {
+            "name": "립 어택",
+            "nameEn": "Leap Attack",
+            "reqLevel": 18,
+            "reqSkills": [
+              "립"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  10,
+                  4,
+                  8,
+                  12,
+                  16,
+                  20,
+                  8,
+                  1
+                ],
+                "max": [
+                  20,
+                  8,
+                  16,
+                  24,
+                  32,
+                  40,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "립",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "컨센트레이트",
+            "nameEn": "Concentrate",
+            "reqLevel": 18,
+            "reqSkills": [
+              "스턴"
+            ]
+          },
+          {
+            "name": "프렌지",
+            "nameEn": "Frenzy",
+            "reqLevel": 24,
+            "reqSkills": [
+              "더블 스로우"
+            ]
+          },
+          {
+            "name": "웜윈드",
+            "nameEn": "Whirlwind",
+            "reqLevel": 30,
+            "reqSkills": [
+              "립 어택",
+              "컨센트레이트"
+            ]
+          },
+          {
+            "name": "버서크",
+            "nameEn": "Berserk",
+            "reqLevel": 30,
+            "reqSkills": [
+              "컨센트레이트"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "전투 숙련",
+        "skills": [
+          {
+            "name": "소드 마스터리",
+            "nameEn": "Blade Mastery",
+            "reqLevel": 1
+          },
+          {
+            "name": "액스 마스터리",
+            "nameEn": "Axe Mastery",
+            "reqLevel": 1
+          },
+          {
+            "name": "메이스 마스터리",
+            "nameEn": "Mace Mastery",
+            "reqLevel": 1
+          },
+          {
+            "name": "폴암 마스터리",
+            "nameEn": "Pole Arm Mastery",
+            "reqLevel": 6
+          },
+          {
+            "name": "스로잉 마스터리",
+            "nameEn": "Throwing Mastery",
+            "reqLevel": 6
+          },
+          {
+            "name": "스피어 마스터리",
+            "nameEn": "Spear Mastery",
+            "reqLevel": 6
+          },
+          {
+            "name": "인크리스드 스태미나",
+            "nameEn": "Increased Stamina",
+            "reqLevel": 12
+          },
+          {
+            "name": "아이언 스킨",
+            "nameEn": "Iron Skin",
+            "reqLevel": 18
+          },
+          {
+            "name": "인크리스드 스피드",
+            "nameEn": "Increased Speed",
+            "reqLevel": 24,
+            "reqSkills": [
+              "인크리스드 스태미나"
+            ]
+          },
+          {
+            "name": "내추럴 레지스턴스",
+            "nameEn": "Natural Resistance",
+            "reqLevel": 30,
+            "reqSkills": [
+              "아이언 스킨"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "전투 함성",
+        "skills": [
+          {
+            "name": "하울",
+            "nameEn": "Howl",
+            "reqLevel": 1
+          },
+          {
+            "name": "파인드 포션",
+            "nameEn": "Find Potion",
+            "reqLevel": 1
+          },
+          {
+            "name": "타운트",
+            "nameEn": "Taunt",
+            "reqLevel": 6,
+            "reqSkills": [
+              "하울"
+            ]
+          },
+          {
+            "name": "샤우트",
+            "nameEn": "Shout",
+            "reqLevel": 6,
+            "reqSkills": [
+              "하울"
+            ]
+          },
+          {
+            "name": "파인드 아이템",
+            "nameEn": "Find Item",
+            "reqLevel": 12,
+            "reqSkills": [
+              "파인드 포션"
+            ]
+          },
+          {
+            "name": "배틀 크라이",
+            "nameEn": "Battle Cry",
+            "reqLevel": 18,
+            "reqSkills": [
+              "타운트"
+            ]
+          },
+          {
+            "name": "배틀 오더스",
+            "nameEn": "Battle Orders",
+            "reqLevel": 24,
+            "reqSkills": [
+              "샤우트"
+            ]
+          },
+          {
+            "name": "그림 워드",
+            "nameEn": "Grim Ward",
+            "reqLevel": 24,
+            "reqSkills": [
+              "파인드 아이템"
+            ]
+          },
+          {
+            "name": "워 크라이",
+            "nameEn": "War Cry",
+            "reqLevel": 30,
+            "reqSkills": [
+              "배틀 크라이",
+              "배틀 오더스"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  30,
+                  8,
+                  9,
+                  10,
+                  12,
+                  14,
+                  8,
+                  1
+                ],
+                "max": [
+                  40,
+                  8,
+                  9,
+                  10,
+                  12,
+                  14,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "하울",
+                "percent": 6
+              },
+              {
+                "skill": "타운트",
+                "percent": 6
+              },
+              {
+                "skill": "배틀 크라이",
+                "percent": 6
+              }
+            ]
+          },
+          {
+            "name": "배틀 커맨드",
+            "nameEn": "Battle Command",
+            "reqLevel": 30,
+            "reqSkills": [
+              "배틀 오더스"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "druid": {
+    "tabs": [
+      {
+        "name": "소환",
+        "skills": [
+          {
+            "name": "레이븐",
+            "nameEn": "Raven",
+            "reqLevel": 1,
+            "dmg": {
+              "phy": {
+                "min": [
+                  2,
+                  1,
+                  4,
+                  8,
+                  14,
+                  20,
+                  8,
+                  1
+                ],
+                "max": [
+                  4,
+                  2,
+                  5,
+                  9,
+                  15,
+                  21,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "서몬 스피릿 울프",
+                "percent": 12
+              },
+              {
+                "skill": "서몬 다이어 울프",
+                "percent": 12
+              },
+              {
+                "skill": "서몬 그리즐리",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "포이즌 크리퍼",
+            "nameEn": "Plague Poppy",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  16,
+                  16,
+                  16,
+                  32,
+                  64,
+                  80,
+                  1,
+                  25
+                ],
+                "max": [
+                  24,
+                  16,
+                  18,
+                  36,
+                  68,
+                  84,
+                  1,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "레이비스",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "오크 세이지",
+            "nameEn": "Oak Sage",
+            "reqLevel": 6
+          },
+          {
+            "name": "서몬 스피릿 울프",
+            "nameEn": "Summon Spirit Wolf",
+            "reqLevel": 6,
+            "reqSkills": [
+              "레이븐"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  2,
+                  1,
+                  3,
+                  4,
+                  5,
+                  8,
+                  8,
+                  1
+                ],
+                "max": [
+                  6,
+                  1,
+                  3,
+                  4,
+                  5,
+                  8,
+                  8,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "캐리온 바인",
+            "nameEn": "Cycle of Life",
+            "reqLevel": 12,
+            "reqSkills": [
+              "포이즌 크리퍼"
+            ]
+          },
+          {
+            "name": "하트 오브 울버린",
+            "nameEn": "Heart of Wolverine",
+            "reqLevel": 18,
+            "reqSkills": [
+              "오크 세이지"
+            ]
+          },
+          {
+            "name": "서몬 다이어 울프",
+            "nameEn": "Summon Fenris",
+            "reqLevel": 18,
+            "reqSkills": [
+              "오크 세이지",
+              "서몬 스피릿 울프"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  7,
+                  2,
+                  4,
+                  8,
+                  10,
+                  12,
+                  8,
+                  1
+                ],
+                "max": [
+                  12,
+                  3,
+                  5,
+                  9,
+                  11,
+                  13,
+                  8,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "솔라 크리퍼",
+            "nameEn": "Vines",
+            "reqLevel": 24,
+            "reqSkills": [
+              "캐리온 바인"
+            ]
+          },
+          {
+            "name": "스피릿 오브 바브스",
+            "nameEn": "Spirit of Barbs",
+            "reqLevel": 30,
+            "reqSkills": [
+              "하트 오브 울버린"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  32,
+                  9,
+                  18,
+                  27,
+                  36,
+                  45,
+                  8,
+                  1
+                ],
+                "max": null
+              }
+            }
+          },
+          {
+            "name": "서몬 그리즐리",
+            "nameEn": "Summon Grizzly",
+            "reqLevel": 30,
+            "reqSkills": [
+              "서몬 다이어 울프"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  30,
+                  10,
+                  15,
+                  20,
+                  26,
+                  30,
+                  8,
+                  1
+                ],
+                "max": [
+                  60,
+                  10,
+                  15,
+                  20,
+                  26,
+                  30,
+                  8,
+                  1
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "변신",
+        "skills": [
+          {
+            "name": "웨어울프",
+            "nameEn": "Wearwolf",
+            "reqLevel": 1
+          },
+          {
+            "name": "라이칸트로피",
+            "nameEn": "Shape Shifting",
+            "reqLevel": 1,
+            "reqSkills": [
+              "웨어울프"
+            ]
+          },
+          {
+            "name": "웨어베어",
+            "nameEn": "Wearbear",
+            "reqLevel": 6
+          },
+          {
+            "name": "페럴 레이지",
+            "nameEn": "Feral Rage",
+            "reqLevel": 12,
+            "reqSkills": [
+              "웨어울프"
+            ]
+          },
+          {
+            "name": "몰",
+            "nameEn": "Maul",
+            "reqLevel": 12,
+            "reqSkills": [
+              "웨어베어"
+            ]
+          },
+          {
+            "name": "레이비스",
+            "nameEn": "Rabies",
+            "reqLevel": 18,
+            "reqSkills": [
+              "페럴 레이지"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  6,
+                  4,
+                  5,
+                  7,
+                  11,
+                  16,
+                  3,
+                  25
+                ],
+                "max": [
+                  14,
+                  4,
+                  5,
+                  7,
+                  11,
+                  16,
+                  3,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "포이즌 크리퍼",
+                "percent": 20
+              }
+            ]
+          },
+          {
+            "name": "파이어 클로",
+            "nameEn": "Fire Claws",
+            "reqLevel": 18,
+            "reqSkills": [
+              "페럴 레이지",
+              "몰"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  32,
+                  16,
+                  24,
+                  32,
+                  40,
+                  48,
+                  8,
+                  1
+                ],
+                "max": [
+                  48,
+                  17,
+                  25,
+                  33,
+                  41,
+                  49,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어스톰",
+                "percent": 22
+              },
+              {
+                "skill": "몰튼 볼더",
+                "percent": 22
+              }
+            ]
+          },
+          {
+            "name": "헝거",
+            "nameEn": "Hunger",
+            "reqLevel": 24,
+            "reqSkills": [
+              "파이어 클로"
+            ]
+          },
+          {
+            "name": "쇼크 웨이브",
+            "nameEn": "Shock Wave",
+            "reqLevel": 24,
+            "reqSkills": [
+              "몰"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  10,
+                  3,
+                  5,
+                  7,
+                  7,
+                  7,
+                  8,
+                  1
+                ],
+                "max": [
+                  20,
+                  3,
+                  5,
+                  7,
+                  7,
+                  7,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "몰",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "퓨리",
+            "nameEn": "Fury",
+            "reqLevel": 30,
+            "reqSkills": [
+              "레이비스"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "정령 마법",
+        "skills": [
+          {
+            "name": "파이어스톰",
+            "nameEn": "Firestorm",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  3,
+                  3,
+                  5,
+                  7,
+                  14,
+                  21,
+                  2,
+                  75
+                ],
+                "max": [
+                  6,
+                  3,
+                  6,
+                  8,
+                  15,
+                  23,
+                  2,
+                  75
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "몰튼 볼더",
+                "percent": 23
+              },
+              {
+                "skill": "피셔",
+                "percent": 23
+              }
+            ]
+          },
+          {
+            "name": "몰튼 볼더",
+            "nameEn": "Molten Boulder",
+            "reqLevel": 6,
+            "reqSkills": [
+              "파이어스톰"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  6,
+                  4,
+                  7,
+                  10,
+                  13,
+                  16,
+                  8,
+                  1
+                ],
+                "max": [
+                  12,
+                  5,
+                  8,
+                  11,
+                  14,
+                  17,
+                  8,
+                  1
+                ]
+              },
+              "ele": {
+                "type": "fire",
+                "min": [
+                  6,
+                  4,
+                  7,
+                  10,
+                  13,
+                  16,
+                  8,
+                  1
+                ],
+                "max": [
+                  12,
+                  5,
+                  8,
+                  11,
+                  14,
+                  17,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "볼케이노",
+                "percent": 12
+              }
+            ],
+            "synergyEle": [
+              {
+                "skill": "파이어스톰",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "아틱 블래스트",
+            "nameEn": "Arctic Blast",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  32,
+                  20,
+                  26,
+                  28,
+                  32,
+                  36,
+                  3,
+                  25
+                ],
+                "max": [
+                  64,
+                  21,
+                  27,
+                  29,
+                  33,
+                  37,
+                  3,
+                  25
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "사이클론 아머",
+                "percent": 15
+              }
+            ]
+          },
+          {
+            "name": "피셔",
+            "nameEn": "Eruption",
+            "reqLevel": 12,
+            "reqSkills": [
+              "몰튼 볼더"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  15,
+                  6,
+                  12,
+                  16,
+                  18,
+                  22,
+                  8,
+                  1
+                ],
+                "max": [
+                  25,
+                  6,
+                  12,
+                  16,
+                  19,
+                  23,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어스톰",
+                "percent": 12
+              },
+              {
+                "skill": "볼케이노",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "사이클론 아머",
+            "nameEn": "Cyclone Armor",
+            "reqLevel": 12,
+            "reqSkills": [
+              "아틱 블래스트"
+            ]
+          },
+          {
+            "name": "트위스터",
+            "nameEn": "Twister",
+            "reqLevel": 18,
+            "reqSkills": [
+              "사이클론 아머"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  12,
+                  7,
+                  11,
+                  15,
+                  18,
+                  21,
+                  7,
+                  1
+                ],
+                "max": [
+                  16,
+                  7,
+                  11,
+                  15,
+                  18,
+                  21,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "토네이도",
+                "percent": 10
+              },
+              {
+                "skill": "허리케인",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "볼케이노",
+            "nameEn": "Volcano",
+            "reqLevel": 24,
+            "reqSkills": [
+              "피셔"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  8,
+                  2,
+                  4,
+                  6,
+                  8,
+                  10,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  2,
+                  4,
+                  6,
+                  8,
+                  10,
+                  8,
+                  1
+                ]
+              },
+              "ele": {
+                "type": "fire",
+                "min": [
+                  8,
+                  2,
+                  4,
+                  6,
+                  8,
+                  11,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  2,
+                  4,
+                  6,
+                  8,
+                  13,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "몰튼 볼더",
+                "percent": 16
+              }
+            ],
+            "synergyEle": [
+              {
+                "skill": "피셔",
+                "percent": 12
+              },
+              {
+                "skill": "아마겟돈",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "토네이도",
+            "nameEn": "Tornado",
+            "reqLevel": 24,
+            "reqSkills": [
+              "트위스터"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  25,
+                  8,
+                  14,
+                  20,
+                  24,
+                  28,
+                  8,
+                  1
+                ],
+                "max": [
+                  35,
+                  8,
+                  15,
+                  21,
+                  25,
+                  29,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "사이클론 아머",
+                "percent": 9
+              },
+              {
+                "skill": "트위스터",
+                "percent": 9
+              },
+              {
+                "skill": "허리케인",
+                "percent": 9
+              }
+            ]
+          },
+          {
+            "name": "아마겟돈",
+            "nameEn": "Armageddon",
+            "reqLevel": 30,
+            "reqSkills": [
+              "볼케이노"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  18,
+                  10,
+                  12,
+                  15,
+                  18,
+                  22,
+                  8,
+                  1
+                ],
+                "max": [
+                  26,
+                  11,
+                  13,
+                  16,
+                  19,
+                  23,
+                  8,
+                  1
+                ]
+              },
+              "ele": {
+                "type": "fire",
+                "min": [
+                  25,
+                  15,
+                  20,
+                  25,
+                  31,
+                  38,
+                  8,
+                  1
+                ],
+                "max": [
+                  75,
+                  16,
+                  22,
+                  27,
+                  34,
+                  40,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "볼케이노",
+                "percent": 18
+              }
+            ],
+            "synergyEle": [
+              {
+                "skill": "몰튼 볼더",
+                "percent": 14
+              },
+              {
+                "skill": "파이어스톰",
+                "percent": 14
+              }
+            ]
+          },
+          {
+            "name": "허리케인",
+            "nameEn": "Hurricane",
+            "reqLevel": 30,
+            "reqSkills": [
+              "토네이도"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  25,
+                  7,
+                  10,
+                  12,
+                  14,
+                  16,
+                  8,
+                  1
+                ],
+                "max": [
+                  50,
+                  7,
+                  10,
+                  12,
+                  14,
+                  16,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "트위스터",
+                "percent": 9
+              },
+              {
+                "skill": "토네이도",
+                "percent": 9
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "assassin": {
+    "tabs": [
+      {
+        "name": "함정",
+        "skills": [
+          {
+            "name": "파이어 블래스트",
+            "nameEn": "Fire Trauma",
+            "reqLevel": 1,
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  6,
+                  3,
+                  8,
+                  20,
+                  38,
+                  58,
+                  7,
+                  1
+                ],
+                "max": [
+                  8,
+                  5,
+                  11,
+                  24,
+                  44,
+                  66,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "쇼크 웹",
+                "percent": 11
+              },
+              {
+                "skill": "차지드 볼트 센트리",
+                "percent": 11
+              },
+              {
+                "skill": "라이트닝 센트리",
+                "percent": 11
+              },
+              {
+                "skill": "웨이크 오브 파이어",
+                "percent": 11
+              },
+              {
+                "skill": "웨이크 오브 인페르노",
+                "percent": 11
+              }
+            ]
+          },
+          {
+            "name": "쇼크 웹",
+            "nameEn": "Shock Field",
+            "reqLevel": 6,
+            "reqSkills": [
+              "파이어 블래스트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  7,
+                  1
+                ],
+                "max": [
+                  20,
+                  6,
+                  12,
+                  20,
+                  30,
+                  42,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "차지드 볼트 센트리",
+                "percent": 17
+              },
+              {
+                "skill": "라이트닝 센트리",
+                "percent": 17
+              }
+            ]
+          },
+          {
+            "name": "블레이드 센티넬",
+            "nameEn": "Blade Sentinel",
+            "reqLevel": 6,
+            "dmg": {
+              "phy": {
+                "min": [
+                  6,
+                  3,
+                  4,
+                  5,
+                  5,
+                  5,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  3,
+                  4,
+                  5,
+                  5,
+                  5,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "블레이드 퓨리",
+                "percent": 10
+              },
+              {
+                "skill": "블레이드 실드",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "차지드 볼트 센트리",
+            "nameEn": "Charged Bolt Sentry",
+            "reqLevel": 12,
+            "reqSkills": [
+              "쇼크 웹"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  7,
+                  1
+                ],
+                "max": [
+                  14,
+                  6,
+                  8,
+                  12,
+                  14,
+                  16,
+                  7,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 블래스트",
+                "percent": 9
+              },
+              {
+                "skill": "라이트닝 센트리",
+                "percent": 9
+              }
+            ]
+          },
+          {
+            "name": "웨이크 오브 파이어",
+            "nameEn": "Wake of Fire Sentry",
+            "reqLevel": 12,
+            "reqSkills": [
+              "파이어 블래스트"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  5,
+                  2,
+                  3,
+                  5,
+                  7,
+                  9,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  2,
+                  3,
+                  6,
+                  8,
+                  10,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 블래스트",
+                "percent": 10
+              },
+              {
+                "skill": "웨이크 오브 인페르노",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "블레이드 퓨리",
+            "nameEn": "Blade Fury",
+            "reqLevel": 18,
+            "reqSkills": [
+              "블레이드 센티넬",
+              "웨이크 오브 파이어"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  8,
+                  3,
+                  5,
+                  8,
+                  8,
+                  8,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  3,
+                  5,
+                  8,
+                  8,
+                  8,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "블레이드 센티넬",
+                "percent": 10
+              },
+              {
+                "skill": "블레이드 실드",
+                "percent": 10
+              }
+            ]
+          },
+          {
+            "name": "라이트닝 센트리",
+            "nameEn": "Lightning Sentry",
+            "reqLevel": 24,
+            "reqSkills": [
+              "차지드 볼트 센트리"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  20,
+                  10,
+                  16,
+                  24,
+                  34,
+                  44,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "쇼크 웹",
+                "percent": 18
+              },
+              {
+                "skill": "차지드 볼트 센트리",
+                "percent": 18
+              }
+            ]
+          },
+          {
+            "name": "웨이크 오브 인페르노",
+            "nameEn": "Inferno Sentry",
+            "reqLevel": 24,
+            "reqSkills": [
+              "웨이크 오브 파이어"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  20,
+                  17,
+                  21,
+                  26,
+                  32,
+                  39,
+                  4,
+                  8.333333333333334
+                ],
+                "max": [
+                  50,
+                  19,
+                  23,
+                  28,
+                  34,
+                  41,
+                  4,
+                  8.333333333333334
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "파이어 블래스트",
+                "percent": 18
+              },
+              {
+                "skill": "웨이크 오브 파이어",
+                "percent": 18
+              }
+            ]
+          },
+          {
+            "name": "데스 센트리",
+            "nameEn": "Death Sentry",
+            "reqLevel": 30,
+            "reqSkills": [
+              "라이트닝 센트리"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  50,
+                  8,
+                  14,
+                  22,
+                  28,
+                  34,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "라이트닝 센트리",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "블레이드 실드",
+            "nameEn": "Blade Shield",
+            "reqLevel": 30,
+            "reqSkills": [
+              "블레이드 퓨리"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  1,
+                  5,
+                  6,
+                  7,
+                  7,
+                  7,
+                  8,
+                  1
+                ],
+                "max": [
+                  30,
+                  5,
+                  6,
+                  7,
+                  7,
+                  7,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyPhy": [
+              {
+                "skill": "블레이드 센티넬",
+                "percent": 10
+              },
+              {
+                "skill": "블레이드 퓨리",
+                "percent": 10
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "그림자 기술",
+        "skills": [
+          {
+            "name": "클로 마스터리",
+            "nameEn": "Claw Mastery",
+            "reqLevel": 1
+          },
+          {
+            "name": "사이킥 해머",
+            "nameEn": "Psychic Hammer",
+            "reqLevel": 1,
+            "dmg": {
+              "phy": {
+                "min": [
+                  2,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  1
+                ],
+                "max": [
+                  6,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  7,
+                  1
+                ]
+              },
+              "ele": {
+                "type": "mag",
+                "min": [
+                  2,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  1
+                ],
+                "max": [
+                  6,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  7,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "버스트 오브 스피드",
+            "nameEn": "Quickness",
+            "reqLevel": 6,
+            "reqSkills": [
+              "클로 마스터리"
+            ]
+          },
+          {
+            "name": "웨폰 블록",
+            "nameEn": "Weapon Block",
+            "reqLevel": 12,
+            "reqSkills": [
+              "클로 마스터리"
+            ]
+          },
+          {
+            "name": "클록 오브 섀도우",
+            "nameEn": "Cloak of Shadows",
+            "reqLevel": 12,
+            "reqSkills": [
+              "사이킥 해머"
+            ]
+          },
+          {
+            "name": "페이드",
+            "nameEn": "Fade",
+            "reqLevel": 18,
+            "reqSkills": [
+              "버스트 오브 스피드"
+            ]
+          },
+          {
+            "name": "마인드 블래스트",
+            "nameEn": "Mind Blast",
+            "reqLevel": 24,
+            "reqSkills": [
+              "클록 오브 섀도우"
+            ],
+            "dmg": {
+              "phy": {
+                "min": [
+                  10,
+                  2,
+                  5,
+                  8,
+                  8,
+                  8,
+                  8,
+                  1
+                ],
+                "max": [
+                  20,
+                  2,
+                  5,
+                  8,
+                  8,
+                  8,
+                  8,
+                  1
+                ]
+              }
+            }
+          },
+          {
+            "name": "베놈",
+            "nameEn": "Venom",
+            "reqLevel": 30,
+            "reqSkills": [
+              "페이드"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "pois",
+                "min": [
+                  24,
+                  6,
+                  8,
+                  10,
+                  12,
+                  14,
+                  6,
+                  25
+                ],
+                "max": [
+                  32,
+                  6,
+                  8,
+                  10,
+                  12,
+                  14,
+                  6,
+                  25
+                ]
+              }
+            }
+          },
+          {
+            "name": "섀도우 워리어",
+            "nameEn": "Shadow Warrior",
+            "reqLevel": 18,
+            "reqSkills": [
+              "클록 오브 섀도우",
+              "웨폰 블록"
+            ]
+          },
+          {
+            "name": "섀도우 마스터",
+            "nameEn": "Shadow Master",
+            "reqLevel": 30,
+            "reqSkills": [
+              "섀도우 워리어"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "무술",
+        "skills": [
+          {
+            "name": "타이거 스트라이크",
+            "nameEn": "Tiger Strike",
+            "reqLevel": 1
+          },
+          {
+            "name": "드래곤 탈론",
+            "nameEn": "Dragon Talon",
+            "reqLevel": 1
+          },
+          {
+            "name": "피스트 오브 파이어",
+            "nameEn": "Fists of Fire",
+            "reqLevel": 6,
+            "dmg": {
+              "ele": {
+                "type": "fire",
+                "min": [
+                  6,
+                  5,
+                  10,
+                  20,
+                  30,
+                  40,
+                  8,
+                  1
+                ],
+                "max": [
+                  10,
+                  5,
+                  11,
+                  22,
+                  33,
+                  44,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "피닉스 스트라이크",
+                "percent": 12
+              }
+            ]
+          },
+          {
+            "name": "드래곤 클로",
+            "nameEn": "Dragon Claw",
+            "reqLevel": 6,
+            "reqSkills": [
+              "드래곤 탈론"
+            ]
+          },
+          {
+            "name": "코브라 스트라이크",
+            "nameEn": "Cobra Strike",
+            "reqLevel": 12,
+            "reqSkills": [
+              "타이거 스트라이크"
+            ]
+          },
+          {
+            "name": "클로 오브 썬더",
+            "nameEn": "Claws of Thunder",
+            "reqLevel": 18,
+            "reqSkills": [
+              "피스트 오브 파이어"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "ltng",
+                "min": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  8,
+                  1
+                ],
+                "max": [
+                  80,
+                  20,
+                  40,
+                  60,
+                  80,
+                  100,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "피닉스 스트라이크",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "드래곤 테일",
+            "nameEn": "Dragon Tail",
+            "reqLevel": 18,
+            "reqSkills": [
+              "드래곤 클로"
+            ]
+          },
+          {
+            "name": "블레이드 오브 아이스",
+            "nameEn": "Blades of Ice",
+            "reqLevel": 24,
+            "reqSkills": [
+              "클로 오브 썬더"
+            ],
+            "dmg": {
+              "ele": {
+                "type": "cold",
+                "min": [
+                  15,
+                  8,
+                  10,
+                  20,
+                  30,
+                  40,
+                  8,
+                  1
+                ],
+                "max": [
+                  35,
+                  8,
+                  10,
+                  22,
+                  32,
+                  42,
+                  8,
+                  1
+                ]
+              }
+            },
+            "synergyEle": [
+              {
+                "skill": "피닉스 스트라이크",
+                "percent": 8
+              }
+            ]
+          },
+          {
+            "name": "드래곤 플라이트",
+            "nameEn": "Dragon Flight",
+            "reqLevel": 24,
+            "reqSkills": [
+              "드래곤 테일"
+            ]
+          },
+          {
+            "name": "피닉스 스트라이크",
+            "nameEn": "Royal Strike",
+            "reqLevel": 30,
+            "reqSkills": [
+              "코브라 스트라이크",
+              "블레이드 오브 아이스"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "warlock": {
+    "tabs": [
+      {
+        "name": "저주 마법",
+        "skills": [
+          {
+            "name": "암흑 화살",
+            "reqLevel": 1
+          },
+          {
+            "name": "영혼 흡수",
+            "reqLevel": 1
+          },
+          {
+            "name": "저주받은 손길",
+            "reqLevel": 6,
+            "reqSkills": [
+              "암흑 화살"
+            ]
+          },
+          {
+            "name": "어둠의 결속",
+            "reqLevel": 6,
+            "reqSkills": [
+              "암흑 화살"
+            ]
+          },
+          {
+            "name": "공포의 시선",
+            "reqLevel": 12,
+            "reqSkills": [
+              "저주받은 손길"
+            ]
+          },
+          {
+            "name": "영혼 사슬",
+            "reqLevel": 12,
+            "reqSkills": [
+              "저주받은 손길"
+            ]
+          },
+          {
+            "name": "죽음의 표식",
+            "reqLevel": 18,
+            "reqSkills": [
+              "공포의 시선"
+            ]
+          },
+          {
+            "name": "어둠의 폭발",
+            "reqLevel": 18,
+            "reqSkills": [
+              "공포의 시선"
+            ]
+          },
+          {
+            "name": "영혼 폭풍",
+            "reqLevel": 24,
+            "reqSkills": [
+              "죽음의 표식"
+            ]
+          },
+          {
+            "name": "파멸의 저주",
+            "reqLevel": 30,
+            "reqSkills": [
+              "영혼 폭풍"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "악마 소환",
+        "skills": [
+          {
+            "name": "임프 소환",
+            "reqLevel": 1
+          },
+          {
+            "name": "소환 강화",
+            "reqLevel": 1
+          },
+          {
+            "name": "지옥사냥개 소환",
+            "reqLevel": 6,
+            "reqSkills": [
+              "임프 소환"
+            ]
+          },
+          {
+            "name": "악마의 계약",
+            "reqLevel": 6,
+            "reqSkills": [
+              "임프 소환"
+            ]
+          },
+          {
+            "name": "임프 군단",
+            "reqLevel": 12,
+            "reqSkills": [
+              "지옥사냥개 소환"
+            ]
+          },
+          {
+            "name": "지옥불정령 소환",
+            "reqLevel": 12,
+            "reqSkills": [
+              "지옥사냥개 소환"
+            ]
+          },
+          {
+            "name": "악마 강화",
+            "reqLevel": 18,
+            "reqSkills": [
+              "임프 군단"
+            ]
+          },
+          {
+            "name": "지옥발톱 소환",
+            "reqLevel": 18,
+            "reqSkills": [
+              "임프 군단"
+            ]
+          },
+          {
+            "name": "악마 폭주",
+            "reqLevel": 24,
+            "reqSkills": [
+              "악마 강화"
+            ]
+          },
+          {
+            "name": "대악마 소환",
+            "reqLevel": 30,
+            "reqSkills": [
+              "악마 폭주"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "지옥불 마법",
+        "skills": [
+          {
+            "name": "헬파이어",
+            "reqLevel": 1
+          },
+          {
+            "name": "화염 방벽",
+            "reqLevel": 1
+          },
+          {
+            "name": "유황 폭발",
+            "reqLevel": 6,
+            "reqSkills": [
+              "헬파이어"
+            ]
+          },
+          {
+            "name": "검은 불꽃",
+            "reqLevel": 6,
+            "reqSkills": [
+              "헬파이어"
+            ]
+          },
+          {
+            "name": "지옥불 갑주",
+            "reqLevel": 12,
+            "reqSkills": [
+              "유황 폭발"
+            ]
+          },
+          {
+            "name": "용암 지대",
+            "reqLevel": 12,
+            "reqSkills": [
+              "유황 폭발"
+            ]
+          },
+          {
+            "name": "지옥불 낙하",
+            "reqLevel": 18,
+            "reqSkills": [
+              "지옥불 갑주"
+            ]
+          },
+          {
+            "name": "심연의 불꽃",
+            "reqLevel": 18,
+            "reqSkills": [
+              "지옥불 갑주"
+            ]
+          },
+          {
+            "name": "지옥의 문",
+            "reqLevel": 24,
+            "reqSkills": [
+              "지옥불 낙하"
+            ]
+          },
+          {
+            "name": "아마겟돈 화염",
+            "reqLevel": 30,
+            "reqSkills": [
+              "지옥의 문"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

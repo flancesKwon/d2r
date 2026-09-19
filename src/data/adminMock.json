@@ -1,0 +1,16 @@
+{
+  "stats": { "totalMembers": 1842, "newToday": 12, "totalPosts": 3506, "pendingReports": 3 },
+  "members": [
+    { "id": "m1", "nickname": "함머딘김프로", "email": "hammer***@gmail.com", "joined": "2026-06-02", "role": "최고관리자", "status": "정상" },
+    { "id": "m2", "nickname": "웜바바러버", "email": "warmbarb***@naver.com", "joined": "2026-07-14", "role": "운영진", "status": "정상" },
+    { "id": "m3", "nickname": "파벽소서", "email": "fireball***@gmail.com", "joined": "2026-08-01", "role": "일반", "status": "정상" },
+    { "id": "m4", "nickname": "본넥초보", "email": "bonenec***@daum.net", "joined": "2026-08-20", "role": "일반", "status": "정상" },
+    { "id": "m5", "nickname": "어뷰징계정123", "email": "abuse***@mail.com", "joined": "2026-09-10", "role": "일반", "status": "정지" },
+    { "id": "m6", "nickname": "레더시즌9", "email": "ladder9***@gmail.com", "joined": "2026-09-15", "role": "일반", "status": "정상" }
+  ],
+  "reports": [
+    { "id": "r1", "target": "커뮤니티 글: '싸게 팝니다 급처'", "reporter": "웜바바러버", "reason": "광고/스팸", "date": "2026-09-18" },
+    { "id": "r2", "target": "댓글: '어그로 발언'", "reporter": "본넥초보", "reason": "욕설/비방", "date": "2026-09-17" },
+    { "id": "r3", "target": "커뮤니티 글: '중복 도배글'", "reporter": "파벽소서", "reason": "도배", "date": "2026-09-16" }
+  ]
+}
