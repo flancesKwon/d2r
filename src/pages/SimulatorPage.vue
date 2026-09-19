@@ -2,8 +2,10 @@
 import { ref, reactive, computed, watch } from 'vue'
 import classStats from '../data/classStats.json'
 import skillData from '../data/skills.json'
+import itemsData from '../data/items.json'
 import { CLASS_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
+import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 
 const classKeys = Object.keys(classStats)
 const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
@@ -27,10 +29,23 @@ const allocatedStats = reactive({ str: 0, dex: 0, vit: 0, nrg: 0 })
 const allocatedSkills = reactive({})
 const questSkillDone = reactive(Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, [false, false, false]])))
 const questStatDone = reactive(Object.fromEntries(STAT_QUESTS.map((q) => [q.key, [false, false, false]])))
+const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, ''])))
+
+const itemsBySlot = buildItemsBySlot(itemsData)
+const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
+
+const itemAgg = computed(() => {
+  const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
+  return aggregateItemStats(full, selectedClass.value)
+})
 
 function resetAll() {
   STAT_KEYS.forEach((k) => (allocatedStats[k] = 0))
   Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
+}
+
+function resetEquip() {
+  SLOT_DEFS.forEach((s) => (equippedItems[s.key] = ''))
 }
 
 watch(selectedClass, () => {
@@ -109,11 +124,19 @@ function canDecreaseSkill(tabIdx, skillIdx) {
   return true
 }
 
+function effectiveSkillLevel(tabIdx, skillIdx) {
+  const skill = classTabs.value[tabIdx].skills[skillIdx]
+  const hard = skillPoint(tabIdx, skillIdx)
+  if (hard <= 0) return 0
+  const bonus = itemSkillBonus(itemAgg.value, skill.name, classTabs.value[tabIdx].name)
+  return hard + bonus
+}
+
 function skillDamage(tabIdx, skillIdx) {
   const skill = classTabs.value[tabIdx].skills[skillIdx]
-  const lvl = skillPoint(tabIdx, skillIdx)
-  if (!lvl || !skill.dmg) return null
-  return computeSkillDamage(skill, lvl, skillPointByName)
+  const hard = skillPoint(tabIdx, skillIdx)
+  if (!hard || !skill.dmg) return null
+  return computeSkillDamage(skill, effectiveSkillLevel(tabIdx, skillIdx), skillPointByName)
 }
 
 function synergySources(skill) {
@@ -148,16 +171,34 @@ function decreaseStat(key) {
 
 const displayStats = computed(() => {
   const b = classInfo.value.base
-  return STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], base: b[k], added: allocatedStats[k], total: b[k] + allocatedStats[k] }))
+  const g = itemAgg.value
+  return STAT_KEYS.map((k) => ({
+    key: k,
+    label: STAT_LABELS[k],
+    base: b[k],
+    added: allocatedStats[k],
+    gear: g[k],
+    total: b[k] + allocatedStats[k] + g[k],
+  }))
 })
 
 const derivedStats = computed(() => {
   const c = classInfo.value
+  const g = itemAgg.value
   const lvl = level.value
+  const ac = Math.round((g.acFlat || 0) * (1 + (g.acPercent || 0) / 100))
   return {
-    life: Math.round(c.life + c.lifePerLevel * (lvl - 1) + c.lifePerVit * allocatedStats.vit),
-    mana: Math.round(c.mana + c.manaPerLevel * (lvl - 1) + c.manaPerNrg * allocatedStats.nrg),
+    life: Math.round(c.life + c.lifePerLevel * (lvl - 1) + c.lifePerVit * allocatedStats.vit + g.life),
+    mana: Math.round(c.mana + c.manaPerLevel * (lvl - 1) + c.manaPerNrg * allocatedStats.nrg + g.mana),
     stamina: Math.round(c.stamina + c.staminaPerLevel * (lvl - 1) + c.staminaPerVit * allocatedStats.vit),
+    armor: ac,
+    resist: {
+      fire: Math.min(75, Math.round(g.resist.fire)),
+      cold: Math.min(75, Math.round(g.resist.cold)),
+      ltng: Math.min(75, Math.round(g.resist.ltng)),
+      pois: Math.min(75, Math.round(g.resist.pois)),
+    },
+    weaponDamage: g.weaponDamage ? { min: Math.round(g.weaponDamage.min), max: Math.round(g.weaponDamage.max) } : null,
   }
 })
 
@@ -179,7 +220,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     <div class="patch-hero-inner">
       <div class="eyebrow">빌드 계획 도구</div>
       <h1>스킬·스탯 시뮬레이터</h1>
-      <p>레벨에 맞춰 스탯과 스킬 포인트를 미리 찍어보고 빌드를 계획해보세요. 스킬 데미지·시너지는 실제 게임 데이터 기준이에요 (단, 무기 데미지·아이템 옵션·오라/마스터리 효과는 아직 반영되지 않아요).</p>
+      <p>레벨·스탯·스킬 포인트에 장비까지 껴서 데미지·생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요. 스킬 데미지·시너지는 실제 게임 데이터 기준이에요 (오라/마스터리 효과, 근접 스킬의 무기-스킬 결합 계산은 아직 단순화된 상태예요).</p>
     </div>
   </div>
 
@@ -224,13 +265,29 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <div class="note-box sim-note">덴 오브 이블(+1)·라다멘트의 둥지(+1)·타락한 천사/이주얼(+2) 스킬 포인트, 람 에센의 책(+5) 스탯 포인트 — 난이도마다 반복 지급돼서 전부 깨면 스킬 12개, 스탯 15개 최대.</div>
     </div>
 
+    <div class="side-block sim-panel sim-equip-box">
+      <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
+      <div class="sim-equip-grid">
+        <label class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key">
+          <span>{{ s.label }}</span>
+          <select v-model="equippedItems[s.key]">
+            <option value="">비어있음</option>
+            <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
+              {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
+            </option>
+          </select>
+        </label>
+      </div>
+      <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요.</div>
+    </div>
+
     <div class="sim-top-grid">
       <div class="side-block sim-panel">
         <h3>스탯 포인트 <span class="sim-remaining" :class="{ warn: remainingStatPoints < 0 }">남은 포인트 {{ remainingStatPoints }} / {{ totalStatPoints }}</span></h3>
         <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
           <span class="sim-stat-label">{{ s.label }}</span>
           <button class="sim-pm" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0">−</button>
-          <span class="sim-stat-value">{{ s.total }}<small>(기본 {{ s.base }} + {{ s.added }})</small></span>
+          <span class="sim-stat-value">{{ s.total }}<small>(기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template>)</small></span>
           <button class="sim-pm" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0">+</button>
         </div>
       </div>
@@ -240,7 +297,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
         <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
         <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
-        <div class="note-box sim-note">기본 스탯 · 활력/에너지 투자분 기준 근사치예요. 장비 옵션은 반영되지 않아요.</div>
+        <div class="sim-derived-row"><span>방어력 (장비)</span><b>{{ derivedStats.armor }}</b></div>
+        <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 물리 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
+        <div class="sim-derived-row">
+          <span>저항 (화/냉/전/독)</span>
+          <b>{{ derivedStats.resist.fire }}% / {{ derivedStats.resist.cold }}% / {{ derivedStats.resist.ltng }}% / {{ derivedStats.resist.pois }}%</b>
+        </div>
+        <div class="note-box sim-note">스탯 성장 공식은 커뮤니티 자료 기준 근사치예요. 저항은 75% 상한 적용, 방어력은 장비 고정치×(1+%증가)만 반영했어요.</div>
       </div>
     </div>
 
@@ -269,6 +332,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <button class="sim-pm" @click="increaseSkill(tabIdx, skillIdx)" :disabled="!canIncreaseSkill(tabIdx, skillIdx)">+</button>
             </div>
             <div class="sim-skill-detail" v-if="skillPoint(tabIdx, skillIdx) > 0 && (skill.dmg || synergySources(skill).length)">
+              <div class="sim-dmg-line" v-if="effectiveSkillLevel(tabIdx, skillIdx) !== skillPoint(tabIdx, skillIdx)">
+                유효 스킬 레벨 {{ effectiveSkillLevel(tabIdx, skillIdx) }} <small>(하드포인트 {{ skillPoint(tabIdx, skillIdx) }} + 장비 {{ effectiveSkillLevel(tabIdx, skillIdx) - skillPoint(tabIdx, skillIdx) }})</small>
+              </div>
               <div class="sim-dmg-line" v-if="skillDamage(tabIdx, skillIdx)?.ele">
                 {{ ELEMENT_LABELS[skillDamage(tabIdx, skillIdx).ele.type] }} 데미지 {{ skillDamage(tabIdx, skillIdx).ele.min }}~{{ skillDamage(tabIdx, skillIdx).ele.max }}
                 <span class="sim-syn-pct" v-if="skillDamage(tabIdx, skillIdx).ele.percent">(시너지 +{{ skillDamage(tabIdx, skillIdx).ele.percent }}%)</span>
@@ -313,6 +379,18 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-quest-diffs{display:flex; gap:12px; flex:none;}
 .sim-quest-diff{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-muted); cursor:pointer;}
 .sim-quest-diff input{accent-color:var(--gold-dim); cursor:pointer;}
+
+.sim-equip-box{margin-bottom:20px;}
+.sim-equip-box h3{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:14px;}
+.sim-equip-reset{height:auto; padding:6px 12px; font-size:11.5px;}
+.sim-equip-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:10px 16px;}
+.sim-equip-slot{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--text-muted);}
+.sim-equip-slot select{
+  background:var(--panel); border:1px solid var(--border); color:var(--text);
+  padding:8px 10px; font-size:12.5px; font-family:inherit; max-width:100%;
+}
+.sim-equip-slot select:focus{outline:none; border-color:var(--gold-dim);}
+@media (max-width:560px){ .sim-equip-grid{grid-template-columns:1fr;} }
 
 .sim-top-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;}
 .sim-panel{padding:18px 20px;}

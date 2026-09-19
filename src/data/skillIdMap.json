@@ -1,0 +1,842 @@
+{
+ "6": {
+  "class": "amazon",
+  "name": "매직 애로우"
+ },
+ "7": {
+  "class": "amazon",
+  "name": "파이어 애로우"
+ },
+ "8": {
+  "class": "amazon",
+  "name": "이너 사이트"
+ },
+ "9": {
+  "class": "amazon",
+  "name": "크리티컬 스트라이크"
+ },
+ "10": {
+  "class": "amazon",
+  "name": "잽"
+ },
+ "11": {
+  "class": "amazon",
+  "name": "콜드 애로우"
+ },
+ "12": {
+  "class": "amazon",
+  "name": "멀티플 샷"
+ },
+ "13": {
+  "class": "amazon",
+  "name": "닷지"
+ },
+ "14": {
+  "class": "amazon",
+  "name": "파워 스트라이크"
+ },
+ "15": {
+  "class": "amazon",
+  "name": "포이즌 재블린"
+ },
+ "16": {
+  "class": "amazon",
+  "name": "익스플로딩 애로우"
+ },
+ "17": {
+  "class": "amazon",
+  "name": "슬로우 미사일"
+ },
+ "18": {
+  "class": "amazon",
+  "name": "어보이드"
+ },
+ "19": {
+  "class": "amazon",
+  "name": "임페일"
+ },
+ "20": {
+  "class": "amazon",
+  "name": "라이트닝 볼트"
+ },
+ "21": {
+  "class": "amazon",
+  "name": "아이스 애로우"
+ },
+ "22": {
+  "class": "amazon",
+  "name": "가이디드 애로우"
+ },
+ "23": {
+  "class": "amazon",
+  "name": "페네트레이트"
+ },
+ "24": {
+  "class": "amazon",
+  "name": "차지드 스트라이크"
+ },
+ "25": {
+  "class": "amazon",
+  "name": "플레이그 재블린"
+ },
+ "26": {
+  "class": "amazon",
+  "name": "스트레이프"
+ },
+ "27": {
+  "class": "amazon",
+  "name": "이몰레이션 애로우"
+ },
+ "28": {
+  "class": "amazon",
+  "name": "디코이"
+ },
+ "29": {
+  "class": "amazon",
+  "name": "이베이드"
+ },
+ "30": {
+  "class": "amazon",
+  "name": "펜드"
+ },
+ "31": {
+  "class": "amazon",
+  "name": "프리징 애로우"
+ },
+ "32": {
+  "class": "amazon",
+  "name": "발키리"
+ },
+ "33": {
+  "class": "amazon",
+  "name": "피어스"
+ },
+ "34": {
+  "class": "amazon",
+  "name": "라이트닝 스트라이크"
+ },
+ "35": {
+  "class": "amazon",
+  "name": "라이트닝 퓨리"
+ },
+ "36": {
+  "class": "sorc",
+  "name": "파이어 볼트"
+ },
+ "37": {
+  "class": "sorc",
+  "name": "웜스"
+ },
+ "38": {
+  "class": "sorc",
+  "name": "차지드 볼트"
+ },
+ "39": {
+  "class": "sorc",
+  "name": "아이스 볼트"
+ },
+ "40": {
+  "class": "sorc",
+  "name": "프로즌 아머"
+ },
+ "41": {
+  "class": "sorc",
+  "name": "인페르노"
+ },
+ "42": {
+  "class": "sorc",
+  "name": "스태틱 필드"
+ },
+ "43": {
+  "class": "sorc",
+  "name": "텔레키네시스"
+ },
+ "44": {
+  "class": "sorc",
+  "name": "프로스트 노바"
+ },
+ "45": {
+  "class": "sorc",
+  "name": "아이스 블래스트"
+ },
+ "46": {
+  "class": "sorc",
+  "name": "블레이즈"
+ },
+ "47": {
+  "class": "sorc",
+  "name": "파이어볼"
+ },
+ "48": {
+  "class": "sorc",
+  "name": "노바"
+ },
+ "49": {
+  "class": "sorc",
+  "name": "라이트닝"
+ },
+ "50": {
+  "class": "sorc",
+  "name": "쉬버 아머"
+ },
+ "51": {
+  "class": "sorc",
+  "name": "파이어월"
+ },
+ "52": {
+  "class": "sorc",
+  "name": "인챈트"
+ },
+ "53": {
+  "class": "sorc",
+  "name": "체인 라이트닝"
+ },
+ "54": {
+  "class": "sorc",
+  "name": "텔레포트"
+ },
+ "55": {
+  "class": "sorc",
+  "name": "글레이셜 스파이크"
+ },
+ "56": {
+  "class": "sorc",
+  "name": "메테오"
+ },
+ "57": {
+  "class": "sorc",
+  "name": "썬더 스톰"
+ },
+ "58": {
+  "class": "sorc",
+  "name": "에너지 실드"
+ },
+ "59": {
+  "class": "sorc",
+  "name": "블리자드"
+ },
+ "60": {
+  "class": "sorc",
+  "name": "칠링 아머"
+ },
+ "61": {
+  "class": "sorc",
+  "name": "파이어 마스터리"
+ },
+ "62": {
+  "class": "sorc",
+  "name": "히드라"
+ },
+ "63": {
+  "class": "sorc",
+  "name": "라이트닝 마스터리"
+ },
+ "64": {
+  "class": "sorc",
+  "name": "프로즌 오브"
+ },
+ "65": {
+  "class": "sorc",
+  "name": "콜드 마스터리"
+ },
+ "66": {
+  "class": "necro",
+  "name": "앰플리파이 데미지"
+ },
+ "67": {
+  "class": "necro",
+  "name": "티스"
+ },
+ "68": {
+  "class": "necro",
+  "name": "본 아머"
+ },
+ "69": {
+  "class": "necro",
+  "name": "스켈레톤 마스터리"
+ },
+ "70": {
+  "class": "necro",
+  "name": "레이즈 스켈레톤"
+ },
+ "71": {
+  "class": "necro",
+  "name": "딤 비전"
+ },
+ "72": {
+  "class": "necro",
+  "name": "위켄"
+ },
+ "73": {
+  "class": "necro",
+  "name": "포이즌 대거"
+ },
+ "74": {
+  "class": "necro",
+  "name": "콥스 익스플로전"
+ },
+ "75": {
+  "class": "necro",
+  "name": "클레이 골렘"
+ },
+ "76": {
+  "class": "necro",
+  "name": "아이언 메이든"
+ },
+ "77": {
+  "class": "necro",
+  "name": "테러"
+ },
+ "78": {
+  "class": "necro",
+  "name": "본 월"
+ },
+ "79": {
+  "class": "necro",
+  "name": "골렘 마스터리"
+ },
+ "80": {
+  "class": "necro",
+  "name": "레이즈 스켈레탈 메이지"
+ },
+ "81": {
+  "class": "necro",
+  "name": "컨퓨즈"
+ },
+ "82": {
+  "class": "necro",
+  "name": "라이프 탭"
+ },
+ "83": {
+  "class": "necro",
+  "name": "포이즌 익스플로전"
+ },
+ "84": {
+  "class": "necro",
+  "name": "본 스피어"
+ },
+ "85": {
+  "class": "necro",
+  "name": "블러드 골렘"
+ },
+ "86": {
+  "class": "necro",
+  "name": "어트랙트"
+ },
+ "87": {
+  "class": "necro",
+  "name": "데크리피파이"
+ },
+ "88": {
+  "class": "necro",
+  "name": "본 프리즌"
+ },
+ "89": {
+  "class": "necro",
+  "name": "서몬 레지스트"
+ },
+ "90": {
+  "class": "necro",
+  "name": "아이언 골렘"
+ },
+ "91": {
+  "class": "necro",
+  "name": "로우어 레지스트"
+ },
+ "92": {
+  "class": "necro",
+  "name": "포이즌 노바"
+ },
+ "93": {
+  "class": "necro",
+  "name": "본 스피릿"
+ },
+ "94": {
+  "class": "necro",
+  "name": "파이어 골렘"
+ },
+ "95": {
+  "class": "necro",
+  "name": "리바이브"
+ },
+ "96": {
+  "class": "paladin",
+  "name": "새크리파이스"
+ },
+ "97": {
+  "class": "paladin",
+  "name": "스마이트"
+ },
+ "98": {
+  "class": "paladin",
+  "name": "마이트"
+ },
+ "99": {
+  "class": "paladin",
+  "name": "프레이어"
+ },
+ "100": {
+  "class": "paladin",
+  "name": "레지스트 파이어"
+ },
+ "101": {
+  "class": "paladin",
+  "name": "홀리 볼트"
+ },
+ "102": {
+  "class": "paladin",
+  "name": "홀리 파이어"
+ },
+ "103": {
+  "class": "paladin",
+  "name": "쏜즈"
+ },
+ "104": {
+  "class": "paladin",
+  "name": "디파이언스"
+ },
+ "105": {
+  "class": "paladin",
+  "name": "레지스트 콜드"
+ },
+ "106": {
+  "class": "paladin",
+  "name": "젤"
+ },
+ "107": {
+  "class": "paladin",
+  "name": "차지"
+ },
+ "108": {
+  "class": "paladin",
+  "name": "블레스드 에임"
+ },
+ "109": {
+  "class": "paladin",
+  "name": "클렌징"
+ },
+ "110": {
+  "class": "paladin",
+  "name": "레지스트 라이트닝"
+ },
+ "111": {
+  "class": "paladin",
+  "name": "벤전스"
+ },
+ "112": {
+  "class": "paladin",
+  "name": "블레스드 해머"
+ },
+ "113": {
+  "class": "paladin",
+  "name": "컨센트레이션"
+ },
+ "114": {
+  "class": "paladin",
+  "name": "홀리 프리즈"
+ },
+ "115": {
+  "class": "paladin",
+  "name": "비거"
+ },
+ "116": {
+  "class": "paladin",
+  "name": "컨버전"
+ },
+ "117": {
+  "class": "paladin",
+  "name": "홀리 실드"
+ },
+ "118": {
+  "class": "paladin",
+  "name": "홀리 쇼크"
+ },
+ "119": {
+  "class": "paladin",
+  "name": "생츄어리"
+ },
+ "120": {
+  "class": "paladin",
+  "name": "메디테이션"
+ },
+ "121": {
+  "class": "paladin",
+  "name": "피스트 오브 더 헤븐즈"
+ },
+ "122": {
+  "class": "paladin",
+  "name": "퍼내티시즘"
+ },
+ "123": {
+  "class": "paladin",
+  "name": "컨빅션"
+ },
+ "124": {
+  "class": "paladin",
+  "name": "리뎀션"
+ },
+ "125": {
+  "class": "paladin",
+  "name": "샐베이션"
+ },
+ "126": {
+  "class": "barb",
+  "name": "배쉬"
+ },
+ "127": {
+  "class": "barb",
+  "name": "소드 마스터리"
+ },
+ "128": {
+  "class": "barb",
+  "name": "액스 마스터리"
+ },
+ "129": {
+  "class": "barb",
+  "name": "메이스 마스터리"
+ },
+ "130": {
+  "class": "barb",
+  "name": "하울"
+ },
+ "131": {
+  "class": "barb",
+  "name": "파인드 포션"
+ },
+ "132": {
+  "class": "barb",
+  "name": "립"
+ },
+ "133": {
+  "class": "barb",
+  "name": "더블 스윙"
+ },
+ "134": {
+  "class": "barb",
+  "name": "폴암 마스터리"
+ },
+ "135": {
+  "class": "barb",
+  "name": "스로잉 마스터리"
+ },
+ "136": {
+  "class": "barb",
+  "name": "스피어 마스터리"
+ },
+ "137": {
+  "class": "barb",
+  "name": "타운트"
+ },
+ "138": {
+  "class": "barb",
+  "name": "샤우트"
+ },
+ "139": {
+  "class": "barb",
+  "name": "스턴"
+ },
+ "140": {
+  "class": "barb",
+  "name": "더블 스로우"
+ },
+ "141": {
+  "class": "barb",
+  "name": "인크리스드 스태미나"
+ },
+ "142": {
+  "class": "barb",
+  "name": "파인드 아이템"
+ },
+ "143": {
+  "class": "barb",
+  "name": "립 어택"
+ },
+ "144": {
+  "class": "barb",
+  "name": "컨센트레이트"
+ },
+ "145": {
+  "class": "barb",
+  "name": "아이언 스킨"
+ },
+ "146": {
+  "class": "barb",
+  "name": "배틀 크라이"
+ },
+ "147": {
+  "class": "barb",
+  "name": "프렌지"
+ },
+ "148": {
+  "class": "barb",
+  "name": "인크리스드 스피드"
+ },
+ "149": {
+  "class": "barb",
+  "name": "배틀 오더스"
+ },
+ "150": {
+  "class": "barb",
+  "name": "그림 워드"
+ },
+ "151": {
+  "class": "barb",
+  "name": "웜윈드"
+ },
+ "152": {
+  "class": "barb",
+  "name": "버서크"
+ },
+ "153": {
+  "class": "barb",
+  "name": "내추럴 레지스턴스"
+ },
+ "154": {
+  "class": "barb",
+  "name": "워 크라이"
+ },
+ "155": {
+  "class": "barb",
+  "name": "배틀 커맨드"
+ },
+ "221": {
+  "class": "druid",
+  "name": "레이븐"
+ },
+ "222": {
+  "class": "druid",
+  "name": "포이즌 크리퍼"
+ },
+ "223": {
+  "class": "druid",
+  "name": "웨어울프"
+ },
+ "224": {
+  "class": "druid",
+  "name": "라이칸트로피"
+ },
+ "225": {
+  "class": "druid",
+  "name": "파이어스톰"
+ },
+ "226": {
+  "class": "druid",
+  "name": "오크 세이지"
+ },
+ "227": {
+  "class": "druid",
+  "name": "서몬 스피릿 울프"
+ },
+ "228": {
+  "class": "druid",
+  "name": "웨어베어"
+ },
+ "229": {
+  "class": "druid",
+  "name": "몰튼 볼더"
+ },
+ "230": {
+  "class": "druid",
+  "name": "아틱 블래스트"
+ },
+ "231": {
+  "class": "druid",
+  "name": "캐리온 바인"
+ },
+ "232": {
+  "class": "druid",
+  "name": "페럴 레이지"
+ },
+ "233": {
+  "class": "druid",
+  "name": "몰"
+ },
+ "234": {
+  "class": "druid",
+  "name": "피셔"
+ },
+ "235": {
+  "class": "druid",
+  "name": "사이클론 아머"
+ },
+ "236": {
+  "class": "druid",
+  "name": "하트 오브 울버린"
+ },
+ "237": {
+  "class": "druid",
+  "name": "서몬 다이어 울프"
+ },
+ "238": {
+  "class": "druid",
+  "name": "레이비스"
+ },
+ "239": {
+  "class": "druid",
+  "name": "파이어 클로"
+ },
+ "240": {
+  "class": "druid",
+  "name": "트위스터"
+ },
+ "241": {
+  "class": "druid",
+  "name": "솔라 크리퍼"
+ },
+ "242": {
+  "class": "druid",
+  "name": "헝거"
+ },
+ "243": {
+  "class": "druid",
+  "name": "쇼크 웨이브"
+ },
+ "244": {
+  "class": "druid",
+  "name": "볼케이노"
+ },
+ "245": {
+  "class": "druid",
+  "name": "토네이도"
+ },
+ "246": {
+  "class": "druid",
+  "name": "스피릿 오브 바브스"
+ },
+ "247": {
+  "class": "druid",
+  "name": "서몬 그리즐리"
+ },
+ "248": {
+  "class": "druid",
+  "name": "퓨리"
+ },
+ "249": {
+  "class": "druid",
+  "name": "아마겟돈"
+ },
+ "250": {
+  "class": "druid",
+  "name": "허리케인"
+ },
+ "251": {
+  "class": "assassin",
+  "name": "파이어 블래스트"
+ },
+ "252": {
+  "class": "assassin",
+  "name": "클로 마스터리"
+ },
+ "253": {
+  "class": "assassin",
+  "name": "사이킥 해머"
+ },
+ "254": {
+  "class": "assassin",
+  "name": "타이거 스트라이크"
+ },
+ "255": {
+  "class": "assassin",
+  "name": "드래곤 탈론"
+ },
+ "256": {
+  "class": "assassin",
+  "name": "쇼크 웹"
+ },
+ "257": {
+  "class": "assassin",
+  "name": "블레이드 센티넬"
+ },
+ "258": {
+  "class": "assassin",
+  "name": "버스트 오브 스피드"
+ },
+ "259": {
+  "class": "assassin",
+  "name": "피스트 오브 파이어"
+ },
+ "260": {
+  "class": "assassin",
+  "name": "드래곤 클로"
+ },
+ "261": {
+  "class": "assassin",
+  "name": "차지드 볼트 센트리"
+ },
+ "262": {
+  "class": "assassin",
+  "name": "웨이크 오브 파이어"
+ },
+ "263": {
+  "class": "assassin",
+  "name": "웨폰 블록"
+ },
+ "264": {
+  "class": "assassin",
+  "name": "클록 오브 섀도우"
+ },
+ "265": {
+  "class": "assassin",
+  "name": "코브라 스트라이크"
+ },
+ "266": {
+  "class": "assassin",
+  "name": "블레이드 퓨리"
+ },
+ "267": {
+  "class": "assassin",
+  "name": "페이드"
+ },
+ "268": {
+  "class": "assassin",
+  "name": "섀도우 워리어"
+ },
+ "269": {
+  "class": "assassin",
+  "name": "클로 오브 썬더"
+ },
+ "270": {
+  "class": "assassin",
+  "name": "드래곤 테일"
+ },
+ "271": {
+  "class": "assassin",
+  "name": "라이트닝 센트리"
+ },
+ "272": {
+  "class": "assassin",
+  "name": "웨이크 오브 인페르노"
+ },
+ "273": {
+  "class": "assassin",
+  "name": "마인드 블래스트"
+ },
+ "274": {
+  "class": "assassin",
+  "name": "블레이드 오브 아이스"
+ },
+ "275": {
+  "class": "assassin",
+  "name": "드래곤 플라이트"
+ },
+ "276": {
+  "class": "assassin",
+  "name": "데스 센트리"
+ },
+ "277": {
+  "class": "assassin",
+  "name": "블레이드 실드"
+ },
+ "278": {
+  "class": "assassin",
+  "name": "베놈"
+ },
+ "279": {
+  "class": "assassin",
+  "name": "섀도우 마스터"
+ },
+ "280": {
+  "class": "assassin",
+  "name": "피닉스 스트라이크"
+ }
+}
