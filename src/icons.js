@@ -22,6 +22,23 @@ export const ICONS = {
   unknown: '<circle cx="12" cy="12" r="8"/>'
 };
 
+// 스킬 노드 아이콘 (원작 아이콘이 아닌 사이트 자체 제작 심볼 — 속성/역할별 구분용)
+export const SKILL_ICONS = {
+  fire:       '<path d="M12 2c-2 4-5 6-5 10a5 5 0 0010 0c0-1.5-.7-2.6-1.3-3.3.2 1.3-.5 2-1.4 2-.9 0-1.3-.7-1.3-1.6 0-1.6.8-3 0-6.1-.4.3-.7.6-1 1z"/>',
+  cold:       '<path d="M12 2v20M4.5 6.5l15 11M4.5 17.5l15-11"/>',
+  ltng:       '<path d="M13 2L5 14h6l-2 8 9-13h-6l1-7z"/>',
+  pois:       '<path d="M12 3c4 4 7 7 7 11a7 7 0 11-14 0c0-4 3-7 7-11z"/>',
+  mag:        '<path d="M6 9l6-6 6 6-6 12-6-12z"/><path d="M6 9h12"/>',
+  phy:        '<path d="M5 19L17 7M13 7h4v4M5 19l2 2M15 5l2 2"/>',
+  aura:       '<path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6l7-3z"/>',
+  warcry:     '<path d="M3 10v4h4l6 4V6l-6 4H3z"/><path d="M17 9a4 4 0 010 6"/><path d="M19.5 7a7 7 0 010 10"/>',
+  curse:      '<circle cx="12" cy="10" r="6"/><circle cx="9.5" cy="9.2" r="1.1"/><circle cx="14.5" cy="9.2" r="1.1"/><path d="M9 16v3M15 16v3"/>',
+  summon:     '<circle cx="12" cy="15" r="4.5"/><circle cx="6.5" cy="8" r="2"/><circle cx="17.5" cy="8" r="2"/><circle cx="12" cy="5.5" r="2"/>',
+  mastery:    '<path d="M12 3v18M7 8l10 8M17 8L7 16"/>',
+  shapeshift: '<circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/>',
+  passive:    '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/>',
+}
+
 export const CLASS_ICONS = {
   amazon:   '<path d="M7 4a12 12 0 000 16M7 4l10 8-10 8"/>',
   sorc:     '<circle cx="12" cy="5" r="2.6"/><path d="M12 7.6V21"/>',
