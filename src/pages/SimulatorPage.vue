@@ -9,6 +9,14 @@ import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
 
+// 캐릭터 인형(paperdoll) 배치 - 실제 인게임/멕스롤 장비창처럼 부위별 위치에 슬롯을 놓기 위한 그리드 영역 매핑
+const DOLL_AREA = {
+  helm: 'helm',
+  weapon: 'weapon', armor: 'armor', shield: 'shield',
+  gloves: 'gloves', belt: 'belt', boots: 'boots',
+  ring1: 'ring1', amulet: 'amulet', ring2: 'ring2',
+}
+
 const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
 const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
 function realIconUrl(classKey, skillName) {
@@ -428,54 +436,35 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
     <div class="note-box sim-quest-note">퀘스트 보상은 전부 클리어한 상태를 기본값으로 계산해요 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
 
-    <div class="side-block sim-panel sim-equip-box">
-      <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
-      <div class="sim-equip-frame">
-        <div class="sim-equip-grid">
-          <label class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key">
-            <div class="sim-equip-tile" :class="{ filled: equippedItems[s.key] }">
-              <svg class="sim-equip-icon" viewBox="0 0 24 24" v-html="ICONS[equipIconKey(s.key)]"></svg>
+    <div class="sim-dashboard">
+      <div class="sim-col-equip">
+        <div class="side-block sim-panel sim-equip-box">
+          <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
+          <div class="sim-equip-frame">
+            <div class="sim-equip-doll">
+              <label
+                class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key"
+                :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
+              >
+                <div class="sim-equip-tile" :class="{ filled: equippedItems[s.key] }">
+                  <svg class="sim-equip-icon" viewBox="0 0 24 24" v-html="ICONS[equipIconKey(s.key)]"></svg>
+                  <span class="sim-equip-tile-label">{{ s.label }}</span>
+                </div>
+                <select class="sim-equip-select-overlay" v-model="equippedItems[s.key]">
+                  <option value="">비어있음</option>
+                  <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
+                    {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
+                  </option>
+                </select>
+              </label>
             </div>
-            <span class="sim-equip-label">{{ s.label }}</span>
-            <select v-model="equippedItems[s.key]">
-              <option value="">비어있음</option>
-              <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
-                {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
-              </option>
-            </select>
-          </label>
-        </div>
-      </div>
-      <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요.</div>
-    </div>
-
-    <div class="sim-top-grid">
-      <div class="side-block sim-panel">
-        <h3>스탯 포인트 <span class="sim-remaining" :class="{ warn: remainingStatPoints < 0 }">남은 포인트 {{ remainingStatPoints }} / {{ totalStatPoints }}</span></h3>
-        <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
-          <span class="sim-stat-label">{{ s.label }}</span>
-          <button class="sim-pm sim-pm-gem" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0"><span>−</span></button>
-          <span class="sim-stat-value">{{ s.total }}<small>(기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template>)</small></span>
-          <button class="sim-pm sim-pm-gem" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0"><span>+</span></button>
+          </div>
+          <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요. 슬롯을 클릭하면 장착할 아이템을 고를 수 있어요.</div>
         </div>
       </div>
 
-      <div class="side-block sim-panel">
-        <h3>예상 능력치</h3>
-        <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
-        <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
-        <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
-        <div class="sim-derived-row"><span>방어력 (장비)</span><b>{{ derivedStats.armor }}</b></div>
-        <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 물리 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
-        <div class="sim-derived-row">
-          <span>저항 (화/냉/전/독)</span>
-          <b>{{ derivedStats.resist.fire }}% / {{ derivedStats.resist.cold }}% / {{ derivedStats.resist.ltng }}% / {{ derivedStats.resist.pois }}%</b>
-        </div>
-        <div class="note-box sim-note">스탯 성장 공식은 커뮤니티 자료 기준 근사치예요. 저항은 75% 상한 적용, 방어력은 장비 고정치×(1+%증가)만 반영했어요.</div>
-      </div>
-    </div>
-
-    <div class="sim-skill-section">
+      <div class="sim-col-tree">
+        <div class="sim-skill-section">
       <div class="sim-skill-head">
         <h3>스킬 포인트 <span class="sim-remaining" :class="{ warn: remainingSkillPoints < 0 }">남은 포인트 {{ remainingSkillPoints }} / {{ totalSkillPoints }}</span></h3>
       </div>
@@ -566,13 +555,48 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         </div>
         <div class="sim-node-detail sim-node-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍고 정보를 확인하세요</div>
       </div>
+        </div>
+      </div>
+
+      <div class="sim-col-stats">
+        <div class="side-block sim-panel">
+          <h3>스탯 포인트 <span class="sim-remaining" :class="{ warn: remainingStatPoints < 0 }">남은 포인트 {{ remainingStatPoints }} / {{ totalStatPoints }}</span></h3>
+          <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
+            <span class="sim-stat-label">{{ s.label }}</span>
+            <button class="sim-pm sim-pm-gem" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0"><span>−</span></button>
+            <span class="sim-stat-value">{{ s.total }}<small>(기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template>)</small></span>
+            <button class="sim-pm sim-pm-gem" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0"><span>+</span></button>
+          </div>
+        </div>
+
+        <div class="side-block sim-panel">
+          <h3>예상 능력치</h3>
+          <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
+          <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
+          <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
+          <div class="sim-derived-row"><span>방어력 (장비)</span><b>{{ derivedStats.armor }}</b></div>
+          <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 물리 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
+          <div class="sim-derived-row">
+            <span>저항 (화/냉/전/독)</span>
+            <b>{{ derivedStats.resist.fire }}% / {{ derivedStats.resist.cold }}% / {{ derivedStats.resist.ltng }}% / {{ derivedStats.resist.pois }}%</b>
+          </div>
+          <div class="note-box sim-note">스탯 성장 공식은 커뮤니티 자료 기준 근사치예요. 저항은 75% 상한 적용, 방어력은 장비 고정치×(1+%증가)만 반영했어요.</div>
+        </div>
+      </div>
     </div>
   </div>
   </div>
 </template>
 
 <style scoped>
-.sim-wrap{max-width:960px;}
+.sim-wrap{max-width:1520px;}
+
+.sim-dashboard{display:grid; grid-template-columns:260px 1fr 280px; gap:18px; align-items:start;}
+.sim-col-equip, .sim-col-stats{display:flex; flex-direction:column; gap:16px; min-width:0;}
+.sim-col-tree{min-width:0;}
+@media (max-width:1150px){
+  .sim-dashboard{grid-template-columns:1fr;}
+}
 .sim-class-tabs button{display:flex; align-items:center; gap:7px;}
 .sim-class-icon{width:16px; height:16px; display:inline-flex; flex:none;}
 .sim-class-icon svg{width:100%; height:100%; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
@@ -615,28 +639,32 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     linear-gradient(180deg, #4a443b, #2a251f);
   box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
 }
-.sim-equip-grid{display:grid; grid-template-columns:repeat(5, 1fr); gap:12px 10px;}
-.sim-equip-slot{display:flex; flex-direction:column; align-items:center; gap:6px; font-size:11px; color:var(--text-muted);}
+.sim-equip-doll{
+  display:grid; gap:9px; grid-template-columns:1fr 1fr 1fr;
+  grid-template-areas:
+    ".      helm   ."
+    "weapon armor  shield"
+    "gloves belt   boots"
+    "ring1  amulet ring2";
+}
+.sim-equip-slot{position:relative; display:block; font-size:11px; color:var(--text-muted);}
 .sim-equip-tile{
-  width:52px; height:52px; border-radius:4px; border:2px solid #6b5d47;
+  position:relative; width:100%; aspect-ratio:1; border-radius:4px; border:2px solid #6b5d47;
   background:
     radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
     linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
   display:flex; align-items:center; justify-content:center; color:var(--text-dim);
+  transition:border-color .15s, box-shadow .15s;
 }
 .sim-equip-tile.filled{border-color:var(--gold); color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 10px -1px var(--gold-dim);}
-.sim-equip-icon{width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
-.sim-equip-label{font-size:10.5px; text-align:center;}
-.sim-equip-slot select{
-  width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text);
-  padding:5px 4px; font-size:10.5px; font-family:inherit; max-width:100%;
+.sim-equip-icon{width:44%; height:44%; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
+.sim-equip-tile-label{
+  position:absolute; left:0; right:0; bottom:0; padding:2px 2px 3px; font-size:9px; text-align:center; line-height:1.1;
+  background:linear-gradient(0deg, rgba(0,0,0,0.78), transparent 90%); color:var(--text-muted); pointer-events:none; border-radius:0 0 3px 3px;
 }
-.sim-equip-slot select:focus{outline:none; border-color:var(--gold-dim);}
-@media (max-width:700px){ .sim-equip-grid{grid-template-columns:repeat(3, 1fr);} }
-@media (max-width:560px){ .sim-equip-grid{grid-template-columns:repeat(2, 1fr);} }
+.sim-equip-select-overlay{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
-.sim-top-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;}
 .sim-panel{padding:18px 20px;}
 .sim-panel h3{font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px;}
 .sim-remaining{font-size:11.5px; color:var(--text-dim); font-weight:400;}
@@ -757,9 +785,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   .sim-node-icon{width:17px; height:17px;}
 }
 
-@media (max-width:800px){
-  .sim-top-grid{grid-template-columns:1fr;}
-}
 @media (max-width:560px){
   .sim-controls{flex-direction:column; align-items:stretch;}
   .sim-field input{width:100%;}
