@@ -622,57 +622,55 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-columns{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:4px;}
 .sim-tree-col-panel{display:flex; flex-direction:column; min-width:0;}
 .sim-tree-col-head{
-  font-size:12px; color:var(--text-muted); margin-bottom:8px; text-align:center;
-  display:flex; flex-direction:column; gap:2px;
+  font-size:12.5px; color:var(--gold); margin-bottom:0; text-align:center; font-family:'Noto Serif KR', serif; font-weight:700;
+  display:flex; flex-direction:column; gap:2px; justify-content:center;
+  border:1px solid var(--gold-dim); border-bottom:none; background:linear-gradient(180deg, #3a342c, #24201a);
+  padding:8px 6px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 4px rgba(0,0,0,0.5);
 }
-.sim-tree-col-head small{color:var(--text-dim); font-size:10.5px;}
+.sim-tree-col-head small{color:var(--text-muted); font-size:10.5px; font-family:'Noto Sans KR', sans-serif; font-weight:400;}
 
 .sim-tree-frame{
   position:relative; border:1px solid var(--gold-dim); flex:1;
   background:
-    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.05), transparent 30%),
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.09), transparent 30%),
     radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
     radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
-    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%),
-    repeating-linear-gradient(115deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 14px),
-    repeating-linear-gradient(25deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 10px),
-    linear-gradient(180deg, #34302c, #1d1a17);
-  padding:10px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.6);
+    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.06), transparent 35%),
+    repeating-linear-gradient(115deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 12px),
+    repeating-linear-gradient(25deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, #4a443b, #2a251f);
+  padding:10px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
 }
 
 .sim-tree-detail-wrap{margin-top:14px;}
 
 .sim-tree-canvas{position:relative; width:100%; height:480px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tree-edge{fill:none; stroke:#0a0806; stroke-width:3px; stroke-linecap:square; stroke-linejoin:round; transition:stroke .15s;}
-.sim-tree-edge.lit{stroke:#8f773d;}
+.sim-tree-edge{fill:none; stroke:#6b6156; stroke-width:3px; stroke-linecap:square; stroke-linejoin:round; transition:stroke .15s; opacity:0.8;}
+.sim-tree-edge.lit{stroke:var(--gold-dim); opacity:1;}
 
-.sim-tree-node-ring{position:absolute; width:44px; height:44px; transform:translate(-50%,-50%);}
+.sim-tree-node-ring{position:absolute; width:46px; height:46px; transform:translate(-50%,-50%);}
 
 .sim-tree-node{
-  width:100%; height:100%; border-radius:5px; border:2px solid #5a4c38;
+  width:100%; height:100%; border-radius:4px; border:2px solid #6b5d47;
   background:
     radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
     linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
-  color:var(--text-dim); display:flex; align-items:center; justify-content:center;
+  color:var(--text-dim); display:flex; align-items:center; justify-content:center; padding:2px;
   transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
 }
-.sim-tree-node::after{
-  content:''; position:absolute; inset:3px; border:1px solid rgba(0,0,0,0.55); border-radius:3px; pointer-events:none;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);
-}
-.sim-tree-node:hover{transform:scale(1.08); border-color:var(--node-color);}
+.sim-tree-node:hover{transform:scale(1.08); border-color:var(--gold-dim);}
 .sim-tree-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
-.sim-tree-node.invested{border-color:var(--node-color); color:var(--text); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 10px -1px var(--node-color);}
-.sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px -1px var(--gold);}
+.sim-tree-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 9px -1px var(--gold-dim);}
+.sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px 0px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
 .sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
-.sim-node-icon-img{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:3px;}
+.sim-node-icon-img{width:100%; height:100%; object-fit:cover; pointer-events:none; border-radius:2px;}
 .sim-node-badge{
-  position:absolute; right:-4px; bottom:-4px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
-  background:#0b0a08; color:#fff; font-size:10px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
-  display:flex; align-items:center; justify-content:center; border:1px solid #4a3f30;
+  position:absolute; right:-5px; bottom:-5px; min-width:17px; height:15px; padding:0 3px; border-radius:3px;
+  background:#0b0a08; color:#fff; font-size:10.5px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
+  display:flex; align-items:center; justify-content:center; border:1px solid #6b5d47;
 }
 
 .sim-tree-reset{
