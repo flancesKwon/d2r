@@ -8,15 +8,25 @@ const TIER_LEVEL_REQ = [1, 6, 12, 18, 24, 30]
 const classKeys = Object.keys(classStats)
 const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
 const STAT_LABELS = { str: '힘', dex: '민첩', vit: '활력', nrg: '에너지' }
+const DIFFS = ['노말', '나이트메어', '헬']
+
+// 난이도마다 반복 지급되는 퀘스트 보상 (덴 오브 이블/라다멘트의 둥지/타락한 천사는 스킬 포인트,
+// 람 에센의 책은 스탯 포인트를 줌 — 전 난이도 클리어 시 스킬 12개, 스탯 15개가 최대치)
+const SKILL_QUESTS = [
+  { key: 'denOfEvil', act: 1, name: '지옥의 소굴', points: 1 },
+  { key: 'radament', act: 2, name: '라다멘트의 둥지', points: 1 },
+  { key: 'izual', act: 4, name: '타락한 천사 (이주얼)', points: 2 },
+]
+const STAT_QUESTS = [{ key: 'lamEsen', act: 3, name: '람 에센의 책', points: 5 }]
 
 const selectedClass = ref('amazon')
 const level = ref(1)
-const bonusSkillPoints = ref(0)
-const bonusStatPoints = ref(0)
 const activeTab = ref(0)
 
 const allocatedStats = reactive({ str: 0, dex: 0, vit: 0, nrg: 0 })
 const allocatedSkills = reactive({})
+const questSkillDone = reactive(Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, [false, false, false]])))
+const questStatDone = reactive(Object.fromEntries(STAT_QUESTS.map((q) => [q.key, [false, false, false]])))
 
 function resetAll() {
   STAT_KEYS.forEach((k) => (allocatedStats[k] = 0))
@@ -39,11 +49,14 @@ const clampedLevel = computed({
   },
 })
 
-const totalStatPoints = computed(() => Math.max(0, Number(bonusStatPoints.value) || 0) + 5 * (level.value - 1))
+const questStatBonus = computed(() => STAT_QUESTS.reduce((sum, q) => sum + q.points * questStatDone[q.key].filter(Boolean).length, 0))
+const questSkillBonus = computed(() => SKILL_QUESTS.reduce((sum, q) => sum + q.points * questSkillDone[q.key].filter(Boolean).length, 0))
+
+const totalStatPoints = computed(() => questStatBonus.value + 5 * (level.value - 1))
 const spentStatPoints = computed(() => STAT_KEYS.reduce((sum, k) => sum + allocatedStats[k], 0))
 const remainingStatPoints = computed(() => totalStatPoints.value - spentStatPoints.value)
 
-const totalSkillPoints = computed(() => Math.max(0, Number(bonusSkillPoints.value) || 0) + (level.value - 1))
+const totalSkillPoints = computed(() => questSkillBonus.value + (level.value - 1))
 const spentSkillPoints = computed(() => Object.values(allocatedSkills).reduce((sum, v) => sum + v, 0))
 const remainingSkillPoints = computed(() => totalSkillPoints.value - spentSkillPoints.value)
 
@@ -163,15 +176,28 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         <span>캐릭터 레벨</span>
         <input type="number" min="1" max="99" v-model="clampedLevel" />
       </label>
-      <label class="sim-field">
-        <span>추가 스탯 포인트 (퀘스트 보너스 등)</span>
-        <input type="number" min="0" v-model.number="bonusStatPoints" />
-      </label>
-      <label class="sim-field">
-        <span>추가 스킬 포인트 (퀘스트 보너스 등)</span>
-        <input type="number" min="0" v-model.number="bonusSkillPoints" />
-      </label>
-      <button class="sim-reset-btn" @click="resetAll">초기화</button>
+      <button class="sim-reset-btn" @click="resetAll">빌드 초기화</button>
+    </div>
+
+    <div class="side-block sim-panel sim-quest-box">
+      <h3>퀘스트 보너스 <span class="sim-remaining">스킬 포인트 +{{ questSkillBonus }} · 스탯 포인트 +{{ questStatBonus }}</span></h3>
+      <div class="sim-quest-row" v-for="q in SKILL_QUESTS" :key="q.key">
+        <span class="sim-quest-name">{{ q.name }} <small>(Act{{ q.act }} · 클리어당 스킬 +{{ q.points }})</small></span>
+        <div class="sim-quest-diffs">
+          <label class="sim-quest-diff" v-for="(d, i) in DIFFS" :key="d">
+            <input type="checkbox" v-model="questSkillDone[q.key][i]" />{{ d }}
+          </label>
+        </div>
+      </div>
+      <div class="sim-quest-row" v-for="q in STAT_QUESTS" :key="q.key">
+        <span class="sim-quest-name">{{ q.name }} <small>(Act{{ q.act }} · 클리어당 스탯 +{{ q.points }})</small></span>
+        <div class="sim-quest-diffs">
+          <label class="sim-quest-diff" v-for="(d, i) in DIFFS" :key="d">
+            <input type="checkbox" v-model="questStatDone[q.key][i]" />{{ d }}
+          </label>
+        </div>
+      </div>
+      <div class="note-box sim-note">덴 오브 이블(+1)·라다멘트의 둥지(+1)·타락한 천사/이주얼(+2) 스킬 포인트, 람 에센의 책(+5) 스탯 포인트 — 난이도마다 반복 지급돼서 전부 깨면 스킬 12개, 스탯 15개 최대.</div>
     </div>
 
     <div class="sim-top-grid">
@@ -236,6 +262,15 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-field input:focus{outline:none; border-color:var(--gold-dim);}
 .sim-reset-btn{border:1px solid var(--border); color:var(--text-muted); padding:9px 16px; font-size:12.5px; height:38px;}
 .sim-reset-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+
+.sim-quest-box{margin-bottom:20px;}
+.sim-quest-row{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border-soft);}
+.sim-quest-row:first-of-type{border-top:none;}
+.sim-quest-name{font-size:13px; color:var(--text);}
+.sim-quest-name small{color:var(--text-dim); font-weight:400;}
+.sim-quest-diffs{display:flex; gap:12px; flex:none;}
+.sim-quest-diff{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-muted); cursor:pointer;}
+.sim-quest-diff input{accent-color:var(--gold-dim); cursor:pointer;}
 
 .sim-top-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;}
 .sim-panel{padding:18px 20px;}
