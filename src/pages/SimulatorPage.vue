@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
 import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
-import { CLASS_ICONS } from '../icons.js'
+import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 
@@ -235,7 +235,20 @@ function nodeColor(skill) {
   return ELEMENT_COLORS[skill.dmg?.ele?.type] || ELEMENT_COLORS[skill.dmg?.phy ? 'phy' : ''] || null
 }
 
-// 활성 탭의 스킬을 티어(요구 레벨)별로 행에 배치하고, 선행 스킬 관계를 잇는 선 좌표를 계산
+// 스킬을 속성/역할별로 분류해 아이콘을 고름 (원작 아이콘이 아닌 자체 제작 심볼)
+function skillIconKey(skill, tabName) {
+  if (skill.dmg?.ele?.type) return skill.dmg.ele.type
+  if (skill.dmg?.phy) return 'phy'
+  if (tabName.includes('오라')) return 'aura'
+  if (tabName.includes('함성')) return 'warcry'
+  if (tabName.includes('저주')) return 'curse'
+  if (tabName.includes('소환') || tabName.includes('악마')) return 'summon'
+  if (tabName.includes('마스터리') || tabName.includes('숙련')) return 'mastery'
+  if (tabName.includes('변신')) return 'shapeshift'
+  return 'passive'
+}
+
+// 활성 탭의 스킬을 티어(요구 레벨)별로 행에 배치하고, 선행 스킬 관계를 잇는 꺾은선(엘보) 좌표를 계산
 const treeLayout = computed(() => {
   const tab = classTabs.value[activeTab.value]
   if (!tab) return { nodes: [], edges: [] }
@@ -254,7 +267,7 @@ const treeLayout = computed(() => {
       else col = (i / (count - 1)) * 2
       const x = ((col + 0.5) / 3) * 100
       positions[skillIdx] = { x, y }
-      nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx] })
+      nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
     })
   })
 
@@ -262,14 +275,23 @@ const treeLayout = computed(() => {
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
       const reqIdx = tab.skills.findIndex((s) => s.name === reqName)
-      if (reqIdx !== -1 && positions[reqIdx]) {
-        edges.push({ x1: positions[reqIdx].x, y1: positions[reqIdx].y, x2: positions[skillIdx].x, y2: positions[skillIdx].y })
+      const from = positions[reqIdx]
+      const to = positions[skillIdx]
+      if (reqIdx !== -1 && from && to) {
+        const midY = (from.y + to.y) / 2
+        edges.push({ srcIdx: reqIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${to.y}` })
       }
     })
   })
 
   return { nodes, edges }
 })
+
+function resetTab(tabIdx) {
+  const tab = classTabs.value[tabIdx]
+  tab.skills.forEach((_, skillIdx) => delete allocatedSkills[skillKey(tabIdx, skillIdx)])
+  if (selectedNode.value && selectedNode.value.tabIdx === tabIdx) selectedNode.value = null
+}
 
 const selectedSkill = computed(() => {
   if (!selectedNode.value) return null
@@ -444,11 +466,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <div class="sim-tree-frame">
         <div class="sim-tree-canvas">
           <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <line
+            <path
               v-for="(e, i) in treeLayout.edges" :key="i"
-              :x1="e.x1" :y1="e.y1" :x2="e.x2" :y2="e.y2"
+              :d="e.path"
               class="sim-tree-edge"
-              :class="{ lit: skillPoint(activeTab, treeLayout.nodes.find(n => n.x === e.x1 && n.y === e.y1)?.skillIdx) > 0 }"
+              :class="{ lit: skillPoint(activeTab, e.srcIdx) > 0 }"
+              vector-effect="non-scaling-stroke"
             />
           </svg>
           <button
@@ -463,8 +486,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             }"
             @click="onNodeClick(n.skillIdx)"
           >
-            <span class="sim-node-glyph">{{ n.skill.name.slice(0, 1) }}</span>
+            <svg class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
             <span class="sim-node-badge" v-if="skillPoint(activeTab, n.skillIdx) > 0">{{ skillPoint(activeTab, n.skillIdx) }}</span>
+          </button>
+          <button class="sim-tree-reset" title="이 계열 초기화" @click="resetTab(activeTab)">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
           </button>
         </div>
 
@@ -586,10 +612,14 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-frame{
   position:relative; border:1px solid var(--gold-dim);
   background:
-    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.03), transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.025), transparent 45%),
-    linear-gradient(180deg, #221d17, #14110d);
-  padding:14px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.55);
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.05), transparent 30%),
+    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
+    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
+    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%),
+    repeating-linear-gradient(115deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(25deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 10px),
+    linear-gradient(180deg, #34302c, #1d1a17);
+  padding:14px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 40px rgba(0,0,0,0.6);
 }
 .sim-tree-frame::before, .sim-tree-frame::after{
   content:''; position:absolute; width:9px; height:9px; border:1px solid var(--gold-dim); transform:rotate(45deg); top:-5px;
@@ -598,32 +628,43 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-frame::after{right:-5px;}
 
 .sim-tree-canvas{position:relative; width:100%; height:420px;}
-.sim-tree-svg{position:absolute; inset:0; width:100%; height:100%;}
-.sim-tree-edge{stroke:#0a0806; stroke-width:2.2; stroke-linecap:round; transition:stroke .15s, stroke-width .15s;}
-.sim-tree-edge.lit{stroke:#8f773d; stroke-width:2.6;}
+.sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+.sim-tree-edge{fill:none; stroke:#0a0806; stroke-width:4px; stroke-linecap:square; stroke-linejoin:round; transition:stroke .15s;}
+.sim-tree-edge.lit{stroke:#8f773d;}
 
 .sim-tree-node{
   position:absolute; width:54px; height:54px; transform:translate(-50%,-50%);
-  border-radius:7px; border:2px solid #4a3f30;
+  border-radius:5px; border:2px solid #5a4c38;
   background:
-    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.08), transparent 35%),
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
     linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
   color:var(--text-dim); display:flex; align-items:center; justify-content:center;
-  font-family:'Noto Serif KR', serif; font-weight:700; font-size:18px;
   transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
+}
+.sim-tree-node::after{
+  content:''; position:absolute; inset:3px; border:1px solid rgba(0,0,0,0.55); border-radius:3px; pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);
 }
 .sim-tree-node:hover{transform:translate(-50%,-50%) scale(1.06); border-color:var(--node-color);}
 .sim-tree-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
-.sim-tree-node.invested{border-color:var(--node-color); color:var(--text); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px -1px var(--node-color);}
-.sim-tree-node.maxed{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 16px -1px var(--gold);}
+.sim-tree-node.invested{border-color:var(--node-color); color:var(--text); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 12px -1px var(--node-color);}
+.sim-tree-node.maxed{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 16px -1px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:3px;}
-.sim-node-glyph{pointer-events:none; text-shadow:0 1px 2px rgba(0,0,0,0.8);}
+.sim-node-icon{width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:20px; height:16px; padding:0 4px; border-radius:3px;
   background:#0b0a08; color:#fff; font-size:11px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
   display:flex; align-items:center; justify-content:center; border:1px solid #4a3f30;
 }
+
+.sim-tree-reset{
+  position:absolute; left:-8px; bottom:-8px; width:26px; height:26px; border-radius:50%;
+  background:#0b0a08; border:1px solid #4a3f30; color:var(--text-dim); z-index:2;
+  display:flex; align-items:center; justify-content:center;
+}
+.sim-tree-reset svg{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.8;}
+.sim-tree-reset:hover{color:var(--blood); border-color:var(--blood);}
 
 .sim-node-detail{
   margin-top:14px; padding:14px 16px; border:1px solid var(--border-soft); background:var(--panel); min-height:64px;
@@ -642,7 +683,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
 @media (max-width:560px){
   .sim-tree-canvas{height:360px;}
-  .sim-tree-node{width:42px; height:42px; font-size:15px;}
+  .sim-tree-node{width:42px; height:42px;}
+  .sim-node-icon{width:19px; height:19px;}
 }
 
 @media (max-width:800px){
