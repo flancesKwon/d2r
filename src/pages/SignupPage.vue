@@ -1,8 +1,41 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 
 const form = ref({ nickname: '', email: '', password: '', passwordCheck: '', agree: false })
 const submitted = ref(false)
+const avatarPreview = ref('')
+const avatarInput = ref(null)
+const avatarError = ref('')
+
+function pickAvatar() {
+  avatarInput.value?.click()
+}
+
+function onAvatarChange(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    avatarError.value = '이미지 파일만 선택할 수 있어요'
+    return
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    avatarError.value = '3MB 이하 이미지로 선택해주세요'
+    return
+  }
+  avatarError.value = ''
+  if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+  avatarPreview.value = URL.createObjectURL(file)
+}
+
+function removeAvatar() {
+  if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+  avatarPreview.value = ''
+  if (avatarInput.value) avatarInput.value.value = ''
+}
+
+onBeforeUnmount(() => {
+  if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+})
 
 const passwordMismatch = computed(() => form.value.passwordCheck.length > 0 && form.value.password !== form.value.passwordCheck)
 const canSubmit = computed(() =>
@@ -41,6 +74,23 @@ function onGoogleClick() {
       <div class="note-box signup-preview-note" v-if="!submitted">디자인 미리보기예요 — 실제 가입 처리는 아직 준비 중이에요.</div>
 
       <form class="signup-form" @submit.prevent="onSubmit" v-if="!submitted">
+        <div class="signup-avatar-row">
+          <button type="button" class="signup-avatar" @click="pickAvatar">
+            <img v-if="avatarPreview" :src="avatarPreview" alt="프로필 사진 미리보기" />
+            <svg v-else viewBox="0 0 24 24" class="signup-avatar-placeholder"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c1.6-3.6 4.6-5.4 7.5-5.4s5.9 1.8 7.5 5.4"/></svg>
+            <span class="signup-avatar-badge">＋</span>
+          </button>
+          <div class="signup-avatar-info">
+            <span>프로필 사진</span>
+            <div class="signup-avatar-actions">
+              <button type="button" class="signup-avatar-link" @click="pickAvatar">사진 선택</button>
+              <button type="button" class="signup-avatar-link" v-if="avatarPreview" @click="removeAvatar">삭제</button>
+            </div>
+            <small class="signup-error" v-if="avatarError">{{ avatarError }}</small>
+          </div>
+          <input ref="avatarInput" type="file" accept="image/*" class="signup-avatar-input" @change="onAvatarChange" />
+        </div>
+
         <label class="signup-field">
           <span>닉네임</span>
           <input type="text" v-model="form.nickname" placeholder="게시판에서 쓸 닉네임" maxlength="16" />
@@ -106,6 +156,24 @@ function onGoogleClick() {
 .signup-preview-note{margin-bottom:20px; text-align:center; color:var(--gold-dim); border-color:var(--gold-dim);}
 
 .signup-form{display:flex; flex-direction:column; gap:14px;}
+
+.signup-avatar-row{display:flex; align-items:center; gap:14px; margin-bottom:2px;}
+.signup-avatar{
+  position:relative; width:64px; height:64px; border-radius:50%; flex:none; overflow:visible;
+  border:1px solid var(--border); background:var(--panel-2); display:flex; align-items:center; justify-content:center;
+}
+.signup-avatar img{width:100%; height:100%; border-radius:50%; object-fit:cover;}
+.signup-avatar-placeholder{width:34px; height:34px; stroke:var(--text-dim); fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
+.signup-avatar-badge{
+  position:absolute; right:-2px; bottom:-2px; width:20px; height:20px; border-radius:50%;
+  background:var(--gold); color:#1B1714; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--panel);
+}
+.signup-avatar-info{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--text-muted);}
+.signup-avatar-actions{display:flex; gap:10px;}
+.signup-avatar-link{font-size:12px; color:var(--gold-dim); text-decoration:underline; text-underline-offset:2px;}
+.signup-avatar-link:hover{color:var(--gold);}
+.signup-avatar-input{display:none;}
 .signup-field{display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-muted);}
 .signup-field input{
   background:var(--panel-2); border:1px solid var(--border); color:var(--text);
