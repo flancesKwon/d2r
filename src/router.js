@@ -9,6 +9,7 @@ import CommunityPostPage from './pages/CommunityPostPage.vue'
 import SimulatorPage from './pages/SimulatorPage.vue'
 import LadderPage from './pages/LadderPage.vue'
 import MarketPage from './pages/MarketPage.vue'
+import SignupPage from './pages/SignupPage.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -23,6 +24,7 @@ const router = createRouter({
     { path: '/simulator', name: 'simulator', component: SimulatorPage },
     { path: '/ladder', name: 'ladder', component: LadderPage },
     { path: '/market', name: 'market', component: MarketPage },
+    { path: '/signup', name: 'signup', component: SignupPage },
   ],
   scrollBehavior() {
     return { top: 0 }
