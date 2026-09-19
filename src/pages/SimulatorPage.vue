@@ -14,27 +14,20 @@ const router = useRouter()
 const classKeys = Object.keys(classStats)
 const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
 const STAT_LABELS = { str: '힘', dex: '민첩', vit: '활력', nrg: '에너지' }
-const DIFFS = ['노말', '나이트메어', '헬']
 const TIER_LEVELS = [1, 6, 12, 18, 24, 30]
 const ELEMENT_COLORS = { fire: '#c0512f', cold: '#4e8ac0', ltng: '#c7a83a', pois: '#5c8a5b', mag: '#8a6bb0', phy: '#8c8275' }
 
-// 난이도마다 반복 지급되는 퀘스트 보상 (덴 오브 이블/라다멘트의 둥지/타락한 천사는 스킬 포인트,
-// 람 에센의 책은 스탯 포인트를 줌 — 전 난이도 클리어 시 스킬 12개, 스탯 15개가 최대치)
-const SKILL_QUESTS = [
-  { key: 'denOfEvil', act: 1, name: '지옥의 소굴', points: 1 },
-  { key: 'radament', act: 2, name: '라다멘트의 둥지', points: 1 },
-  { key: 'izual', act: 4, name: '타락한 천사 (이주얼)', points: 2 },
-]
-const STAT_QUESTS = [{ key: 'lamEsen', act: 3, name: '람 에센의 책', points: 5 }]
+// 덴 오브 이블(+1)·라다멘트의 둥지(+1)·타락한 천사/이주얼(+2) 스킬 포인트,
+// 람 에센의 책(+5) 스탯 포인트가 난이도마다 반복 지급 — 전부 깬 상태를 기본값으로 고정
+const MAX_QUEST_SKILL_BONUS = (1 + 1 + 2) * 3
+const MAX_QUEST_STAT_BONUS = 5 * 3
 
 const selectedClass = ref('amazon')
-const level = ref(1)
+const level = ref(90)
 const activeTab = ref(0)
 
 const allocatedStats = reactive({ str: 0, dex: 0, vit: 0, nrg: 0 })
 const allocatedSkills = reactive({})
-const questSkillDone = reactive(Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, [false, false, false]])))
-const questStatDone = reactive(Object.fromEntries(STAT_QUESTS.map((q) => [q.key, [false, false, false]])))
 const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, ''])))
 
 const itemsBySlot = buildItemsBySlot(itemsData)
@@ -78,14 +71,11 @@ const clampedLevel = computed({
   },
 })
 
-const questStatBonus = computed(() => STAT_QUESTS.reduce((sum, q) => sum + q.points * questStatDone[q.key].filter(Boolean).length, 0))
-const questSkillBonus = computed(() => SKILL_QUESTS.reduce((sum, q) => sum + q.points * questSkillDone[q.key].filter(Boolean).length, 0))
-
-const totalStatPoints = computed(() => questStatBonus.value + 5 * (level.value - 1))
+const totalStatPoints = computed(() => MAX_QUEST_STAT_BONUS + 5 * (level.value - 1))
 const spentStatPoints = computed(() => STAT_KEYS.reduce((sum, k) => sum + allocatedStats[k], 0))
 const remainingStatPoints = computed(() => totalStatPoints.value - spentStatPoints.value)
 
-const totalSkillPoints = computed(() => questSkillBonus.value + (level.value - 1))
+const totalSkillPoints = computed(() => MAX_QUEST_SKILL_BONUS + (level.value - 1))
 const spentSkillPoints = computed(() => Object.values(allocatedSkills).reduce((sum, v) => sum + v, 0))
 const remainingSkillPoints = computed(() => totalSkillPoints.value - spentSkillPoints.value)
 
@@ -143,8 +133,6 @@ function buildSharePayload() {
     l: level.value,
     st: { ...allocatedStats },
     sk,
-    qs: Object.fromEntries(SKILL_QUESTS.map((q) => [q.key, questSkillDone[q.key]])),
-    qt: Object.fromEntries(STAT_QUESTS.map((q) => [q.key, questStatDone[q.key]])),
     eq: { ...equippedItems },
   }
 }
@@ -156,7 +144,7 @@ async function applyShareState(data) {
   await nextTick()
   skipClassReset = false
 
-  level.value = Math.min(99, Math.max(1, Number(data.l) || 1))
+  level.value = Math.min(99, Math.max(1, Number(data.l) || 90))
   STAT_KEYS.forEach((k) => (allocatedStats[k] = Number(data.st?.[k]) || 0))
   Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
   if (data.sk) {
@@ -165,12 +153,6 @@ async function applyShareState(data) {
       if (loc) allocatedSkills[skillKey(loc.tabIdx, loc.skillIdx)] = Number(pts) || 0
     })
   }
-  SKILL_QUESTS.forEach((q) => {
-    if (Array.isArray(data.qs?.[q.key])) questSkillDone[q.key] = data.qs[q.key].map(Boolean)
-  })
-  STAT_QUESTS.forEach((q) => {
-    if (Array.isArray(data.qt?.[q.key])) questStatDone[q.key] = data.qt[q.key].map(Boolean)
-  })
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = (data.eq && data.eq[s.key]) || ''))
 }
 
@@ -405,26 +387,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <span class="sim-share-status">{{ shareCopied ? '링크가 복사됐어요' : '복사가 안 되면 위 링크를 직접 선택해서 복사해주세요' }}</span>
     </div>
 
-    <div class="side-block sim-panel sim-quest-box">
-      <h3>퀘스트 보너스 <span class="sim-remaining">스킬 포인트 +{{ questSkillBonus }} · 스탯 포인트 +{{ questStatBonus }}</span></h3>
-      <div class="sim-quest-row" v-for="q in SKILL_QUESTS" :key="q.key">
-        <span class="sim-quest-name">{{ q.name }} <small>(Act{{ q.act }} · 클리어당 스킬 +{{ q.points }})</small></span>
-        <div class="sim-quest-diffs">
-          <label class="sim-quest-diff" v-for="(d, i) in DIFFS" :key="d">
-            <input type="checkbox" v-model="questSkillDone[q.key][i]" />{{ d }}
-          </label>
-        </div>
-      </div>
-      <div class="sim-quest-row" v-for="q in STAT_QUESTS" :key="q.key">
-        <span class="sim-quest-name">{{ q.name }} <small>(Act{{ q.act }} · 클리어당 스탯 +{{ q.points }})</small></span>
-        <div class="sim-quest-diffs">
-          <label class="sim-quest-diff" v-for="(d, i) in DIFFS" :key="d">
-            <input type="checkbox" v-model="questStatDone[q.key][i]" />{{ d }}
-          </label>
-        </div>
-      </div>
-      <div class="note-box sim-note">덴 오브 이블(+1)·라다멘트의 둥지(+1)·타락한 천사/이주얼(+2) 스킬 포인트, 람 에센의 책(+5) 스탯 포인트 — 난이도마다 반복 지급돼서 전부 깨면 스킬 12개, 스탯 15개 최대.</div>
-    </div>
+    <div class="note-box sim-quest-note">퀘스트 보상은 전부 클리어한 상태를 기본값으로 계산해요 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
 
     <div class="side-block sim-panel sim-equip-box">
       <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
@@ -570,14 +533,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-share-input:focus{outline:none; border-color:var(--gold-dim);}
 .sim-share-status{font-size:11.5px; color:var(--text-dim);}
 
-.sim-quest-box{margin-bottom:20px;}
-.sim-quest-row{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border-soft);}
-.sim-quest-row:first-of-type{border-top:none;}
-.sim-quest-name{font-size:13px; color:var(--text);}
-.sim-quest-name small{color:var(--text-dim); font-weight:400;}
-.sim-quest-diffs{display:flex; gap:12px; flex:none;}
-.sim-quest-diff{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-muted); cursor:pointer;}
-.sim-quest-diff input{accent-color:var(--gold-dim); cursor:pointer;}
+.sim-quest-note{margin-bottom:20px;}
 
 .sim-equip-box{margin-bottom:20px;}
 .sim-equip-box h3{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:14px;}
@@ -628,8 +584,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-tabs small{color:var(--text-dim);}
 
 .sim-tree-frame{
-  position:relative; border:1px solid var(--gold-dim); background:linear-gradient(180deg, #1c1712, #100d0a);
-  padding:14px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
+  position:relative; border:1px solid var(--gold-dim);
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.03), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.025), transparent 45%),
+    linear-gradient(180deg, #221d17, #14110d);
+  padding:14px; box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.55);
 }
 .sim-tree-frame::before, .sim-tree-frame::after{
   content:''; position:absolute; width:9px; height:9px; border:1px solid var(--gold-dim); transform:rotate(45deg); top:-5px;
@@ -639,26 +599,30 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
 .sim-tree-canvas{position:relative; width:100%; height:420px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%;}
-.sim-tree-edge{stroke:var(--border); stroke-width:0.5; transition:stroke .15s;}
-.sim-tree-edge.lit{stroke:var(--gold-dim); stroke-width:0.7;}
+.sim-tree-edge{stroke:#0a0806; stroke-width:2.2; stroke-linecap:round; transition:stroke .15s, stroke-width .15s;}
+.sim-tree-edge.lit{stroke:#8f773d; stroke-width:2.6;}
 
 .sim-tree-node{
-  position:absolute; width:52px; height:52px; transform:translate(-50%,-50%);
-  border-radius:50%; border:2px solid var(--border); background:radial-gradient(circle at 35% 30%, var(--panel-2), #0e0c0a 75%);
+  position:absolute; width:54px; height:54px; transform:translate(-50%,-50%);
+  border-radius:7px; border:2px solid #4a3f30;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.08), transparent 35%),
+    linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5);
   color:var(--text-dim); display:flex; align-items:center; justify-content:center;
   font-family:'Noto Serif KR', serif; font-weight:700; font-size:18px;
   transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
 }
 .sim-tree-node:hover{transform:translate(-50%,-50%) scale(1.06); border-color:var(--node-color);}
-.sim-tree-node.locked{filter:grayscale(1) brightness(0.55); cursor:default;}
-.sim-tree-node.invested{border-color:var(--node-color); color:var(--text); box-shadow:0 0 12px -2px var(--node-color);}
-.sim-tree-node.maxed{border-color:var(--gold); box-shadow:0 0 16px -2px var(--gold);}
+.sim-tree-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
+.sim-tree-node.invested{border-color:var(--node-color); color:var(--text); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px -1px var(--node-color);}
+.sim-tree-node.maxed{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 16px -1px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:3px;}
-.sim-node-glyph{pointer-events:none;}
+.sim-node-glyph{pointer-events:none; text-shadow:0 1px 2px rgba(0,0,0,0.8);}
 .sim-node-badge{
-  position:absolute; right:-4px; bottom:-4px; min-width:19px; height:19px; padding:0 4px; border-radius:50%;
-  background:var(--gold); color:#1B1714; font-size:11px; font-weight:800; font-family:'Noto Sans KR', sans-serif;
-  display:flex; align-items:center; justify-content:center; border:2px solid var(--bg-raise);
+  position:absolute; right:-5px; bottom:-5px; min-width:20px; height:16px; padding:0 4px; border-radius:3px;
+  background:#0b0a08; color:#fff; font-size:11px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
+  display:flex; align-items:center; justify-content:center; border:1px solid #4a3f30;
 }
 
 .sim-node-detail{
