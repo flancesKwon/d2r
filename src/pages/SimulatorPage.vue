@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
 import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
-import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
+import { CLASS_ICONS, SKILL_ICONS, ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
@@ -39,6 +39,16 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
+
+const SLOT_DEFAULT_ICON = {
+  weapon: 'sword', shield: 'shield', helm: 'helm', armor: 'armor', gloves: 'gloves',
+  boots: 'boots', belt: 'belt', amulet: 'amulet', ring1: 'ring', ring2: 'ring',
+}
+function equipIconKey(slotKey) {
+  const id = equippedItems[slotKey]
+  if (id) return itemById[id]?.icon_type_key || SLOT_DEFAULT_ICON[slotKey] || 'unknown'
+  return SLOT_DEFAULT_ICON[slotKey] || 'unknown'
+}
 
 const itemAgg = computed(() => {
   const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
@@ -418,16 +428,21 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
     <div class="side-block sim-panel sim-equip-box">
       <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
-      <div class="sim-equip-grid">
-        <label class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key">
-          <span>{{ s.label }}</span>
-          <select v-model="equippedItems[s.key]">
-            <option value="">비어있음</option>
-            <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
-              {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
-            </option>
-          </select>
-        </label>
+      <div class="sim-equip-frame">
+        <div class="sim-equip-grid">
+          <label class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key">
+            <div class="sim-equip-tile" :class="{ filled: equippedItems[s.key] }">
+              <svg class="sim-equip-icon" viewBox="0 0 24 24" v-html="ICONS[equipIconKey(s.key)]"></svg>
+            </div>
+            <span class="sim-equip-label">{{ s.label }}</span>
+            <select v-model="equippedItems[s.key]">
+              <option value="">비어있음</option>
+              <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
+                {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
+              </option>
+            </select>
+          </label>
+        </div>
       </div>
       <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요.</div>
     </div>
@@ -576,14 +591,39 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-equip-box{margin-bottom:20px;}
 .sim-equip-box h3{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:14px;}
 .sim-equip-reset{height:auto; padding:6px 12px; font-size:11.5px;}
-.sim-equip-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:10px 16px;}
-.sim-equip-slot{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--text-muted);}
+
+.sim-equip-frame{
+  border:1px solid var(--gold-dim); padding:14px;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.09), transparent 30%),
+    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
+    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
+    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.06), transparent 35%),
+    repeating-linear-gradient(115deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 12px),
+    repeating-linear-gradient(25deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, #4a443b, #2a251f);
+  box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
+}
+.sim-equip-grid{display:grid; grid-template-columns:repeat(5, 1fr); gap:12px 10px;}
+.sim-equip-slot{display:flex; flex-direction:column; align-items:center; gap:6px; font-size:11px; color:var(--text-muted);}
+.sim-equip-tile{
+  width:52px; height:52px; border-radius:4px; border:2px solid #6b5d47;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
+    linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
+  display:flex; align-items:center; justify-content:center; color:var(--text-dim);
+}
+.sim-equip-tile.filled{border-color:var(--gold); color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 10px -1px var(--gold-dim);}
+.sim-equip-icon{width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
+.sim-equip-label{font-size:10.5px; text-align:center;}
 .sim-equip-slot select{
-  background:var(--panel); border:1px solid var(--border); color:var(--text);
-  padding:8px 10px; font-size:12.5px; font-family:inherit; max-width:100%;
+  width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  padding:5px 4px; font-size:10.5px; font-family:inherit; max-width:100%;
 }
 .sim-equip-slot select:focus{outline:none; border-color:var(--gold-dim);}
-@media (max-width:560px){ .sim-equip-grid{grid-template-columns:1fr;} }
+@media (max-width:700px){ .sim-equip-grid{grid-template-columns:repeat(3, 1fr);} }
+@media (max-width:560px){ .sim-equip-grid{grid-template-columns:repeat(2, 1fr);} }
 
 .sim-top-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;}
 .sim-panel{padding:18px 20px;}
