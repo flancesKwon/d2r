@@ -1,0 +1,66 @@
+{
+  "amazon": {
+    "name": "아마존",
+    "base": { "str": 20, "dex": 25, "vit": 20, "nrg": 15 },
+    "life": 50, "mana": 15, "stamina": 79,
+    "lifePerLevel": 2, "lifePerVit": 3,
+    "manaPerLevel": 1.5, "manaPerNrg": 1.5,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "sorc": {
+    "name": "소서리스",
+    "base": { "str": 10, "dex": 25, "vit": 10, "nrg": 35 },
+    "life": 40, "mana": 35, "stamina": 74,
+    "lifePerLevel": 2, "lifePerVit": 2,
+    "manaPerLevel": 2, "manaPerNrg": 2,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "necro": {
+    "name": "네크로맨서",
+    "base": { "str": 15, "dex": 25, "vit": 15, "nrg": 25 },
+    "life": 45, "mana": 25, "stamina": 79,
+    "lifePerLevel": 2, "lifePerVit": 2,
+    "manaPerLevel": 2, "manaPerNrg": 1,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "paladin": {
+    "name": "팔라딘",
+    "base": { "str": 25, "dex": 20, "vit": 25, "nrg": 15 },
+    "life": 55, "mana": 15, "stamina": 89,
+    "lifePerLevel": 2, "lifePerVit": 3,
+    "manaPerLevel": 1.5, "manaPerNrg": 1.5,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "barb": {
+    "name": "바바리안",
+    "base": { "str": 30, "dex": 20, "vit": 25, "nrg": 10 },
+    "life": 55, "mana": 10, "stamina": 92,
+    "lifePerLevel": 2, "lifePerVit": 4,
+    "manaPerLevel": 1, "manaPerNrg": 1,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "druid": {
+    "name": "드루이드",
+    "base": { "str": 15, "dex": 20, "vit": 25, "nrg": 20 },
+    "life": 55, "mana": 20, "stamina": 84,
+    "lifePerLevel": 1.5, "lifePerVit": 2,
+    "manaPerLevel": 1.75, "manaPerNrg": 1.75,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "assassin": {
+    "name": "어쌔신",
+    "base": { "str": 20, "dex": 20, "vit": 20, "nrg": 25 },
+    "life": 50, "mana": 25, "stamina": 82,
+    "lifePerLevel": 2, "lifePerVit": 3,
+    "manaPerLevel": 1.75, "manaPerNrg": 1.75,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  },
+  "warlock": {
+    "name": "악마술사",
+    "base": { "str": 18, "dex": 20, "vit": 20, "nrg": 22 },
+    "life": 48, "mana": 22, "stamina": 80,
+    "lifePerLevel": 1.75, "lifePerVit": 2.5,
+    "manaPerLevel": 1.75, "manaPerNrg": 1.75,
+    "staminaPerLevel": 1, "staminaPerVit": 1
+  }
+}

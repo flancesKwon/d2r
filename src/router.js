@@ -6,6 +6,7 @@ import GuideDetailPage from './pages/GuideDetailPage.vue'
 import PatchNotesPage from './pages/PatchNotesPage.vue'
 import CommunityPage from './pages/CommunityPage.vue'
 import CommunityPostPage from './pages/CommunityPostPage.vue'
+import SimulatorPage from './pages/SimulatorPage.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: '/patch', name: 'patch', component: PatchNotesPage },
     { path: '/community', name: 'community', component: CommunityPage },
     { path: '/community/:id', name: 'community-post', component: CommunityPostPage },
+    { path: '/simulator', name: 'simulator', component: SimulatorPage },
   ],
   scrollBehavior() {
     return { top: 0 }

@@ -1,0 +1,202 @@
+{
+  "amazon": {
+    "tabs": [
+      { "name": "궁술", "skills": [
+        { "name": "매직 애로우", "tier": 1 }, { "name": "파이어 애로우", "tier": 1 },
+        { "name": "콜드 애로우", "tier": 2 }, { "name": "멀티플 샷", "tier": 2 },
+        { "name": "익스플로딩 애로우", "tier": 3 }, { "name": "아이스 애로우", "tier": 3 },
+        { "name": "가이디드 애로우", "tier": 4 }, { "name": "스트레이프", "tier": 4 },
+        { "name": "이몰레이션 애로우", "tier": 5 }, { "name": "프리징 애로우", "tier": 6 }
+      ]},
+      { "name": "창술", "skills": [
+        { "name": "잽", "tier": 1 }, { "name": "포이즌 재블린", "tier": 1 },
+        { "name": "임페일", "tier": 2 }, { "name": "라이트닝 볼트", "tier": 2 },
+        { "name": "파워 스트라이크", "tier": 3 }, { "name": "차지드 스트라이크", "tier": 3 },
+        { "name": "플레이그 재블린", "tier": 4 }, { "name": "펜드", "tier": 4 },
+        { "name": "라이트닝 스트라이크", "tier": 5 }, { "name": "라이트닝 퓨리", "tier": 6 }
+      ]},
+      { "name": "패시브 & 마법", "skills": [
+        { "name": "이너 사이트", "tier": 1 }, { "name": "크리티컬 스트라이크", "tier": 1 },
+        { "name": "닷지", "tier": 2 }, { "name": "슬로우 미사일", "tier": 2 },
+        { "name": "어보이드", "tier": 3 }, { "name": "페네트레이트", "tier": 3 },
+        { "name": "디코이", "tier": 4 }, { "name": "이베이드", "tier": 4 },
+        { "name": "발키리", "tier": 5 }, { "name": "피어스", "tier": 6 }
+      ]}
+    ]
+  },
+  "sorc": {
+    "tabs": [
+      { "name": "화염 마법", "skills": [
+        { "name": "파이어 볼트", "tier": 1 }, { "name": "웜스", "tier": 1 },
+        { "name": "인페르노", "tier": 2 }, { "name": "블레이즈", "tier": 2 },
+        { "name": "파이어볼", "tier": 3 }, { "name": "파이어월", "tier": 3 },
+        { "name": "인챈트", "tier": 4 }, { "name": "메테오", "tier": 4 },
+        { "name": "파이어 마스터리", "tier": 5 }, { "name": "히드라", "tier": 6 }
+      ]},
+      { "name": "냉기 마법", "skills": [
+        { "name": "아이스 볼트", "tier": 1 }, { "name": "프로즌 아머", "tier": 1 },
+        { "name": "프로스트 노바", "tier": 2 }, { "name": "아이스 블래스트", "tier": 2 },
+        { "name": "쉬버 아머", "tier": 3 }, { "name": "글레이셜 스파이크", "tier": 3 },
+        { "name": "블리자드", "tier": 4 }, { "name": "칠링 아머", "tier": 4 },
+        { "name": "프로즌 오브", "tier": 5 }, { "name": "콜드 마스터리", "tier": 6 }
+      ]},
+      { "name": "번개 마법", "skills": [
+        { "name": "차지드 볼트", "tier": 1 }, { "name": "스태틱 필드", "tier": 1 },
+        { "name": "텔레키네시스", "tier": 2 }, { "name": "노바", "tier": 2 },
+        { "name": "라이트닝", "tier": 3 }, { "name": "체인 라이트닝", "tier": 3 },
+        { "name": "텔레포트", "tier": 4 }, { "name": "썬더 스톰", "tier": 4 },
+        { "name": "에너지 실드", "tier": 5 }, { "name": "라이트닝 마스터리", "tier": 6 }
+      ]}
+    ]
+  },
+  "necro": {
+    "tabs": [
+      { "name": "저주", "skills": [
+        { "name": "앰플리파이 데미지", "tier": 1 }, { "name": "딤 비전", "tier": 1 },
+        { "name": "위켄", "tier": 2 }, { "name": "아이언 메이든", "tier": 2 },
+        { "name": "테러", "tier": 3 }, { "name": "컨퓨즈", "tier": 3 },
+        { "name": "라이프 탭", "tier": 4 }, { "name": "어트랙트", "tier": 4 },
+        { "name": "데크리피파이", "tier": 5 }, { "name": "로우어 레지스트", "tier": 6 }
+      ]},
+      { "name": "시체 소환", "skills": [
+        { "name": "스켈레톤 마스터리", "tier": 1 }, { "name": "레이즈 스켈레톤", "tier": 1 },
+        { "name": "클레이 골렘", "tier": 2 }, { "name": "골렘 마스터리", "tier": 2 },
+        { "name": "레이즈 스켈레탈 메이지", "tier": 3 }, { "name": "블러드 골렘", "tier": 3 },
+        { "name": "서몬 레지스트", "tier": 4 }, { "name": "아이언 골렘", "tier": 4 },
+        { "name": "파이어 골렘", "tier": 5 }, { "name": "리바이브", "tier": 6 }
+      ]},
+      { "name": "독/뼈 마법", "skills": [
+        { "name": "티스", "tier": 1 }, { "name": "본 아머", "tier": 1 },
+        { "name": "포이즌 대거", "tier": 2 }, { "name": "콥스 익스플로전", "tier": 2 },
+        { "name": "본 월", "tier": 3 }, { "name": "포이즌 익스플로전", "tier": 3 },
+        { "name": "본 스피어", "tier": 4 }, { "name": "본 프리즌", "tier": 4 },
+        { "name": "포이즌 노바", "tier": 5 }, { "name": "본 스피릿", "tier": 6 }
+      ]}
+    ]
+  },
+  "paladin": {
+    "tabs": [
+      { "name": "돌격 기술", "skills": [
+        { "name": "새크리파이스", "tier": 1 }, { "name": "스마이트", "tier": 1 },
+        { "name": "젤", "tier": 2 }, { "name": "차지", "tier": 2 },
+        { "name": "벤전스", "tier": 3 }, { "name": "홀리 볼트", "tier": 3 },
+        { "name": "블레스드 해머", "tier": 4 }, { "name": "컨버전", "tier": 4 },
+        { "name": "피스트 오브 더 헤븐즈", "tier": 5 }, { "name": "홀리 실드", "tier": 6 }
+      ]},
+      { "name": "공격 오라", "skills": [
+        { "name": "마이트", "tier": 1 }, { "name": "홀리 파이어", "tier": 1 },
+        { "name": "쏜즈", "tier": 2 }, { "name": "블레스드 에임", "tier": 2 },
+        { "name": "컨센트레이션", "tier": 3 }, { "name": "홀리 프리즈", "tier": 3 },
+        { "name": "홀리 쇼크", "tier": 4 }, { "name": "생츄어리", "tier": 4 },
+        { "name": "퍼내티시즘", "tier": 5 }, { "name": "컨빅션", "tier": 6 }
+      ]},
+      { "name": "방어 오라", "skills": [
+        { "name": "프레이어", "tier": 1 }, { "name": "레지스트 파이어", "tier": 1 },
+        { "name": "디파이언스", "tier": 2 }, { "name": "레지스트 콜드", "tier": 2 },
+        { "name": "클렌징", "tier": 3 }, { "name": "레지스트 라이트닝", "tier": 3 },
+        { "name": "비거", "tier": 4 }, { "name": "메디테이션", "tier": 4 },
+        { "name": "리뎀션", "tier": 5 }, { "name": "샐베이션", "tier": 6 }
+      ]}
+    ]
+  },
+  "barb": {
+    "tabs": [
+      { "name": "전투 기술", "skills": [
+        { "name": "배쉬", "tier": 1 }, { "name": "립", "tier": 1 },
+        { "name": "더블 스윙", "tier": 2 }, { "name": "스턴", "tier": 2 },
+        { "name": "더블 스로우", "tier": 3 }, { "name": "립 어택", "tier": 3 },
+        { "name": "컨센트레이트", "tier": 4 }, { "name": "프렌지", "tier": 4 },
+        { "name": "웜윈드", "tier": 5 }, { "name": "버서크", "tier": 6 }
+      ]},
+      { "name": "전투 숙련", "skills": [
+        { "name": "소드 마스터리", "tier": 1 }, { "name": "액스 마스터리", "tier": 1 },
+        { "name": "메이스 마스터리", "tier": 2 }, { "name": "폴암 마스터리", "tier": 2 },
+        { "name": "스로잉 마스터리", "tier": 3 }, { "name": "스피어 마스터리", "tier": 3 },
+        { "name": "인크리스드 스태미나", "tier": 4 }, { "name": "아이언 스킨", "tier": 4 },
+        { "name": "인크리스드 스피드", "tier": 5 }, { "name": "내추럴 레지스턴스", "tier": 6 }
+      ]},
+      { "name": "전투 함성", "skills": [
+        { "name": "하울", "tier": 1 }, { "name": "파인드 포션", "tier": 1 },
+        { "name": "타운트", "tier": 2 }, { "name": "샤우트", "tier": 2 },
+        { "name": "파인드 아이템", "tier": 3 }, { "name": "배틀 크라이", "tier": 3 },
+        { "name": "배틀 오더스", "tier": 4 }, { "name": "그림 워드", "tier": 4 },
+        { "name": "워 크라이", "tier": 5 }, { "name": "배틀 커맨드", "tier": 6 }
+      ]}
+    ]
+  },
+  "druid": {
+    "tabs": [
+      { "name": "소환", "skills": [
+        { "name": "레이븐", "tier": 1 }, { "name": "포이즌 크리퍼", "tier": 1 },
+        { "name": "오크 세이지", "tier": 2 }, { "name": "서몬 스피릿 울프", "tier": 2 },
+        { "name": "캐리온 바인", "tier": 3 }, { "name": "하트 오브 울버린", "tier": 3 },
+        { "name": "서몬 다이어 울프", "tier": 4 }, { "name": "솔라 크리퍼", "tier": 4 },
+        { "name": "스피릿 오브 바브스", "tier": 5 }, { "name": "서몬 그리즐리", "tier": 6 }
+      ]},
+      { "name": "변신", "skills": [
+        { "name": "웨어울프", "tier": 1 }, { "name": "라이칸트로피", "tier": 1 },
+        { "name": "웨어베어", "tier": 2 }, { "name": "페럴 레이지", "tier": 2 },
+        { "name": "몰", "tier": 3 }, { "name": "레이비스", "tier": 3 },
+        { "name": "파이어 클로", "tier": 4 }, { "name": "헝거", "tier": 4 },
+        { "name": "쇼크 웨이브", "tier": 5 }, { "name": "퓨리", "tier": 6 }
+      ]},
+      { "name": "정령 마법", "skills": [
+        { "name": "파이어스톰", "tier": 1 }, { "name": "몰튼 볼더", "tier": 1 },
+        { "name": "아틱 블래스트", "tier": 2 }, { "name": "피셔", "tier": 2 },
+        { "name": "사이클론 아머", "tier": 3 }, { "name": "트위스터", "tier": 3 },
+        { "name": "볼케이노", "tier": 4 }, { "name": "토네이도", "tier": 4 },
+        { "name": "아마겟돈", "tier": 5 }, { "name": "허리케인", "tier": 6 }
+      ]}
+    ]
+  },
+  "assassin": {
+    "tabs": [
+      { "name": "함정", "skills": [
+        { "name": "파이어 블래스트", "tier": 1 }, { "name": "쇼크 웹", "tier": 1 },
+        { "name": "블레이드 센티넬", "tier": 2 }, { "name": "차지드 볼트 센트리", "tier": 2 },
+        { "name": "웨이크 오브 파이어", "tier": 3 }, { "name": "블레이드 퓨리", "tier": 3 },
+        { "name": "라이트닝 센트리", "tier": 4 }, { "name": "웨이크 오브 인페르노", "tier": 4 },
+        { "name": "데스 센트리", "tier": 5 }, { "name": "블레이드 실드", "tier": 6 }
+      ]},
+      { "name": "그림자 기술", "skills": [
+        { "name": "클로 마스터리", "tier": 1 }, { "name": "사이킥 해머", "tier": 1 },
+        { "name": "버스트 오브 스피드", "tier": 2 }, { "name": "웨폰 블록", "tier": 2 },
+        { "name": "클록 오브 섀도우", "tier": 3 }, { "name": "페이드", "tier": 3 },
+        { "name": "마인드 블래스트", "tier": 4 }, { "name": "베놈", "tier": 4 },
+        { "name": "섀도우 워리어", "tier": 5 }, { "name": "섀도우 마스터", "tier": 6 }
+      ]},
+      { "name": "무술", "skills": [
+        { "name": "타이거 스트라이크", "tier": 1 }, { "name": "드래곤 탈론", "tier": 1 },
+        { "name": "피스트 오브 파이어", "tier": 2 }, { "name": "드래곤 클로", "tier": 2 },
+        { "name": "코브라 스트라이크", "tier": 3 }, { "name": "클로 오브 썬더", "tier": 3 },
+        { "name": "드래곤 테일", "tier": 4 }, { "name": "블레이드 오브 아이스", "tier": 4 },
+        { "name": "드래곤 플라이트", "tier": 5 }, { "name": "피닉스 스트라이크", "tier": 6 }
+      ]}
+    ]
+  },
+  "warlock": {
+    "tabs": [
+      { "name": "저주 마법", "skills": [
+        { "name": "암흑 화살", "tier": 1 }, { "name": "영혼 흡수", "tier": 1 },
+        { "name": "저주받은 손길", "tier": 2 }, { "name": "어둠의 결속", "tier": 2 },
+        { "name": "공포의 시선", "tier": 3 }, { "name": "영혼 사슬", "tier": 3 },
+        { "name": "죽음의 표식", "tier": 4 }, { "name": "어둠의 폭발", "tier": 4 },
+        { "name": "영혼 폭풍", "tier": 5 }, { "name": "파멸의 저주", "tier": 6 }
+      ]},
+      { "name": "악마 소환", "skills": [
+        { "name": "임프 소환", "tier": 1 }, { "name": "소환 강화", "tier": 1 },
+        { "name": "지옥사냥개 소환", "tier": 2 }, { "name": "악마의 계약", "tier": 2 },
+        { "name": "임프 군단", "tier": 3 }, { "name": "지옥불정령 소환", "tier": 3 },
+        { "name": "악마 강화", "tier": 4 }, { "name": "지옥발톱 소환", "tier": 4 },
+        { "name": "악마 폭주", "tier": 5 }, { "name": "대악마 소환", "tier": 6 }
+      ]},
+      { "name": "지옥불 마법", "skills": [
+        { "name": "헬파이어", "tier": 1 }, { "name": "화염 방벽", "tier": 1 },
+        { "name": "유황 폭발", "tier": 2 }, { "name": "검은 불꽃", "tier": 2 },
+        { "name": "지옥불 갑주", "tier": 3 }, { "name": "용암 지대", "tier": 3 },
+        { "name": "지옥불 낙하", "tier": 4 }, { "name": "심연의 불꽃", "tier": 4 },
+        { "name": "지옥의 문", "tier": 5 }, { "name": "아마겟돈 화염", "tier": 6 }
+      ]}
+    ]
+  }
+}

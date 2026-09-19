@@ -37,10 +37,12 @@
         <a href="#">자료실<span class="chev">▾</span></a>
         <div class="dropdown">
           <router-link to="/items?cat=runeword">룬워드 계산기</router-link>
+          <router-link to="/simulator">스킬·스탯 시뮬레이터</router-link>
           <a href="#">시세 게시판</a><a href="#">레더 시즌 정보</a>
         </div>
       </div>
       <router-link to="/items">아이템 사전</router-link>
+      <router-link to="/simulator">스킬 시뮬레이터</router-link>
       <router-link to="/patch">패치노트</router-link>
     </nav>
   </header>
