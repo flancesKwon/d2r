@@ -24,7 +24,6 @@ const MAX_QUEST_STAT_BONUS = 5 * 3
 
 const selectedClass = ref('amazon')
 const level = ref(90)
-const activeTab = ref(0)
 
 const allocatedStats = reactive({ str: 0, dex: 0, vit: 0, nrg: 0 })
 const allocatedSkills = reactive({})
@@ -53,10 +52,6 @@ const selectedNode = ref(null) // { tabIdx, skillIdx } | null
 watch(selectedClass, () => {
   if (skipClassReset) return
   resetAll()
-  activeTab.value = 0
-  selectedNode.value = null
-})
-watch(activeTab, () => {
   selectedNode.value = null
 })
 
@@ -248,9 +243,9 @@ function skillIconKey(skill, tabName) {
   return 'passive'
 }
 
-// 활성 탭의 스킬을 티어(요구 레벨)별로 행에 배치하고, 선행 스킬 관계를 잇는 꺾은선(엘보) 좌표를 계산
-const treeLayout = computed(() => {
-  const tab = classTabs.value[activeTab.value]
+// 탭별로 스킬을 티어(요구 레벨)에 따라 행에 배치하고, 선행 스킬 관계를 잇는 꺾은선(엘보) 좌표를 계산
+function layoutForTab(tabIdx) {
+  const tab = classTabs.value[tabIdx]
   if (!tab) return { nodes: [], edges: [] }
   const rows = [[], [], [], [], [], []]
   tab.skills.forEach((skill, skillIdx) => rows[tierRowOf(skill)].push(skillIdx))
@@ -285,7 +280,9 @@ const treeLayout = computed(() => {
   })
 
   return { nodes, edges }
-})
+}
+
+const treeLayouts = computed(() => classTabs.value.map((_, tabIdx) => layoutForTab(tabIdx)))
 
 function resetTab(tabIdx) {
   const tab = classTabs.value[tabIdx]
@@ -299,9 +296,9 @@ const selectedSkill = computed(() => {
   return classTabs.value[tabIdx]?.skills[skillIdx] || null
 })
 
-function onNodeClick(skillIdx) {
-  selectedNode.value = { tabIdx: activeTab.value, skillIdx }
-  increaseSkill(activeTab.value, skillIdx)
+function onNodeClick(tabIdx, skillIdx) {
+  selectedNode.value = { tabIdx, skillIdx }
+  increaseSkill(tabIdx, skillIdx)
 }
 
 function increaseSkill(tabIdx, skillIdx) {
@@ -457,47 +454,49 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <div class="sim-skill-head">
         <h3>스킬 포인트 <span class="sim-remaining" :class="{ warn: remainingSkillPoints < 0 }">남은 포인트 {{ remainingSkillPoints }} / {{ totalSkillPoints }}</span></h3>
       </div>
-      <div class="cat-tabs sub-tabs sim-tree-tabs">
-        <button v-for="(tab, i) in classTabs" :key="tab.name" :class="{ active: activeTab === i }" @click="activeTab = i">
-          {{ tab.name }} <small>({{ tabSpent[i] }})</small>
-        </button>
+      <div class="sim-tree-columns">
+        <div class="sim-tree-col-panel" v-for="(tab, tabIdx) in classTabs" :key="tab.name">
+          <div class="sim-tree-col-head">{{ tab.name }} <small>{{ tabSpent[tabIdx] }} 포인트 사용</small></div>
+          <div class="sim-tree-frame">
+            <div class="sim-tree-canvas">
+              <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path
+                  v-for="(e, i) in treeLayouts[tabIdx].edges" :key="i"
+                  :d="e.path"
+                  class="sim-tree-edge"
+                  :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0 }"
+                  vector-effect="non-scaling-stroke"
+                />
+              </svg>
+              <div
+                v-for="n in treeLayouts[tabIdx].nodes" :key="n.skillIdx"
+                class="sim-tree-node-ring"
+                :style="{ left: n.x + '%', top: n.y + '%', '--node-color': nodeColor(n.skill) || 'var(--gold)', '--pct': (skillPoint(tabIdx, n.skillIdx) / 20) * 100 }"
+                :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20 }"
+              >
+                <button
+                  class="sim-tree-node"
+                  :class="{
+                    invested: skillPoint(tabIdx, n.skillIdx) > 0,
+                    locked: skillPoint(tabIdx, n.skillIdx) === 0 && !canIncreaseSkill(tabIdx, n.skillIdx),
+                    selected: selectedNode && selectedNode.tabIdx === tabIdx && selectedNode.skillIdx === n.skillIdx,
+                  }"
+                  :title="n.skill.name"
+                  @click="onNodeClick(tabIdx, n.skillIdx)"
+                >
+                  <svg class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
+                </button>
+                <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
+              </div>
+              <button class="sim-tree-reset" title="이 계열 초기화" @click="resetTab(tabIdx)">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="sim-tree-frame">
-        <div class="sim-tree-canvas">
-          <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path
-              v-for="(e, i) in treeLayout.edges" :key="i"
-              :d="e.path"
-              class="sim-tree-edge"
-              :class="{ lit: skillPoint(activeTab, e.srcIdx) > 0 }"
-              vector-effect="non-scaling-stroke"
-            />
-          </svg>
-          <div
-            v-for="n in treeLayout.nodes" :key="n.skillIdx"
-            class="sim-tree-node-ring"
-            :style="{ left: n.x + '%', top: n.y + '%', '--node-color': nodeColor(n.skill) || 'var(--gold)', '--pct': (skillPoint(activeTab, n.skillIdx) / 20) * 100 }"
-            :class="{ invested: skillPoint(activeTab, n.skillIdx) > 0, maxed: skillPoint(activeTab, n.skillIdx) >= 20 }"
-          >
-            <button
-              class="sim-tree-node"
-              :class="{
-                invested: skillPoint(activeTab, n.skillIdx) > 0,
-                locked: skillPoint(activeTab, n.skillIdx) === 0 && !canIncreaseSkill(activeTab, n.skillIdx),
-                selected: selectedNode && selectedNode.tabIdx === activeTab && selectedNode.skillIdx === n.skillIdx,
-              }"
-              @click="onNodeClick(n.skillIdx)"
-            >
-              <svg class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
-            </button>
-            <span class="sim-node-badge" v-if="skillPoint(activeTab, n.skillIdx) > 0">{{ skillPoint(activeTab, n.skillIdx) }}</span>
-          </div>
-          <button class="sim-tree-reset" title="이 계열 초기화" @click="resetTab(activeTab)">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
-          </button>
-        </div>
-
+      <div class="sim-tree-detail-wrap">
         <div class="sim-node-detail" v-if="selectedSkill">
           <div class="sim-node-detail-head">
             <div class="sim-node-detail-title">
@@ -610,21 +609,29 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-note{margin-top:12px; margin-bottom:0;}
 
 .sim-skill-head h3{font-size:15px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
-.sim-tree-tabs{margin-bottom:16px;}
-.sim-tree-tabs small{color:var(--text-dim);}
+
+.sim-tree-columns{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:4px;}
+.sim-tree-col-panel{display:flex; flex-direction:column; min-width:0;}
+.sim-tree-col-head{
+  font-size:12px; color:var(--text-muted); margin-bottom:8px; text-align:center;
+  display:flex; flex-direction:column; gap:2px;
+}
+.sim-tree-col-head small{color:var(--text-dim); font-size:10.5px;}
 
 .sim-tree-frame{
   position:relative; border:1px solid var(--border-soft); background:var(--panel);
-  padding:16px;
+  padding:10px; flex:1;
 }
 
-.sim-tree-canvas{position:relative; width:100%; height:400px;}
+.sim-tree-detail-wrap{margin-top:14px;}
+
+.sim-tree-canvas{position:relative; width:100%; height:480px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
 .sim-tree-edge{fill:none; stroke:var(--border); stroke-width:1.5px; stroke-linecap:round; transition:stroke .15s;}
 .sim-tree-edge.lit{stroke:var(--gold-dim);}
 
 .sim-tree-node-ring{
-  position:absolute; width:50px; height:50px; padding:3px; border-radius:50%; transform:translate(-50%,-50%);
+  position:absolute; width:44px; height:44px; padding:3px; border-radius:50%; transform:translate(-50%,-50%);
   background:conic-gradient(var(--node-color) calc(var(--pct) * 1%), var(--border-soft) 0);
 }
 .sim-tree-node-ring.maxed{background:conic-gradient(var(--gold) calc(var(--pct) * 1%), var(--border-soft) 0);}
@@ -638,7 +645,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-node.locked{opacity:0.4; cursor:default;}
 .sim-tree-node.invested{color:var(--text);}
 .sim-tree-node.selected{box-shadow:0 0 0 2px var(--bg), 0 0 0 3.5px var(--gold);}
-.sim-node-icon{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none;}
+.sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none;}
 .sim-node-badge{
   position:absolute; right:-2px; bottom:-2px; min-width:17px; height:17px; padding:0 3px; border-radius:50%;
   background:var(--gold); color:#1B1714; font-size:10px; font-weight:800; font-family:'Noto Sans KR', sans-serif;
@@ -668,10 +675,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-syn-pct{color:var(--gold-dim); margin-left:4px;}
 .sim-syn-line{color:var(--text-dim); font-size:11.5px;}
 
-@media (max-width:560px){
+@media (max-width:900px){
+  .sim-tree-columns{grid-template-columns:1fr;}
   .sim-tree-canvas{height:360px;}
-  .sim-tree-node{width:42px; height:42px;}
-  .sim-node-icon{width:19px; height:19px;}
+}
+@media (max-width:560px){
+  .sim-tree-node-ring{width:38px; height:38px;}
+  .sim-node-icon{width:17px; height:17px;}
 }
 
 @media (max-width:800px){
