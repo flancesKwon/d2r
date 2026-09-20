@@ -322,7 +322,14 @@ function layoutForTab(tabIdx) {
         const midY = (from.y + to.y) / 2
         const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
-        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
+        // 직각 꺾은선(V-H-V)은 같은 티어 구간의 화살표들이 전부 같은 높이에서 수평 구간이
+        // 겹쳐버려 어떤 선이 어디로 이어지는지 구분이 안 됨 - 부드러운 S자 곡선으로 바꿔서
+        // 시작/끝 컬럼이 다른 화살표는 항상 다른 궤적을 그리게 함 (겹쳐도 한 점에서만 스침)
+        edges.push({
+          srcIdx: reqIdx,
+          dstIdx: skillIdx,
+          path: `M ${from.x} ${from.y} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${endY}`,
+        })
       }
     })
   })
