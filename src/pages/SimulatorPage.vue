@@ -621,7 +621,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 </template>
 
 <style scoped>
-.sim-wrap{max-width:1480px;}
+.sim-wrap{max-width:1680px;}
 
 .sim-class-tabs button{display:flex; align-items:center; gap:7px;}
 .sim-class-icon{width:16px; height:16px; display:inline-flex; flex:none;}
@@ -652,7 +652,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 /* ---- 하나의 시트 위에 장비·스킬·스탯을 함께 배치 (실제 게임 돌기둥 텍스처가 전체를 지나감) ---- */
 .sim-sheet{
   position:relative; isolation:isolate;
-  display:grid; grid-template-columns:250px 1px 1fr 1px 260px; gap:24px;
+  display:grid; grid-template-columns:320px 1px 1fr 1px 280px; gap:24px;
   border:1px solid var(--gold-dim); padding:24px;
 }
 .sim-sheet::before{
@@ -664,6 +664,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   filter:grayscale(0.5) brightness(0.5) contrast(1.05);
 }
 .sim-zone{min-width:0;}
+.sim-zone-equip{display:flex; flex-direction:column;}
 .sim-zone-divider{background:linear-gradient(180deg, transparent, var(--gold-dim) 15%, var(--gold-dim) 85%, transparent); opacity:0.35;}
 
 .sim-zone-head{
@@ -687,8 +688,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 /* 3단 시트가 1150px 아래에서 세로로 쌓이면 이 구역이 전체 폭을 그대로 물려받아
    슬롯이 거대해지고 사이 여백만 늘어나므로, 인형 자체는 항상 컴팩트한 폭으로 고정 */
 .sim-doll{
-  display:grid; gap:8px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
-  max-width:300px; margin:0 auto; aspect-ratio:5/3.3;
+  display:grid; gap:10px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
+  max-width:340px; margin:0 auto; aspect-ratio:5/3.3;
   grid-template-areas:
     "weapon .      helm   amulet shield"
     "weapon .      armor  .      shield"
@@ -709,8 +710,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
-.sim-inv-grid{max-width:300px; margin:14px auto 0; display:grid; grid-template-columns:repeat(10, 1fr); gap:2px; border:1px solid var(--border-soft); padding:6px; background:rgba(0,0,0,0.3);}
-.sim-inv-cell{aspect-ratio:1; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
+.sim-inv-grid{
+  flex:1; min-height:120px; max-width:340px; width:100%; margin:16px auto 0;
+  display:grid; grid-template-columns:repeat(10, 1fr); grid-auto-rows:1fr; gap:3px;
+  border:1px solid var(--border-soft); padding:8px; background:rgba(0,0,0,0.3);
+}
+.sim-inv-cell{border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
 
 /* ---- 스킬 트리 ---- */
 .sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border:1px solid var(--border-soft); border-radius:4px; overflow:hidden;}
