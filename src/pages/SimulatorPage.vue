@@ -307,11 +307,12 @@ function layoutForTab(tabIdx) {
       else if (count === 2) col = i === 0 ? 0 : 2
       else col = (i / (count - 1)) * 2
       const x = ((col + 0.5) / 3) * 100
-      positions[skillIdx] = { x, y }
+      positions[skillIdx] = { x, y, row: rowIdx }
       nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
     })
   })
 
+  const rowSpacing = 100 / 6
   const edges = []
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
@@ -319,9 +320,18 @@ function layoutForTab(tabIdx) {
       const from = positions[reqIdx]
       const to = positions[skillIdx]
       if (reqIdx !== -1 && from && to) {
-        const midY = (from.y + to.y) / 2
         const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
+
+        // 선행 스킬이 한 티어보다 더 떨어져 있으면(예: lv1 -> lv12, 2티어 건너뜀) 정확히
+        // 중간값으로 꺾으면 그 좌표가 건너뛴 티어의 행 높이와 정확히 겹쳐서, 그 행에 있는
+        // 다른(무관한) 스킬 타일을 화살표가 뚫고 지나가는 것처럼 보임 - 건너뛰는 티어 수가
+        // 짝수일 때만 발생하는 문제라, 그 경우엔 꺾이는 높이를 반 티어만큼 밀어서
+        // 항상 행과 행 사이의 빈 공간에서 꺾이게 함
+        const rowGap = to.row - from.row
+        let midY = (from.y + to.y) / 2
+        if (rowGap > 1 && rowGap % 2 === 0) midY += rowSpacing / 2
+
         edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
       }
     })
