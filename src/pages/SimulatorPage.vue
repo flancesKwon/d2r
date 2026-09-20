@@ -698,14 +698,16 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot{position:relative; display:block;}
 .sim-slot.small{padding:16% 8%;}
 .sim-slot-tile{
-  position:relative; width:100%; height:100%; border-radius:3px; border:2px solid #6b4a2e;
-  background:linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6);
+  /* 실제 장비창은 스킬트리 노드와 달리 청동 테두리/리벳이 없고, 돌 패널에 그대로
+     깎아넣은 듯한 무채색 인셋 프레임임 */
+  position:relative; width:100%; height:100%; border-radius:2px; border:1px solid #5a5751;
+  background:linear-gradient(160deg, #2a2823, #100f0d 60%, #060605);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06);
   display:flex; align-items:center; justify-content:center;
   transition:border-color .15s, box-shadow .15s;
 }
-.sim-slot-tile.filled{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 10px -2px var(--gold-dim);}
-.sim-slot-art{width:74%; height:74%; object-fit:contain; pointer-events:none; filter:brightness(2); opacity:0.55; transition:filter .15s, opacity .15s;}
+.sim-slot-tile.filled{border-color:var(--gold); box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06), 0 0 10px -2px var(--gold-dim);}
+.sim-slot-art{width:74%; height:74%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:filter .15s, opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
@@ -748,7 +750,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 8px -1px var(--gold-dim);}
 .sim-node-slot.maxed .sim-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px 0 var(--gold);}
 .sim-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
-.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:contrast(1.1) brightness(1.05) saturate(1.1);}
+/* 실제 화면(멕스롤/인게임)은 스킬 아이콘이 채색이 아니라 은색/흰색 선화에 가까움 */
+.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:grayscale(0.75) contrast(1.35) brightness(1.3);}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
