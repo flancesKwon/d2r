@@ -759,7 +759,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-col-head small{color:#8f8c82; font-size:10.5px; font-family:'Noto Sans KR', sans-serif; font-weight:400;}
 
 .sim-tree-frame{
-  position:relative; border:1px solid #57554e; border-top:none; flex:1;
+  position:relative; border:1px solid #57554e; border-top:none; flex:1; overflow:hidden;
   background:
     radial-gradient(circle at 15% 10%, rgba(255,255,255,0.06), transparent 30%),
     radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
@@ -768,6 +768,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   padding:10px; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.5);
 }
 .sim-tree-frame::before{
+  /* spells/skltree_*_back.dc6 원본은 특정 클래스 트리 모양에 맞춘 화살표가 배경에
+     고정으로 새겨져 있어서, 우리처럼 매 클래스/탭마다 동적으로 배치되는 레이아웃과는
+     항상 어긋남 (블러로도 안 가려짐) → panel/menupanel.dc6의 순수 돌기둥 텍스처를 사용 */
   content:''; position:absolute; inset:0; z-index:0;
   background-image:url('../assets/uitextures/menupanel.png');
   background-size:240px 192px; background-repeat:repeat;
