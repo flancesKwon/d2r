@@ -502,7 +502,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <div class="sim-tab" v-for="(tab, tabIdx) in classTabs" :key="tab.name">
             <div class="sim-tab-head">
               <span>{{ tab.name }}</span>
-              <small>{{ tabSpent[tabIdx] }}pt</small>
+              <small>{{ tabSpent[tabIdx] }} 포인트 사용</small>
             </div>
             <div class="sim-tab-body">
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -690,8 +690,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   display:grid; gap:8px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
   max-width:300px; margin:0 auto; aspect-ratio:5/3.3;
   grid-template-areas:
-    "weapon .      helm   .      shield"
-    "weapon .      armor  amulet shield"
+    "weapon .      helm   amulet shield"
+    "weapon .      armor  .      shield"
     "gloves ring1  belt   ring2  boots";
 }
 .sim-slot{position:relative; display:block;}
@@ -713,14 +713,16 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-inv-cell{aspect-ratio:1; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
 
 /* ---- 스킬 트리 ---- */
-.sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;}
-.sim-tab{display:flex; flex-direction:column; min-width:0;}
+.sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border:1px solid var(--border-soft); border-radius:4px; overflow:hidden;}
+.sim-tab{display:flex; flex-direction:column; min-width:0; border-left:1px solid var(--border-soft);}
+.sim-tab:first-child{border-left:none;}
 .sim-tab-head{
-  display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-weight:700; color:var(--text);
-  padding-bottom:6px; margin-bottom:8px; border-bottom:1px solid var(--border-soft);
+  display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center;
+  font-size:12.5px; font-weight:700; color:var(--text);
+  padding:8px 6px; background:rgba(0,0,0,0.35); border-bottom:1px solid var(--border-soft);
 }
 .sim-tab-head small{color:var(--text-dim); font-weight:400; font-size:10.5px;}
-.sim-tab-body{position:relative; height:440px;}
+.sim-tab-body{position:relative; height:440px; padding:0 8px;}
 .sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
 .sim-tab-edge{fill:none; stroke:#5a584f; stroke-width:4px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.85; transition:stroke .15s;}
 .sim-tab-edge.lit{stroke:var(--gold-dim); opacity:1;}
