@@ -278,12 +278,30 @@ function layoutForTab(tabIdx) {
   const rows = [[], [], [], [], [], []]
   tab.skills.forEach((skill, skillIdx) => rows[tierRowOf(skill)].push(skillIdx))
 
+  // 각 스킬이 선행 스킬로부터 물려받는 "체인 위치"를 계산 - 실제 게임처럼 한번 시작된 세로줄을
+  // 부모-자식 관계를 따라 최대한 유지하기 위함 (매 행마다 독립적으로 다시 배치하면 가로선이 난잡해짐)
+  const chainKey = {}
+  let nextChain = 0
+
   const positions = {}
   const nodes = []
   rows.forEach((rowSkillIdxs, rowIdx) => {
     const count = rowSkillIdxs.length
     const y = ((rowIdx + 0.5) / 6) * 100
-    rowSkillIdxs.forEach((skillIdx, i) => {
+
+    rowSkillIdxs.forEach((skillIdx) => {
+      const skill = tab.skills[skillIdx]
+      const reqIdxs = (skill.reqSkills || [])
+        .map((n) => tab.skills.findIndex((s) => s.name === n))
+        .filter((i) => i !== -1 && chainKey[i] !== undefined)
+      chainKey[skillIdx] = reqIdxs.length
+        ? reqIdxs.reduce((sum, i) => sum + chainKey[i], 0) / reqIdxs.length
+        : nextChain++
+    })
+
+    // 물려받은 체인 위치 순서로 정렬한 뒤 컬럼을 배정해서, 선행 스킬과 같은 세로줄을 최대한 유지
+    const sorted = [...rowSkillIdxs].sort((a, b) => chainKey[a] - chainKey[b])
+    sorted.forEach((skillIdx, i) => {
       let col
       if (count === 1) col = 1
       else if (count === 2) col = i === 0 ? 0 : 2
@@ -768,7 +786,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px 0px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
 .sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
-.sim-node-icon-img{width:100%; height:100%; object-fit:cover; pointer-events:none; border-radius:2px;}
+.sim-node-icon-img{width:100%; height:100%; object-fit:cover; pointer-events:none; border-radius:2px; filter:contrast(1.18) brightness(1.12) saturate(1.15);}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:17px; height:15px; padding:0 3px; border-radius:3px;
   background:#0b0a08; color:#fff; font-size:10.5px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
