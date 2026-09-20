@@ -278,55 +278,40 @@ function layoutForTab(tabIdx) {
   const rows = [[], [], [], [], [], []]
   tab.skills.forEach((skill, skillIdx) => rows[tierRowOf(skill)].push(skillIdx))
 
-  // 실제 게임/맥스롤 화면은 선행 스킬 바로 아래 같은 자리에 다음 스킬이 있어서 화살표가
-  // 꺾이지 않고 수직선 하나로 끝남 - 그래서 컬럼(0/1/2)을 매 행마다 새로 계산하지 않고
-  // 선행 스킬의 컬럼을 그대로 물려받게 하고, 자리가 겹칠 때만 가까운 빈 컬럼으로 밀어냄
-  const colOf = {}
+  // 각 스킬이 선행 스킬로부터 물려받는 "체인 위치"를 계산 - 실제 게임처럼 한번 시작된 세로줄을
+  // 부모-자식 관계를 따라 최대한 유지하기 위함 (매 행마다 독립적으로 다시 배치하면 가로선이 난잡해짐)
+  const chainKey = {}
+  let nextChain = 0
+
   const positions = {}
   const nodes = []
-  rows.forEach((rowSkillIdxs) => {
-    const desired = {}
+  rows.forEach((rowSkillIdxs, rowIdx) => {
+    const count = rowSkillIdxs.length
+    const y = ((rowIdx + 0.5) / 6) * 100
+
     rowSkillIdxs.forEach((skillIdx) => {
       const skill = tab.skills[skillIdx]
       const reqIdxs = (skill.reqSkills || [])
         .map((n) => tab.skills.findIndex((s) => s.name === n))
-        .filter((i) => i !== -1 && colOf[i] !== undefined)
-      desired[skillIdx] = reqIdxs.length
-        ? Math.round(reqIdxs.reduce((sum, i) => sum + colOf[i], 0) / reqIdxs.length)
-        : null
+        .filter((i) => i !== -1 && chainKey[i] !== undefined)
+      chainKey[skillIdx] = reqIdxs.length
+        ? reqIdxs.reduce((sum, i) => sum + chainKey[i], 0) / reqIdxs.length
+        : nextChain++
     })
 
-    const used = new Set()
-    if (rowSkillIdxs.every((i) => desired[i] === null)) {
-      // 선행 스킬이 전혀 없는 행(보통 1티어)은 가운데/좌우 대칭으로 배치
-      const count = rowSkillIdxs.length
-      rowSkillIdxs.forEach((skillIdx, i) => {
-        colOf[skillIdx] = count === 1 ? 1 : count === 2 ? (i === 0 ? 0 : 2) : i
-      })
-    } else {
-      // 원하는 자리가 있는 스킬부터 먼저 배정하고, 겹치면 가까운 빈 컬럼으로 밀어냄
-      const order = [...rowSkillIdxs].sort((a, b) => (desired[a] ?? 99) - (desired[b] ?? 99))
-      order.forEach((skillIdx) => {
-        const want = desired[skillIdx]
-        const candidates = want === null ? [1, 0, 2] : [want, want - 1, want + 1, want - 2, want + 2]
-        const col = candidates.find((c) => c >= 0 && c <= 2 && !used.has(c))
-        used.add(col)
-        colOf[skillIdx] = col
-      })
-    }
-
-    rowSkillIdxs.forEach((skillIdx) => {
-      const y = ((tierRowOf(tab.skills[skillIdx]) + 0.5) / 6) * 100
-      const x = ((colOf[skillIdx] + 0.5) / 3) * 100
+    // 물려받은 체인 위치 순서로 정렬한 뒤 컬럼을 배정해서, 선행 스킬과 같은 세로줄을 최대한 유지
+    const sorted = [...rowSkillIdxs].sort((a, b) => chainKey[a] - chainKey[b])
+    sorted.forEach((skillIdx, i) => {
+      let col
+      if (count === 1) col = 1
+      else if (count === 2) col = i === 0 ? 0 : 2
+      else col = (i / (count - 1)) * 2
+      const x = ((col + 0.5) / 3) * 100
       positions[skillIdx] = { x, y }
       nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
     })
   })
 
-  // 컬럼을 그대로 물려받는 배치 덕에 대부분은 같은 컬럼(수직선)이고, 분기/합류처럼
-  // 컬럼이 바뀔 때만 생기는데, 참조 화면(맥스롤/원작)도 그런 구간은 꺾은선이 아니라
-  // 부모→자식을 바로 잇는 짧은 대각선 화살표 하나로 표현함
-  const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
   const edges = []
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
@@ -334,8 +319,10 @@ function layoutForTab(tabIdx) {
       const from = positions[reqIdx]
       const to = positions[skillIdx]
       if (reqIdx !== -1 && from && to) {
+        const midY = (from.y + to.y) / 2
+        const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
-        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} L ${to.x} ${endY}` })
+        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
       }
     })
   })
@@ -550,14 +537,14 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <div class="sim-tab-body">
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
-                  <marker id="tree-arrow" markerWidth="9" markerHeight="8.4" refX="7.2" refY="4.2" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L9,4.2 L0,8.4 Z" fill="#413d36" />
+                  <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#4a4841" />
                   </marker>
-                  <marker id="tree-arrow-lit" markerWidth="9" markerHeight="8.4" refX="7.2" refY="4.2" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L9,4.2 L0,8.4 Z" fill="var(--gold)" />
+                  <marker id="tree-arrow-lit" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold)" />
                   </marker>
-                  <marker id="tree-arrow-req" markerWidth="10" markerHeight="9.4" refX="8" refY="4.7" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L10,4.7 L0,9.4 Z" fill="#ff8a3c" />
+                  <marker id="tree-arrow-req" markerWidth="5.6" markerHeight="5.2" refX="4.4" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5.6,2.6 L0,5.2 Z" fill="#ff8a3c" />
                   </marker>
                 </defs>
                 <path
@@ -765,10 +752,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
 .sim-inv-grid{
-  /* 실제 게임 인벤토리는 10x4 정사각형 칸 - flex:1로 세로로 늘리면 칸이 길쭉해져서
-     원본과 다르게 보이므로 항상 정사각형 비율을 유지하게 고정 */
-  max-width:340px; width:100%; aspect-ratio:10/4; margin:16px auto 0;
-  display:grid; grid-template-columns:repeat(10, 1fr); grid-template-rows:repeat(4, 1fr); gap:3px;
+  flex:1; min-height:120px; max-width:340px; width:100%; margin:16px auto 0;
+  display:grid; grid-template-columns:repeat(10, 1fr); grid-auto-rows:1fr; gap:3px;
   border:1px solid var(--border-soft); padding:8px; background:rgba(0,0,0,0.3);
 }
 .sim-inv-cell{border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
@@ -787,13 +772,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
 /* 안 찍은 경로는 배경처럼 흐리게 눌러서 실제 투자한 경로(lit)만 시선이 가게 함 —
    기존엔 전부 같은 굵기/밝기라 화살표가 다 똑같이 도드라져서 헷갈렸음 */
-/* 참조 사진(맥스롤 소서리스)을 깨끗한 수직 구간만 잘라서 실측: 화살표 몸통 두께가
-   노드 타일 폭의 약 22% - 투자 전/후 구분 없이 항상 또렷한 톤으로 보임(흐리게 죽이지 않음) */
-.sim-tab-edge{fill:none; stroke:#413d36; stroke-width:9px; stroke-linecap:butt; stroke-linejoin:miter; opacity:1; transition:stroke .15s, stroke-width .15s;}
-.sim-tab-edge.lit{stroke:var(--gold); stroke-width:9.5px;}
+.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:3px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.45; transition:stroke .15s, opacity .15s, stroke-width .15s;}
+.sim-tab-edge.lit{stroke:var(--gold); stroke-width:4.5px; opacity:1;}
 /* 마우스를 올리거나 선택한 스킬에 "반드시" 필요한 선행 스킬 경로만 오렌지로 표시 —
    투자 여부(gold)와는 별개 색으로, 어떤 화살표가 필수 요구조건인지 바로 구분되게 함 */
-.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:10px;}
+.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:5.5px; opacity:1;}
 
 .sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
 .sim-node{
@@ -821,10 +804,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 .sim-node.req-target{outline:2px dashed #ff8a3c; outline-offset:3px;}
 .sim-req-name{color:#ff8a3c; font-weight:700;}
-/* 원본 스킬 아이콘은 이미 돌 재질 타일 + 그 위 문양이라 실제 게임/맥스롤과 톤이 같음 -
-   예전에 넣었던 강한 그레이스케일/대비 필터는 돌 질감과 문양의 명암차를 과도하게
-   벌려서 아이콘이 반으로 쪼개진 것처럼 보이는 부작용이 있어서 제거함 */
-.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px;}
+/* 실제 화면(멕스롤/인게임)은 스킬 아이콘이 채색이 아니라 은색/흰색 선화에 가까움 */
+.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:grayscale(0.75) contrast(1.35) brightness(1.3);}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
