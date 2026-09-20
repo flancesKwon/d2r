@@ -684,9 +684,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 
 /* ---- 장비 인형 ---- */
+/* 3단 시트가 1150px 아래에서 세로로 쌓이면 이 구역이 전체 폭을 그대로 물려받아
+   슬롯이 거대해지고 사이 여백만 늘어나므로, 인형 자체는 항상 컴팩트한 폭으로 고정 */
 .sim-doll{
   display:grid; gap:8px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
-  aspect-ratio:5/3.3;
+  max-width:300px; margin:0 auto; aspect-ratio:5/3.3;
   grid-template-areas:
     "weapon .      helm   .      shield"
     "weapon .      armor  amulet shield"
@@ -707,7 +709,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
-.sim-inv-grid{margin-top:14px; display:grid; grid-template-columns:repeat(10, 1fr); gap:2px; border:1px solid var(--border-soft); padding:6px; background:rgba(0,0,0,0.3);}
+.sim-inv-grid{max-width:300px; margin:14px auto 0; display:grid; grid-template-columns:repeat(10, 1fr); gap:2px; border:1px solid var(--border-soft); padding:6px; background:rgba(0,0,0,0.3);}
 .sim-inv-cell{aspect-ratio:1; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
 
 /* ---- 스킬 트리 ---- */
