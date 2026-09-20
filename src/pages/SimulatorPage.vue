@@ -501,11 +501,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <div class="sim-tree-canvas">
               <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
-                  <marker id="tree-arrow" markerWidth="7" markerHeight="6" refX="5.6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L7,3 L0,6 Z" fill="#5f5d56" />
+                  <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#66645c" />
                   </marker>
-                  <marker id="tree-arrow-lit" markerWidth="7" markerHeight="6" refX="5.6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L7,3 L0,6 Z" fill="var(--gold-dim)" />
+                  <marker id="tree-arrow-lit" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold-dim)" />
                   </marker>
                 </defs>
                 <path
@@ -633,18 +633,18 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-controls{display:flex; flex-wrap:wrap; align-items:end; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border-soft);}
 .sim-field{display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-muted);}
 .sim-field input{
-  width:120px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  width:120px; background:var(--panel); border:1px solid var(--border); border-radius:4px; color:var(--text);
   padding:9px 12px; font-size:14px; font-family:inherit;
 }
 .sim-field input:focus{outline:none; border-color:var(--gold-dim);}
-.sim-reset-btn{border:1px solid var(--border); color:var(--text-muted); padding:9px 16px; font-size:12.5px; height:38px;}
+.sim-reset-btn{border:1px solid var(--border); border-radius:4px; color:var(--text-muted); padding:9px 16px; font-size:12.5px; height:38px;}
 .sim-reset-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 .sim-share-btn{border-color:var(--gold-dim); color:var(--gold);}
 .sim-share-btn:hover{background:var(--panel);}
 
 .sim-share-box{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:-8px 0 24px;}
 .sim-share-input{
-  flex:1; min-width:220px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  flex:1; min-width:220px; background:var(--panel); border:1px solid var(--border); border-radius:4px; color:var(--text);
   padding:9px 12px; font-size:12.5px; font-family:inherit;
 }
 .sim-share-input:focus{outline:none; border-color:var(--gold-dim);}
@@ -693,11 +693,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 .sim-equip-tile.filled{border-color:var(--gold); color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 10px -1px var(--gold-dim);}
 .sim-equip-icon{
-  width:78%; height:78%; object-fit:contain; pointer-events:none;
-  filter:brightness(2.6) contrast(1.15); opacity:0.85; transition:filter .15s, opacity .15s;
+  width:76%; height:76%; object-fit:contain; pointer-events:none;
+  filter:brightness(2.1); opacity:0.6; transition:filter .15s, opacity .15s;
 }
 .sim-equip-icon.mirror{transform:scaleX(-1);}
-.sim-equip-tile.filled .sim-equip-icon{filter:brightness(3.4) contrast(1.2) sepia(0.35) saturate(2) hue-rotate(-5deg); opacity:1;}
+.sim-equip-tile.filled .sim-equip-icon{filter:brightness(2.4) sepia(0.3) saturate(1.5); opacity:1;}
 .sim-equip-tile-label{
   position:absolute; left:0; right:0; bottom:0; padding:2px 2px 3px; font-size:9px; text-align:center; line-height:1.1;
   background:linear-gradient(0deg, rgba(0,0,0,0.78), transparent 90%); color:var(--text-muted); pointer-events:none; border-radius:0 0 3px 3px;
@@ -734,7 +734,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-step-value{min-width:28px; text-align:center; font-size:14px; font-weight:700; color:var(--text);}
 
 .sim-pm{
-  width:28px; height:28px; border:1px solid var(--border); color:var(--text-muted); font-size:15px; flex:none;
+  width:28px; height:28px; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); font-size:15px; flex:none;
   display:flex; align-items:center; justify-content:center;
 }
 .sim-pm:hover:not(:disabled){border-color:var(--gold-dim); color:var(--gold);}
@@ -782,7 +782,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
 .sim-tree-canvas{position:relative; width:100%; height:480px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tree-edge{fill:none; stroke:#5f5d56; stroke-width:8px; stroke-linecap:butt; stroke-linejoin:miter; transition:stroke .15s; opacity:0.9;}
+.sim-tree-edge{fill:none; stroke:#66645c; stroke-width:5px; stroke-linecap:butt; stroke-linejoin:miter; transition:stroke .15s; opacity:0.9;}
 .sim-tree-edge.lit{stroke:var(--gold-dim); opacity:1;}
 
 .sim-tree-node-ring{position:absolute; width:44px; height:44px; transform:translate(-50%,-50%);}
@@ -806,7 +806,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px 0px var(--gold);}
 .sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
 .sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
-.sim-node-icon-img{width:100%; height:100%; object-fit:cover; pointer-events:none; border-radius:2px; filter:contrast(1.18) brightness(1.12) saturate(1.15);}
+.sim-node-icon-img{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:2px; filter:contrast(1.12) brightness(1.08) saturate(1.1);}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:17px; height:15px; padding:0 3px; border-radius:3px;
   background:#0b0a08; color:#fff; font-size:10.5px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
@@ -822,7 +822,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tree-reset:hover{color:var(--blood); border-color:var(--blood);}
 
 .sim-node-detail{
-  margin-top:14px; padding:14px 16px; border:1px solid var(--border-soft); background:var(--panel); min-height:64px;
+  margin-top:14px; padding:14px 16px; border:1px solid var(--border-soft); border-radius:6px; background:var(--panel); min-height:64px;
 }
 .sim-node-detail-empty{display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:12.5px;}
 .sim-node-detail-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
