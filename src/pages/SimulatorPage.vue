@@ -312,26 +312,33 @@ function layoutForTab(tabIdx) {
     })
   })
 
-  const edges = []
+  const rawEdges = []
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
       const reqIdx = tab.skills.findIndex((s) => s.name === reqName)
       const from = positions[reqIdx]
       const to = positions[skillIdx]
-      if (reqIdx !== -1 && from && to) {
-        const midY = (from.y + to.y) / 2
-        const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
-        const endY = to.y - arrowGap
-        // 직각 꺾은선(V-H-V)은 같은 티어 구간의 화살표들이 전부 같은 높이에서 수평 구간이
-        // 겹쳐버려 어떤 선이 어디로 이어지는지 구분이 안 됨 - 부드러운 S자 곡선으로 바꿔서
-        // 시작/끝 컬럼이 다른 화살표는 항상 다른 궤적을 그리게 함 (겹쳐도 한 점에서만 스침)
-        edges.push({
-          srcIdx: reqIdx,
-          dstIdx: skillIdx,
-          path: `M ${from.x} ${from.y} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${endY}`,
-        })
-      }
+      if (reqIdx !== -1 && from && to) rawEdges.push({ srcIdx: reqIdx, dstIdx: skillIdx, from, to })
     })
+  })
+
+  // 같은 두 티어 사이를 지나는 화살표들은 꺾이는 높이(midY)가 전부 똑같으면 수평 구간이
+  // 겹쳐서 구분이 안 됨 - 곡선 대신 직각을 유지하면서, 같은 구간을 지나는 화살표끼리만
+  // 꺾이는 높이를 균등하게 나눠 갖게 해서 겹치지 않게 함 (원작처럼 화살표는 항상 직각)
+  const bandGroups = {}
+  rawEdges.forEach((e) => {
+    const key = `${e.from.y.toFixed(2)}_${e.to.y.toFixed(2)}`
+    ;(bandGroups[key] ||= []).push(e)
+  })
+
+  const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
+  const edges = rawEdges.map((e) => {
+    const key = `${e.from.y.toFixed(2)}_${e.to.y.toFixed(2)}`
+    const group = bandGroups[key]
+    const t = group.length > 1 ? (group.indexOf(e) + 1) / (group.length + 1) : 0.5
+    const midY = e.from.y + (e.to.y - e.from.y) * t
+    const endY = e.to.y - arrowGap
+    return { srcIdx: e.srcIdx, dstIdx: e.dstIdx, path: `M ${e.from.x} ${e.from.y} V ${midY} H ${e.to.x} V ${endY}` }
   })
 
   return { nodes, edges }
