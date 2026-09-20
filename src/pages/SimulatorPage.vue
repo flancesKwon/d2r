@@ -814,8 +814,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 .sim-node.req-target{outline:2px dashed #ff8a3c; outline-offset:3px;}
 .sim-req-name{color:#ff8a3c; font-weight:700;}
-/* 실제 화면(멕스롤/인게임)은 스킬 아이콘이 채색이 아니라 은색/흰색 선화에 가까움 */
-.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:grayscale(0.75) contrast(1.35) brightness(1.3);}
+/* 원본 스킬 아이콘은 이미 돌 재질 타일 + 문양이라 실제 게임/맥스롤과 톤이 같음 -
+   그레이스케일/대비 필터를 넣으면 돌 질감과 문양의 명암차가 과도하게 벌어져서
+   아이콘이 반으로 쪼개진 것처럼 보이는 부작용이 있어서 필터 없이 원본 그대로 씀 */
+.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px;}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
