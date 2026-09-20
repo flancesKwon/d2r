@@ -9,13 +9,15 @@ import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
 
-// 캐릭터 인형(paperdoll) 배치 - 실제 인게임/멕스롤 장비창처럼 부위별 위치에 슬롯을 놓기 위한 그리드 영역 매핑
+// 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
+// (무기·방패는 세로로 긴 슬롯, 목걸이는 갑옷 옆, 반지는 벨트 양옆)
 const DOLL_AREA = {
   helm: 'helm',
-  weapon: 'weapon', armor: 'armor', shield: 'shield',
+  weapon: 'weapon', armor: 'armor', shield: 'shield', amulet: 'amulet',
   gloves: 'gloves', belt: 'belt', boots: 'boots',
-  ring1: 'ring1', amulet: 'amulet', ring2: 'ring2',
+  ring1: 'ring1', ring2: 'ring2',
 }
+const SMALL_DOLL_SLOTS = new Set(['amulet', 'ring1', 'ring2', 'belt'])
 
 const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
 const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
@@ -445,6 +447,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <label
                 class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key"
                 :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
+                :class="{ small: SMALL_DOLL_SLOTS.has(s.key) }"
               >
                 <div class="sim-equip-tile" :class="{ filled: equippedItems[s.key] }">
                   <svg class="sim-equip-icon" viewBox="0 0 24 24" v-html="ICONS[equipIconKey(s.key)]"></svg>
@@ -458,8 +461,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 </select>
               </label>
             </div>
+            <div class="sim-equip-inventory" aria-hidden="true">
+              <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
+            </div>
           </div>
-          <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요. 슬롯을 클릭하면 장착할 아이템을 고를 수 있어요.</div>
+          <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요. 슬롯을 클릭하면 장착할 아이템을 고를 수 있어요. (아래 인벤토리 칸은 참고용 장식이에요)</div>
         </div>
       </div>
 
@@ -475,11 +481,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <div class="sim-tree-canvas">
               <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
-                  <marker id="tree-arrow" markerWidth="3.2" markerHeight="3.2" refX="2.6" refY="1.6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L3.2,1.6 L0,3.2 Z" fill="#8f8c80" />
+                  <marker id="tree-arrow" markerWidth="7" markerHeight="6" refX="5.6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L7,3 L0,6 Z" fill="#5f5d56" />
                   </marker>
-                  <marker id="tree-arrow-lit" markerWidth="3.2" markerHeight="3.2" refX="2.6" refY="1.6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L3.2,1.6 L0,3.2 Z" fill="var(--gold)" />
+                  <marker id="tree-arrow-lit" markerWidth="7" markerHeight="6" refX="5.6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L7,3 L0,6 Z" fill="var(--gold-dim)" />
                   </marker>
                 </defs>
                 <path
@@ -640,17 +646,22 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
 }
 .sim-equip-doll{
-  display:grid; gap:9px; grid-template-columns:1fr 1fr 1fr;
+  display:grid; gap:7px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
+  aspect-ratio:5/3.5;
   grid-template-areas:
-    ".      helm   ."
-    "weapon armor  shield"
-    "gloves belt   boots"
-    "ring1  amulet ring2";
+    "weapon .      helm   .      shield"
+    "weapon .      armor  amulet shield"
+    "gloves ring1  belt   ring2  boots";
 }
-.sim-equip-slot{position:relative; display:block; font-size:11px; color:var(--text-muted);}
+.sim-equip-slot{position:relative; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted);}
+.sim-equip-slot.small{padding:18% 10%;}
 .sim-equip-tile{
-  position:relative; width:100%; aspect-ratio:1; border-radius:4px; border:2px solid #6b5d47;
+  position:relative; width:100%; height:100%; border-radius:3px; border:2px solid #6b4a2e;
   background:
+    radial-gradient(circle 2px at 4px 4px, #1c130a 55%, transparent 58%),
+    radial-gradient(circle 2px at calc(100% - 4px) 4px, #1c130a 55%, transparent 58%),
+    radial-gradient(circle 2px at 4px calc(100% - 4px), #1c130a 55%, transparent 58%),
+    radial-gradient(circle 2px at calc(100% - 4px) calc(100% - 4px), #1c130a 55%, transparent 58%),
     radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
     linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
@@ -664,6 +675,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   background:linear-gradient(0deg, rgba(0,0,0,0.78), transparent 90%); color:var(--text-muted); pointer-events:none; border-radius:0 0 3px 3px;
 }
 .sim-equip-select-overlay{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
+
+.sim-equip-inventory{
+  margin-top:10px; display:grid; grid-template-columns:repeat(10, 1fr); gap:2px;
+  border:1px solid #57554e; padding:6px; background:linear-gradient(180deg, #262521, #171613);
+}
+.sim-inv-cell{aspect-ratio:1; border:1px solid #4a473f; background:rgba(0,0,0,0.35);}
+@media (max-width:1150px){ .sim-equip-inventory{grid-template-columns:repeat(10, 1fr);} }
 
 .sim-panel{padding:18px 20px;}
 .sim-panel h3{font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px;}
@@ -726,14 +744,18 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
 .sim-tree-canvas{position:relative; width:100%; height:480px;}
 .sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tree-edge{fill:none; stroke:#8f8c80; stroke-width:2.4px; stroke-linecap:butt; stroke-linejoin:miter; transition:stroke .15s; opacity:0.85;}
-.sim-tree-edge.lit{stroke:var(--gold); opacity:1;}
+.sim-tree-edge{fill:none; stroke:#5f5d56; stroke-width:8px; stroke-linecap:butt; stroke-linejoin:miter; transition:stroke .15s; opacity:0.9;}
+.sim-tree-edge.lit{stroke:var(--gold-dim); opacity:1;}
 
 .sim-tree-node-ring{position:absolute; width:44px; height:44px; transform:translate(-50%,-50%);}
 
 .sim-tree-node{
-  width:100%; height:100%; border-radius:2px; border:1.5px solid #8a877c;
+  width:100%; height:100%; border-radius:2px; border:2px solid #6b4a2e;
   background:
+    radial-gradient(circle 2px at 4px 4px, #1c130a 55%, transparent 58%),
+    radial-gradient(circle 2px at calc(100% - 4px) 4px, #1c130a 55%, transparent 58%),
+    radial-gradient(circle 2px at 4px calc(100% - 4px), #1c130a 55%, transparent 58%),
+    radial-gradient(circle 2px at calc(100% - 4px) calc(100% - 4px), #1c130a 55%, transparent 58%),
     radial-gradient(circle at 30% 22%, rgba(255,255,255,0.08), transparent 35%),
     linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
