@@ -741,12 +741,15 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
 }
 .sim-node:hover{transform:scale(1.1); border-color:var(--gold-dim);}
-.sim-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
+/* 멕스롤/실제 게임은 선행 스킬 미충족 여부와 무관하게 0포인트 상태의 아이콘을
+   전부 똑같은 밝기로 보여줌 (투자 여부만 금테두리로 구분) — 잠긴 스킬만 회색
+   처리하면 밝고 어두운 타일이 뒤섞여 지저분해 보이므로 커서만 바꾸고 톤은 유지 */
+.sim-node.locked{cursor:default;}
 .sim-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 8px -1px var(--gold-dim);}
 .sim-node-slot.maxed .sim-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px 0 var(--gold);}
 .sim-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
 .sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:contrast(1.1) brightness(1.05) saturate(1.1);}
-.sim-node-art-fallback{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:var(--text-dim);}
+.sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
   background:#0b0a08; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1px solid #6b5d47;
@@ -806,7 +809,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 @media (max-width:560px){
   .sim-node-slot{width:36px; height:36px;}
-  .sim-node-art-fallback{width:16px; height:16px;}
   .sim-controls{flex-direction:column; align-items:stretch;}
   .sim-field input{width:100%;}
 }
