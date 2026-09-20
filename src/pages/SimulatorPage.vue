@@ -278,35 +278,46 @@ function layoutForTab(tabIdx) {
   const rows = [[], [], [], [], [], []]
   tab.skills.forEach((skill, skillIdx) => rows[tierRowOf(skill)].push(skillIdx))
 
-  // 각 스킬이 선행 스킬로부터 물려받는 "체인 위치"를 계산 - 실제 게임처럼 한번 시작된 세로줄을
-  // 부모-자식 관계를 따라 최대한 유지하기 위함 (매 행마다 독립적으로 다시 배치하면 가로선이 난잡해짐)
-  const chainKey = {}
-  let nextChain = 0
-
+  // 실제 게임/맥스롤 화면은 선행 스킬 바로 아래 같은 자리에 다음 스킬이 있어서 화살표가
+  // 꺾이지 않고 수직선 하나로 끝남 - 그래서 컬럼(0/1/2)을 매 행마다 새로 계산하지 않고
+  // 선행 스킬의 컬럼을 그대로 물려받게 하고, 자리가 겹칠 때만 가까운 빈 컬럼으로 밀어냄
+  const colOf = {}
   const positions = {}
   const nodes = []
-  rows.forEach((rowSkillIdxs, rowIdx) => {
-    const count = rowSkillIdxs.length
-    const y = ((rowIdx + 0.5) / 6) * 100
-
+  rows.forEach((rowSkillIdxs) => {
+    const desired = {}
     rowSkillIdxs.forEach((skillIdx) => {
       const skill = tab.skills[skillIdx]
       const reqIdxs = (skill.reqSkills || [])
         .map((n) => tab.skills.findIndex((s) => s.name === n))
-        .filter((i) => i !== -1 && chainKey[i] !== undefined)
-      chainKey[skillIdx] = reqIdxs.length
-        ? reqIdxs.reduce((sum, i) => sum + chainKey[i], 0) / reqIdxs.length
-        : nextChain++
+        .filter((i) => i !== -1 && colOf[i] !== undefined)
+      desired[skillIdx] = reqIdxs.length
+        ? Math.round(reqIdxs.reduce((sum, i) => sum + colOf[i], 0) / reqIdxs.length)
+        : null
     })
 
-    // 물려받은 체인 위치 순서로 정렬한 뒤 컬럼을 배정해서, 선행 스킬과 같은 세로줄을 최대한 유지
-    const sorted = [...rowSkillIdxs].sort((a, b) => chainKey[a] - chainKey[b])
-    sorted.forEach((skillIdx, i) => {
-      let col
-      if (count === 1) col = 1
-      else if (count === 2) col = i === 0 ? 0 : 2
-      else col = (i / (count - 1)) * 2
-      const x = ((col + 0.5) / 3) * 100
+    const used = new Set()
+    if (rowSkillIdxs.every((i) => desired[i] === null)) {
+      // 선행 스킬이 전혀 없는 행(보통 1티어)은 가운데/좌우 대칭으로 배치
+      const count = rowSkillIdxs.length
+      rowSkillIdxs.forEach((skillIdx, i) => {
+        colOf[skillIdx] = count === 1 ? 1 : count === 2 ? (i === 0 ? 0 : 2) : i
+      })
+    } else {
+      // 원하는 자리가 있는 스킬부터 먼저 배정하고, 겹치면 가까운 빈 컬럼으로 밀어냄
+      const order = [...rowSkillIdxs].sort((a, b) => (desired[a] ?? 99) - (desired[b] ?? 99))
+      order.forEach((skillIdx) => {
+        const want = desired[skillIdx]
+        const candidates = want === null ? [1, 0, 2] : [want, want - 1, want + 1, want - 2, want + 2]
+        const col = candidates.find((c) => c >= 0 && c <= 2 && !used.has(c))
+        used.add(col)
+        colOf[skillIdx] = col
+      })
+    }
+
+    rowSkillIdxs.forEach((skillIdx) => {
+      const y = ((tierRowOf(tab.skills[skillIdx]) + 0.5) / 6) * 100
+      const x = ((colOf[skillIdx] + 0.5) / 3) * 100
       positions[skillIdx] = { x, y }
       nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
     })
