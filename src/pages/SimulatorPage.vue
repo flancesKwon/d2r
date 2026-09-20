@@ -312,6 +312,8 @@ function layoutForTab(tabIdx) {
     })
   })
 
+  // 맥스롤 원본처럼 같은 컬럼이면 수직선, 컬럼이 다르면 꺾은선 대신 부모→자식을
+  // 바로 잇는 대각선 하나로 그림
   const edges = []
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
@@ -319,10 +321,9 @@ function layoutForTab(tabIdx) {
       const from = positions[reqIdx]
       const to = positions[skillIdx]
       if (reqIdx !== -1 && from && to) {
-        const midY = (from.y + to.y) / 2
         const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
-        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
+        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} L ${to.x} ${endY}` })
       }
     })
   })
