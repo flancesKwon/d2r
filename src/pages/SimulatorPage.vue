@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
 import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
-import { CLASS_ICONS, SKILL_ICONS, ICONS } from '../icons.js'
+import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
@@ -18,6 +18,14 @@ const DOLL_AREA = {
   ring1: 'ring1', ring2: 'ring2',
 }
 const SMALL_DOLL_SLOTS = new Set(['amulet', 'ring1', 'ring2', 'belt'])
+
+// 실제 게임 DC6 스프라이트에서 뽑은 슬롯 실루엣 아이콘 (기존 자체제작 SVG 대체)
+const equipIconModules = import.meta.glob('../assets/equipicons/*.png', { eager: true, import: 'default' })
+const equipIconUrl = Object.fromEntries(Object.entries(equipIconModules).map(([p, url]) => [p.split('/').pop().replace('.png', ''), url]))
+const DOLL_ICON_FILE = { weapon: 'weapon', shield: 'weapon', helm: 'helm', armor: 'armor', gloves: 'gloves', boots: 'boots', belt: 'belt', amulet: 'amulet', ring1: 'ring', ring2: 'ring' }
+function equipSilhouetteUrl(slotKey) {
+  return equipIconUrl[DOLL_ICON_FILE[slotKey]]
+}
 
 const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
 const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
@@ -50,15 +58,6 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
 
-const SLOT_DEFAULT_ICON = {
-  weapon: 'sword', shield: 'shield', helm: 'helm', armor: 'armor', gloves: 'gloves',
-  boots: 'boots', belt: 'belt', amulet: 'amulet', ring1: 'ring', ring2: 'ring',
-}
-function equipIconKey(slotKey) {
-  const id = equippedItems[slotKey]
-  if (id) return itemById[id]?.icon_type_key || SLOT_DEFAULT_ICON[slotKey] || 'unknown'
-  return SLOT_DEFAULT_ICON[slotKey] || 'unknown'
-}
 
 const itemAgg = computed(() => {
   const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
@@ -468,7 +467,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 :class="{ small: SMALL_DOLL_SLOTS.has(s.key) }"
               >
                 <div class="sim-equip-tile" :class="{ filled: equippedItems[s.key] }">
-                  <svg class="sim-equip-icon" viewBox="0 0 24 24" v-html="ICONS[equipIconKey(s.key)]"></svg>
+                  <img
+                    class="sim-equip-icon" :class="{ mirror: s.key === 'shield' }"
+                    :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
+                  />
                   <span class="sim-equip-tile-label">{{ s.label }}</span>
                 </div>
                 <select class="sim-equip-select-overlay" v-model="equippedItems[s.key]">
@@ -657,13 +659,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-equip-frame{
   border:1px solid var(--gold-dim); padding:14px;
   background:
-    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.09), transparent 30%),
-    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
-    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
-    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.06), transparent 35%),
-    repeating-linear-gradient(115deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 12px),
-    repeating-linear-gradient(25deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 9px),
-    linear-gradient(180deg, #4a443b, #2a251f);
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.07), transparent 30%),
+    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.4), transparent 35%),
+    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.35), transparent 40%),
+    linear-gradient(rgba(20,17,12,0.35), rgba(20,17,12,0.35)),
+    url('../assets/uitextures/menupanel.png');
+  background-size: auto, auto, auto, auto, 240px 192px;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat;
   box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
 }
 .sim-equip-doll{
@@ -690,7 +692,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   transition:border-color .15s, box-shadow .15s;
 }
 .sim-equip-tile.filled{border-color:var(--gold); color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 10px -1px var(--gold-dim);}
-.sim-equip-icon{width:44%; height:44%; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
+.sim-equip-icon{
+  width:78%; height:78%; object-fit:contain; pointer-events:none;
+  filter:brightness(2.6) contrast(1.15); opacity:0.85; transition:filter .15s, opacity .15s;
+}
+.sim-equip-icon.mirror{transform:scaleX(-1);}
+.sim-equip-tile.filled .sim-equip-icon{filter:brightness(3.4) contrast(1.2) sepia(0.35) saturate(2) hue-rotate(-5deg); opacity:1;}
 .sim-equip-tile-label{
   position:absolute; left:0; right:0; bottom:0; padding:2px 2px 3px; font-size:9px; text-align:center; line-height:1.1;
   background:linear-gradient(0deg, rgba(0,0,0,0.78), transparent 90%); color:var(--text-muted); pointer-events:none; border-radius:0 0 3px 3px;
@@ -757,11 +764,15 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     radial-gradient(circle at 15% 10%, rgba(255,255,255,0.06), transparent 30%),
     radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
     radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
-    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%),
-    repeating-linear-gradient(115deg, rgba(0,0,0,0.14) 0 2px, transparent 2px 12px),
-    repeating-linear-gradient(25deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 9px),
-    linear-gradient(180deg, #47453f, #292824);
+    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%);
   padding:10px; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.5);
+}
+.sim-tree-frame::before{
+  content:''; position:absolute; inset:0; z-index:0;
+  background-image:url('../assets/uitextures/menupanel.png');
+  background-size:240px 192px; background-repeat:repeat;
+  filter:grayscale(0.55) brightness(0.85) contrast(1.05);
+  opacity:0.92;
 }
 
 .sim-tree-detail-wrap{margin-top:14px;}
