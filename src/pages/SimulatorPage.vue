@@ -75,6 +75,7 @@ function resetEquip() {
 
 let skipClassReset = false
 const selectedNode = ref(null) // { tabIdx, skillIdx } | null
+const hoveredNode = ref(null) // { tabIdx, skillIdx } | null - 필수 선행 스킬을 강조해서 보여주기 위한 포커스 대상
 
 watch(selectedClass, () => {
   if (skipClassReset) return
@@ -321,7 +322,7 @@ function layoutForTab(tabIdx) {
         const midY = (from.y + to.y) / 2
         const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
-        edges.push({ srcIdx: reqIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
+        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
       }
     })
   })
@@ -330,6 +331,35 @@ function layoutForTab(tabIdx) {
 }
 
 const treeLayouts = computed(() => classTabs.value.map((_, tabIdx) => layoutForTab(tabIdx)))
+
+// 마우스 오버(우선) 또는 선택된 스킬을 기준으로 "이 스킬을 찍으려면 반드시 필요한 선행 스킬"을
+// 화살표 색과 별개로 명확히 강조하기 위한 포커스 대상 계산
+const focusNode = computed(() => hoveredNode.value || selectedNode.value)
+
+function focusReqIdxs(tabIdx) {
+  const focus = focusNode.value
+  if (!focus || focus.tabIdx !== tabIdx) return []
+  const tab = classTabs.value[tabIdx]
+  const skill = tab?.skills[focus.skillIdx]
+  if (!skill?.reqSkills?.length) return []
+  return skill.reqSkills
+    .map((name) => tab.skills.findIndex((s) => s.name === name))
+    .filter((i) => i !== -1)
+}
+
+function isFocusNode(tabIdx, skillIdx) {
+  const focus = focusNode.value
+  return !!focus && focus.tabIdx === tabIdx && focus.skillIdx === skillIdx
+}
+
+function isFocusReqNode(tabIdx, skillIdx) {
+  return focusReqIdxs(tabIdx).includes(skillIdx)
+}
+
+function isFocusReqEdge(tabIdx, e) {
+  const focus = focusNode.value
+  return !!focus && focus.tabIdx === tabIdx && e.dstIdx === focus.skillIdx
+}
 
 function resetTab(tabIdx) {
   const tab = classTabs.value[tabIdx]
@@ -508,18 +538,21 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
                   <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#66645c" />
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#4a4841" />
                   </marker>
                   <marker id="tree-arrow-lit" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold-dim)" />
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold)" />
+                  </marker>
+                  <marker id="tree-arrow-req" markerWidth="5.6" markerHeight="5.2" refX="4.4" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5.6,2.6 L0,5.2 Z" fill="#ff8a3c" />
                   </marker>
                 </defs>
                 <path
                   v-for="(e, i) in treeLayouts[tabIdx].edges" :key="i"
                   :d="e.path"
                   class="sim-tab-edge"
-                  :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0 }"
-                  :marker-end="skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
+                  :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0, req: isFocusReqEdge(tabIdx, e) }"
+                  :marker-end="isFocusReqEdge(tabIdx, e) ? 'url(#tree-arrow-req)' : skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
                   vector-effect="non-scaling-stroke"
                 />
               </svg>
@@ -527,17 +560,21 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 v-for="n in treeLayouts[tabIdx].nodes" :key="n.skillIdx"
                 class="sim-node-slot"
                 :style="{ left: n.x + '%', top: n.y + '%' }"
-                :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20 }"
+                :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20, 'req-source': isFocusReqNode(tabIdx, n.skillIdx) }"
               >
+                <span class="sim-node-req-flag" v-if="isFocusReqNode(tabIdx, n.skillIdx)">필수</span>
                 <button
                   class="sim-node"
                   :class="{
                     invested: skillPoint(tabIdx, n.skillIdx) > 0,
                     locked: skillPoint(tabIdx, n.skillIdx) === 0 && !canIncreaseSkill(tabIdx, n.skillIdx),
                     selected: selectedNode && selectedNode.tabIdx === tabIdx && selectedNode.skillIdx === n.skillIdx,
+                    'req-target': isFocusNode(tabIdx, n.skillIdx) && focusReqIdxs(tabIdx).length,
                   }"
                   :title="n.skill.name"
                   @click="onNodeClick(tabIdx, n.skillIdx)"
+                  @mouseenter="hoveredNode = { tabIdx, skillIdx: n.skillIdx }"
+                  @mouseleave="hoveredNode = null"
                 >
                   <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
                   <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
@@ -555,7 +592,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <strong>{{ selectedSkill.name }}</strong>
               <span>
                 요구 레벨 {{ selectedSkill.reqLevel }}
-                <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length"> · 선행: {{ selectedSkill.reqSkills.join(', ') }}</template>
+                <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length">
+                  · 필수 선행: <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ r }}</span>
+                </template>
               </span>
             </div>
             <div class="sim-detail-pm">
@@ -731,8 +770,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tab-head small{color:var(--text-dim); font-weight:400; font-size:10.5px;}
 .sim-tab-body{position:relative; height:440px; padding:0 8px;}
 .sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tab-edge{fill:none; stroke:#5a584f; stroke-width:4px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.85; transition:stroke .15s;}
-.sim-tab-edge.lit{stroke:var(--gold-dim); opacity:1;}
+/* 안 찍은 경로는 배경처럼 흐리게 눌러서 실제 투자한 경로(lit)만 시선이 가게 함 —
+   기존엔 전부 같은 굵기/밝기라 화살표가 다 똑같이 도드라져서 헷갈렸음 */
+.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:3px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.45; transition:stroke .15s, opacity .15s, stroke-width .15s;}
+.sim-tab-edge.lit{stroke:var(--gold); stroke-width:4.5px; opacity:1;}
+/* 마우스를 올리거나 선택한 스킬에 "반드시" 필요한 선행 스킬 경로만 오렌지로 표시 —
+   투자 여부(gold)와는 별개 색으로, 어떤 화살표가 필수 요구조건인지 바로 구분되게 함 */
+.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:5.5px; opacity:1;}
 
 .sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
 .sim-node{
@@ -750,6 +794,16 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 8px -1px var(--gold-dim);}
 .sim-node-slot.maxed .sim-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px 0 var(--gold);}
 .sim-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
+/* 마우스오버/선택한 스킬의 "필수 선행 스킬" 노드는 오렌지로 감싸서 즉시 눈에 띄게 함 */
+.sim-node-slot.req-source{z-index:2;}
+.sim-node-slot.req-source .sim-node{border-color:#ff8a3c; box-shadow:0 0 0 2px #ff8a3c, 0 0 12px 1px rgba(255,138,60,0.85);}
+.sim-node-req-flag{
+  position:absolute; left:-4px; top:-8px; z-index:3; padding:1px 4px; border-radius:3px;
+  background:#ff8a3c; color:#1a1005; font-size:9px; font-weight:800; line-height:1.3; white-space:nowrap;
+  box-shadow:0 1px 3px rgba(0,0,0,0.6);
+}
+.sim-node.req-target{outline:2px dashed #ff8a3c; outline-offset:3px;}
+.sim-req-name{color:#ff8a3c; font-weight:700;}
 /* 실제 화면(멕스롤/인게임)은 스킬 아이콘이 채색이 아니라 은색/흰색 선화에 가까움 */
 .sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:grayscale(0.75) contrast(1.35) brightness(1.3);}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
