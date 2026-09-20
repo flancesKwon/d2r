@@ -48,7 +48,6 @@
   "아이스 블래스트": "sor_ice_blast.png",
   "쉬버 아머": "sor_shiver_armor.png",
   "글레이셜 스파이크": "sor_glacial_spike.png",
-  "블리자드": "sor_blizzard.png",
   "칠링 아머": "sor_chilling_armor.png",
   "프로즌 오브": "sor_frozen_orb.png",
   "콜드 마스터리": "sor_cold_mastery.png",
@@ -83,7 +82,6 @@
   "서몬 레지스트": "nec_summon_resist.png",
   "아이언 골렘": "nec_irongolem.png",
   "파이어 골렘": "nec_firegolem.png",
-  "리바이브": "nec_revive.png",
   "티스": "nec_teeth.png",
   "본 아머": "nec_bone_armor.png",
   "포이즌 대거": "nec_poison_dagger.png",
@@ -154,7 +152,6 @@
   "샤우트": "bar_shout.png",
   "파인드 아이템": "bar_find_item.png",
   "배틀 크라이": "bar_battle_cry.png",
-  "배틀 오더스": "bar_battle_orders.png",
   "그림 워드": "bar_grim_ward.png",
   "워 크라이": "bar_war_cry.png",
   "배틀 커맨드": "bar_battle_command.png"
