@@ -551,7 +551,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
                   <marker id="tree-arrow" markerWidth="9" markerHeight="8.4" refX="7.2" refY="4.2" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L9,4.2 L0,8.4 Z" fill="#4a4841" />
+                    <path d="M0,0 L9,4.2 L0,8.4 Z" fill="#413d36" />
                   </marker>
                   <marker id="tree-arrow-lit" markerWidth="9" markerHeight="8.4" refX="7.2" refY="4.2" orient="auto" markerUnits="userSpaceOnUse">
                     <path d="M0,0 L9,4.2 L0,8.4 Z" fill="var(--gold)" />
@@ -787,12 +787,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
 /* 안 찍은 경로는 배경처럼 흐리게 눌러서 실제 투자한 경로(lit)만 시선이 가게 함 —
    기존엔 전부 같은 굵기/밝기라 화살표가 다 똑같이 도드라져서 헷갈렸음 */
-/* 참조 화면(맥스롤/원작)은 화살표가 얇은 선이 아니라 두꺼운 쐐기형 - 두께를 크게 키움 */
-.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:7px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.5; transition:stroke .15s, opacity .15s, stroke-width .15s;}
-.sim-tab-edge.lit{stroke:var(--gold); stroke-width:8px; opacity:1;}
+/* 참조 사진(맥스롤 소서리스)을 깨끗한 수직 구간만 잘라서 실측: 화살표 몸통 두께가
+   노드 타일 폭의 약 22% - 투자 전/후 구분 없이 항상 또렷한 톤으로 보임(흐리게 죽이지 않음) */
+.sim-tab-edge{fill:none; stroke:#413d36; stroke-width:9px; stroke-linecap:butt; stroke-linejoin:miter; opacity:1; transition:stroke .15s, stroke-width .15s;}
+.sim-tab-edge.lit{stroke:var(--gold); stroke-width:9.5px;}
 /* 마우스를 올리거나 선택한 스킬에 "반드시" 필요한 선행 스킬 경로만 오렌지로 표시 —
    투자 여부(gold)와는 별개 색으로, 어떤 화살표가 필수 요구조건인지 바로 구분되게 함 */
-.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:9px; opacity:1;}
+.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:10px;}
 
 .sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
 .sim-node{
