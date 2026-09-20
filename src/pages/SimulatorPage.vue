@@ -587,9 +587,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <h3>스탯 포인트 <span class="sim-remaining" :class="{ warn: remainingStatPoints < 0 }">남은 포인트 {{ remainingStatPoints }} / {{ totalStatPoints }}</span></h3>
           <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
             <span class="sim-stat-label">{{ s.label }}</span>
-            <button class="sim-pm sim-pm-gem" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0"><span>−</span></button>
-            <span class="sim-stat-value">{{ s.total }}<small>(기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template>)</small></span>
-            <button class="sim-pm sim-pm-gem" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0"><span>+</span></button>
+            <div class="sim-stepper">
+              <button class="sim-step-btn" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0">‹</button>
+              <span class="sim-step-value">{{ s.total }}</span>
+              <button class="sim-step-btn" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0">›</button>
+            </div>
+            <span class="sim-stat-detail">기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template></span>
           </div>
         </div>
 
@@ -701,16 +704,27 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-inv-cell{aspect-ratio:1; border:1px solid #4a473f; background:rgba(0,0,0,0.35);}
 @media (max-width:1150px){ .sim-equip-inventory{grid-template-columns:repeat(10, 1fr);} }
 
-.sim-panel{padding:18px 20px;}
+.sim-panel{padding:18px 20px; border-radius:6px;}
 .sim-panel h3{font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px;}
 .sim-remaining{font-size:11.5px; color:var(--text-dim); font-weight:400;}
 .sim-remaining.warn{color:var(--blood);}
 
-.sim-stat-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--border-soft);}
+.sim-stat-row{display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; padding:9px 0; border-top:1px solid var(--border-soft);}
 .sim-stat-row:first-of-type{border-top:none;}
-.sim-stat-label{width:48px; font-size:13px; color:var(--text-muted); flex:none;}
-.sim-stat-value{flex:1; font-size:14px; color:var(--text); font-weight:600;}
-.sim-stat-value small{color:var(--text-dim); font-weight:400; font-size:11px; margin-left:4px;}
+.sim-stat-label{width:44px; font-size:13px; color:var(--text-muted); flex:none;}
+.sim-stat-detail{font-size:10.5px; color:var(--text-dim); flex:1 1 100%; margin-left:56px;}
+
+.sim-stepper{
+  display:flex; align-items:center; flex:none; border-radius:999px; overflow:hidden;
+  border:1px solid var(--border); background:#0c0b09;
+}
+.sim-step-btn{
+  width:26px; height:26px; border:none; background:transparent; color:var(--text-dim);
+  font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.sim-step-btn:hover:not(:disabled){color:var(--gold);}
+.sim-step-btn:disabled{opacity:0.3; cursor:default;}
+.sim-step-value{min-width:28px; text-align:center; font-size:14px; font-weight:700; color:var(--text);}
 
 .sim-pm{
   width:28px; height:28px; border:1px solid var(--border); color:var(--text-muted); font-size:15px; flex:none;
@@ -718,14 +732,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 .sim-pm:hover:not(:disabled){border-color:var(--gold-dim); color:var(--gold);}
 .sim-pm:disabled{opacity:0.35; cursor:default;}
-
-.sim-pm-gem{
-  width:24px; height:24px; border:1px solid var(--gold-dim); background:linear-gradient(135deg, #3a2f1c, #1c1712);
-  transform:rotate(45deg); border-radius:2px;
-}
-.sim-pm-gem span{transform:rotate(-45deg); color:var(--gold); font-size:13px; font-weight:700;}
-.sim-pm-gem:hover:not(:disabled){box-shadow:0 0 8px -1px var(--gold-dim);}
-.sim-pm-gem:disabled span{color:var(--text-dim);}
 
 .sim-derived-row{display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--border-soft); font-size:13.5px; color:var(--text-muted);}
 .sim-derived-row:first-of-type{border-top:none;}
