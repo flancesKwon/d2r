@@ -455,51 +455,57 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
     <div class="note-box sim-quest-note">퀘스트 보상은 전부 클리어한 상태를 기본값으로 계산해요 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
 
-    <div class="sim-dashboard">
-      <div class="sim-col-equip">
-        <div class="side-block sim-panel sim-equip-box">
-          <h3>장비 <button class="sim-reset-btn sim-equip-reset" @click="resetEquip">장비 초기화</button></h3>
-          <div class="sim-equip-frame">
-            <div class="sim-equip-doll">
-              <label
-                class="sim-equip-slot" v-for="s in SLOT_DEFS" :key="s.key"
-                :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
-                :class="{ small: SMALL_DOLL_SLOTS.has(s.key) }"
-              >
-                <div class="sim-equip-tile" :class="{ filled: equippedItems[s.key] }">
-                  <img
-                    class="sim-equip-icon" :class="{ mirror: s.key === 'shield' }"
-                    :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
-                  />
-                  <span class="sim-equip-tile-label">{{ s.label }}</span>
-                </div>
-                <select class="sim-equip-select-overlay" v-model="equippedItems[s.key]">
-                  <option value="">비어있음</option>
-                  <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
-                    {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
-                  </option>
-                </select>
-              </label>
-            </div>
-            <div class="sim-equip-inventory" aria-hidden="true">
-              <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
-            </div>
-          </div>
-          <div class="note-box sim-note">아이템 사전 데이터(유니크·세트·룬워드) 기준으로 힘/민첩/활력/에너지·생명력·마나·저항·방어력·+스킬 옵션을 합산해요. 소켓 보석/룬, 인벤토리 참(charm)은 아직 빠져 있어요. 슬롯을 클릭하면 장착할 아이템을 고를 수 있어요. (아래 인벤토리 칸은 참고용 장식이에요)</div>
-        </div>
-      </div>
+    <div class="sim-sheet">
+      <section class="sim-zone sim-zone-equip">
+        <header class="sim-zone-head">
+          <h2>장비</h2>
+          <button class="sim-link-btn" @click="resetEquip">초기화</button>
+        </header>
 
-      <div class="sim-col-tree">
-        <div class="sim-skill-section">
-      <div class="sim-skill-head">
-        <h3>스킬 포인트 <span class="sim-remaining" :class="{ warn: remainingSkillPoints < 0 }">남은 포인트 {{ remainingSkillPoints }} / {{ totalSkillPoints }}</span></h3>
-      </div>
-      <div class="sim-tree-columns">
-        <div class="sim-tree-col-panel" v-for="(tab, tabIdx) in classTabs" :key="tab.name">
-          <div class="sim-tree-col-head">{{ tab.name }} <small>{{ tabSpent[tabIdx] }} 포인트 사용</small></div>
-          <div class="sim-tree-frame">
-            <div class="sim-tree-canvas">
-              <svg class="sim-tree-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <div class="sim-doll">
+          <label
+            class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
+            :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
+            :class="{ small: SMALL_DOLL_SLOTS.has(s.key) }"
+          >
+            <div class="sim-slot-tile" :class="{ filled: equippedItems[s.key] }">
+              <img
+                class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
+                :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
+              />
+            </div>
+            <select class="sim-slot-select" v-model="equippedItems[s.key]">
+              <option value="">비어있음</option>
+              <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
+                {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="sim-inv-grid" aria-hidden="true">
+          <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
+        </div>
+
+        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓·인벤토리 참은 아직 없어요.</p>
+      </section>
+
+      <div class="sim-zone-divider"></div>
+
+      <section class="sim-zone sim-zone-tree">
+        <header class="sim-zone-head">
+          <h2>스킬 포인트</h2>
+          <span class="sim-zone-meta" :class="{ warn: remainingSkillPoints < 0 }">{{ remainingSkillPoints }} / {{ totalSkillPoints }} 남음</span>
+        </header>
+
+        <div class="sim-tree-row">
+          <div class="sim-tab" v-for="(tab, tabIdx) in classTabs" :key="tab.name">
+            <div class="sim-tab-head">
+              <span>{{ tab.name }}</span>
+              <small>{{ tabSpent[tabIdx] }}pt</small>
+            </div>
+            <div class="sim-tab-body">
+              <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
                   <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
                     <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#66645c" />
@@ -511,7 +517,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 <path
                   v-for="(e, i) in treeLayouts[tabIdx].edges" :key="i"
                   :d="e.path"
-                  class="sim-tree-edge"
+                  class="sim-tab-edge"
                   :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0 }"
                   :marker-end="skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
                   vector-effect="non-scaling-stroke"
@@ -519,12 +525,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               </svg>
               <div
                 v-for="n in treeLayouts[tabIdx].nodes" :key="n.skillIdx"
-                class="sim-tree-node-ring"
-                :style="{ left: n.x + '%', top: n.y + '%', '--node-color': nodeColor(n.skill) || 'var(--gold)', '--pct': (skillPoint(tabIdx, n.skillIdx) / 20) * 100 }"
+                class="sim-node-slot"
+                :style="{ left: n.x + '%', top: n.y + '%' }"
                 :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20 }"
               >
                 <button
-                  class="sim-tree-node"
+                  class="sim-node"
                   :class="{
                     invested: skillPoint(tabIdx, n.skillIdx) > 0,
                     locked: skillPoint(tabIdx, n.skillIdx) === 0 && !canIncreaseSkill(tabIdx, n.skillIdx),
@@ -533,99 +539,90 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                   :title="n.skill.name"
                   @click="onNodeClick(tabIdx, n.skillIdx)"
                 >
-                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-icon-img" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
-                  <svg v-else class="sim-node-icon" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
+                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
+                  <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
                 </button>
                 <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
               </div>
-              <button class="sim-tree-reset" title="이 계열 초기화" @click="resetTab(tabIdx)">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
-              </button>
+              <button class="sim-tab-reset" title="이 계열 초기화" @click="resetTab(tabIdx)">✕</button>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="sim-tree-detail-wrap">
-        <div class="sim-node-detail" v-if="selectedSkill">
-          <div class="sim-node-detail-head">
-            <div class="sim-node-detail-title">
-              <span class="sim-skill-name">{{ selectedSkill.name }}</span>
-              <span class="sim-skill-tier">
+        <div class="sim-detail" v-if="selectedSkill">
+          <div class="sim-detail-head">
+            <div class="sim-detail-title">
+              <strong>{{ selectedSkill.name }}</strong>
+              <span>
                 요구 레벨 {{ selectedSkill.reqLevel }}
                 <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length"> · 선행: {{ selectedSkill.reqSkills.join(', ') }}</template>
               </span>
             </div>
-            <div class="sim-node-detail-pm">
+            <div class="sim-detail-pm">
               <button class="sim-pm" @click="decreaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)" :disabled="!canDecreaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)">−</button>
-              <span class="sim-skill-value">{{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }}</span>
+              <b>{{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }}</b>
               <button class="sim-pm" @click="increaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)" :disabled="!canIncreaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)">+</button>
             </div>
           </div>
-          <div class="sim-skill-detail" v-if="skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) > 0 && (selectedSkill.dmg || synergySources(selectedSkill).length)">
-            <div class="sim-dmg-line" v-if="effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) !== skillPoint(selectedNode.tabIdx, selectedNode.skillIdx)">
-              유효 스킬 레벨 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) }} <small>(하드포인트 {{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }} + 장비 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) - skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }})</small>
-            </div>
-            <div class="sim-dmg-line" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.ele">
+          <div class="sim-detail-body" v-if="skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) > 0 && (selectedSkill.dmg || synergySources(selectedSkill).length)">
+            <p v-if="effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) !== skillPoint(selectedNode.tabIdx, selectedNode.skillIdx)">
+              유효 스킬 레벨 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) }} <small>(하드 {{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }} + 장비 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) - skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }})</small>
+            </p>
+            <p v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.ele">
               {{ ELEMENT_LABELS[skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.type] }} 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.max }}
-              <span class="sim-syn-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent }}%)</span>
-            </div>
-            <div class="sim-dmg-line" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.phy">
-              물리 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.max }} <small>(무기 데미지 제외, 스킬 자체 수치)</small>
-              <span class="sim-syn-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent }}%)</span>
-            </div>
-            <div class="sim-syn-line" v-if="synergySources(selectedSkill).length">
+              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent }}%)</span>
+            </p>
+            <p v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.phy">
+              물리 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.max }} <small>(무기 데미지 제외)</small>
+              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent }}%)</span>
+            </p>
+            <p class="sim-detail-syn" v-if="synergySources(selectedSkill).length">
               시너지 제공: <span v-for="(s, i) in synergySources(selectedSkill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ s.skill }}(+{{ s.percent }}%/lv)</span>
-            </div>
+            </p>
           </div>
         </div>
-        <div class="sim-node-detail sim-node-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍고 정보를 확인하세요</div>
-      </div>
-        </div>
-      </div>
+        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍어보세요</div>
+      </section>
 
-      <div class="sim-col-stats">
-        <div class="side-block sim-panel">
-          <h3>스탯 포인트 <span class="sim-remaining" :class="{ warn: remainingStatPoints < 0 }">남은 포인트 {{ remainingStatPoints }} / {{ totalStatPoints }}</span></h3>
-          <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
-            <span class="sim-stat-label">{{ s.label }}</span>
-            <div class="sim-stepper">
-              <button class="sim-step-btn" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0">‹</button>
-              <span class="sim-step-value">{{ s.total }}</span>
-              <button class="sim-step-btn" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0">›</button>
-            </div>
-            <span class="sim-stat-detail">기본 {{ s.base }} + 투자 {{ s.added }}<template v-if="s.gear"> + 장비 {{ s.gear }}</template></span>
+      <div class="sim-zone-divider"></div>
+
+      <section class="sim-zone sim-zone-stats">
+        <header class="sim-zone-head">
+          <h2>스탯</h2>
+          <span class="sim-zone-meta" :class="{ warn: remainingStatPoints < 0 }">{{ remainingStatPoints }} / {{ totalStatPoints }} 남음</span>
+        </header>
+        <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
+          <span class="sim-stat-label">{{ s.label }}</span>
+          <div class="sim-stepper">
+            <button class="sim-step-btn" @click="decreaseStat(s.key)" :disabled="allocatedStats[s.key] <= 0">‹</button>
+            <span class="sim-step-value">{{ s.total }}</span>
+            <button class="sim-step-btn" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0">›</button>
           </div>
+          <span class="sim-stat-detail">기본 {{ s.base }}+투자 {{ s.added }}<template v-if="s.gear">+장비 {{ s.gear }}</template></span>
         </div>
 
-        <div class="side-block sim-panel">
-          <h3>예상 능력치</h3>
-          <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
-          <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
-          <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
-          <div class="sim-derived-row"><span>방어력 (장비)</span><b>{{ derivedStats.armor }}</b></div>
-          <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 물리 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
-          <div class="sim-derived-row">
-            <span>저항 (화/냉/전/독)</span>
-            <b>{{ derivedStats.resist.fire }}% / {{ derivedStats.resist.cold }}% / {{ derivedStats.resist.ltng }}% / {{ derivedStats.resist.pois }}%</b>
-          </div>
-          <div class="note-box sim-note">스탯 성장 공식은 커뮤니티 자료 기준 근사치예요. 저항은 75% 상한 적용, 방어력은 장비 고정치×(1+%증가)만 반영했어요.</div>
+        <header class="sim-zone-head sim-zone-head-sub">
+          <h2>예상 능력치</h2>
+        </header>
+        <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
+        <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
+        <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
+        <div class="sim-derived-row"><span>방어력</span><b>{{ derivedStats.armor }}</b></div>
+        <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
+        <div class="sim-derived-row">
+          <span>저항 화/냉/전/독</span>
+          <b>{{ derivedStats.resist.fire }}/{{ derivedStats.resist.cold }}/{{ derivedStats.resist.ltng }}/{{ derivedStats.resist.pois }}%</b>
         </div>
-      </div>
+        <p class="sim-zone-note">스탯 성장은 커뮤니티 자료 기준 근사치, 저항 75% 상한 적용.</p>
+      </section>
     </div>
   </div>
   </div>
 </template>
 
 <style scoped>
-.sim-wrap{max-width:1520px;}
+.sim-wrap{max-width:1480px;}
 
-.sim-dashboard{display:grid; grid-template-columns:260px 1fr 280px; gap:18px; align-items:start;}
-.sim-col-equip, .sim-col-stats{display:flex; flex-direction:column; gap:16px; min-width:0;}
-.sim-col-tree{min-width:0;}
-@media (max-width:1150px){
-  .sim-dashboard{grid-template-columns:1fr;}
-}
 .sim-class-tabs button{display:flex; align-items:center; gap:7px;}
 .sim-class-icon{width:16px; height:16px; display:inline-flex; flex:none;}
 .sim-class-icon svg{width:100%; height:100%; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
@@ -652,200 +649,155 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
 .sim-quest-note{margin-bottom:20px;}
 
-.sim-equip-box{margin-bottom:20px;}
-.sim-equip-box h3{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:14px;}
-.sim-equip-reset{height:auto; padding:6px 12px; font-size:11.5px;}
-
-.sim-equip-frame{
-  border:1px solid var(--gold-dim); padding:14px;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.07), transparent 30%),
-    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.4), transparent 35%),
-    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.35), transparent 40%),
-    linear-gradient(rgba(20,17,12,0.35), rgba(20,17,12,0.35)),
-    url('../assets/uitextures/menupanel.png');
-  background-size: auto, auto, auto, auto, 240px 192px;
-  background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat;
-  box-shadow:inset 0 0 0 1px var(--border-soft), inset 0 0 30px rgba(0,0,0,0.5);
+/* ---- 하나의 시트 위에 장비·스킬·스탯을 함께 배치 (실제 게임 돌기둥 텍스처가 전체를 지나감) ---- */
+.sim-sheet{
+  position:relative; isolation:isolate;
+  display:grid; grid-template-columns:250px 1px 1fr 1px 260px; gap:24px;
+  border:1px solid var(--gold-dim); padding:24px;
 }
-.sim-equip-doll{
-  display:grid; gap:7px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
-  aspect-ratio:5/3.5;
+.sim-sheet::before{
+  /* 원본 menupanel.png은 위아래에 금색 가로줄 장식이 있어서 세로로 반복 타일링하면
+     띠처럼 도드라져 보임 → 그 부분을 잘라낸 순수 돌 질감만 반복 사용 */
+  content:''; position:absolute; inset:0; z-index:-1;
+  background-image:url('../assets/uitextures/menupanel_tile.png');
+  background-size:240px 120px; background-repeat:repeat;
+  filter:grayscale(0.5) brightness(0.5) contrast(1.05);
+}
+.sim-zone{min-width:0;}
+.sim-zone-divider{background:linear-gradient(180deg, transparent, var(--gold-dim) 15%, var(--gold-dim) 85%, transparent); opacity:0.35;}
+
+.sim-zone-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  padding-bottom:10px; margin-bottom:16px; border-bottom:2px solid var(--gold-dim);
+}
+.sim-zone-head h2{font-size:15px; font-family:'Noto Serif KR', serif; font-weight:700; color:var(--gold); margin:0;}
+.sim-zone-head-sub{margin-top:24px;}
+.sim-zone-meta{font-size:11.5px; color:var(--text-dim); white-space:nowrap;}
+.sim-zone-meta.warn{color:var(--blood);}
+.sim-link-btn{font-size:11.5px; color:var(--text-muted); border:none; background:none; text-decoration:underline; cursor:pointer; padding:0;}
+.sim-link-btn:hover{color:var(--gold);}
+.sim-zone-note{margin-top:14px; font-size:11px; color:var(--text-dim); line-height:1.5;}
+
+@media (max-width:1150px){
+  .sim-sheet{grid-template-columns:1fr;}
+  .sim-zone-divider{display:none;}
+}
+
+/* ---- 장비 인형 ---- */
+.sim-doll{
+  display:grid; gap:8px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
+  aspect-ratio:5/3.3;
   grid-template-areas:
     "weapon .      helm   .      shield"
     "weapon .      armor  amulet shield"
     "gloves ring1  belt   ring2  boots";
 }
-.sim-equip-slot{position:relative; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted);}
-.sim-equip-slot.small{padding:18% 10%;}
-.sim-equip-tile{
+.sim-slot{position:relative; display:block;}
+.sim-slot.small{padding:16% 8%;}
+.sim-slot-tile{
   position:relative; width:100%; height:100%; border-radius:3px; border:2px solid #6b4a2e;
-  background:
-    radial-gradient(circle 2px at 4px 4px, #1c130a 55%, transparent 58%),
-    radial-gradient(circle 2px at calc(100% - 4px) 4px, #1c130a 55%, transparent 58%),
-    radial-gradient(circle 2px at 4px calc(100% - 4px), #1c130a 55%, transparent 58%),
-    radial-gradient(circle 2px at calc(100% - 4px) calc(100% - 4px), #1c130a 55%, transparent 58%),
-    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.1), transparent 35%),
-    linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
-  display:flex; align-items:center; justify-content:center; color:var(--text-dim);
+  background:linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6);
+  display:flex; align-items:center; justify-content:center;
   transition:border-color .15s, box-shadow .15s;
 }
-.sim-equip-tile.filled{border-color:var(--gold); color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 10px -1px var(--gold-dim);}
-.sim-equip-icon{
-  width:76%; height:76%; object-fit:contain; pointer-events:none;
-  filter:brightness(2.1); opacity:0.6; transition:filter .15s, opacity .15s;
-}
-.sim-equip-icon.mirror{transform:scaleX(-1);}
-.sim-equip-tile.filled .sim-equip-icon{filter:brightness(2.4) sepia(0.3) saturate(1.5); opacity:1;}
-.sim-equip-tile-label{
-  position:absolute; left:0; right:0; bottom:0; padding:2px 2px 3px; font-size:9px; text-align:center; line-height:1.1;
-  background:linear-gradient(0deg, rgba(0,0,0,0.78), transparent 90%); color:var(--text-muted); pointer-events:none; border-radius:0 0 3px 3px;
-}
-.sim-equip-select-overlay{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
+.sim-slot-tile.filled{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 10px -2px var(--gold-dim);}
+.sim-slot-art{width:74%; height:74%; object-fit:contain; pointer-events:none; filter:brightness(2); opacity:0.55; transition:filter .15s, opacity .15s;}
+.sim-slot-art.mirror{transform:scaleX(-1);}
+.sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
+.sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
-.sim-equip-inventory{
-  margin-top:10px; display:grid; grid-template-columns:repeat(10, 1fr); gap:2px;
-  border:1px solid #57554e; padding:6px; background:linear-gradient(180deg, #262521, #171613);
+.sim-inv-grid{margin-top:14px; display:grid; grid-template-columns:repeat(10, 1fr); gap:2px; border:1px solid var(--border-soft); padding:6px; background:rgba(0,0,0,0.3);}
+.sim-inv-cell{aspect-ratio:1; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
+
+/* ---- 스킬 트리 ---- */
+.sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;}
+.sim-tab{display:flex; flex-direction:column; min-width:0;}
+.sim-tab-head{
+  display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-weight:700; color:var(--text);
+  padding-bottom:6px; margin-bottom:8px; border-bottom:1px solid var(--border-soft);
 }
-.sim-inv-cell{aspect-ratio:1; border:1px solid #4a473f; background:rgba(0,0,0,0.35);}
-@media (max-width:1150px){ .sim-equip-inventory{grid-template-columns:repeat(10, 1fr);} }
+.sim-tab-head small{color:var(--text-dim); font-weight:400; font-size:10.5px;}
+.sim-tab-body{position:relative; height:440px;}
+.sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+.sim-tab-edge{fill:none; stroke:#5a584f; stroke-width:4px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.85; transition:stroke .15s;}
+.sim-tab-edge.lit{stroke:var(--gold-dim); opacity:1;}
 
-.sim-panel{padding:18px 20px; border-radius:6px;}
-.sim-panel h3{font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px;}
-.sim-remaining{font-size:11.5px; color:var(--text-dim); font-weight:400;}
-.sim-remaining.warn{color:var(--blood);}
+.sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
+.sim-node{
+  width:100%; height:100%; border-radius:2px; border:2px solid #6b4a2e;
+  background:linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6);
+  display:flex; align-items:center; justify-content:center; padding:2px;
+  transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
+}
+.sim-node:hover{transform:scale(1.1); border-color:var(--gold-dim);}
+.sim-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
+.sim-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 8px -1px var(--gold-dim);}
+.sim-node-slot.maxed .sim-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px 0 var(--gold);}
+.sim-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
+.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:contrast(1.1) brightness(1.05) saturate(1.1);}
+.sim-node-art-fallback{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:var(--text-dim);}
+.sim-node-badge{
+  position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
+  background:#0b0a08; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1px solid #6b5d47;
+}
+.sim-tab-reset{
+  position:absolute; left:-4px; bottom:-4px; width:20px; height:20px; border-radius:50%;
+  background:#0b0a08; border:1px solid #4a3f30; color:var(--text-dim); font-size:11px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.sim-tab-reset:hover{color:var(--blood); border-color:var(--blood);}
 
-.sim-stat-row{display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; padding:9px 0; border-top:1px solid var(--border-soft);}
+.sim-detail{margin-top:18px; padding:14px 16px; border:1px solid var(--border-soft); border-radius:6px; background:rgba(0,0,0,0.25); min-height:60px;}
+.sim-detail-empty{display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:12.5px;}
+.sim-detail-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+.sim-detail-title{display:flex; flex-direction:column; gap:4px;}
+.sim-detail-title strong{font-size:14.5px; color:var(--text); font-family:'Noto Serif KR', serif;}
+.sim-detail-title span{font-size:11px; color:var(--text-dim);}
+.sim-detail-pm{display:flex; align-items:center; gap:10px; flex:none;}
+.sim-detail-pm b{width:22px; text-align:center; font-size:14px; color:var(--gold);}
+.sim-detail-body{margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-soft); font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;}
+.sim-detail-body small{color:var(--text-dim); font-size:10.5px;}
+.sim-detail-pct{color:var(--gold-dim); margin-left:4px;}
+.sim-detail-syn{color:var(--text-dim); font-size:11.5px;}
+
+.sim-pm{
+  width:26px; height:26px; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); font-size:14px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.sim-pm:hover:not(:disabled){border-color:var(--gold-dim); color:var(--gold);}
+.sim-pm:disabled{opacity:0.35; cursor:default;}
+
+/* ---- 스탯 ---- */
+.sim-stat-row{display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; padding:8px 0; border-top:1px solid var(--border-soft);}
 .sim-stat-row:first-of-type{border-top:none;}
-.sim-stat-label{width:44px; font-size:13px; color:var(--text-muted); flex:none;}
-.sim-stat-detail{font-size:10.5px; color:var(--text-dim); flex:1 1 100%; margin-left:56px;}
+.sim-stat-label{width:40px; font-size:13px; color:var(--text-muted); flex:none;}
+.sim-stat-detail{font-size:10.5px; color:var(--text-dim); flex:1 1 100%; margin-left:52px;}
 
 .sim-stepper{
   display:flex; align-items:center; flex:none; border-radius:999px; overflow:hidden;
   border:1px solid var(--border); background:#0c0b09;
 }
 .sim-step-btn{
-  width:26px; height:26px; border:none; background:transparent; color:var(--text-dim);
-  font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  width:24px; height:24px; border:none; background:transparent; color:var(--text-dim);
+  font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
 }
 .sim-step-btn:hover:not(:disabled){color:var(--gold);}
 .sim-step-btn:disabled{opacity:0.3; cursor:default;}
-.sim-step-value{min-width:28px; text-align:center; font-size:14px; font-weight:700; color:var(--text);}
+.sim-step-value{min-width:26px; text-align:center; font-size:13.5px; font-weight:700; color:var(--text);}
 
-.sim-pm{
-  width:28px; height:28px; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); font-size:15px; flex:none;
-  display:flex; align-items:center; justify-content:center;
-}
-.sim-pm:hover:not(:disabled){border-color:var(--gold-dim); color:var(--gold);}
-.sim-pm:disabled{opacity:0.35; cursor:default;}
-
-.sim-derived-row{display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--border-soft); font-size:13.5px; color:var(--text-muted);}
+.sim-derived-row{display:flex; justify-content:space-between; padding:7px 0; border-top:1px solid var(--border-soft); font-size:13px; color:var(--text-muted);}
 .sim-derived-row:first-of-type{border-top:none;}
-.sim-derived-row b{color:var(--gold); font-size:15px;}
-.sim-note{margin-top:12px; margin-bottom:0;}
-
-.sim-skill-head h3{font-size:15px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
-
-.sim-tree-columns{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:4px;}
-.sim-tree-col-panel{display:flex; flex-direction:column; min-width:0;}
-.sim-tree-col-head{
-  font-size:13px; color:#dcd9d0; margin-bottom:0; text-align:center; font-family:'Noto Serif KR', serif; font-weight:700;
-  letter-spacing:0.3px;
-  display:flex; flex-direction:column; gap:2px; justify-content:center;
-  border:1px solid #57554e; border-bottom:1px solid #171613; background:linear-gradient(180deg, #4c4a44, #302f2b);
-  padding:9px 6px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 4px rgba(0,0,0,0.5);
-}
-.sim-tree-col-head small{color:#8f8c82; font-size:10.5px; font-family:'Noto Sans KR', sans-serif; font-weight:400;}
-
-.sim-tree-frame{
-  position:relative; border:1px solid #57554e; border-top:none; flex:1; overflow:hidden;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(255,255,255,0.06), transparent 30%),
-    radial-gradient(circle at 85% 20%, rgba(0,0,0,0.35), transparent 35%),
-    radial-gradient(circle at 30% 80%, rgba(0,0,0,0.3), transparent 40%),
-    radial-gradient(circle at 75% 65%, rgba(255,255,255,0.04), transparent 35%);
-  padding:10px; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.5);
-}
-.sim-tree-frame::before{
-  /* spells/skltree_*_back.dc6 원본은 특정 클래스 트리 모양에 맞춘 화살표가 배경에
-     고정으로 새겨져 있어서, 우리처럼 매 클래스/탭마다 동적으로 배치되는 레이아웃과는
-     항상 어긋남 (블러로도 안 가려짐) → panel/menupanel.dc6의 순수 돌기둥 텍스처를 사용 */
-  content:''; position:absolute; inset:0; z-index:0;
-  background-image:url('../assets/uitextures/menupanel.png');
-  background-size:240px 192px; background-repeat:repeat;
-  filter:grayscale(0.55) brightness(0.85) contrast(1.05);
-  opacity:0.92;
-}
-
-.sim-tree-detail-wrap{margin-top:14px;}
-
-.sim-tree-canvas{position:relative; width:100%; height:480px;}
-.sim-tree-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tree-edge{fill:none; stroke:#66645c; stroke-width:5px; stroke-linecap:butt; stroke-linejoin:miter; transition:stroke .15s; opacity:0.9;}
-.sim-tree-edge.lit{stroke:var(--gold-dim); opacity:1;}
-
-.sim-tree-node-ring{position:absolute; width:44px; height:44px; transform:translate(-50%,-50%);}
-
-.sim-tree-node{
-  width:100%; height:100%; border-radius:2px; border:2px solid #6b4a2e;
-  background:
-    radial-gradient(circle 2px at 4px 4px, #1c130a 55%, transparent 58%),
-    radial-gradient(circle 2px at calc(100% - 4px) 4px, #1c130a 55%, transparent 58%),
-    radial-gradient(circle 2px at 4px calc(100% - 4px), #1c130a 55%, transparent 58%),
-    radial-gradient(circle 2px at calc(100% - 4px) calc(100% - 4px), #1c130a 55%, transparent 58%),
-    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.08), transparent 35%),
-    linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 2px 4px rgba(0,0,0,0.5);
-  color:var(--text-dim); display:flex; align-items:center; justify-content:center; padding:2px;
-  transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
-}
-.sim-tree-node:hover{transform:scale(1.08); border-color:var(--gold-dim);}
-.sim-tree-node.locked{filter:grayscale(1) brightness(0.5); cursor:default;}
-.sim-tree-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 9px -1px var(--gold-dim);}
-.sim-tree-node-ring.maxed .sim-tree-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.65), 0 0 14px 0px var(--gold);}
-.sim-tree-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
-.sim-node-icon{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
-.sim-node-icon-img{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:2px; filter:contrast(1.12) brightness(1.08) saturate(1.1);}
-.sim-node-badge{
-  position:absolute; right:-5px; bottom:-5px; min-width:17px; height:15px; padding:0 3px; border-radius:3px;
-  background:#0b0a08; color:#fff; font-size:10.5px; font-weight:700; font-family:'Noto Sans KR', sans-serif;
-  display:flex; align-items:center; justify-content:center; border:1px solid #6b5d47;
-}
-
-.sim-tree-reset{
-  position:absolute; left:-6px; bottom:-6px; width:22px; height:22px; border-radius:50%;
-  background:#0b0a08; border:1px solid #4a3f30; color:var(--text-dim); z-index:2;
-  display:flex; align-items:center; justify-content:center;
-}
-.sim-tree-reset svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:1.8;}
-.sim-tree-reset:hover{color:var(--blood); border-color:var(--blood);}
-
-.sim-node-detail{
-  margin-top:14px; padding:14px 16px; border:1px solid var(--border-soft); border-radius:6px; background:var(--panel); min-height:64px;
-}
-.sim-node-detail-empty{display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:12.5px;}
-.sim-node-detail-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
-.sim-node-detail-title{display:flex; flex-direction:column; gap:4px;}
-.sim-node-detail-pm{display:flex; align-items:center; gap:10px; flex:none;}
-.sim-skill-name{font-size:14.5px; color:var(--text); font-family:'Noto Serif KR', serif; font-weight:700;}
-.sim-skill-tier{font-size:11px; color:var(--text-dim);}
-.sim-skill-value{width:22px; text-align:center; font-size:14px; color:var(--gold); font-weight:700; flex:none;}
-.sim-skill-detail{margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-soft); font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;}
-.sim-dmg-line small{color:var(--text-dim); font-size:10.5px;}
-.sim-syn-pct{color:var(--gold-dim); margin-left:4px;}
-.sim-syn-line{color:var(--text-dim); font-size:11.5px;}
+.sim-derived-row b{color:var(--gold); font-size:14px;}
 
 @media (max-width:900px){
-  .sim-tree-columns{grid-template-columns:1fr;}
-  .sim-tree-canvas{height:360px;}
+  .sim-tree-row{grid-template-columns:1fr;}
+  .sim-tab-body{height:340px;}
 }
 @media (max-width:560px){
-  .sim-tree-node-ring{width:38px; height:38px;}
-  .sim-node-icon{width:17px; height:17px;}
-}
-
-@media (max-width:560px){
+  .sim-node-slot{width:36px; height:36px;}
+  .sim-node-art-fallback{width:16px; height:16px;}
   .sim-controls{flex-direction:column; align-items:stretch;}
   .sim-field input{width:100%;}
 }
