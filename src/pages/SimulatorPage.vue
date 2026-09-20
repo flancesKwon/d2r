@@ -285,12 +285,9 @@ function layoutForTab(tabIdx) {
 
   const positions = {}
   const nodes = []
-  const rowColsUsed = [] // rowIdx -> 그 행에서 쓰인 컬럼 Set (대각선/꺾은선이 무관한 노드를 뚫고 지나가는지 검사용)
   rows.forEach((rowSkillIdxs, rowIdx) => {
     const count = rowSkillIdxs.length
     const y = ((rowIdx + 0.5) / 6) * 100
-    const colsUsed = new Set()
-    rowColsUsed[rowIdx] = colsUsed
 
     rowSkillIdxs.forEach((skillIdx) => {
       const skill = tab.skills[skillIdx]
@@ -310,12 +307,12 @@ function layoutForTab(tabIdx) {
       else if (count === 2) col = i === 0 ? 0 : 2
       else col = (i / (count - 1)) * 2
       const x = ((col + 0.5) / 3) * 100
-      colsUsed.add(col)
-      positions[skillIdx] = { x, y, row: rowIdx, col }
+      positions[skillIdx] = { x, y, row: rowIdx }
       nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
     })
   })
 
+  const rowSpacing = 100 / 6
   const edges = []
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
@@ -325,40 +322,17 @@ function layoutForTab(tabIdx) {
       if (reqIdx !== -1 && from && to) {
         const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
+
+        // 선행 스킬이 한 티어보다 더 떨어져 있으면(예: lv1 -> lv12, 2티어 건너뜀) 정확히
+        // 중간값으로 꺾으면 그 좌표가 건너뛴 티어의 행 높이와 정확히 겹쳐서, 그 행에 있는
+        // 다른(무관한) 스킬 타일을 화살표가 뚫고 지나가는 것처럼 보임 - 건너뛰는 티어 수가
+        // 짝수일 때만 발생하는 문제라, 그 경우엔 꺾이는 높이를 반 티어만큼 밀어서
+        // 항상 행과 행 사이의 빈 공간에서 꺾이게 함
         const rowGap = to.row - from.row
-        const midRows = []
-        for (let r = from.row + 1; r < to.row; r++) midRows.push(r)
+        let midY = (from.y + to.y) / 2
+        if (rowGap > 1 && rowGap % 2 === 0) midY += rowSpacing / 2
 
-        // 맥스롤 원본처럼 같은 컬럼이면 수직선, 컬럼이 다르면 대각선 하나로 바로 이음.
-        // 단, 선행 스킬이 2티어 이상 떨어져 있으면(예: lv1 -> lv12) 그 직선/대각선이
-        // 건너뛰는 중간 티어를 지나가는데, 그 자리에 무관한 스킬이 있으면 뚫고
-        // 지나가는 것처럼 보임 - 그럴 때만 비어있는 컬럼으로 살짝 돌아가게 함
-        let blocked = false
-        if (midRows.length) {
-          if (from.col === to.col) {
-            blocked = midRows.some((r) => rowColsUsed[r].has(from.col))
-          } else {
-            blocked = midRows.some((r) => {
-              const t = (r - from.row) / rowGap
-              const interpCol = from.col + (to.col - from.col) * t
-              return [...rowColsUsed[r]].some((c) => Math.abs(c - interpCol) < 0.5)
-            })
-          }
-        }
-
-        let path
-        if (!blocked) {
-          path = from.col === to.col ? `M ${from.x} ${from.y} V ${endY}` : `M ${from.x} ${from.y} L ${to.x} ${endY}`
-        } else {
-          // 중간 티어들에서 전부 비어있는 컬럼을 찾아 그쪽으로 살짝 돌아갔다가 돌아옴
-          const detourCol = [0, 1, 2].find((c) => midRows.every((r) => !rowColsUsed[r].has(c))) ?? to.col
-          const detourX = ((detourCol + 0.5) / 3) * 100
-          const jogOutY = from.y + (to.y - from.y) * 0.3
-          const jogBackY = from.y + (to.y - from.y) * 0.7
-          path = `M ${from.x} ${from.y} V ${jogOutY} H ${detourX} V ${jogBackY} H ${to.x} V ${endY}`
-        }
-
-        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path })
+        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
       }
     })
   })
@@ -840,10 +814,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 .sim-node.req-target{outline:2px dashed #ff8a3c; outline-offset:3px;}
 .sim-req-name{color:#ff8a3c; font-weight:700;}
-/* 원본 스킬 아이콘은 이미 돌 재질 타일 + 문양이라 실제 게임/맥스롤과 톤이 같음 -
-   그레이스케일/대비 필터를 넣으면 돌 질감과 문양의 명암차가 과도하게 벌어져서
-   아이콘이 반으로 쪼개진 것처럼 보이는 부작용이 있어서 필터 없이 원본 그대로 씀 */
-.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px;}
+/* 실제 화면(멕스롤/인게임)은 스킬 아이콘이 채색이 아니라 은색/흰색 선화에 가까움 */
+.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:grayscale(0.75) contrast(1.35) brightness(1.3);}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
