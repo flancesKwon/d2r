@@ -550,14 +550,14 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <div class="sim-tab-body">
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
-                  <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#4a4841" />
+                  <marker id="tree-arrow" markerWidth="9" markerHeight="8.4" refX="7.2" refY="4.2" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L9,4.2 L0,8.4 Z" fill="#4a4841" />
                   </marker>
-                  <marker id="tree-arrow-lit" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold)" />
+                  <marker id="tree-arrow-lit" markerWidth="9" markerHeight="8.4" refX="7.2" refY="4.2" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L9,4.2 L0,8.4 Z" fill="var(--gold)" />
                   </marker>
-                  <marker id="tree-arrow-req" markerWidth="5.6" markerHeight="5.2" refX="4.4" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5.6,2.6 L0,5.2 Z" fill="#ff8a3c" />
+                  <marker id="tree-arrow-req" markerWidth="10" markerHeight="9.4" refX="8" refY="4.7" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L10,4.7 L0,9.4 Z" fill="#ff8a3c" />
                   </marker>
                 </defs>
                 <path
@@ -765,8 +765,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
 .sim-inv-grid{
-  flex:1; min-height:120px; max-width:340px; width:100%; margin:16px auto 0;
-  display:grid; grid-template-columns:repeat(10, 1fr); grid-auto-rows:1fr; gap:3px;
+  /* 실제 게임 인벤토리는 10x4 정사각형 칸 - flex:1로 세로로 늘리면 칸이 길쭉해져서
+     원본과 다르게 보이므로 항상 정사각형 비율을 유지하게 고정 */
+  max-width:340px; width:100%; aspect-ratio:10/4; margin:16px auto 0;
+  display:grid; grid-template-columns:repeat(10, 1fr); grid-template-rows:repeat(4, 1fr); gap:3px;
   border:1px solid var(--border-soft); padding:8px; background:rgba(0,0,0,0.3);
 }
 .sim-inv-cell{border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
@@ -785,11 +787,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
 /* 안 찍은 경로는 배경처럼 흐리게 눌러서 실제 투자한 경로(lit)만 시선이 가게 함 —
    기존엔 전부 같은 굵기/밝기라 화살표가 다 똑같이 도드라져서 헷갈렸음 */
-.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:3px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.45; transition:stroke .15s, opacity .15s, stroke-width .15s;}
-.sim-tab-edge.lit{stroke:var(--gold); stroke-width:4.5px; opacity:1;}
+/* 참조 화면(맥스롤/원작)은 화살표가 얇은 선이 아니라 두꺼운 쐐기형 - 두께를 크게 키움 */
+.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:7px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.5; transition:stroke .15s, opacity .15s, stroke-width .15s;}
+.sim-tab-edge.lit{stroke:var(--gold); stroke-width:8px; opacity:1;}
 /* 마우스를 올리거나 선택한 스킬에 "반드시" 필요한 선행 스킬 경로만 오렌지로 표시 —
    투자 여부(gold)와는 별개 색으로, 어떤 화살표가 필수 요구조건인지 바로 구분되게 함 */
-.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:5.5px; opacity:1;}
+.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:9px; opacity:1;}
 
 .sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
 .sim-node{
