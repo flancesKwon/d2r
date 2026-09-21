@@ -2,12 +2,9 @@
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
-import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
-import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
-import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
-import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
-import skillIconManifest from '../data/skillIconManifest.json'
+import { CLASS_ICONS } from '../icons.js'
+import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats } from '../itemStats.js'
 
 // 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
 // (무기·방패는 세로로 긴 슬롯, 목걸이는 갑옷 옆, 반지는 벨트 양옆)
@@ -27,37 +24,24 @@ function equipSilhouetteUrl(slotKey) {
   return equipIconUrl[DOLL_ICON_FILE[slotKey]]
 }
 
-const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
-const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
-function realIconUrl(classKey, skillName) {
-  const fname = skillIconManifest[classKey]?.[skillName]
-  return fname ? iconUrlByFilename[fname] : null
-}
-
 const route = useRoute()
 const router = useRouter()
 
 const classKeys = Object.keys(classStats)
 const STAT_KEYS = ['str', 'dex', 'vit', 'nrg']
 const STAT_LABELS = { str: '힘', dex: '민첩', vit: '활력', nrg: '에너지' }
-const TIER_LEVELS = [1, 6, 12, 18, 24, 30]
-const ELEMENT_COLORS = { fire: '#c0512f', cold: '#4e8ac0', ltng: '#c7a83a', pois: '#5c8a5b', mag: '#8a6bb0', phy: '#8c8275' }
 
-// 덴 오브 이블(+1)·라다멘트의 둥지(+1)·타락한 천사/이주얼(+2) 스킬 포인트,
 // 람 에센의 책(+5) 스탯 포인트가 난이도마다 반복 지급 — 전부 깬 상태를 기본값으로 고정
-const MAX_QUEST_SKILL_BONUS = (1 + 1 + 2) * 3
 const MAX_QUEST_STAT_BONUS = 5 * 3
 
 const selectedClass = ref('amazon')
 const level = ref(90)
 
 const allocatedStats = reactive({ str: 0, dex: 0, vit: 0, nrg: 0 })
-const allocatedSkills = reactive({})
 const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, ''])))
 
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
-
 
 const itemAgg = computed(() => {
   const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
@@ -66,7 +50,6 @@ const itemAgg = computed(() => {
 
 function resetAll() {
   STAT_KEYS.forEach((k) => (allocatedStats[k] = 0))
-  Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
 }
 
 function resetEquip() {
@@ -74,17 +57,12 @@ function resetEquip() {
 }
 
 let skipClassReset = false
-const selectedNode = ref(null) // { tabIdx, skillIdx } | null
-const hoveredNode = ref(null) // { tabIdx, skillIdx } | null - 필수 선행 스킬을 강조해서 보여주기 위한 포커스 대상
-
 watch(selectedClass, () => {
   if (skipClassReset) return
   resetAll()
-  selectedNode.value = null
 })
 
 const classInfo = computed(() => classStats[selectedClass.value])
-const classTabs = computed(() => skillData[selectedClass.value].tabs)
 
 const clampedLevel = computed({
   get: () => level.value,
@@ -97,29 +75,6 @@ const clampedLevel = computed({
 const totalStatPoints = computed(() => MAX_QUEST_STAT_BONUS + 5 * (level.value - 1))
 const spentStatPoints = computed(() => STAT_KEYS.reduce((sum, k) => sum + allocatedStats[k], 0))
 const remainingStatPoints = computed(() => totalStatPoints.value - spentStatPoints.value)
-
-const totalSkillPoints = computed(() => MAX_QUEST_SKILL_BONUS + (level.value - 1))
-const spentSkillPoints = computed(() => Object.values(allocatedSkills).reduce((sum, v) => sum + v, 0))
-const remainingSkillPoints = computed(() => totalSkillPoints.value - spentSkillPoints.value)
-
-function skillKey(tabIdx, skillIdx) {
-  return `${selectedClass.value}-${tabIdx}-${skillIdx}`
-}
-
-function skillPoint(tabIdx, skillIdx) {
-  return allocatedSkills[skillKey(tabIdx, skillIdx)] || 0
-}
-
-// 스킬 이름 -> {tabIdx, skillIdx} 조회용 (같은 클래스 내 다른 스킬 선행/시너지 참조에 사용)
-const skillLocationByName = computed(() => {
-  const map = {}
-  classTabs.value.forEach((tab, tabIdx) => {
-    tab.skills.forEach((s, skillIdx) => {
-      map[s.name] = { tabIdx, skillIdx }
-    })
-  })
-  return map
-})
 
 // ---- 빌드 공유 링크 ----
 const shareUrl = ref('')
@@ -144,24 +99,16 @@ function decodeShareCode(code) {
 }
 
 function buildSharePayload() {
-  const sk = {}
-  classTabs.value.forEach((tab, tabIdx) => {
-    tab.skills.forEach((skill, skillIdx) => {
-      const p = skillPoint(tabIdx, skillIdx)
-      if (p > 0) sk[skill.name] = p
-    })
-  })
   return {
     c: selectedClass.value,
     l: level.value,
     st: { ...allocatedStats },
-    sk,
     eq: { ...equippedItems },
   }
 }
 
 async function applyShareState(data) {
-  if (!data || !classStats[data.c] || !skillData[data.c]) return
+  if (!data || !classStats[data.c]) return
   skipClassReset = true
   selectedClass.value = data.c
   await nextTick()
@@ -169,13 +116,6 @@ async function applyShareState(data) {
 
   level.value = Math.min(99, Math.max(1, Number(data.l) || 90))
   STAT_KEYS.forEach((k) => (allocatedStats[k] = Number(data.st?.[k]) || 0))
-  Object.keys(allocatedSkills).forEach((k) => delete allocatedSkills[k])
-  if (data.sk) {
-    Object.entries(data.sk).forEach(([name, pts]) => {
-      const loc = skillLocationByName.value[name]
-      if (loc) allocatedSkills[skillKey(loc.tabIdx, loc.skillIdx)] = Number(pts) || 0
-    })
-  }
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = (data.eq && data.eq[s.key]) || ''))
 }
 
@@ -197,210 +137,6 @@ onMounted(() => {
     applyShareState(decodeShareCode(route.query.b))
   }
 })
-
-function skillPointByName(name) {
-  const loc = skillLocationByName.value[name]
-  return loc ? skillPoint(loc.tabIdx, loc.skillIdx) : 0
-}
-
-// 이 스킬을 선행 스킬로 요구하는 다른 스킬 중 포인트가 찍혀 있는 게 있는지
-function hasDependents(name) {
-  return classTabs.value.some((tab) =>
-    tab.skills.some((s) => s.reqSkills && s.reqSkills.includes(name) && skillPointByName(s.name) > 0)
-  )
-}
-
-function canIncreaseSkill(tabIdx, skillIdx) {
-  const skill = classTabs.value[tabIdx].skills[skillIdx]
-  const current = skillPoint(tabIdx, skillIdx)
-  if (remainingSkillPoints.value <= 0) return false
-  if (current >= 20) return false
-  if (level.value < skill.reqLevel) return false
-  if (skill.reqSkills && skill.reqSkills.some((name) => skillPointByName(name) < 1)) return false
-  return true
-}
-
-function canDecreaseSkill(tabIdx, skillIdx) {
-  const skill = classTabs.value[tabIdx].skills[skillIdx]
-  const current = skillPoint(tabIdx, skillIdx)
-  if (current <= 0) return false
-  if (current === 1 && hasDependents(skill.name)) return false
-  return true
-}
-
-function effectiveSkillLevel(tabIdx, skillIdx) {
-  const skill = classTabs.value[tabIdx].skills[skillIdx]
-  const hard = skillPoint(tabIdx, skillIdx)
-  if (hard <= 0) return 0
-  const bonus = itemSkillBonus(itemAgg.value, skill.name, classTabs.value[tabIdx].name)
-  return hard + bonus
-}
-
-function skillDamage(tabIdx, skillIdx) {
-  const skill = classTabs.value[tabIdx].skills[skillIdx]
-  const hard = skillPoint(tabIdx, skillIdx)
-  if (!hard || !skill.dmg) return null
-  return computeSkillDamage(skill, effectiveSkillLevel(tabIdx, skillIdx), skillPointByName)
-}
-
-function synergySources(skill) {
-  const list = [...(skill.synergyPhy || []), ...(skill.synergyEle || [])]
-  const seen = new Set()
-  return list.filter((s) => (seen.has(s.skill) ? false : seen.add(s.skill)))
-}
-
-function tierRowOf(skill) {
-  const idx = TIER_LEVELS.indexOf(skill.reqLevel)
-  return idx === -1 ? 0 : idx
-}
-
-function nodeColor(skill) {
-  return ELEMENT_COLORS[skill.dmg?.ele?.type] || ELEMENT_COLORS[skill.dmg?.phy ? 'phy' : ''] || null
-}
-
-// 스킬을 속성/역할별로 분류해 아이콘을 고름 (원작 아이콘이 아닌 자체 제작 심볼)
-function skillIconKey(skill, tabName) {
-  if (skill.dmg?.ele?.type) return skill.dmg.ele.type
-  if (skill.dmg?.phy) return 'phy'
-  if (tabName.includes('오라')) return 'aura'
-  if (tabName.includes('함성')) return 'warcry'
-  if (tabName.includes('저주')) return 'curse'
-  if (tabName.includes('소환') || tabName.includes('악마')) return 'summon'
-  if (tabName.includes('마스터리') || tabName.includes('숙련')) return 'mastery'
-  if (tabName.includes('변신')) return 'shapeshift'
-  return 'passive'
-}
-
-// 탭별로 스킬을 티어(요구 레벨)에 따라 행에 배치하고, 선행 스킬 관계를 잇는 꺾은선(엘보) 좌표를 계산
-function layoutForTab(tabIdx) {
-  const tab = classTabs.value[tabIdx]
-  if (!tab) return { nodes: [], edges: [] }
-  const rows = [[], [], [], [], [], []]
-  tab.skills.forEach((skill, skillIdx) => rows[tierRowOf(skill)].push(skillIdx))
-
-  // 각 스킬이 선행 스킬로부터 물려받는 "체인 위치"를 계산 - 실제 게임처럼 한번 시작된 세로줄을
-  // 부모-자식 관계를 따라 최대한 유지하기 위함 (매 행마다 독립적으로 다시 배치하면 가로선이 난잡해짐)
-  const chainKey = {}
-  let nextChain = 0
-
-  const positions = {}
-  const nodes = []
-  rows.forEach((rowSkillIdxs, rowIdx) => {
-    const count = rowSkillIdxs.length
-    const y = ((rowIdx + 0.5) / 6) * 100
-
-    rowSkillIdxs.forEach((skillIdx) => {
-      const skill = tab.skills[skillIdx]
-      const reqIdxs = (skill.reqSkills || [])
-        .map((n) => tab.skills.findIndex((s) => s.name === n))
-        .filter((i) => i !== -1 && chainKey[i] !== undefined)
-      chainKey[skillIdx] = reqIdxs.length
-        ? reqIdxs.reduce((sum, i) => sum + chainKey[i], 0) / reqIdxs.length
-        : nextChain++
-    })
-
-    // 물려받은 체인 위치 순서로 정렬한 뒤 컬럼을 배정해서, 선행 스킬과 같은 세로줄을 최대한 유지
-    const sorted = [...rowSkillIdxs].sort((a, b) => chainKey[a] - chainKey[b])
-    sorted.forEach((skillIdx, i) => {
-      let col
-      if (count === 1) col = 1
-      else if (count === 2) col = i === 0 ? 0 : 2
-      else col = (i / (count - 1)) * 2
-      const x = ((col + 0.5) / 3) * 100
-      positions[skillIdx] = { x, y, row: rowIdx }
-      nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
-    })
-  })
-
-  const rowSpacing = 100 / 6
-  const edges = []
-  tab.skills.forEach((skill, skillIdx) => {
-    ;(skill.reqSkills || []).forEach((reqName) => {
-      const reqIdx = tab.skills.findIndex((s) => s.name === reqName)
-      const from = positions[reqIdx]
-      const to = positions[skillIdx]
-      if (reqIdx !== -1 && from && to) {
-        const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
-        const endY = to.y - arrowGap
-
-        // 선행 스킬이 한 티어보다 더 떨어져 있으면(예: lv1 -> lv12, 2티어 건너뜀) 정확히
-        // 중간값으로 꺾으면 그 좌표가 건너뛴 티어의 행 높이와 정확히 겹쳐서, 그 행에 있는
-        // 다른(무관한) 스킬 타일을 화살표가 뚫고 지나가는 것처럼 보임 - 건너뛰는 티어 수가
-        // 짝수일 때만 발생하는 문제라, 그 경우엔 꺾이는 높이를 반 티어만큼 밀어서
-        // 항상 행과 행 사이의 빈 공간에서 꺾이게 함
-        const rowGap = to.row - from.row
-        let midY = (from.y + to.y) / 2
-        if (rowGap > 1 && rowGap % 2 === 0) midY += rowSpacing / 2
-
-        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
-      }
-    })
-  })
-
-  return { nodes, edges }
-}
-
-const treeLayouts = computed(() => classTabs.value.map((_, tabIdx) => layoutForTab(tabIdx)))
-
-// 마우스 오버(우선) 또는 선택된 스킬을 기준으로 "이 스킬을 찍으려면 반드시 필요한 선행 스킬"을
-// 화살표 색과 별개로 명확히 강조하기 위한 포커스 대상 계산
-const focusNode = computed(() => hoveredNode.value || selectedNode.value)
-
-function focusReqIdxs(tabIdx) {
-  const focus = focusNode.value
-  if (!focus || focus.tabIdx !== tabIdx) return []
-  const tab = classTabs.value[tabIdx]
-  const skill = tab?.skills[focus.skillIdx]
-  if (!skill?.reqSkills?.length) return []
-  return skill.reqSkills
-    .map((name) => tab.skills.findIndex((s) => s.name === name))
-    .filter((i) => i !== -1)
-}
-
-function isFocusNode(tabIdx, skillIdx) {
-  const focus = focusNode.value
-  return !!focus && focus.tabIdx === tabIdx && focus.skillIdx === skillIdx
-}
-
-function isFocusReqNode(tabIdx, skillIdx) {
-  return focusReqIdxs(tabIdx).includes(skillIdx)
-}
-
-function isFocusReqEdge(tabIdx, e) {
-  const focus = focusNode.value
-  return !!focus && focus.tabIdx === tabIdx && e.dstIdx === focus.skillIdx
-}
-
-function resetTab(tabIdx) {
-  const tab = classTabs.value[tabIdx]
-  tab.skills.forEach((_, skillIdx) => delete allocatedSkills[skillKey(tabIdx, skillIdx)])
-  if (selectedNode.value && selectedNode.value.tabIdx === tabIdx) selectedNode.value = null
-}
-
-const selectedSkill = computed(() => {
-  if (!selectedNode.value) return null
-  const { tabIdx, skillIdx } = selectedNode.value
-  return classTabs.value[tabIdx]?.skills[skillIdx] || null
-})
-
-function onNodeClick(tabIdx, skillIdx) {
-  selectedNode.value = { tabIdx, skillIdx }
-  increaseSkill(tabIdx, skillIdx)
-}
-
-function increaseSkill(tabIdx, skillIdx) {
-  if (!canIncreaseSkill(tabIdx, skillIdx)) return
-  const key = skillKey(tabIdx, skillIdx)
-  allocatedSkills[key] = (allocatedSkills[key] || 0) + 1
-}
-
-function decreaseSkill(tabIdx, skillIdx) {
-  if (!canDecreaseSkill(tabIdx, skillIdx)) return
-  const key = skillKey(tabIdx, skillIdx)
-  const next = (allocatedSkills[key] || 0) - 1
-  if (next <= 0) delete allocatedSkills[key]
-  else allocatedSkills[key] = next
-}
 
 function increaseStat(key) {
   if (remainingStatPoints.value <= 0) return
@@ -444,8 +180,6 @@ const derivedStats = computed(() => {
     weaponDamage: g.weaponDamage ? { min: Math.round(g.weaponDamage.min), max: Math.round(g.weaponDamage.max) } : null,
   }
 })
-
-const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.reduce((sum, s, i) => sum + skillPoint(tabIdx, i), 0)))
 </script>
 
 <template>
@@ -463,7 +197,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     <div class="patch-hero-inner">
       <div class="eyebrow">빌드 계획 도구</div>
       <h1>스킬·스탯 시뮬레이터</h1>
-      <p>레벨·스탯·스킬 포인트에 장비까지 껴서 데미지·생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요. 스킬 데미지·시너지는 실제 게임 데이터 기준이에요 (오라/마스터리 효과, 근접 스킬의 무기-스킬 결합 계산은 아직 단순화된 상태예요).</p>
+      <p>레벨·스탯에 장비까지 껴서 생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요.</p>
     </div>
   </div>
 
@@ -493,7 +227,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <span class="sim-share-status">{{ shareCopied ? '링크가 복사됐어요' : '복사가 안 되면 위 링크를 직접 선택해서 복사해주세요' }}</span>
     </div>
 
-    <div class="note-box sim-quest-note">퀘스트 보상은 전부 클리어한 상태를 기본값으로 계산해요 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
+    <div class="note-box sim-quest-note">퀘스트 보상은 전부 클리어한 상태를 기본값으로 계산해요 (스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
 
     <div class="sim-sheet">
       <section class="sim-zone sim-zone-equip">
@@ -527,110 +261,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
         </div>
 
-        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓·인벤토리 참은 아직 없어요.</p>
-      </section>
-
-      <div class="sim-zone-divider"></div>
-
-      <section class="sim-zone sim-zone-tree">
-        <header class="sim-zone-head">
-          <h2>스킬 포인트</h2>
-          <span class="sim-zone-meta" :class="{ warn: remainingSkillPoints < 0 }">{{ remainingSkillPoints }} / {{ totalSkillPoints }} 남음</span>
-        </header>
-
-        <div class="sim-tree-row">
-          <div class="sim-tab" v-for="(tab, tabIdx) in classTabs" :key="tab.name">
-            <div class="sim-tab-head">
-              <span>{{ tab.name }}</span>
-              <small>{{ tabSpent[tabIdx] }} 포인트 사용</small>
-            </div>
-            <div class="sim-tab-body">
-              <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs>
-                  <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#4a4841" />
-                  </marker>
-                  <marker id="tree-arrow-lit" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold)" />
-                  </marker>
-                  <marker id="tree-arrow-req" markerWidth="5.6" markerHeight="5.2" refX="4.4" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5.6,2.6 L0,5.2 Z" fill="#ff8a3c" />
-                  </marker>
-                </defs>
-                <path
-                  v-for="(e, i) in treeLayouts[tabIdx].edges" :key="i"
-                  :d="e.path"
-                  class="sim-tab-edge"
-                  :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0, req: isFocusReqEdge(tabIdx, e) }"
-                  :marker-end="isFocusReqEdge(tabIdx, e) ? 'url(#tree-arrow-req)' : skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
-                  vector-effect="non-scaling-stroke"
-                />
-              </svg>
-              <div
-                v-for="n in treeLayouts[tabIdx].nodes" :key="n.skillIdx"
-                class="sim-node-slot"
-                :style="{ left: n.x + '%', top: n.y + '%' }"
-                :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20, 'req-source': isFocusReqNode(tabIdx, n.skillIdx) }"
-              >
-                <span class="sim-node-req-flag" v-if="isFocusReqNode(tabIdx, n.skillIdx)">필수</span>
-                <button
-                  class="sim-node"
-                  :class="{
-                    invested: skillPoint(tabIdx, n.skillIdx) > 0,
-                    locked: skillPoint(tabIdx, n.skillIdx) === 0 && !canIncreaseSkill(tabIdx, n.skillIdx),
-                    selected: selectedNode && selectedNode.tabIdx === tabIdx && selectedNode.skillIdx === n.skillIdx,
-                    'req-target': isFocusNode(tabIdx, n.skillIdx) && focusReqIdxs(tabIdx).length,
-                  }"
-                  :title="n.skill.name"
-                  @click="onNodeClick(tabIdx, n.skillIdx)"
-                  @mouseenter="hoveredNode = { tabIdx, skillIdx: n.skillIdx }"
-                  @mouseleave="hoveredNode = null"
-                >
-                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
-                  <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
-                </button>
-                <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
-              </div>
-              <button class="sim-tab-reset" title="이 계열 초기화" @click="resetTab(tabIdx)">✕</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="sim-detail" v-if="selectedSkill">
-          <div class="sim-detail-head">
-            <div class="sim-detail-title">
-              <strong>{{ selectedSkill.name }}</strong>
-              <span>
-                요구 레벨 {{ selectedSkill.reqLevel }}
-                <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length">
-                  · 필수 선행: <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ r }}</span>
-                </template>
-              </span>
-            </div>
-            <div class="sim-detail-pm">
-              <button class="sim-pm" @click="decreaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)" :disabled="!canDecreaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)">−</button>
-              <b>{{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }}</b>
-              <button class="sim-pm" @click="increaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)" :disabled="!canIncreaseSkill(selectedNode.tabIdx, selectedNode.skillIdx)">+</button>
-            </div>
-          </div>
-          <div class="sim-detail-body" v-if="skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) > 0 && (selectedSkill.dmg || synergySources(selectedSkill).length)">
-            <p v-if="effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) !== skillPoint(selectedNode.tabIdx, selectedNode.skillIdx)">
-              유효 스킬 레벨 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) }} <small>(하드 {{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }} + 장비 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) - skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }})</small>
-            </p>
-            <p v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.ele">
-              {{ ELEMENT_LABELS[skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.type] }} 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.max }}
-              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent }}%)</span>
-            </p>
-            <p v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.phy">
-              물리 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.max }} <small>(무기 데미지 제외)</small>
-              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent }}%)</span>
-            </p>
-            <p class="sim-detail-syn" v-if="synergySources(selectedSkill).length">
-              시너지 제공: <span v-for="(s, i) in synergySources(selectedSkill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ s.skill }}(+{{ s.percent }}%/lv)</span>
-            </p>
-          </div>
-        </div>
-        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍어보세요</div>
+        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력을 합산해요. 소켓·인벤토리 참은 아직 없어요.</p>
       </section>
 
       <div class="sim-zone-divider"></div>
@@ -698,10 +329,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
 .sim-quest-note{margin-bottom:20px;}
 
-/* ---- 하나의 시트 위에 장비·스킬·스탯을 함께 배치 (실제 게임 돌기둥 텍스처가 전체를 지나감) ---- */
+/* ---- 하나의 시트 위에 장비·스탯을 함께 배치 (실제 게임 돌기둥 텍스처가 전체를 지나감) ---- */
 .sim-sheet{
-  position:relative; isolation:isolate;
-  display:grid; grid-template-columns:320px 1px 1fr 1px 280px; gap:24px;
+  position:relative; isolation:isolate; max-width:900px; margin:0 auto;
+  display:grid; grid-template-columns:1fr 1px 320px; gap:24px;
   border:1px solid var(--gold-dim); padding:24px;
 }
 .sim-sheet::before{
@@ -734,8 +365,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 
 /* ---- 장비 인형 ---- */
-/* 3단 시트가 1150px 아래에서 세로로 쌓이면 이 구역이 전체 폭을 그대로 물려받아
-   슬롯이 거대해지고 사이 여백만 늘어나므로, 인형 자체는 항상 컴팩트한 폭으로 고정 */
 .sim-doll{
   display:grid; gap:10px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
   max-width:340px; margin:0 auto; aspect-ratio:5/3.3;
@@ -747,8 +376,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot{position:relative; display:block;}
 .sim-slot.small{padding:16% 8%;}
 .sim-slot-tile{
-  /* 실제 장비창은 스킬트리 노드와 달리 청동 테두리/리벳이 없고, 돌 패널에 그대로
-     깎아넣은 듯한 무채색 인셋 프레임임 */
+  /* 실제 장비창은 청동 테두리/리벳이 없고, 돌 패널에 그대로 깎아넣은 듯한
+     무채색 인셋 프레임임 */
   position:relative; width:100%; height:100%; border-radius:2px; border:1px solid #5a5751;
   background:linear-gradient(160deg, #2a2823, #100f0d 60%, #060605);
   box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06);
@@ -767,88 +396,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   border:1px solid var(--border-soft); padding:8px; background:rgba(0,0,0,0.3);
 }
 .sim-inv-cell{border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
-
-/* ---- 스킬 트리 ---- */
-.sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border:1px solid var(--border-soft); border-radius:4px; overflow:hidden;}
-.sim-tab{display:flex; flex-direction:column; min-width:0; border-left:1px solid var(--border-soft);}
-.sim-tab:first-child{border-left:none;}
-.sim-tab-head{
-  display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center;
-  font-size:12.5px; font-weight:700; color:var(--text);
-  padding:8px 6px; background:rgba(0,0,0,0.35); border-bottom:1px solid var(--border-soft);
-}
-.sim-tab-head small{color:var(--text-dim); font-weight:400; font-size:10.5px;}
-.sim-tab-body{position:relative; height:440px; padding:0 8px;}
-.sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-/* 안 찍은 경로는 배경처럼 흐리게 눌러서 실제 투자한 경로(lit)만 시선이 가게 함 —
-   기존엔 전부 같은 굵기/밝기라 화살표가 다 똑같이 도드라져서 헷갈렸음 */
-.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:3px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.45; transition:stroke .15s, opacity .15s, stroke-width .15s;}
-.sim-tab-edge.lit{stroke:var(--gold); stroke-width:4.5px; opacity:1;}
-/* 마우스를 올리거나 선택한 스킬에 "반드시" 필요한 선행 스킬 경로만 오렌지로 표시 —
-   투자 여부(gold)와는 별개 색으로, 어떤 화살표가 필수 요구조건인지 바로 구분되게 함 */
-.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:5.5px; opacity:1;}
-
-.sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
-.sim-node{
-  width:100%; height:100%; border-radius:2px; border:2px solid #6b4a2e;
-  background:linear-gradient(160deg, #4d453a, #221e19 55%, #171410);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6);
-  display:flex; align-items:center; justify-content:center; padding:2px;
-  transition:border-color .15s, box-shadow .15s, transform .1s, filter .15s;
-}
-.sim-node:hover{transform:scale(1.1); border-color:var(--gold-dim);}
-/* 멕스롤/실제 게임은 선행 스킬 미충족 여부와 무관하게 0포인트 상태의 아이콘을
-   전부 똑같은 밝기로 보여줌 (투자 여부만 금테두리로 구분) — 잠긴 스킬만 회색
-   처리하면 밝고 어두운 타일이 뒤섞여 지저분해 보이므로 커서만 바꾸고 톤은 유지 */
-.sim-node.locked{cursor:default;}
-.sim-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 8px -1px var(--gold-dim);}
-.sim-node-slot.maxed .sim-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px 0 var(--gold);}
-.sim-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
-/* 마우스오버/선택한 스킬의 "필수 선행 스킬" 노드는 오렌지로 감싸서 즉시 눈에 띄게 함 */
-.sim-node-slot.req-source{z-index:2;}
-.sim-node-slot.req-source .sim-node{border-color:#ff8a3c; box-shadow:0 0 0 2px #ff8a3c, 0 0 12px 1px rgba(255,138,60,0.85);}
-.sim-node-req-flag{
-  position:absolute; left:-4px; top:-8px; z-index:3; padding:1px 4px; border-radius:3px;
-  background:#ff8a3c; color:#1a1005; font-size:9px; font-weight:800; line-height:1.3; white-space:nowrap;
-  box-shadow:0 1px 3px rgba(0,0,0,0.6);
-}
-.sim-node.req-target{outline:2px dashed #ff8a3c; outline-offset:3px;}
-.sim-req-name{color:#ff8a3c; font-weight:700;}
-/* 원본 스킬 아이콘은 이미 돌 재질 타일 + 문양이라 실제 게임/맥스롤과 톤이 같음 -
-   그레이스케일/대비 필터를 넣으면 돌 질감과 문양의 명암차가 과도하게 벌어져서
-   아이콘이 반으로 쪼개진 것처럼 보이는 부작용이 있어서 필터 없이 원본 그대로 씀 */
-.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px;}
-.sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
-.sim-node-badge{
-  position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
-  background:#0b0a08; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1px solid #6b5d47;
-}
-.sim-tab-reset{
-  position:absolute; left:-4px; bottom:-4px; width:20px; height:20px; border-radius:50%;
-  background:#0b0a08; border:1px solid #4a3f30; color:var(--text-dim); font-size:11px; line-height:1; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-}
-.sim-tab-reset:hover{color:var(--blood); border-color:var(--blood);}
-
-.sim-detail{margin-top:18px; padding:14px 16px; border:1px solid var(--border-soft); border-radius:6px; background:rgba(0,0,0,0.25); min-height:60px;}
-.sim-detail-empty{display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:12.5px;}
-.sim-detail-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
-.sim-detail-title{display:flex; flex-direction:column; gap:4px;}
-.sim-detail-title strong{font-size:14.5px; color:var(--text); font-family:'Noto Serif KR', serif;}
-.sim-detail-title span{font-size:11px; color:var(--text-dim);}
-.sim-detail-pm{display:flex; align-items:center; gap:10px; flex:none;}
-.sim-detail-pm b{width:22px; text-align:center; font-size:14px; color:var(--gold);}
-.sim-detail-body{margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-soft); font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;}
-.sim-detail-body small{color:var(--text-dim); font-size:10.5px;}
-.sim-detail-pct{color:var(--gold-dim); margin-left:4px;}
-.sim-detail-syn{color:var(--text-dim); font-size:11.5px;}
-
-.sim-pm{
-  width:26px; height:26px; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); font-size:14px; flex:none;
-  display:flex; align-items:center; justify-content:center;
-}
-.sim-pm:hover:not(:disabled){border-color:var(--gold-dim); color:var(--gold);}
-.sim-pm:disabled{opacity:0.35; cursor:default;}
 
 /* ---- 스탯 ---- */
 .sim-stat-row{display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; padding:8px 0; border-top:1px solid var(--border-soft);}
@@ -872,12 +419,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-derived-row:first-of-type{border-top:none;}
 .sim-derived-row b{color:var(--gold); font-size:14px;}
 
-@media (max-width:900px){
-  .sim-tree-row{grid-template-columns:1fr;}
-  .sim-tab-body{height:340px;}
-}
 @media (max-width:560px){
-  .sim-node-slot{width:36px; height:36px;}
   .sim-controls{flex-direction:column; align-items:stretch;}
   .sim-field input{width:100%;}
 }
