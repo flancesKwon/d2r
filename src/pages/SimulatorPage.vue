@@ -8,6 +8,7 @@ import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
+import iconsData from '../data/icons.json'
 
 // 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
 // (무기·방패는 세로로 긴 슬롯, 목걸이는 갑옷 옆, 반지는 벨트 양옆)
@@ -25,6 +26,12 @@ const equipIconUrl = Object.fromEntries(Object.entries(equipIconModules).map(([p
 const DOLL_ICON_FILE = { weapon: 'weapon', shield: 'weapon', helm: 'helm', armor: 'armor', gloves: 'gloves', boots: 'boots', belt: 'belt', amulet: 'amulet', ring1: 'ring', ring2: 'ring' }
 function equipSilhouetteUrl(slotKey) {
   return equipIconUrl[DOLL_ICON_FILE[slotKey]]
+}
+
+// 실제 아이템 인벤토리 아이콘 (유니크·세트·룬워드 데이터에 붙어있는 base64 PNG)
+function itemIconUrl(item) {
+  const b64 = item && iconsData[item.icon_key]
+  return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
 const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
@@ -58,10 +65,87 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
 
+function equippedItemIconUrl(slotKey) {
+  return itemIconUrl(itemById[equippedItems[slotKey]])
+}
+
+// ---- 인벤토리 참(charm) ----
+// 참은 장비 슬롯 없이 인벤토리 칸(10x4=40)만 차지함. 실제 아이콘 세로 길이가
+// 곧 칸 수(스몰 1/그랜드 2/라지 3칸)라 아이콘 종류별로 고정 매핑해두면 충분함
+const CHARM_COLS = 10
+const CHARM_ROWS = 4
+const CHARM_ICON_CELLS = { invchm__charm: 1, invgswe__charm: 1, invwnd__charm: 2, invsst__charm: 3 }
+function charmCellHeight(item) {
+  return CHARM_ICON_CELLS[item?.icon_key] || 1
+}
+
+const charmCatalog = computed(() =>
+  itemsData
+    .filter((i) => i.icon_key && i.icon_key.includes('charm'))
+    .slice()
+    .sort((a, b) => a.name_ko.localeCompare(b.name_ko, 'ko'))
+)
+
+const equippedCharms = reactive([])
+
+function charmColHeights(ids) {
+  const heights = new Array(CHARM_COLS).fill(0)
+  ids.forEach((id) => {
+    const item = itemById[id]
+    if (!item) return
+    const h = charmCellHeight(item)
+    const col = heights.findIndex((used) => used + h <= CHARM_ROWS)
+    if (col !== -1) heights[col] += h
+  })
+  return heights
+}
+
+const charmPlacements = computed(() => {
+  const heights = new Array(CHARM_COLS).fill(0)
+  const placements = []
+  equippedCharms.forEach((id) => {
+    const item = itemById[id]
+    if (!item) return
+    const h = charmCellHeight(item)
+    const col = heights.findIndex((used) => used + h <= CHARM_ROWS)
+    if (col === -1) return
+    placements.push({ id, item, col, row: heights[col], h })
+    heights[col] += h
+  })
+  return placements
+})
+
+const charmCellsUsed = computed(() => charmPlacements.value.reduce((sum, p) => sum + p.h, 0))
+const charmFullNotice = ref(false)
+
+function addCharm(id) {
+  if (!id || !itemById[id] || equippedCharms.includes(id)) return
+  const heights = charmColHeights(equippedCharms)
+  const h = charmCellHeight(itemById[id])
+  const fits = heights.some((used) => used + h <= CHARM_ROWS)
+  if (!fits) {
+    charmFullNotice.value = true
+    setTimeout(() => (charmFullNotice.value = false), 2000)
+    return
+  }
+  equippedCharms.push(id)
+}
+
+function onAddCharmSelect(e) {
+  const id = e.target.value
+  e.target.value = ''
+  addCharm(id)
+}
+
+function removeCharm(id) {
+  const idx = equippedCharms.indexOf(id)
+  if (idx !== -1) equippedCharms.splice(idx, 1)
+}
 
 const itemAgg = computed(() => {
   const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
-  return aggregateItemStats(full, selectedClass.value)
+  const charms = equippedCharms.map((id) => itemById[id]).filter(Boolean)
+  return aggregateItemStats(full, selectedClass.value, charms)
 })
 
 function resetAll() {
@@ -71,6 +155,7 @@ function resetAll() {
 
 function resetEquip() {
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = ''))
+  equippedCharms.splice(0, equippedCharms.length)
 }
 
 let skipClassReset = false
@@ -157,6 +242,7 @@ function buildSharePayload() {
     st: { ...allocatedStats },
     sk,
     eq: { ...equippedItems },
+    ch: [...equippedCharms],
   }
 }
 
@@ -177,6 +263,8 @@ async function applyShareState(data) {
     })
   }
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = (data.eq && data.eq[s.key]) || ''))
+  equippedCharms.splice(0, equippedCharms.length)
+  if (Array.isArray(data.ch)) data.ch.forEach((id) => addCharm(id))
 }
 
 async function shareLink() {
@@ -478,6 +566,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           >
             <div class="sim-slot-tile" :class="{ filled: equippedItems[s.key] }">
               <img
+                v-if="equippedItemIconUrl(s.key)"
+                class="sim-slot-art real"
+                :src="equippedItemIconUrl(s.key)" :alt="itemById[equippedItems[s.key]]?.name_ko" draggable="false"
+              />
+              <img
+                v-else
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
               />
@@ -491,11 +585,34 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           </label>
         </div>
 
-        <div class="sim-inv-grid" aria-hidden="true">
-          <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
+        <div class="sim-charm-head">
+          <span>인벤토리 (참)</span>
+          <span class="sim-zone-meta">{{ charmCellsUsed }} / 40 칸</span>
+        </div>
+        <div class="sim-charm-controls">
+          <select class="sim-charm-add" @change="onAddCharmSelect($event)">
+            <option value="">+ 참 추가</option>
+            <option v-for="c in charmCatalog" :key="c.id" :value="c.id" :disabled="equippedCharms.includes(c.id)">
+              {{ c.name_ko }} ({{ charmCellHeight(c) }}칸){{ equippedCharms.includes(c.id) ? ' - 장착됨' : '' }}
+            </option>
+          </select>
+          <span class="sim-charm-warn" v-if="charmFullNotice">칸이 부족해요</span>
         </div>
 
-        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓·인벤토리 참은 아직 없어요.</p>
+        <div class="sim-inv-grid">
+          <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
+          <button
+            v-for="p in charmPlacements" :key="p.id"
+            class="sim-charm-tile"
+            :style="{ gridColumn: p.col + 1, gridRow: (p.row + 1) + ' / span ' + p.h }"
+            :title="p.item.name_ko + ' (클릭해서 빼기)'"
+            @click="removeCharm(p.id)"
+          >
+            <img :src="itemIconUrl(p.item)" :alt="p.item.name_ko" draggable="false" />
+          </button>
+        </div>
+
+        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓은 아직 없어요.</p>
       </section>
 
       <div class="sim-zone-divider"></div>
@@ -727,14 +844,35 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-art{width:74%; height:74%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:filter .15s, opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
+/* 실제 아이템 아이콘은 이미 완성된 색상 그림이라 실루엣용 필터를 걸지 않고
+   슬롯 아이콘 영역(패딩 6%)에 꽉 차게 맞춤 */
+.sim-slot-art.real{width:88%; height:88%; object-fit:contain; pointer-events:none; filter:none; opacity:1; image-rendering:pixelated;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
+.sim-charm-head{
+  display:flex; align-items:baseline; justify-content:space-between; margin:16px auto 0; max-width:340px;
+  font-size:12.5px; color:var(--text-muted);
+}
+.sim-charm-controls{display:flex; align-items:center; gap:10px; margin:6px auto 0; max-width:340px;}
+.sim-charm-add{
+  flex:1; background:var(--panel); border:1px solid var(--border); border-radius:4px; color:var(--text);
+  padding:7px 10px; font-size:12.5px; font-family:inherit;
+}
+.sim-charm-warn{font-size:11.5px; color:#ff8a3c; white-space:nowrap;}
+
 .sim-inv-grid{
-  flex:1; min-height:120px; max-width:340px; width:100%; margin:16px auto 0;
+  position:relative; flex:1; min-height:120px; max-width:340px; width:100%; margin:10px auto 0;
   display:grid; grid-template-columns:repeat(10, 1fr); grid-auto-rows:1fr; gap:3px;
   border:1px solid var(--border-soft); padding:8px; background:rgba(0,0,0,0.3);
 }
 .sim-inv-cell{border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
+.sim-charm-tile{
+  border:1px solid var(--gold-dim); border-radius:2px; background:rgba(20,18,14,0.9);
+  display:flex; align-items:center; justify-content:center; padding:2px;
+  box-shadow:0 0 6px -1px var(--gold-dim);
+}
+.sim-charm-tile:hover{border-color:var(--gold); box-shadow:0 0 8px -1px var(--gold);}
+.sim-charm-tile img{width:100%; height:100%; object-fit:contain; pointer-events:none; image-rendering:pixelated;}
 
 /* ---- 스킬 트리 ---- */
 .sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border:1px solid var(--border-soft); border-radius:4px; overflow:hidden;}
