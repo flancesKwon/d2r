@@ -830,10 +830,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   display:flex; align-items:center; justify-content:center;
   transition:border-color .15s, box-shadow .15s;
 }
-.sim-slot-tile.filled{border-color:var(--gold); box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06), 0 0 10px -2px var(--gold-dim);}
-.sim-slot-art{width:92%; height:92%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:filter .15s, opacity .15s;}
+.sim-slot-art{width:92%; height:92%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
-.sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
+.sim-slot-tile.filled .sim-slot-art{opacity:1;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
 .sim-charm-head{
