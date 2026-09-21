@@ -65,10 +65,6 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
 
-function equippedItemIconUrl(slotKey) {
-  return itemIconUrl(itemById[equippedItems[slotKey]])
-}
-
 // ---- 인벤토리 참(charm) ----
 // 참은 장비 슬롯 없이 인벤토리 칸(10x4=40)만 차지함. 실제 아이콘 세로 길이가
 // 곧 칸 수(스몰 1/그랜드 2/라지 3칸)라 아이콘 종류별로 고정 매핑해두면 충분함
@@ -566,12 +562,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           >
             <div class="sim-slot-tile" :class="{ filled: equippedItems[s.key] }">
               <img
-                v-if="equippedItemIconUrl(s.key)"
-                class="sim-slot-art real"
-                :src="equippedItemIconUrl(s.key)" :alt="itemById[equippedItems[s.key]]?.name_ko" draggable="false"
-              />
-              <img
-                v-else
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
               />
@@ -841,12 +831,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   transition:border-color .15s, box-shadow .15s;
 }
 .sim-slot-tile.filled{border-color:var(--gold); box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06), 0 0 10px -2px var(--gold-dim);}
-.sim-slot-art{width:74%; height:74%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:filter .15s, opacity .15s;}
+.sim-slot-art{width:92%; height:92%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:filter .15s, opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
-/* 실제 아이템 아이콘은 이미 완성된 색상 그림이라 실루엣용 필터를 걸지 않고
-   슬롯 아이콘 영역(패딩 6%)에 꽉 차게 맞춤 */
-.sim-slot-art.real{width:88%; height:88%; object-fit:contain; pointer-events:none; filter:none; opacity:1; image-rendering:pixelated;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
 
 .sim-charm-head{
