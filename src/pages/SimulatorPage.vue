@@ -835,7 +835,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   display:flex; align-items:center; justify-content:center;
   transition:border-color .15s, box-shadow .15s;
 }
-.sim-slot-art{width:100%; height:100%; object-fit:cover; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
+/* cover로 하면 벨트(가로로 김)·갑옷(세로로 김)처럼 슬롯이랑 원본 비율이 안 맞는
+   아이콘이 심하게 확대/크롭돼서 오버사이즈로 보임 - 비율 안 깨지게 contain으로 */
+.sim-slot-art{width:96%; height:96%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{opacity:1;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
