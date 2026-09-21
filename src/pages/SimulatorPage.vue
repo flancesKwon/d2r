@@ -18,7 +18,9 @@ const DOLL_AREA = {
   gloves: 'gloves', belt: 'belt', boots: 'boots',
   ring1: 'ring1', ring2: 'ring2',
 }
-const SMALL_DOLL_SLOTS = new Set(['amulet', 'ring1', 'ring2', 'belt'])
+// 벨트는 그리드에서 다른 좁은 슬롯(목걸이·반지)과 달리 넓은 1.05fr 칼럼을 쓰는데
+// small 패딩(폭 기준 %)이 붙어있어서 실제 칸보다 훨씬 크게 계산돼 아래로 넘쳤음
+const SMALL_DOLL_SLOTS = new Set(['amulet', 'ring1', 'ring2'])
 
 // 실제 게임 DC6 스프라이트에서 뽑은 슬롯 실루엣 아이콘 (기존 자체제작 SVG 대체)
 const equipIconModules = import.meta.glob('../assets/equipicons/*.png', { eager: true, import: 'default' })
@@ -812,7 +814,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 /* 3단 시트가 1150px 아래에서 세로로 쌓이면 이 구역이 전체 폭을 그대로 물려받아
    슬롯이 거대해지고 사이 여백만 늘어나므로, 인형 자체는 항상 컴팩트한 폭으로 고정 */
 .sim-doll{
-  display:grid; gap:10px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
+  /* minmax(0,1fr)이 아니면 슬롯 이미지의 min-content 높이가 1fr의 "공정한 몫"보다 커질 때
+     행 전체가 그만큼 자라서 aspect-ratio로 정해둔 인형 박스 바깥까지 넘쳐버림 (그 아래
+     참 인벤토리 영역과 겹쳐 보이던 원인) */
+  display:grid; gap:10px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, minmax(0, 1fr));
   max-width:340px; margin:0 auto; aspect-ratio:5/3.3;
   grid-template-areas:
     "weapon .      helm   amulet shield"
@@ -824,13 +829,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-tile{
   /* 실제 장비창은 스킬트리 노드와 달리 청동 테두리/리벳이 없고, 돌 패널에 그대로
      깎아넣은 듯한 무채색 인셋 프레임임 */
-  position:relative; width:100%; height:100%; border-radius:2px; border:1px solid #5a5751;
+  position:relative; width:100%; height:100%; border-radius:2px; border:1px solid #5a5751; overflow:hidden;
   background:linear-gradient(160deg, #2a2823, #100f0d 60%, #060605);
   box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06);
   display:flex; align-items:center; justify-content:center;
   transition:border-color .15s, box-shadow .15s;
 }
-.sim-slot-art{width:92%; height:92%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
+.sim-slot-art{width:100%; height:100%; object-fit:cover; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{opacity:1;}
 .sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
