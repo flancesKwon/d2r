@@ -18,9 +18,13 @@ const DOLL_AREA = {
   gloves: 'gloves', belt: 'belt', boots: 'boots',
   ring1: 'ring1', ring2: 'ring2',
 }
-// 벨트는 그리드에서 다른 좁은 슬롯(목걸이·반지)과 달리 넓은 1.05fr 칼럼을 쓰는데
-// small 패딩(폭 기준 %)이 붙어있어서 실제 칸보다 훨씬 크게 계산돼 아래로 넘쳤음
-const SMALL_DOLL_SLOTS = new Set(['amulet', 'ring1', 'ring2'])
+// 슬롯 칸은 다 균일한 네모인데 실루엣 원본 이미지 비율은 제각각이라(벨트는 가로로
+// 김, 갑옷/무기는 세로로 김, 반지는 정사각형) contain으로 꽉 채우려면 아이콘 박스
+// 자체를 원본 비율에 맞게 잘라줘야 함 - 그래야 크롭/확대 없이도 빈 여백이 거의 안 남음
+const DOLL_ICON_ASPECT = {
+  weapon: 54 / 109, shield: 54 / 109, helm: 54 / 53, armor: 54 / 82,
+  gloves: 54 / 53, boots: 54 / 52, belt: 52 / 25, amulet: 23 / 24, ring1: 23 / 24, ring2: 23 / 24,
+}
 
 // 실제 게임 DC6 스프라이트에서 뽑은 슬롯 실루엣 아이콘 (기존 자체제작 SVG 대체)
 const equipIconModules = import.meta.glob('../assets/equipicons/*.png', { eager: true, import: 'default' })
@@ -560,9 +564,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <label
             class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
             :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
-            :class="{ small: SMALL_DOLL_SLOTS.has(s.key) }"
           >
-            <div class="sim-slot-tile" :class="{ filled: equippedItems[s.key] }">
+            <div class="sim-slot-tile" :style="{ aspectRatio: DOLL_ICON_ASPECT[s.key] }" :class="{ filled: equippedItems[s.key] }">
               <img
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
@@ -824,12 +827,14 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     "weapon .      armor  .      shield"
     "gloves ring1  belt   ring2  boots";
 }
-.sim-slot{position:relative; display:block;}
-.sim-slot.small{padding:16% 8%;}
+/* 칸(그리드 셀)은 균일한 네모지만 그 안의 타일은 슬롯별 실루엣 원본 비율(aspect-ratio)로
+   맞춰서 셀에 꽉 차게 잡히게 함 - 그래서 셀 자체는 stretch 대신 가운데 정렬만 함 */
+.sim-slot{position:relative; display:flex; align-items:center; justify-content:center;}
 .sim-slot-tile{
   /* 실제 장비창은 스킬트리 노드와 달리 청동 테두리/리벳이 없고, 돌 패널에 그대로
      깎아넣은 듯한 무채색 인셋 프레임임 */
-  position:relative; width:100%; height:100%; border-radius:2px; border:1px solid #5a5751; overflow:hidden;
+  position:relative; width:auto; height:auto; max-width:100%; max-height:100%;
+  border-radius:2px; border:1px solid #5a5751; overflow:hidden;
   background:linear-gradient(160deg, #2a2823, #100f0d 60%, #060605);
   box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06);
   display:flex; align-items:center; justify-content:center;
