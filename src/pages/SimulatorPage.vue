@@ -71,6 +71,35 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
 
+// ---- 장비 슬롯 선택 팝업 (검색 + 아이콘 미리보기) ----
+const slotPicker = ref(null) // 지금 고르는 중인 슬롯 키, 없으면 null
+const slotPickerSearch = ref('')
+
+function openSlotPicker(slotKey) {
+  slotPicker.value = slotKey
+  slotPickerSearch.value = ''
+}
+function closeSlotPicker() {
+  slotPicker.value = null
+}
+function selectSlotItem(slotKey, itemId) {
+  equippedItems[slotKey] = itemId
+  closeSlotPicker()
+}
+
+const slotPickerItems = computed(() => {
+  if (!slotPicker.value) return []
+  const list = itemsBySlot[slotPicker.value] || []
+  const q = slotPickerSearch.value.trim().toLowerCase()
+  if (!q) return list
+  return list.filter(
+    (it) =>
+      it.name_ko.toLowerCase().includes(q) ||
+      (it.name_en && it.name_en.toLowerCase().includes(q)) ||
+      (it.aliases || []).some((a) => a.toLowerCase().includes(q))
+  )
+})
+
 // ---- 인벤토리 참(charm) ----
 // 참은 장비 슬롯 없이 인벤토리 칸(10x4=40)만 차지함. 실제 아이콘 세로 길이가
 // 곧 칸 수(스몰 1/그랜드 2/라지 3칸)라 아이콘 종류별로 고정 매핑해두면 충분함
@@ -561,9 +590,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         </header>
 
         <div class="sim-doll">
-          <label
-            class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
+          <button
+            type="button" class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
             :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
+            @click="openSlotPicker(s.key)"
           >
             <div class="sim-slot-tile" :style="{ aspectRatio: DOLL_ICON_ASPECT[s.key] }" :class="{ filled: equippedItems[s.key] }">
               <img
@@ -571,13 +601,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
               />
             </div>
-            <select class="sim-slot-select" v-model="equippedItems[s.key]">
-              <option value="">비어있음</option>
-              <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
-                {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
-              </option>
-            </select>
-          </label>
+          </button>
         </div>
 
         <div class="sim-charm-head">
@@ -746,6 +770,38 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       </section>
     </div>
   </div>
+
+  <div class="modal-overlay sim-picker-overlay" v-if="slotPicker" @click.self="closeSlotPicker">
+    <div class="modal-panel sim-picker-panel">
+      <button class="modal-close" @click="closeSlotPicker">✕</button>
+      <h3 class="sim-picker-title">{{ SLOT_DEFS.find((s) => s.key === slotPicker)?.label }} 선택</h3>
+      <input
+        class="sim-picker-search" type="text" v-model="slotPickerSearch"
+        placeholder="아이템 이름 검색..." autofocus
+      />
+      <div class="sim-picker-list">
+        <button class="sim-picker-row" :class="{ active: !equippedItems[slotPicker] }" @click="selectSlotItem(slotPicker, '')">
+          <span class="sim-picker-icon sim-picker-icon-empty">✕</span>
+          <span class="sim-picker-name">비어있음</span>
+        </button>
+        <button
+          v-for="it in slotPickerItems" :key="it.id"
+          class="sim-picker-row" :class="{ active: equippedItems[slotPicker] === it.id }"
+          @click="selectSlotItem(slotPicker, it.id)"
+        >
+          <span class="sim-picker-icon">
+            <img v-if="itemIconUrl(it)" :src="itemIconUrl(it)" :alt="it.name_ko" draggable="false" />
+          </span>
+          <span class="sim-picker-name">
+            {{ it.name_ko }}
+            <small v-if="it.category === 'runeword'">(룬워드)</small>
+          </span>
+          <span class="sim-picker-cat">{{ it.category_label }}</span>
+        </button>
+        <p class="sim-picker-empty-msg" v-if="!slotPickerItems.length">검색 결과가 없어요</p>
+      </div>
+    </div>
+  </div>
   </div>
 </template>
 
@@ -829,7 +885,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 /* 칸(그리드 셀)은 균일한 네모지만 그 안의 타일은 슬롯별 실루엣 원본 비율(aspect-ratio)로
    맞춰서 셀에 꽉 차게 잡히게 함 - 그래서 셀 자체는 stretch 대신 가운데 정렬만 함 */
-.sim-slot{position:relative; display:flex; align-items:center; justify-content:center;}
+.sim-slot{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  background:none; border:none; padding:0; margin:0; cursor:pointer; font:inherit;
+}
 .sim-slot-tile{
   /* 실제 장비창은 스킬트리 노드와 달리 청동 테두리/리벳이 없고, 돌 패널에 그대로
      깎아넣은 듯한 무채색 인셋 프레임임 */
@@ -845,7 +904,34 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-slot-art{width:96%; height:96%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{opacity:1;}
-.sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
+
+/* ---- 장비 슬롯 선택 팝업 ---- */
+.sim-picker-panel{
+  max-width:420px; max-height:78vh; padding:20px; display:flex; flex-direction:column; overflow:hidden;
+}
+.sim-picker-title{font-size:15px; color:var(--gold); margin:0 0 12px; padding-right:30px;}
+.sim-picker-search{
+  width:100%; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);
+  padding:9px 12px; font-size:13px; font-family:inherit; margin-bottom:10px; flex:none;
+}
+.sim-picker-search:focus{outline:none; border-color:var(--gold-dim);}
+.sim-picker-list{overflow-y:auto; display:flex; flex-direction:column; gap:2px; margin:0 -8px; padding:0 8px;}
+.sim-picker-row{
+  display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:4px; width:100%;
+  text-align:left; background:none; border:none; color:var(--text); font:inherit; cursor:pointer;
+}
+.sim-picker-row:hover{background:rgba(255,255,255,0.06);}
+.sim-picker-row.active{background:rgba(200,163,77,0.14); box-shadow:inset 0 0 0 1px var(--gold-dim);}
+.sim-picker-icon{
+  width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.35); border:1px solid var(--border-soft); border-radius:3px; overflow:hidden;
+}
+.sim-picker-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.sim-picker-icon-empty{color:var(--text-dim); font-size:13px;}
+.sim-picker-name{flex:1; font-size:13px; color:var(--text); min-width:0;}
+.sim-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
+.sim-picker-cat{font-size:11px; color:var(--text-dim); flex:none;}
+.sim-picker-empty-msg{padding:20px 4px; text-align:center; color:var(--text-dim); font-size:12.5px;}
 
 .sim-charm-head{
   display:flex; align-items:baseline; justify-content:space-between; margin:16px auto 0; max-width:340px;
