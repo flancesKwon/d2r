@@ -4964,68 +4964,88 @@
         "name": "저주 마법",
         "skills": [
           {
-            "name": "암흑 화살",
-            "reqLevel": 1
+            "name": "공중 부양 숙련",
+            "nameEn": "Levitate",
+            "reqLevel": 1,
+            "col": 1
           },
           {
-            "name": "영혼 흡수",
-            "reqLevel": 1
+            "name": "주술: 재앙",
+            "nameEn": "Bane Hex",
+            "reqLevel": 1,
+            "col": 3
           },
           {
-            "name": "저주받은 손길",
+            "name": "가르기",
+            "nameEn": "Cleave",
             "reqLevel": 6,
             "reqSkills": [
-              "암흑 화살"
-            ]
+              "공중 부양 숙련"
+            ],
+            "col": 2
           },
           {
-            "name": "어둠의 결속",
-            "reqLevel": 6,
-            "reqSkills": [
-              "암흑 화살"
-            ]
-          },
-          {
-            "name": "공포의 시선",
+            "name": "메아리치는 타격",
+            "nameEn": "Echoing Strike",
             "reqLevel": 12,
             "reqSkills": [
-              "저주받은 손길"
-            ]
+              "공중 부양 숙련"
+            ],
+            "col": 1
           },
           {
-            "name": "영혼 사슬",
+            "name": "주술: 처단",
+            "nameEn": "Purge Hex",
             "reqLevel": 12,
             "reqSkills": [
-              "저주받은 손길"
-            ]
+              "주술: 재앙"
+            ],
+            "col": 3
           },
           {
-            "name": "죽음의 표식",
+            "name": "칼날 이동",
+            "nameEn": "Blade Warp",
             "reqLevel": 18,
             "reqSkills": [
-              "공포의 시선"
-            ]
+              "메아리치는 타격"
+            ],
+            "col": 1
           },
           {
-            "name": "어둠의 폭발",
+            "name": "정신 결계",
+            "nameEn": "Psychic Ward",
             "reqLevel": 18,
             "reqSkills": [
-              "공포의 시선"
-            ]
+              "가르기"
+            ],
+            "col": 2
           },
           {
-            "name": "영혼 폭풍",
+            "name": "기괴한 작렬",
+            "nameEn": "Eldritch Blast",
             "reqLevel": 24,
             "reqSkills": [
-              "죽음의 표식"
-            ]
+              "정신 결계"
+            ],
+            "col": 2
           },
           {
-            "name": "파멸의 저주",
+            "name": "주술: 흡수",
+            "nameEn": "Siphon Hex",
+            "reqLevel": 24,
+            "reqSkills": [
+              "주술: 처단"
+            ],
+            "col": 3
+          },
+          {
+            "name": "거울상 칼날",
+            "nameEn": "Mirrored Blades",
             "reqLevel": 30,
             "reqSkills": [
-              "영혼 폭풍"
-            ]
+              "기괴한 작렬"
+            ],
+            "col": 2
           }
         ]
       },
@@ -5033,68 +5053,88 @@
         "name": "악마 소환",
         "skills": [
           {
-            "name": "임프 소환",
-            "reqLevel": 1
+            "name": "악마 숙련",
+            "nameEn": "Demonic Mastery",
+            "reqLevel": 1,
+            "col": 1
           },
           {
-            "name": "소환 강화",
-            "reqLevel": 1
+            "name": "염소인간 소환",
+            "nameEn": "Summon Goatman",
+            "reqLevel": 1,
+            "col": 3
           },
           {
-            "name": "지옥사냥개 소환",
+            "name": "피의 맹세",
+            "nameEn": "Blood Oath",
             "reqLevel": 6,
             "reqSkills": [
-              "임프 소환"
-            ]
+              "악마 숙련"
+            ],
+            "col": 1
           },
           {
-            "name": "악마의 계약",
+            "name": "죽음의 징표",
+            "nameEn": "Death Mark",
             "reqLevel": 6,
             "reqSkills": [
-              "임프 소환"
-            ]
+              "악마 숙련"
+            ],
+            "col": 2
           },
           {
-            "name": "임프 군단",
+            "name": "오염된 자 소환",
+            "nameEn": "Summon Tainted",
             "reqLevel": 12,
             "reqSkills": [
-              "지옥사냥개 소환"
-            ]
+              "염소인간 소환"
+            ],
+            "col": 3
           },
           {
-            "name": "지옥불정령 소환",
-            "reqLevel": 12,
-            "reqSkills": [
-              "지옥사냥개 소환"
-            ]
-          },
-          {
-            "name": "악마 강화",
+            "name": "끓는 피",
+            "nameEn": "Blood Boil",
             "reqLevel": 18,
             "reqSkills": [
-              "임프 군단"
-            ]
+              "죽음의 징표"
+            ],
+            "col": 2
           },
           {
-            "name": "지옥발톱 소환",
+            "name": "파멸자 소환",
+            "nameEn": "Summon Defiler",
             "reqLevel": 18,
             "reqSkills": [
-              "임프 군단"
-            ]
+              "오염된 자 소환"
+            ],
+            "col": 3
           },
           {
-            "name": "악마 폭주",
+            "name": "포식",
+            "nameEn": "Engorge",
             "reqLevel": 24,
             "reqSkills": [
-              "악마 강화"
-            ]
+              "끓는 피"
+            ],
+            "col": 2
           },
           {
-            "name": "대악마 소환",
+            "name": "소모",
+            "nameEn": "Consume",
             "reqLevel": 30,
             "reqSkills": [
-              "악마 폭주"
-            ]
+              "피의 맹세"
+            ],
+            "col": 1
+          },
+          {
+            "name": "악마 속박",
+            "nameEn": "Bind Demon",
+            "reqLevel": 30,
+            "reqSkills": [
+              "파멸자 소환"
+            ],
+            "col": 3
           }
         ]
       },
@@ -5102,68 +5142,91 @@
         "name": "지옥불 마법",
         "skills": [
           {
-            "name": "헬파이어",
-            "reqLevel": 1
+            "name": "독기 볼트",
+            "nameEn": "Miasma Bolt",
+            "reqLevel": 1,
+            "col": 3
           },
           {
-            "name": "화염 방벽",
-            "reqLevel": 1
-          },
-          {
-            "name": "유황 폭발",
+            "name": "화염 고리",
+            "nameEn": "Ring Of Fire",
             "reqLevel": 6,
             "reqSkills": [
-              "헬파이어"
-            ]
+              "독기 볼트"
+            ],
+            "col": 1
           },
           {
-            "name": "검은 불꽃",
+            "name": "인장: 무기력",
+            "nameEn": "Lethargy Sigil",
             "reqLevel": 6,
             "reqSkills": [
-              "헬파이어"
-            ]
+              "독기 볼트"
+            ],
+            "col": 2
           },
           {
-            "name": "지옥불 갑주",
+            "name": "인장: 울분",
+            "nameEn": "Rancor Sigil",
             "reqLevel": 12,
             "reqSkills": [
-              "유황 폭발"
-            ]
+              "인장: 무기력"
+            ],
+            "col": 2
           },
           {
-            "name": "용암 지대",
+            "name": "독기 사슬",
+            "nameEn": "Miasma Chain",
             "reqLevel": 12,
             "reqSkills": [
-              "유황 폭발"
-            ]
+              "독기 볼트"
+            ],
+            "col": 3
           },
           {
-            "name": "지옥불 낙하",
+            "name": "화염 파도",
+            "nameEn": "Flame Wave",
             "reqLevel": 18,
             "reqSkills": [
-              "지옥불 갑주"
-            ]
+              "화염 고리"
+            ],
+            "col": 1
           },
           {
-            "name": "심연의 불꽃",
-            "reqLevel": 18,
-            "reqSkills": [
-              "지옥불 갑주"
-            ]
-          },
-          {
-            "name": "지옥의 문",
+            "name": "인장: 죽음",
+            "nameEn": "Death Sigil",
             "reqLevel": 24,
             "reqSkills": [
-              "지옥불 낙하"
-            ]
+              "인장: 울분"
+            ],
+            "col": 2
           },
           {
-            "name": "아마겟돈 화염",
+            "name": "향상된 엔트로피",
+            "nameEn": "Enhanced Entropy",
+            "reqLevel": 24,
+            "reqSkills": [
+              "독기 사슬"
+            ],
+            "col": 3
+          },
+          {
+            "name": "종말",
+            "nameEn": "Apocalypse",
             "reqLevel": 30,
             "reqSkills": [
-              "지옥의 문"
-            ]
+              "화염 파도"
+            ],
+            "col": 1
+          },
+          {
+            "name": "심연",
+            "nameEn": "Abyss",
+            "reqLevel": 30,
+            "reqSkills": [
+              "향상된 엔트로피"
+            ],
+            "col": 3
           }
         ]
       }
