@@ -14,7 +14,7 @@ export const SLOT_DEFS = [
   { key: 'ring2', label: '반지 2' },
 ]
 
-function runewordSlots(subtitle) {
+export function runewordSlots(subtitle) {
   const slots = []
   if (!subtitle) return slots
   if (subtitle.includes('shld')) slots.push('shield')
