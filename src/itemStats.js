@@ -100,6 +100,16 @@ export function aggregateItemStats(equippedItems, classKey, extraItems = []) {
 
     ;(item.affixes || []).forEach((a) => {
       const v = avg(a)
+      // "모든 속성"/"모든 저항"은 원본 데이터에 단일 스탯(strength/fireresist)으로만
+      // 붙어있어서 나머지 3개가 누락됨 - prop으로 구분해서 4개 전부에 더해줌
+      if (a.prop === 'all-stats') {
+        result.str += v; result.dex += v; result.vit += v; result.nrg += v
+        return
+      }
+      if (a.prop === 'res-all') {
+        result.resist.fire += v; result.resist.cold += v; result.resist.ltng += v; result.resist.pois += v
+        return
+      }
       switch (a.stat) {
         case 'strength':
           result.str += v
