@@ -8,6 +8,7 @@ import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
+import iconsData from '../data/icons.json'
 
 // 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
 // (무기·방패는 세로로 긴 슬롯, 목걸이는 갑옷 옆, 반지는 벨트 양옆)
@@ -17,7 +18,13 @@ const DOLL_AREA = {
   gloves: 'gloves', belt: 'belt', boots: 'boots',
   ring1: 'ring1', ring2: 'ring2',
 }
-const SMALL_DOLL_SLOTS = new Set(['amulet', 'ring1', 'ring2', 'belt'])
+// 슬롯 칸은 다 균일한 네모인데 실루엣 원본 이미지 비율은 제각각이라(벨트는 가로로
+// 김, 갑옷/무기는 세로로 김, 반지는 정사각형) contain으로 꽉 채우려면 아이콘 박스
+// 자체를 원본 비율에 맞게 잘라줘야 함 - 그래야 크롭/확대 없이도 빈 여백이 거의 안 남음
+const DOLL_ICON_ASPECT = {
+  weapon: 54 / 109, shield: 54 / 109, helm: 54 / 53, armor: 54 / 82,
+  gloves: 54 / 53, boots: 54 / 52, belt: 52 / 25, amulet: 23 / 24, ring1: 23 / 24, ring2: 23 / 24,
+}
 
 // 실제 게임 DC6 스프라이트에서 뽑은 슬롯 실루엣 아이콘 (기존 자체제작 SVG 대체)
 const equipIconModules = import.meta.glob('../assets/equipicons/*.png', { eager: true, import: 'default' })
@@ -25,6 +32,12 @@ const equipIconUrl = Object.fromEntries(Object.entries(equipIconModules).map(([p
 const DOLL_ICON_FILE = { weapon: 'weapon', shield: 'weapon', helm: 'helm', armor: 'armor', gloves: 'gloves', boots: 'boots', belt: 'belt', amulet: 'amulet', ring1: 'ring', ring2: 'ring' }
 function equipSilhouetteUrl(slotKey) {
   return equipIconUrl[DOLL_ICON_FILE[slotKey]]
+}
+
+// 실제 아이템 인벤토리 아이콘 (유니크·세트·룬워드 데이터에 붙어있는 base64 PNG)
+function itemIconUrl(item) {
+  const b64 = item && iconsData[item.icon_key]
+  return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
 const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
@@ -58,10 +71,112 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
 
+// ---- 장비 슬롯 선택 팝업 (검색 + 아이콘 미리보기) ----
+const slotPicker = ref(null) // 지금 고르는 중인 슬롯 키, 없으면 null
+const slotPickerSearch = ref('')
+
+function openSlotPicker(slotKey) {
+  slotPicker.value = slotKey
+  slotPickerSearch.value = ''
+}
+function closeSlotPicker() {
+  slotPicker.value = null
+}
+function selectSlotItem(slotKey, itemId) {
+  equippedItems[slotKey] = itemId
+  closeSlotPicker()
+}
+
+const slotPickerItems = computed(() => {
+  if (!slotPicker.value) return []
+  const list = itemsBySlot[slotPicker.value] || []
+  const q = slotPickerSearch.value.trim().toLowerCase()
+  if (!q) return list
+  return list.filter(
+    (it) =>
+      it.name_ko.toLowerCase().includes(q) ||
+      (it.name_en && it.name_en.toLowerCase().includes(q)) ||
+      (it.aliases || []).some((a) => a.toLowerCase().includes(q))
+  )
+})
+
+// ---- 인벤토리 참(charm) ----
+// 참은 장비 슬롯 없이 인벤토리 칸(10x4=40)만 차지함. 실제 아이콘 세로 길이가
+// 곧 칸 수(스몰 1/그랜드 2/라지 3칸)라 아이콘 종류별로 고정 매핑해두면 충분함
+const CHARM_COLS = 10
+const CHARM_ROWS = 4
+const CHARM_ICON_CELLS = { invchm__charm: 1, invgswe__charm: 1, invwnd__charm: 2, invsst__charm: 3 }
+function charmCellHeight(item) {
+  return CHARM_ICON_CELLS[item?.icon_key] || 1
+}
+
+const charmCatalog = computed(() =>
+  itemsData
+    .filter((i) => i.icon_key && i.icon_key.includes('charm'))
+    .slice()
+    .sort((a, b) => a.name_ko.localeCompare(b.name_ko, 'ko'))
+)
+
+const equippedCharms = reactive([])
+
+function charmColHeights(ids) {
+  const heights = new Array(CHARM_COLS).fill(0)
+  ids.forEach((id) => {
+    const item = itemById[id]
+    if (!item) return
+    const h = charmCellHeight(item)
+    const col = heights.findIndex((used) => used + h <= CHARM_ROWS)
+    if (col !== -1) heights[col] += h
+  })
+  return heights
+}
+
+const charmPlacements = computed(() => {
+  const heights = new Array(CHARM_COLS).fill(0)
+  const placements = []
+  equippedCharms.forEach((id) => {
+    const item = itemById[id]
+    if (!item) return
+    const h = charmCellHeight(item)
+    const col = heights.findIndex((used) => used + h <= CHARM_ROWS)
+    if (col === -1) return
+    placements.push({ id, item, col, row: heights[col], h })
+    heights[col] += h
+  })
+  return placements
+})
+
+const charmCellsUsed = computed(() => charmPlacements.value.reduce((sum, p) => sum + p.h, 0))
+const charmFullNotice = ref(false)
+
+function addCharm(id) {
+  if (!id || !itemById[id] || equippedCharms.includes(id)) return
+  const heights = charmColHeights(equippedCharms)
+  const h = charmCellHeight(itemById[id])
+  const fits = heights.some((used) => used + h <= CHARM_ROWS)
+  if (!fits) {
+    charmFullNotice.value = true
+    setTimeout(() => (charmFullNotice.value = false), 2000)
+    return
+  }
+  equippedCharms.push(id)
+}
+
+function onAddCharmSelect(e) {
+  const id = e.target.value
+  e.target.value = ''
+  addCharm(id)
+}
+
+function removeCharm(id) {
+  const idx = equippedCharms.indexOf(id)
+  if (idx !== -1) equippedCharms.splice(idx, 1)
+}
 
 const itemAgg = computed(() => {
   const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
-  return aggregateItemStats(full, selectedClass.value)
+  const charms = equippedCharms.map((id) => itemById[id]).filter(Boolean)
+  return aggregateItemStats(full, selectedClass.value, charms)
 })
 
 function resetAll() {
@@ -71,10 +186,12 @@ function resetAll() {
 
 function resetEquip() {
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = ''))
+  equippedCharms.splice(0, equippedCharms.length)
 }
 
 let skipClassReset = false
 const selectedNode = ref(null) // { tabIdx, skillIdx } | null
+const hoveredNode = ref(null) // { tabIdx, skillIdx } | null - 필수 선행 스킬을 강조해서 보여주기 위한 포커스 대상
 
 watch(selectedClass, () => {
   if (skipClassReset) return
@@ -156,6 +273,7 @@ function buildSharePayload() {
     st: { ...allocatedStats },
     sk,
     eq: { ...equippedItems },
+    ch: [...equippedCharms],
   }
 }
 
@@ -176,6 +294,8 @@ async function applyShareState(data) {
     })
   }
   SLOT_DEFS.forEach((s) => (equippedItems[s.key] = (data.eq && data.eq[s.key]) || ''))
+  equippedCharms.splice(0, equippedCharms.length)
+  if (Array.isArray(data.ch)) data.ch.forEach((id) => addCharm(id))
 }
 
 async function shareLink() {
@@ -270,47 +390,26 @@ function skillIconKey(skill, tabName) {
   return 'passive'
 }
 
-// 탭별로 스킬을 티어(요구 레벨)에 따라 행에 배치하고, 선행 스킬 관계를 잇는 꺾은선(엘보) 좌표를 계산
+// 탭별로 스킬을 실제 게임 데이터(skilldesc.txt의 SkillRow/SkillColumn)로 배치하고
+// 선행 스킬 관계를 잇는 좌표를 계산 - 더 이상 배치를 추정하지 않고, 각 스킬 객체에 미리
+// 심어둔 실제 게임 컬럼(skill.col, 1~3)과 티어(reqLevel 기반 행)를 그대로 사용함
 function layoutForTab(tabIdx) {
   const tab = classTabs.value[tabIdx]
   if (!tab) return { nodes: [], edges: [] }
-  const rows = [[], [], [], [], [], []]
-  tab.skills.forEach((skill, skillIdx) => rows[tierRowOf(skill)].push(skillIdx))
-
-  // 각 스킬이 선행 스킬로부터 물려받는 "체인 위치"를 계산 - 실제 게임처럼 한번 시작된 세로줄을
-  // 부모-자식 관계를 따라 최대한 유지하기 위함 (매 행마다 독립적으로 다시 배치하면 가로선이 난잡해짐)
-  const chainKey = {}
-  let nextChain = 0
 
   const positions = {}
   const nodes = []
-  rows.forEach((rowSkillIdxs, rowIdx) => {
-    const count = rowSkillIdxs.length
-    const y = ((rowIdx + 0.5) / 6) * 100
-
-    rowSkillIdxs.forEach((skillIdx) => {
-      const skill = tab.skills[skillIdx]
-      const reqIdxs = (skill.reqSkills || [])
-        .map((n) => tab.skills.findIndex((s) => s.name === n))
-        .filter((i) => i !== -1 && chainKey[i] !== undefined)
-      chainKey[skillIdx] = reqIdxs.length
-        ? reqIdxs.reduce((sum, i) => sum + chainKey[i], 0) / reqIdxs.length
-        : nextChain++
-    })
-
-    // 물려받은 체인 위치 순서로 정렬한 뒤 컬럼을 배정해서, 선행 스킬과 같은 세로줄을 최대한 유지
-    const sorted = [...rowSkillIdxs].sort((a, b) => chainKey[a] - chainKey[b])
-    sorted.forEach((skillIdx, i) => {
-      let col
-      if (count === 1) col = 1
-      else if (count === 2) col = i === 0 ? 0 : 2
-      else col = (i / (count - 1)) * 2
-      const x = ((col + 0.5) / 3) * 100
-      positions[skillIdx] = { x, y }
-      nodes.push({ skillIdx, x, y, skill: tab.skills[skillIdx], icon: skillIconKey(tab.skills[skillIdx], tab.name) })
-    })
+  tab.skills.forEach((skill, skillIdx) => {
+    const row = tierRowOf(skill)
+    const col = (skill.col || 2) - 1 // 데이터 없는 경우(워록 등) 가운데로 대체
+    const y = ((row + 0.5) / 6) * 100
+    const x = ((col + 0.5) / 3) * 100
+    positions[skillIdx] = { x, y, row, col }
+    nodes.push({ skillIdx, x, y, skill, icon: skillIconKey(skill, tab.name) })
   })
 
+  // 실제 게임 그리드는 행/열 간격이 거의 정사각형이라, 화살표도 원작처럼 같은 컬럼이면
+  // 수직선, 다른 컬럼이면 그 사이를 바로 잇는 대각선 하나로 그림 (꺾은선 아님)
   const edges = []
   tab.skills.forEach((skill, skillIdx) => {
     ;(skill.reqSkills || []).forEach((reqName) => {
@@ -318,10 +417,9 @@ function layoutForTab(tabIdx) {
       const from = positions[reqIdx]
       const to = positions[skillIdx]
       if (reqIdx !== -1 && from && to) {
-        const midY = (from.y + to.y) / 2
         const arrowGap = 5.6 // 노드 타일 반지름만큼 화살촉이 타일에 가리지 않도록 앞에서 멈춤
         const endY = to.y - arrowGap
-        edges.push({ srcIdx: reqIdx, path: `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${endY}` })
+        edges.push({ srcIdx: reqIdx, dstIdx: skillIdx, path: `M ${from.x} ${from.y} L ${to.x} ${endY}` })
       }
     })
   })
@@ -330,6 +428,35 @@ function layoutForTab(tabIdx) {
 }
 
 const treeLayouts = computed(() => classTabs.value.map((_, tabIdx) => layoutForTab(tabIdx)))
+
+// 마우스 오버(우선) 또는 선택된 스킬을 기준으로 "이 스킬을 찍으려면 반드시 필요한 선행 스킬"을
+// 화살표 색과 별개로 명확히 강조하기 위한 포커스 대상 계산
+const focusNode = computed(() => hoveredNode.value || selectedNode.value)
+
+function focusReqIdxs(tabIdx) {
+  const focus = focusNode.value
+  if (!focus || focus.tabIdx !== tabIdx) return []
+  const tab = classTabs.value[tabIdx]
+  const skill = tab?.skills[focus.skillIdx]
+  if (!skill?.reqSkills?.length) return []
+  return skill.reqSkills
+    .map((name) => tab.skills.findIndex((s) => s.name === name))
+    .filter((i) => i !== -1)
+}
+
+function isFocusNode(tabIdx, skillIdx) {
+  const focus = focusNode.value
+  return !!focus && focus.tabIdx === tabIdx && focus.skillIdx === skillIdx
+}
+
+function isFocusReqNode(tabIdx, skillIdx) {
+  return focusReqIdxs(tabIdx).includes(skillIdx)
+}
+
+function isFocusReqEdge(tabIdx, e) {
+  const focus = focusNode.value
+  return !!focus && focus.tabIdx === tabIdx && e.dstIdx === focus.skillIdx
+}
 
 function resetTab(tabIdx) {
   const tab = classTabs.value[tabIdx]
@@ -463,31 +590,48 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         </header>
 
         <div class="sim-doll">
-          <label
-            class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
+          <button
+            type="button" class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
             :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
-            :class="{ small: SMALL_DOLL_SLOTS.has(s.key) }"
+            @click="openSlotPicker(s.key)"
           >
-            <div class="sim-slot-tile" :class="{ filled: equippedItems[s.key] }">
+            <div class="sim-slot-tile" :style="{ aspectRatio: DOLL_ICON_ASPECT[s.key] }" :class="{ filled: equippedItems[s.key] }">
               <img
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
               />
             </div>
-            <select class="sim-slot-select" v-model="equippedItems[s.key]">
-              <option value="">비어있음</option>
-              <option v-for="it in itemsBySlot[s.key]" :key="it.id" :value="it.id">
-                {{ it.name_ko }}{{ it.category === 'runeword' ? ' (룬워드)' : '' }}
-              </option>
-            </select>
-          </label>
+          </button>
         </div>
 
-        <div class="sim-inv-grid" aria-hidden="true">
+        <div class="sim-charm-head">
+          <span>인벤토리 (참)</span>
+          <span class="sim-zone-meta">{{ charmCellsUsed }} / 40 칸</span>
+        </div>
+        <div class="sim-charm-controls">
+          <select class="sim-charm-add" @change="onAddCharmSelect($event)">
+            <option value="">+ 참 추가</option>
+            <option v-for="c in charmCatalog" :key="c.id" :value="c.id" :disabled="equippedCharms.includes(c.id)">
+              {{ c.name_ko }} ({{ charmCellHeight(c) }}칸){{ equippedCharms.includes(c.id) ? ' - 장착됨' : '' }}
+            </option>
+          </select>
+          <span class="sim-charm-warn" v-if="charmFullNotice">칸이 부족해요</span>
+        </div>
+
+        <div class="sim-inv-grid">
           <div class="sim-inv-cell" v-for="i in 40" :key="i"></div>
+          <button
+            v-for="p in charmPlacements" :key="p.id"
+            class="sim-charm-tile"
+            :style="{ gridColumn: p.col + 1, gridRow: (p.row + 1) + ' / span ' + p.h }"
+            :title="p.item.name_ko + ' (클릭해서 빼기)'"
+            @click="removeCharm(p.id)"
+          >
+            <img :src="itemIconUrl(p.item)" :alt="p.item.name_ko" draggable="false" />
+          </button>
         </div>
 
-        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓·인벤토리 참은 아직 없어요.</p>
+        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓은 아직 없어요.</p>
       </section>
 
       <div class="sim-zone-divider"></div>
@@ -508,18 +652,21 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
                   <marker id="tree-arrow" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#66645c" />
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="#4a4841" />
                   </marker>
                   <marker id="tree-arrow-lit" markerWidth="5" markerHeight="4.6" refX="4" refY="2.3" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold-dim)" />
+                    <path d="M0,0 L5,2.3 L0,4.6 Z" fill="var(--gold)" />
+                  </marker>
+                  <marker id="tree-arrow-req" markerWidth="5.6" markerHeight="5.2" refX="4.4" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L5.6,2.6 L0,5.2 Z" fill="#ff8a3c" />
                   </marker>
                 </defs>
                 <path
                   v-for="(e, i) in treeLayouts[tabIdx].edges" :key="i"
                   :d="e.path"
                   class="sim-tab-edge"
-                  :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0 }"
-                  :marker-end="skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
+                  :class="{ lit: skillPoint(tabIdx, e.srcIdx) > 0, req: isFocusReqEdge(tabIdx, e) }"
+                  :marker-end="isFocusReqEdge(tabIdx, e) ? 'url(#tree-arrow-req)' : skillPoint(tabIdx, e.srcIdx) > 0 ? 'url(#tree-arrow-lit)' : 'url(#tree-arrow)'"
                   vector-effect="non-scaling-stroke"
                 />
               </svg>
@@ -527,17 +674,21 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 v-for="n in treeLayouts[tabIdx].nodes" :key="n.skillIdx"
                 class="sim-node-slot"
                 :style="{ left: n.x + '%', top: n.y + '%' }"
-                :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20 }"
+                :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20, 'req-source': isFocusReqNode(tabIdx, n.skillIdx) }"
               >
+                <span class="sim-node-req-flag" v-if="isFocusReqNode(tabIdx, n.skillIdx)">필수</span>
                 <button
                   class="sim-node"
                   :class="{
                     invested: skillPoint(tabIdx, n.skillIdx) > 0,
                     locked: skillPoint(tabIdx, n.skillIdx) === 0 && !canIncreaseSkill(tabIdx, n.skillIdx),
                     selected: selectedNode && selectedNode.tabIdx === tabIdx && selectedNode.skillIdx === n.skillIdx,
+                    'req-target': isFocusNode(tabIdx, n.skillIdx) && focusReqIdxs(tabIdx).length,
                   }"
                   :title="n.skill.name"
                   @click="onNodeClick(tabIdx, n.skillIdx)"
+                  @mouseenter="hoveredNode = { tabIdx, skillIdx: n.skillIdx }"
+                  @mouseleave="hoveredNode = null"
                 >
                   <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
                   <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
@@ -555,7 +706,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <strong>{{ selectedSkill.name }}</strong>
               <span>
                 요구 레벨 {{ selectedSkill.reqLevel }}
-                <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length"> · 선행: {{ selectedSkill.reqSkills.join(', ') }}</template>
+                <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length">
+                  · 필수 선행: <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ r }}</span>
+                </template>
               </span>
             </div>
             <div class="sim-detail-pm">
@@ -615,6 +768,38 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         </div>
         <p class="sim-zone-note">스탯 성장은 커뮤니티 자료 기준 근사치, 저항 75% 상한 적용.</p>
       </section>
+    </div>
+  </div>
+
+  <div class="modal-overlay sim-picker-overlay" v-if="slotPicker" @click.self="closeSlotPicker">
+    <div class="modal-panel sim-picker-panel">
+      <button class="modal-close" @click="closeSlotPicker">✕</button>
+      <h3 class="sim-picker-title">{{ SLOT_DEFS.find((s) => s.key === slotPicker)?.label }} 선택</h3>
+      <input
+        class="sim-picker-search" type="text" v-model="slotPickerSearch"
+        placeholder="아이템 이름 검색..." autofocus
+      />
+      <div class="sim-picker-list">
+        <button class="sim-picker-row" :class="{ active: !equippedItems[slotPicker] }" @click="selectSlotItem(slotPicker, '')">
+          <span class="sim-picker-icon sim-picker-icon-empty">✕</span>
+          <span class="sim-picker-name">비어있음</span>
+        </button>
+        <button
+          v-for="it in slotPickerItems" :key="it.id"
+          class="sim-picker-row" :class="{ active: equippedItems[slotPicker] === it.id }"
+          @click="selectSlotItem(slotPicker, it.id)"
+        >
+          <span class="sim-picker-icon">
+            <img v-if="itemIconUrl(it)" :src="itemIconUrl(it)" :alt="it.name_ko" draggable="false" />
+          </span>
+          <span class="sim-picker-name">
+            {{ it.name_ko }}
+            <small v-if="it.category === 'runeword'">(룬워드)</small>
+          </span>
+          <span class="sim-picker-cat">{{ it.category_label }}</span>
+        </button>
+        <p class="sim-picker-empty-msg" v-if="!slotPickerItems.length">검색 결과가 없어요</p>
+      </div>
     </div>
   </div>
   </div>
@@ -688,36 +873,90 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 /* 3단 시트가 1150px 아래에서 세로로 쌓이면 이 구역이 전체 폭을 그대로 물려받아
    슬롯이 거대해지고 사이 여백만 늘어나므로, 인형 자체는 항상 컴팩트한 폭으로 고정 */
 .sim-doll{
-  display:grid; gap:10px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, 1fr);
+  /* minmax(0,1fr)이 아니면 슬롯 이미지의 min-content 높이가 1fr의 "공정한 몫"보다 커질 때
+     행 전체가 그만큼 자라서 aspect-ratio로 정해둔 인형 박스 바깥까지 넘쳐버림 (그 아래
+     참 인벤토리 영역과 겹쳐 보이던 원인) */
+  display:grid; gap:10px; grid-template-columns:1.05fr 0.6fr 1.05fr 0.6fr 1.05fr; grid-template-rows:repeat(3, minmax(0, 1fr));
   max-width:340px; margin:0 auto; aspect-ratio:5/3.3;
   grid-template-areas:
     "weapon .      helm   amulet shield"
     "weapon .      armor  .      shield"
     "gloves ring1  belt   ring2  boots";
 }
-.sim-slot{position:relative; display:block;}
-.sim-slot.small{padding:16% 8%;}
+/* 칸(그리드 셀)은 균일한 네모지만 그 안의 타일은 슬롯별 실루엣 원본 비율(aspect-ratio)로
+   맞춰서 셀에 꽉 차게 잡히게 함 - 그래서 셀 자체는 stretch 대신 가운데 정렬만 함 */
+.sim-slot{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  background:none; border:none; padding:0; margin:0; cursor:pointer; font:inherit;
+}
 .sim-slot-tile{
   /* 실제 장비창은 스킬트리 노드와 달리 청동 테두리/리벳이 없고, 돌 패널에 그대로
      깎아넣은 듯한 무채색 인셋 프레임임 */
-  position:relative; width:100%; height:100%; border-radius:2px; border:1px solid #5a5751;
+  position:relative; width:auto; height:auto; max-width:100%; max-height:100%;
+  border-radius:2px; border:1px solid #5a5751; overflow:hidden;
   background:linear-gradient(160deg, #2a2823, #100f0d 60%, #060605);
   box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06);
   display:flex; align-items:center; justify-content:center;
   transition:border-color .15s, box-shadow .15s;
 }
-.sim-slot-tile.filled{border-color:var(--gold); box-shadow:inset 0 2px 5px rgba(0,0,0,0.85), inset 0 -1px 0 rgba(255,255,255,0.06), 0 0 10px -2px var(--gold-dim);}
-.sim-slot-art{width:74%; height:74%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:filter .15s, opacity .15s;}
+/* cover로 하면 벨트(가로로 김)·갑옷(세로로 김)처럼 슬롯이랑 원본 비율이 안 맞는
+   아이콘이 심하게 확대/크롭돼서 오버사이즈로 보임 - 비율 안 깨지게 contain으로 */
+.sim-slot-art{width:96%; height:96%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
-.sim-slot-tile.filled .sim-slot-art{filter:brightness(2.3) sepia(0.3) saturate(1.4); opacity:1;}
-.sim-slot-select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0; margin:0;}
+.sim-slot-tile.filled .sim-slot-art{opacity:1;}
+
+/* ---- 장비 슬롯 선택 팝업 ---- */
+.sim-picker-panel{
+  max-width:420px; max-height:78vh; padding:20px; display:flex; flex-direction:column; overflow:hidden;
+}
+.sim-picker-title{font-size:15px; color:var(--gold); margin:0 0 12px; padding-right:30px;}
+.sim-picker-search{
+  width:100%; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);
+  padding:9px 12px; font-size:13px; font-family:inherit; margin-bottom:10px; flex:none;
+}
+.sim-picker-search:focus{outline:none; border-color:var(--gold-dim);}
+.sim-picker-list{overflow-y:auto; display:flex; flex-direction:column; gap:2px; margin:0 -8px; padding:0 8px;}
+.sim-picker-row{
+  display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:4px; width:100%;
+  text-align:left; background:none; border:none; color:var(--text); font:inherit; cursor:pointer;
+}
+.sim-picker-row:hover{background:rgba(255,255,255,0.06);}
+.sim-picker-row.active{background:rgba(200,163,77,0.14); box-shadow:inset 0 0 0 1px var(--gold-dim);}
+.sim-picker-icon{
+  width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.35); border:1px solid var(--border-soft); border-radius:3px; overflow:hidden;
+}
+.sim-picker-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.sim-picker-icon-empty{color:var(--text-dim); font-size:13px;}
+.sim-picker-name{flex:1; font-size:13px; color:var(--text); min-width:0;}
+.sim-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
+.sim-picker-cat{font-size:11px; color:var(--text-dim); flex:none;}
+.sim-picker-empty-msg{padding:20px 4px; text-align:center; color:var(--text-dim); font-size:12.5px;}
+
+.sim-charm-head{
+  display:flex; align-items:baseline; justify-content:space-between; margin:16px auto 0; max-width:340px;
+  font-size:12.5px; color:var(--text-muted);
+}
+.sim-charm-controls{display:flex; align-items:center; gap:10px; margin:6px auto 0; max-width:340px;}
+.sim-charm-add{
+  flex:1; background:var(--panel); border:1px solid var(--border); border-radius:4px; color:var(--text);
+  padding:7px 10px; font-size:12.5px; font-family:inherit;
+}
+.sim-charm-warn{font-size:11.5px; color:#ff8a3c; white-space:nowrap;}
 
 .sim-inv-grid{
-  flex:1; min-height:120px; max-width:340px; width:100%; margin:16px auto 0;
+  position:relative; flex:1; min-height:120px; max-width:340px; width:100%; margin:10px auto 0;
   display:grid; grid-template-columns:repeat(10, 1fr); grid-auto-rows:1fr; gap:3px;
   border:1px solid var(--border-soft); padding:8px; background:rgba(0,0,0,0.3);
 }
 .sim-inv-cell{border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.3);}
+.sim-charm-tile{
+  border:1px solid var(--gold-dim); border-radius:2px; background:rgba(20,18,14,0.9);
+  display:flex; align-items:center; justify-content:center; padding:2px;
+  box-shadow:0 0 6px -1px var(--gold-dim);
+}
+.sim-charm-tile:hover{border-color:var(--gold); box-shadow:0 0 8px -1px var(--gold);}
+.sim-charm-tile img{width:100%; height:100%; object-fit:contain; pointer-events:none; image-rendering:pixelated;}
 
 /* ---- 스킬 트리 ---- */
 .sim-tree-row{display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border:1px solid var(--border-soft); border-radius:4px; overflow:hidden;}
@@ -731,8 +970,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-tab-head small{color:var(--text-dim); font-weight:400; font-size:10.5px;}
 .sim-tab-body{position:relative; height:440px; padding:0 8px;}
 .sim-tab-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.sim-tab-edge{fill:none; stroke:#5a584f; stroke-width:4px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.85; transition:stroke .15s;}
-.sim-tab-edge.lit{stroke:var(--gold-dim); opacity:1;}
+/* 안 찍은 경로는 배경처럼 흐리게 눌러서 실제 투자한 경로(lit)만 시선이 가게 함 —
+   기존엔 전부 같은 굵기/밝기라 화살표가 다 똑같이 도드라져서 헷갈렸음 */
+.sim-tab-edge{fill:none; stroke:#4a4841; stroke-width:3px; stroke-linecap:butt; stroke-linejoin:miter; opacity:0.45; transition:stroke .15s, opacity .15s, stroke-width .15s;}
+.sim-tab-edge.lit{stroke:var(--gold); stroke-width:4.5px; opacity:1;}
+/* 마우스를 올리거나 선택한 스킬에 "반드시" 필요한 선행 스킬 경로만 오렌지로 표시 —
+   투자 여부(gold)와는 별개 색으로, 어떤 화살표가 필수 요구조건인지 바로 구분되게 함 */
+.sim-tab-edge.req{stroke:#ff8a3c; stroke-width:5.5px; opacity:1;}
 
 .sim-node-slot{position:absolute; width:42px; height:42px; transform:translate(-50%,-50%);}
 .sim-node{
@@ -750,8 +994,20 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-node.invested{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 8px -1px var(--gold-dim);}
 .sim-node-slot.maxed .sim-node{border-color:var(--gold); box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 3px rgba(0,0,0,0.6), 0 0 12px 0 var(--gold);}
 .sim-node.selected{outline:2px solid var(--gold); outline-offset:2px;}
-/* 실제 화면(멕스롤/인게임)은 스킬 아이콘이 채색이 아니라 은색/흰색 선화에 가까움 */
-.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px; filter:grayscale(0.75) contrast(1.35) brightness(1.3);}
+/* 마우스오버/선택한 스킬의 "필수 선행 스킬" 노드는 오렌지로 감싸서 즉시 눈에 띄게 함 */
+.sim-node-slot.req-source{z-index:2;}
+.sim-node-slot.req-source .sim-node{border-color:#ff8a3c; box-shadow:0 0 0 2px #ff8a3c, 0 0 12px 1px rgba(255,138,60,0.85);}
+.sim-node-req-flag{
+  position:absolute; left:-4px; top:-8px; z-index:3; padding:1px 4px; border-radius:3px;
+  background:#ff8a3c; color:#1a1005; font-size:9px; font-weight:800; line-height:1.3; white-space:nowrap;
+  box-shadow:0 1px 3px rgba(0,0,0,0.6);
+}
+.sim-node.req-target{outline:2px dashed #ff8a3c; outline-offset:3px;}
+.sim-req-name{color:#ff8a3c; font-weight:700;}
+/* 원본 스킬 아이콘은 이미 돌 재질 타일 + 문양이라 실제 게임/맥스롤과 톤이 같음 -
+   그레이스케일/대비 필터를 넣으면 돌 질감과 문양의 명암차가 과도하게 벌어져서
+   아이콘이 반으로 쪼개진 것처럼 보이는 부작용이 있어서 필터 없이 원본 그대로 씀 */
+.sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px;}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;

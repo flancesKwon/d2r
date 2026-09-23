@@ -64,8 +64,8 @@ function avg(a) {
 
 const RESIST_STATS = { fireresist: 'fire', coldresist: 'cold', lightresist: 'ltng', poisonresist: 'pois' }
 
-// equippedItems: { slotKey: itemObject|null }, classKey: 'amazon' 등
-export function aggregateItemStats(equippedItems, classKey) {
+// equippedItems: { slotKey: itemObject|null }, classKey: 'amazon' 등, extraItems: 참(charm) 등 슬롯 없이 추가되는 아이템 목록
+export function aggregateItemStats(equippedItems, classKey, extraItems = []) {
   const result = {
     str: 0,
     dex: 0,
@@ -83,7 +83,7 @@ export function aggregateItemStats(equippedItems, classKey) {
     weaponDamage: null, // {min, max} 장착 무기 물리 데미지 (2handmindam 우선)
   }
 
-  Object.values(equippedItems).forEach((item) => {
+  ;[...Object.values(equippedItems), ...extraItems].forEach((item) => {
     if (!item) return
     if (item.base_stats && item.base_stats.category === 'weapon') {
       const min = item.base_stats['2handmindam'] ?? item.base_stats.mindam
