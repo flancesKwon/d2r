@@ -20,7 +20,13 @@ function runewordBaseIconUrl(item) {
   const slot = runewordSlots(item.subtitle)[0]
   return equipIconUrl[RUNEWORD_SLOT_ICON_FILE[slot]] || null
 }
-const runeIconUrl = icons['invrun__rune'] ? 'data:image/png;base64,' + icons['invrun__rune'] : null
+function runePips(seq) {
+  return (seq || '').match(/[A-Z][a-z]+/g) || []
+}
+function runeIconUrl(runeName) {
+  const b64 = icons['invr' + runeName.toLowerCase() + '__rune']
+  return b64 ? 'data:image/png;base64,' + b64 : null
+}
 
 const activeCat = ref('all')
 const activeGroup = ref(null)
@@ -74,10 +80,6 @@ const filteredItems = computed(() => {
   }
   return list
 })
-
-function runePips(seq) {
-  return (seq || '').match(/[A-Z][a-z]+/g) || []
-}
 </script>
 
 <template>
@@ -165,7 +167,7 @@ function runePips(seq) {
         <span class="card-icon rw-icon" :class="[it.category]" v-if="it.category === 'runeword' && runewordBaseIconUrl(it)">
           <img class="rw-base" :src="runewordBaseIconUrl(it)" alt="" />
           <span class="rw-runes">
-            <img v-for="n in it.extra.socket_count" :key="n" class="rw-rune" :src="runeIconUrl" alt="" />
+            <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
           </span>
         </span>
         <span class="card-icon" :class="[it.category]" v-else>
@@ -272,7 +274,7 @@ function runePips(seq) {
           <span class="icon-box rw-icon" :class="selected.category" v-if="runewordBaseIconUrl(selected)">
             <img class="rw-base" :src="runewordBaseIconUrl(selected)" alt="" />
             <span class="rw-runes">
-              <img v-for="n in selected.extra.socket_count" :key="n" class="rw-rune" :src="runeIconUrl" alt="" />
+              <img v-for="(r, n) in runePips(selected.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
             </span>
           </span>
           <span class="icon-box" :class="selected.category" v-else>
