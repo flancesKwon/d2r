@@ -66,6 +66,7 @@ function changeStatus(e) {
         <img v-if="iconUrlFor(linkedItem.icon_key)" :src="iconUrlFor(linkedItem.icon_key)" alt="" />
       </span>
       <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
+      <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
       <select class="status-select" :class="'status-' + post.status" :value="post.status" @change="changeStatus">
         <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
       </select>
@@ -135,6 +136,8 @@ function changeStatus(e) {
 .trade-title-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
 .trade-post-title{font-size:24px; margin:0;}
 .trade-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:18px;}
+
+.ethereal-badge{font-size:10.5px; padding:3px 9px; border:1px solid var(--teal); color:var(--teal); flex:none;}
 
 .status-select{
   font-size:12px; padding:6px 10px; border:1px solid var(--border); background:var(--panel); color:var(--text-dim);

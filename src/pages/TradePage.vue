@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import {
   tradeState,
   TRADE_CATEGORIES,
@@ -9,10 +9,11 @@ import {
   TRADE_HARDCORE,
   UNIT_PRESETS,
   addTradePost,
-  itemDbSupportsCategory,
-  searchTradeItems,
+  searchAllItems,
+  tradeCategoryForItem,
   getTradeItem,
   categoryHasUnit,
+  categorySupportsEthereal,
   getItemAffixes,
   isRollRangeAffix,
   resolveAffixText,
@@ -30,6 +31,7 @@ const emptyForm = () => ({
   itemId: null,
   itemName: '',
   amountLabel: '',
+  ethereal: false,
   price: '',
   realm: TRADE_REALMS[0],
   ladder: TRADE_LADDERS[0],
@@ -42,14 +44,17 @@ const form = ref(emptyForm())
 
 const unitOptions = computed(() => UNIT_PRESETS[form.value.category] || ['1개'])
 
-const hasItemDb = computed(() => itemDbSupportsCategory(form.value.category))
 const hasUnit = computed(() => categoryHasUnit(form.value.category))
-const itemSearch = ref('')
+const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
 const showItemDropdown = ref(false)
-const itemCandidates = computed(() => searchTradeItems(form.value.category, itemSearch.value))
+// 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드)에서
+// 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 사전에 없으면 그냥 입력한 텍스트 그대로 등록
+const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(form.value.itemName)))
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
+const customOptions = ref([])
+const customOptionInput = ref('')
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -62,18 +67,14 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-const freeTextPlaceholder = computed(() => {
-  if (form.value.category === '우버보스 재료') return '아이템명 (예: 다이아블로의 뿔 세트)'
-  if (form.value.category === '매직/레어/일반') return '아이템명 (예: 매직 대검, 이중 저항 목걸이, 3소켓 모나크 방패)'
-  return '아이템명 (예: 잊혀진 영혼 대량)'
-})
-
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
-  itemSearch.value = ''
+  const cat = tradeCategoryForItem(it)
+  if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
+  if (!categoryHasUnit(form.value.category)) form.value.amountLabel = '1개'
 }
 
 function clearPickedItem() {
@@ -86,16 +87,24 @@ function hideItemDropdownSoon() {
   window.setTimeout(() => (showItemDropdown.value = false), 150)
 }
 
-watch(
-  () => form.value.category,
-  (cat) => {
-    form.value.itemId = null
-    form.value.itemName = ''
-    itemSearch.value = ''
-    rolledValues.value = {}
-    form.value.amountLabel = categoryHasUnit(cat) ? '' : '1개'
-  }
-)
+function onCategoryManualChange() {
+  form.value.itemId = null
+  form.value.itemName = ''
+  rolledValues.value = {}
+  customOptions.value = []
+  form.value.amountLabel = categoryHasUnit(form.value.category) ? '' : '1개'
+}
+
+function addCustomOption() {
+  const v = customOptionInput.value.trim()
+  if (!v) return
+  customOptions.value.push(v)
+  customOptionInput.value = ''
+}
+
+function removeCustomOption(i) {
+  customOptions.value.splice(i, 1)
+}
 
 const filteredPosts = computed(() => {
   let list = tradeState.posts
@@ -112,12 +121,15 @@ const filteredPosts = computed(() => {
 
 function submitPost() {
   if (!form.value.itemName.trim() || !form.value.amountLabel.trim() || !form.value.price.trim()) return
-  const options = itemAffixes.value.map((a, i) =>
+  const dbOptions = itemAffixes.value.map((a, i) =>
     isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   )
+  const options = [...dbOptions, ...customOptions.value]
   addTradePost({ ...form.value, options })
   form.value = emptyForm()
   rolledValues.value = {}
+  customOptions.value = []
+  customOptionInput.value = ''
   showForm.value = false
 }
 </script>
@@ -166,17 +178,11 @@ function submitPost() {
   <div class="quality-info" v-if="showForm">
     <div class="quality-info-inner write-form trade-write-form">
       <div class="trade-form-row">
-        <select v-model="form.category" class="write-select">
+        <select v-model="form.category" class="write-select" @change="onCategoryManualChange">
           <option v-for="c in TRADE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
         </select>
 
-        <input
-          v-if="!hasItemDb"
-          type="text" v-model="form.itemName" :placeholder="freeTextPlaceholder"
-          class="write-input trade-item-input"
-        />
-
-        <div v-else class="item-picker trade-item-input">
+        <div class="item-picker trade-item-input">
           <div v-if="selectedItem" class="item-picker-selected">
             <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
             <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
@@ -184,11 +190,11 @@ function submitPost() {
           </div>
           <div v-else class="item-picker-search-wrap">
             <input
-              type="text" v-model="itemSearch" placeholder="아이템 사전에서 검색 (예: 이스트, 할리퀸)"
+              type="text" v-model="form.itemName" placeholder="아이템명 검색 (사전에 없으면 직접 입력한 이름 그대로 등록돼요)"
               class="write-input" @focus="showItemDropdown = true"
               @blur="hideItemDropdownSoon"
             />
-            <div class="item-picker-dropdown" v-if="showItemDropdown">
+            <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
               <button
                 type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
                 @mousedown.prevent="pickItem(it)"
@@ -196,11 +202,16 @@ function submitPost() {
                 <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <p class="item-picker-empty" v-if="!itemCandidates.length">검색 결과가 없어요</p>
+              <p class="item-picker-empty" v-if="!itemCandidates.length">사전에 없는 아이템이에요. 이 이름 그대로 등록돼요.</p>
             </div>
           </div>
         </div>
       </div>
+
+      <label class="ethereal-check" v-if="hasEthereal">
+        <input type="checkbox" v-model="form.ethereal" />
+        에테리얼(Ethereal) 아이템이에요
+      </label>
 
       <template v-if="hasUnit">
         <div class="trade-form-row">
@@ -228,6 +239,22 @@ function submitPost() {
             />
           </template>
           <span class="option-text fixed" v-else>{{ a.text }}</span>
+        </div>
+      </div>
+
+      <div class="option-editor">
+        <div class="option-editor-title">옵션 직접 추가</div>
+        <div class="option-editor-hint">룬워드 베이스 아이템 정보(예: 3소켓 크리스 소드), 소켓 개수, 그 외 사전에 없는 옵션을 자유롭게 추가하세요.</div>
+        <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
+          <span>{{ o }}</span>
+          <button type="button" @click="removeCustomOption(i)">✕</button>
+        </div>
+        <div class="custom-option-add-row">
+          <input
+            type="text" v-model="customOptionInput" placeholder="예: 베이스 3소켓 크리스 소드, 방어력 220"
+            class="write-input" @keydown.enter.prevent="addCustomOption"
+          />
+          <button type="button" class="custom-option-add-btn" @click="addCustomOption">추가</button>
         </div>
       </div>
 
@@ -266,6 +293,7 @@ function submitPost() {
         <div class="trade-body">
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
+            <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
             <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span>
           </div>
           <div class="trade-meta">
@@ -342,6 +370,21 @@ function submitPost() {
 .option-text.fixed{color:var(--text-dim);}
 .option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none;}
 
+.ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
+.ethereal-check input{accent-color:var(--teal);}
+
+.custom-option-chip{
+  display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
+  padding:6px 10px; font-size:12.5px; color:var(--text-muted);
+}
+.custom-option-chip span{flex:1;}
+.custom-option-chip button{color:var(--text-dim); flex:none;}
+.custom-option-chip button:hover{color:var(--blood);}
+.custom-option-add-row{display:flex; gap:8px;}
+.custom-option-add-row .write-input{flex:1;}
+.custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px;}
+.custom-option-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+
 .trade-row-icon{
   width:36px; height:36px; flex:none; display:flex; align-items:center; justify-content:center;
   background:var(--panel-2); border:1px solid var(--border-soft); margin-top:1px;
@@ -363,6 +406,7 @@ function submitPost() {
 .trade-body{flex:1; min-width:0;}
 .trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:4px;}
 .trade-title{font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.ethereal-badge{font-size:10px; padding:2px 8px; border:1px solid var(--teal); color:var(--teal); flex:none;}
 .trade-status-badge{font-size:10px; padding:2px 8px; border:1px solid var(--border); flex:none; color:var(--text-dim);}
 .trade-status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
 .trade-status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}

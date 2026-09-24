@@ -42,28 +42,31 @@ export const TRADE_REALMS = ['미국동', '미국서', '유럽', '아시아']
 export const TRADE_LADDERS = ['레더', '논레더']
 export const TRADE_HARDCORE = ['일반', '하드코어']
 
-// 카테고리별로 아이템 사전(items.json)에서 실제 데이터를 검색해 고를 수 있는지 여부.
-// 매직/레어/일반템은 매번 랜덤하게 생성되는 아이템이라 애초에 고정된 사전 데이터가
-// 없고, 우버보스 재료·기타(잊혀진 영혼 등 소모성 재료)도 아이템 사전에 없는
-// 퀘스트/재료성 아이템이라 둘 다 자유 입력으로 남겨둠.
-const CATEGORY_ITEM_FILTER = {
-  룬: (it) => it.category === 'gem' && it.type_sub === '룬',
-  '퍼펙트 보석': (it) => it.category === 'gem' && it.type_sub === '보석',
-  '유니크/세트': (it) => it.category === 'unique' || it.category === 'set',
-  룬워드: (it) => it.category === 'runeword',
-}
-
-export function itemDbSupportsCategory(category) {
-  return !!CATEGORY_ITEM_FILTER[category]
-}
-
-export function searchTradeItems(category, query) {
-  const filterFn = CATEGORY_ITEM_FILTER[category]
-  if (!filterFn) return []
-  const list = itemsData.filter(filterFn)
+// 카테고리를 미리 고르지 않아도 아이템명만 검색해서 바로 선택할 수 있게 하는
+// 통합 검색 - 사전에 있는 730종(룬·보석·유니크·세트·룬워드) 전체를 대상으로 찾고,
+// 고르면 트레이드 카테고리가 자동으로 맞춰짐
+export function searchAllItems(query) {
   const q = query.trim().toLowerCase()
-  if (!q) return list.slice(0, 40)
-  return list.filter((it) => it.name_ko.toLowerCase().includes(q) || it.name_en.toLowerCase().includes(q)).slice(0, 40)
+  if (!q) return []
+  return itemsData
+    .filter((it) => it.name_ko.toLowerCase().includes(q) || it.name_en.toLowerCase().includes(q))
+    .slice(0, 40)
+}
+
+export function tradeCategoryForItem(item) {
+  if (!item) return null
+  if (item.category === 'gem' && item.type_sub === '룬') return '룬'
+  if (item.category === 'gem' && item.type_sub === '보석') return '퍼펙트 보석'
+  if (item.category === 'unique' || item.category === 'set') return '유니크/세트'
+  if (item.category === 'runeword') return '룬워드'
+  return null
+}
+
+// 에테리얼(내구도 없이 무형화되지만 스탯이 강화되는 등급)은 장신구엔 없고 무기·방어구
+// 계열에만 적용되는 실제 아이템 속성이라, 장비 계열 카테고리에서만 체크박스를 보여줌
+export const ETHEREAL_CATEGORIES = ['유니크/세트', '룬워드', '매직/레어/일반']
+export function categorySupportsEthereal(category) {
+  return ETHEREAL_CATEGORIES.includes(category)
 }
 
 export const UNIT_PRESETS = {
@@ -107,6 +110,7 @@ export function addTradePost({
   contact,
   content,
   options,
+  ethereal,
 }) {
   const post = {
     id: 't-new-' + nextPostId++,
@@ -115,6 +119,7 @@ export function addTradePost({
     itemName,
     amountLabel,
     options: options || [],
+    ethereal: !!ethereal,
     price,
     realm,
     ladder,
