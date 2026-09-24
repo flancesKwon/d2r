@@ -591,6 +591,12 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           >
             <div class="sim-slot-tile" :style="{ aspectRatio: DOLL_ICON_ASPECT[s.key] }" :class="{ filled: equippedItems[s.key] }">
               <img
+                v-if="itemById[equippedItems[s.key]]"
+                class="sim-slot-art real"
+                :src="itemIconUrl(itemById[equippedItems[s.key]])" :alt="itemById[equippedItems[s.key]].name_ko" draggable="false"
+              />
+              <img
+                v-else
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
               />
@@ -896,6 +902,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 /* cover로 하면 벨트(가로로 김)·갑옷(세로로 김)처럼 슬롯이랑 원본 비율이 안 맞는
    아이콘이 심하게 확대/크롭돼서 오버사이즈로 보임 - 비율 안 깨지게 contain으로 */
 .sim-slot-art{width:96%; height:96%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
+/* 장착한 아이템은 실제 색이 있는 진짜 아이콘이라 실루엣용 필터 없이 그대로 보여줌 -
+   장비창에서도 실제로 뭘 꼈는지 한눈에 보이게 */
+.sim-slot-art.real{filter:none; opacity:1; image-rendering:pixelated;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{opacity:1;}
 /* 오퍼시티 차이만으론 장착 여부가 한눈에 안 들어와서, 테두리를 살짝 밝히고
