@@ -69,19 +69,23 @@ import ladder from '../data/ladder.json'
 </template>
 
 <style scoped>
-.ladder-wrap{max-width:820px;}
-.ladder-status-row{display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); margin-bottom:28px;}
-.ladder-status-item{background:var(--panel); padding:16px 14px;}
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤은 그대로 두고 각진 표/구분선 대신
+   둥근 카드로 나눔 */
+.ladder-wrap{max-width:1180px;}
+.ladder-status-row{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:28px;}
+.ladder-status-item{background:var(--panel); border:1px solid var(--border-soft); padding:18px 16px; border-radius:14px;}
 .ladder-status-item .label{font-size:11px; color:var(--text-dim); margin-bottom:6px;}
 .ladder-status-item .value{font-size:15px; font-weight:600; color:var(--text);}
 .ladder-status-item .value.accent{color:var(--gold);}
 
-.ladder-faq{border:1px solid var(--border-soft); margin-bottom:20px;}
-.ladder-faq-item{padding:14px 16px; border-bottom:1px solid var(--border-soft);}
-.ladder-faq-item:last-child{border-bottom:none;}
-.ladder-faq-q{font-size:13.5px; color:var(--gold); font-weight:600; margin-bottom:6px;}
-.ladder-faq-a{font-size:13px; color:var(--text-muted); line-height:1.55;}
+.affix-list{border-radius:14px; overflow:hidden;}
 
+.ladder-faq{display:flex; flex-direction:column; gap:12px; margin-bottom:20px; border:none;}
+.ladder-faq-item{background:var(--panel); border:1px solid var(--border-soft); padding:16px 18px; border-radius:14px;}
+.ladder-faq-q{font-size:13.5px; color:var(--gold); font-weight:600; margin-bottom:6px;}
+.ladder-faq-a{font-size:13px; color:var(--text-muted); line-height:1.6;}
+
+.note-box{border-radius:12px;}
 .ladder-note{margin-top:4px;}
 
 @media (max-width:700px){
