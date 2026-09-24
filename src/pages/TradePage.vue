@@ -33,6 +33,27 @@ const favoritesOnly = ref(false)
 const searchQuery = ref('')
 const showForm = ref(false)
 
+// 트레더리처럼 아이콘 위주로 훑어보고 싶을 때는 그리드로, 옵션·메모까지 자세히
+// 보고 싶을 때는 리스트로 - 마지막으로 고른 보기 방식을 기억해둠
+const VIEW_MODE_KEY = 'd2r-trade-view-mode'
+function loadViewMode() {
+  try {
+    const saved = localStorage.getItem(VIEW_MODE_KEY)
+    return saved === 'grid' ? 'grid' : 'list'
+  } catch {
+    return 'list'
+  }
+}
+const viewMode = ref(loadViewMode())
+function setViewMode(mode) {
+  viewMode.value = mode
+  try {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  } catch {
+    // 프라이빗 창 등 localStorage를 못 쓰는 환경 - 이번 세션 안에서만 유지됨
+  }
+}
+
 // 카테고리는 더 이상 직접 고르지 않고 아이템 검색으로 자동 결정됨. 사전에 없는
 // 아이템(매직/레어/일반, 기타)만 검색 결과가 없을 때 뜨는 버튼으로 고를 수 있음
 const FALLBACK_CATEGORIES = ['매직/레어/일반', '기타']
@@ -194,6 +215,10 @@ function submitPost() {
           <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
         </select>
         <span class="result-count">{{ filteredPosts.length }}개</span>
+        <div class="view-mode-toggle">
+          <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" @click="setViewMode('list')">☰</button>
+          <button type="button" :class="{ active: viewMode === 'grid' }" title="그리드형" @click="setViewMode('grid')">▦</button>
+        </div>
         <button class="quality-toggle" @click="showForm = !showForm">{{ showForm ? '취소' : '판매글 등록' }}</button>
       </div>
       <div class="filter-row">
@@ -327,7 +352,7 @@ function submitPost() {
   </div>
 
   <div class="grid-wrap trade-list-wrap">
-    <div class="trade-list">
+    <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
           type="button" class="favorite-star" :class="{ active: isFavorite(p.id) }"
@@ -355,6 +380,34 @@ function submitPost() {
           </div>
         </div>
         <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
+      </router-link>
+      <div class="empty-state" v-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
+    </div>
+
+    <div class="trade-grid" v-else>
+      <router-link class="trade-card" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+        <button
+          type="button" class="favorite-star trade-card-star" :class="{ active: isFavorite(p.id) }"
+          :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
+          @click.prevent.stop="toggleFavorite(p.id)"
+        >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
+        <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
+        <span class="trade-card-icon" :class="rarityClass(getTradeItem(p.itemId))">
+          <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
+        </span>
+        <span class="trade-cat trade-card-cat">{{ p.category }}</span>
+        <span class="trade-card-title">{{ p.itemName }}</span>
+        <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
+        <span class="trade-card-price">
+          {{ p.amountLabel }} ·
+          <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
+            <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+          </template>
+        </span>
+        <span class="trade-card-footer">
+          {{ p.author }} · {{ p.date }}
+          <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
+        </span>
       </router-link>
       <div class="empty-state" v-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
     </div>
@@ -496,4 +549,41 @@ function submitPost() {
 .price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 .trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
+
+.view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
+.view-mode-toggle button{
+  font-size:14px; padding:8px 12px; color:var(--text-dim); background:var(--panel); line-height:1;
+}
+.view-mode-toggle button + button{border-left:1px solid var(--border);}
+.view-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
+
+.trade-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:16px;
+}
+.trade-card{
+  position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
+  padding:22px 16px 16px; border-radius:16px; background:var(--panel); border:1px solid var(--border-soft);
+  transition:transform .15s, box-shadow .15s, border-color .15s;
+}
+.trade-card:hover{transform:translateY(-3px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
+.trade-card-star{position:absolute; top:10px; right:12px; margin:0;}
+.trade-card-status{position:absolute; top:12px; left:12px; margin:0;}
+.trade-card-icon{
+  width:64px; height:64px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft); border-radius:12px; margin-top:8px;
+}
+.trade-card-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.trade-card-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 12px -3px rgba(200,163,77,0.5);}
+.trade-card-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
+.trade-card-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
+.trade-card-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
+.trade-card-cat{margin-top:4px;}
+.trade-card-title{
+  font-size:13.5px; color:var(--text); width:100%; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; margin-top:2px;
+}
+.trade-card-price{font-size:12px; color:var(--text-muted); line-height:1.6;}
+.trade-card-footer{
+  font-size:10.5px; color:var(--text-dim); display:flex; align-items:center; gap:6px; margin-top:4px;
+}
 </style>
