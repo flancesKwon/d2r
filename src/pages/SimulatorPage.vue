@@ -6,7 +6,7 @@ import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
 import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
-import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildRuneLookup } from '../itemStats.js'
+import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildRuneLookup, DOLL_ICON_ASPECT } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
 import iconsData from '../data/icons.json'
 
@@ -17,13 +17,6 @@ const DOLL_AREA = {
   weapon: 'weapon', armor: 'armor', shield: 'shield', amulet: 'amulet',
   gloves: 'gloves', belt: 'belt', boots: 'boots',
   ring1: 'ring1', ring2: 'ring2',
-}
-// 슬롯 칸은 다 균일한 네모인데 실루엣 원본 이미지 비율은 제각각이라(벨트는 가로로
-// 김, 갑옷/무기는 세로로 김, 반지는 정사각형) contain으로 꽉 채우려면 아이콘 박스
-// 자체를 원본 비율에 맞게 잘라줘야 함 - 그래야 크롭/확대 없이도 빈 여백이 거의 안 남음
-const DOLL_ICON_ASPECT = {
-  weapon: 54 / 109, shield: 54 / 109, helm: 54 / 53, armor: 54 / 82,
-  gloves: 54 / 53, boots: 54 / 52, belt: 52 / 25, amulet: 23 / 24, ring1: 23 / 24, ring2: 23 / 24,
 }
 
 // 실제 게임 DC6 스프라이트에서 뽑은 슬롯 실루엣 아이콘 (기존 자체제작 SVG 대체)
@@ -596,8 +589,18 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
             @click="openSlotPicker(s.key)"
           >
-            <div class="sim-slot-tile" :style="{ aspectRatio: DOLL_ICON_ASPECT[s.key] }" :class="{ filled: equippedItems[s.key] }">
+            <div
+              class="sim-slot-tile"
+              :style="itemById[equippedItems[s.key]] ? {} : { aspectRatio: DOLL_ICON_ASPECT[s.key] }"
+              :class="{ filled: equippedItems[s.key] }"
+            >
               <img
+                v-if="itemById[equippedItems[s.key]]"
+                class="sim-slot-art real"
+                :src="itemIconUrl(itemById[equippedItems[s.key]])" :alt="itemById[equippedItems[s.key]].name_ko" draggable="false"
+              />
+              <img
+                v-else
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
                 :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
               />
@@ -903,8 +906,24 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 /* cover로 하면 벨트(가로로 김)·갑옷(세로로 김)처럼 슬롯이랑 원본 비율이 안 맞는
    아이콘이 심하게 확대/크롭돼서 오버사이즈로 보임 - 비율 안 깨지게 contain으로 */
 .sim-slot-art{width:96%; height:96%; object-fit:contain; pointer-events:none; filter:brightness(1.7); opacity:0.5; transition:opacity .15s;}
+/* 장착한 아이템은 실제 색이 있는 진짜 아이콘이라 실루엣용 필터 없이 그대로 보여줌 -
+   장비창에서도 실제로 뭘 꼈는지 한눈에 보이게 */
+/* auto 사이즈(원본 픽셀 그대로)로 두면 원본 이미지 자체가 작아서(28~56px) 확대가
+   안 되고 작게 나옴 - %기반으로 슬롯 타일 크기에 맞춰 항상 확대/축소되게 함 */
+.sim-slot-art.real{width:96%; height:96%; object-fit:contain; filter:none; opacity:1; image-rendering:pixelated;}
 .sim-slot-art.mirror{transform:scaleX(-1);}
 .sim-slot-tile.filled .sim-slot-art{opacity:1;}
+/* 오퍼시티 차이만으론 장착 여부가 한눈에 안 들어와서, 테두리를 살짝 밝히고
+   구석에 작은 점 배지를 붙여서 확실히 구분되게 함 (금테/세피아 톤은 안 씀) */
+/* 빈 슬롯은 실루엣 원본 비율(aspect-ratio)로 작게 잡히지만, 장착 중일 땐
+   실제 아이템 아이콘마다 원본 비율이 제각각이라 그 비율대로 두면 타일이
+   셀보다 훨씬 작아 보임 - 그래서 장착 중엔 타일을 칸(그리드 셀) 전체
+   크기로 채우고, 그 안에서 아이콘만 contain으로 비율 유지하며 확대되게 함 */
+.sim-slot-tile.filled{width:100%; height:100%; border-color:#8a8578;}
+.sim-slot-tile.filled::after{
+  content:''; position:absolute; top:3px; right:3px; width:7px; height:7px;
+  border-radius:50%; background:var(--gold); box-shadow:0 0 3px 0 rgba(0,0,0,0.9);
+}
 
 /* ---- 장비 슬롯 선택 팝업 ---- */
 .sim-picker-panel{

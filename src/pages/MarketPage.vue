@@ -24,7 +24,7 @@ import marketTiers from '../data/marketTiers.json'
   <div class="grid-wrap market-wrap">
     <div class="note-box market-warn">
       서버·난이도·시즌(레더/논레더)에 따라 실제 거래가는 크게 달라질 수 있어요. 정확한 현재 시세는
-      <router-link to="/community?cat=거래">거래게시판</router-link>에서 최근 글을 참고해주세요.
+      <router-link to="/trade">거래게시판</router-link>에서 실제 판매글을 참고해주세요.
     </div>
 
     <div class="market-tier-list">

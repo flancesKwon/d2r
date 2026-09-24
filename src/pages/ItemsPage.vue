@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
 import { ICONS } from '../icons.js'
-import { runewordSlots, runePips, buildRuneLookup, runewordRuneAffixes } from '../itemStats.js'
+import { runewordSlots, runePips, buildRuneLookup, runewordRuneAffixes, DOLL_ICON_ASPECT } from '../itemStats.js'
 
 const items = itemsData
 const icons = iconsData
@@ -20,6 +20,11 @@ const RUNEWORD_SLOT_ICON_FILE = { weapon: 'weapon', shield: 'weapon', armor: 'ar
 function runewordBaseIconUrl(item) {
   const slot = runewordSlots(item.subtitle)[0]
   return equipIconUrl[RUNEWORD_SLOT_ICON_FILE[slot]] || null
+}
+// 장비창 슬롯 아이콘과 같은 비율로 맞춰서(벨트는 넓적하게, 무기는 길쭉하게) 잘림/여백 없이 보이게 함
+function runewordIconAspect(item) {
+  const slot = runewordSlots(item.subtitle)[0]
+  return DOLL_ICON_ASPECT[slot]
 }
 // 룬워드 화면에 보여줄 전체 옵션 = 룬워드 고유 옵션(affixes, 최대 7개) + 박힌 룬들 자체 효과.
 // 실제 게임 내부에서도 항상 이렇게 합쳐져서 나옴
@@ -171,10 +176,12 @@ const filteredItems = computed(() => {
         :class="it.category"
         @click="selected = it"
       >
-        <span class="card-icon rw-icon" :class="[it.category]" v-if="it.category === 'runeword' && runewordBaseIconUrl(it)">
-          <img class="rw-base" :src="runewordBaseIconUrl(it)" alt="" />
-          <span class="rw-runes">
-            <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+        <span class="card-icon" :class="[it.category]" v-if="it.category === 'runeword' && runewordBaseIconUrl(it)">
+          <span class="rw-icon" :style="{ aspectRatio: runewordIconAspect(it) }">
+            <img class="rw-base" :src="runewordBaseIconUrl(it)" alt="" />
+            <span class="rw-runes">
+              <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+            </span>
           </span>
         </span>
         <span class="card-icon" :class="[it.category]" v-else>
@@ -278,10 +285,12 @@ const filteredItems = computed(() => {
       <template v-else-if="selected.category === 'runeword'">
         <div class="d-eyebrow">룬워드 · 소켓 {{ selected.extra.socket_count }}개</div>
         <div class="d-head">
-          <span class="icon-box rw-icon" :class="selected.category" v-if="runewordBaseIconUrl(selected)">
-            <img class="rw-base" :src="runewordBaseIconUrl(selected)" alt="" />
-            <span class="rw-runes">
-              <img v-for="(r, n) in runePips(selected.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+          <span class="icon-box" :class="selected.category" v-if="runewordBaseIconUrl(selected)">
+            <span class="rw-icon" :style="{ aspectRatio: runewordIconAspect(selected) }">
+              <img class="rw-base" :src="runewordBaseIconUrl(selected)" alt="" />
+              <span class="rw-runes">
+                <img v-for="(r, n) in runePips(selected.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+              </span>
             </span>
           </span>
           <span class="icon-box" :class="selected.category" v-else>

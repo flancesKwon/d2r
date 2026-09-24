@@ -14,6 +14,15 @@ export const SLOT_DEFS = [
   { key: 'ring2', label: '반지 2' },
 ]
 
+// 슬롯 칸은 다 균일한 네모인데 실루엣 원본 이미지 비율은 제각각이라(벨트는 가로로
+// 김, 갑옷/무기는 세로로 김, 반지는 정사각형) contain으로 꽉 채우려면 아이콘 박스
+// 자체를 원본 비율에 맞게 잘라줘야 함 - 그래야 크롭/확대 없이도 빈 여백이 거의 안 남음.
+// 장비창(SimulatorPage)과 아이템 사전 룬워드 아이콘(ItemsPage)이 같은 값을 씀
+export const DOLL_ICON_ASPECT = {
+  weapon: 54 / 109, shield: 54 / 109, helm: 54 / 53, armor: 54 / 82,
+  gloves: 54 / 53, boots: 54 / 52, belt: 52 / 25, amulet: 23 / 24, ring1: 23 / 24, ring2: 23 / 24,
+}
+
 export function runewordSlots(subtitle) {
   const slots = []
   if (!subtitle) return slots

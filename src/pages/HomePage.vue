@@ -29,7 +29,7 @@
         <div class="dropdown">
           <router-link to="/community?cat=잡담">자유게시판</router-link>
           <router-link to="/community?cat=질문">질문게시판</router-link>
-          <router-link to="/community?cat=거래">거래게시판</router-link>
+          <router-link to="/trade">거래게시판</router-link>
           <router-link to="/community?cat=공략">공략 인증</router-link>
         </div>
       </div>
