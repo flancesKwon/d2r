@@ -56,6 +56,18 @@ function iconUrlFor(iconKey) {
   return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
+// 유니크(gold)·세트(green)·룬워드(blood)·룬·보석(teal) - 아이템 사전 페이지와
+// 똑같은 색 코드로 테두리를 맞춰서 어디서 보든 같은 등급은 같은 색으로 보이게 함
+function rarityClass(item) {
+  return item ? item.category : ''
+}
+
+const freeTextPlaceholder = computed(() => {
+  if (form.value.category === '우버보스 재료') return '아이템명 (예: 다이아블로의 뿔 세트)'
+  if (form.value.category === '매직/레어/일반') return '아이템명 (예: 매직 대검, 이중 저항 목걸이, 3소켓 모나크 방패)'
+  return '아이템명 (예: 잊혀진 영혼 대량)'
+})
+
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
@@ -125,7 +137,7 @@ function submitPost() {
     <div class="patch-hero-inner">
       <div class="eyebrow">유저 간 아이템 거래</div>
       <h1>거래게시판</h1>
-      <p>룬·퍼펙트 보석·우버보스 재료 등 판매자가 직접 단위를 정해 올리고, 구매자가 구매신청을 보내는 게시판이에요.</p>
+      <p>룬·보석부터 유니크·세트·룬워드·매직·레어·일반 장비, 우버보스 재료까지 등록된 모든 아이템을 올릴 수 있어요. 구매자는 구매신청을 보내면 돼요.</p>
     </div>
   </div>
 
@@ -160,13 +172,13 @@ function submitPost() {
 
         <input
           v-if="!hasItemDb"
-          type="text" v-model="form.itemName" placeholder="아이템명 (예: 다이아블로의 뿔)"
+          type="text" v-model="form.itemName" :placeholder="freeTextPlaceholder"
           class="write-input trade-item-input"
         />
 
         <div v-else class="item-picker trade-item-input">
           <div v-if="selectedItem" class="item-picker-selected">
-            <span class="item-picker-icon"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
+            <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
             <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
             <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
           </div>
@@ -181,7 +193,7 @@ function submitPost() {
                 type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
                 @mousedown.prevent="pickItem(it)"
               >
-                <span class="item-picker-icon"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+                <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
               <p class="item-picker-empty" v-if="!itemCandidates.length">검색 결과가 없어요</p>
@@ -247,7 +259,7 @@ function submitPost() {
   <div class="grid-wrap trade-list-wrap">
     <div class="trade-list">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
-        <span class="trade-row-icon" v-if="p.itemId">
+        <span class="trade-row-icon" :class="rarityClass(getTradeItem(p.itemId))">
           <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
         </span>
         <span class="trade-cat">{{ p.category }}</span>
@@ -314,6 +326,10 @@ function submitPost() {
   background:var(--panel); border:1px solid var(--border-soft);
 }
 .item-picker-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.item-picker-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 8px -2px rgba(200,163,77,0.5);}
+.item-picker-icon.set{border-color:var(--green); box-shadow:0 0 8px -2px rgba(92,138,91,0.5);}
+.item-picker-icon.runeword{border-color:var(--blood); box-shadow:0 0 8px -2px rgba(162,81,63,0.5);}
+.item-picker-icon.gem{border-color:var(--teal); box-shadow:0 0 8px -2px rgba(78,138,138,0.5);}
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
 .item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
@@ -331,6 +347,10 @@ function submitPost() {
   background:var(--panel-2); border:1px solid var(--border-soft); margin-top:1px;
 }
 .trade-row-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.trade-row-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 10px -3px rgba(200,163,77,0.5);}
+.trade-row-icon.set{border-color:var(--green); box-shadow:0 0 10px -3px rgba(92,138,91,0.5);}
+.trade-row-icon.runeword{border-color:var(--blood); box-shadow:0 0 10px -3px rgba(162,81,63,0.5);}
+.trade-row-icon.gem{border-color:var(--teal); box-shadow:0 0 10px -3px rgba(78,138,138,0.5);}
 
 .trade-list-wrap{max-width:900px;}
 .trade-list{display:flex; flex-direction:column;}

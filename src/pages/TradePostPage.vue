@@ -15,6 +15,10 @@ function iconUrlFor(iconKey) {
   return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
+function rarityClass(item) {
+  return item ? item.category : ''
+}
+
 const reqBuyer = ref('')
 const reqContact = ref('')
 const reqQty = ref(1)
@@ -58,7 +62,7 @@ function changeStatus(e) {
   <div class="grid-wrap trade-detail-wrap">
     <div class="d-eyebrow">{{ post.category }}</div>
     <div class="trade-title-line">
-      <span class="trade-title-icon" v-if="linkedItem">
+      <span class="trade-title-icon" v-if="linkedItem" :class="rarityClass(linkedItem)">
         <img v-if="iconUrlFor(linkedItem.icon_key)" :src="iconUrlFor(linkedItem.icon_key)" alt="" />
       </span>
       <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
@@ -125,6 +129,10 @@ function changeStatus(e) {
   background:var(--panel-2); border:1px solid var(--border-soft);
 }
 .trade-title-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.trade-title-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 12px -3px rgba(200,163,77,0.5);}
+.trade-title-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
+.trade-title-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
+.trade-title-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
 .trade-post-title{font-size:24px; margin:0;}
 .trade-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:18px;}
 

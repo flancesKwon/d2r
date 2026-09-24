@@ -121,6 +121,25 @@
     "requests": []
   },
   {
+    "id": "t7",
+    "category": "매직/레어/일반",
+    "itemId": null,
+    "itemName": "이중 저항 목걸이 (레어)",
+    "amountLabel": "1개",
+    "options": [],
+    "price": "3만 FG",
+    "realm": "미국동",
+    "ladder": "레더",
+    "hardcore": "일반",
+    "author": "잡화상2",
+    "contact": "배틀태그: rareitem#1122",
+    "date": "2026-09-21",
+    "views": 5,
+    "status": "판매중",
+    "content": "화염 저항 +32%, 냉기 저항 +28%, 생명력 +45 붙은 레어 목걸이입니다.",
+    "requests": []
+  },
+  {
     "id": "t6",
     "category": "기타",
     "itemId": null,

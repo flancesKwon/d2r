@@ -36,15 +36,16 @@ export function categoryHasUnit(category) {
   return UNIT_CATEGORIES.includes(category)
 }
 
-export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '유니크/세트', '룬워드', '기타']
+export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
 export const TRADE_REALMS = ['미국동', '미국서', '유럽', '아시아']
 export const TRADE_LADDERS = ['레더', '논레더']
 export const TRADE_HARDCORE = ['일반', '하드코어']
 
 // 카테고리별로 아이템 사전(items.json)에서 실제 데이터를 검색해 고를 수 있는지 여부.
-// 우버보스 재료·기타(잊혀진 영혼 등 소모성 재료)는 아이템 사전에 없는 퀘스트/재료성
-// 아이템이라 자유 입력으로 남겨둠.
+// 매직/레어/일반템은 매번 랜덤하게 생성되는 아이템이라 애초에 고정된 사전 데이터가
+// 없고, 우버보스 재료·기타(잊혀진 영혼 등 소모성 재료)도 아이템 사전에 없는
+// 퀘스트/재료성 아이템이라 둘 다 자유 입력으로 남겨둠.
 const CATEGORY_ITEM_FILTER = {
   룬: (it) => it.category === 'gem' && it.type_sub === '룬',
   '퍼펙트 보석': (it) => it.category === 'gem' && it.type_sub === '보석',
