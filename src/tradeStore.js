@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
-import { buildRuneLookup, runewordRuneAffixes, runewordSlots } from './itemStats.js'
+import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 
 export { itemsData }
 
@@ -67,6 +67,13 @@ export function resolveAffixText(a, rolledValue) {
   return a.text.replace(`${a.min}~${a.max}`, String(rolledValue))
 }
 
+// 룬워드는 박히는 룬 조합(rune_sequence)이 고정돼 있어서 필요한 재료 룬을 그대로
+// 보여줄 수 있음 - 판매글 등록할 때 재료가 뭔지 매번 직접 타이핑할 필요 없게 함
+export function runewordMaterials(item) {
+  if (!item || item.category !== 'runeword' || !item.extra || !item.extra.rune_sequence) return []
+  return runePips(item.extra.rune_sequence).map((name) => runeLookup[name]).filter(Boolean)
+}
+
 // 룬·퍼펙트 보석·우버보스 재료(소환 재료)는 여러 개를 묶어 파는 경우가 많아서 개수를
 // 입력받고, 장비(유니크·세트·룬워드·매직/레어/일반)나 기타는 낱개(1개)로 고정
 export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료']
@@ -130,14 +137,10 @@ export function categorySupportsEthereal(category) {
   return ETHEREAL_CATEGORIES.includes(category)
 }
 
-// "옵션 직접 추가" 콤보박스 목록 - 룬워드는 박힌 룬 자체 효과 말고도 베이스로 쓴
-// 재료(무기·방어구)가 원래 갖고 있는 방어력·인핸스드 데미지 같은 옵션이 실거래가에
-// 큰 영향을 주는데 아이템 사전엔 그 데이터가 없어서, 자주 쓰는 옵션 종류를 정해두고
-// 값만 입력하면 되게 함. "기타"는 목록에 없는 옵션을 위한 자유 입력 폴백
+// "기타 옵션 직접 추가" 콤보박스 목록 - 기본방어력/증가된방어력/추가내구도(방어구)나
+// 증가된데미지/추가내구도/추가스킬(무기)은 전용 입력칸으로 따로 빠졌고, 여기 남은
+// 목록은 그 외에 자주 붙는 옵션들. "기타"는 목록에 없는 옵션을 위한 자유 입력 폴백
 export const CUSTOM_OPTION_PRESETS = [
-  { key: 'defense', label: '방어력', restrict: 'armor', format: (v) => `방어력 +${v}` },
-  { key: 'edef', label: '추가방어력(%)', restrict: 'armor', format: (v) => `추가방어력 +${v}%` },
-  { key: 'edmg', label: '증가된 데미지(%)', restrict: 'weapon', format: (v) => `인핸스드 데미지 +${v}%` },
   { key: 'ias', label: '공격 속도 증가(%)', restrict: 'weapon', format: (v) => `공격 속도 증가 +${v}%` },
   { key: 'frw', label: '이동/공격 속도 증가(%)', restrict: 'armor', format: (v) => `이동/공격 속도 증가 +${v}%` },
   { key: 'sockets', label: '소켓 개수', format: (v) => `소켓 ${v}개` },
@@ -154,7 +157,6 @@ export const CUSTOM_OPTION_PRESETS = [
   { key: 'ltngres', label: '번개 저항(%)', format: (v) => `번개 저항 +${v}%` },
   { key: 'poisres', label: '독 저항(%)', format: (v) => `독 저항 +${v}%` },
   { key: 'allskills', label: '모든 기술', format: (v) => `모든 기술 +${v}` },
-  { key: 'skill', label: '특정 스킬', freeText: true, placeholder: '예: +3 파이어볼' },
   { key: 'mf', label: '마법 아이템 발견 확률(%)', format: (v) => `마법 아이템 발견 확률 +${v}%` },
   { key: 'gf', label: '골드 발견 확률(%)', format: (v) => `골드 발견 확률 +${v}%` },
   { key: 'lifesteal', label: '공격 시 생명력 흡수(%)', format: (v) => `공격 시 생명력 흡수 +${v}%` },
@@ -163,10 +165,10 @@ export const CUSTOM_OPTION_PRESETS = [
   { key: 'custom', label: '기타 (직접 입력)', freeText: true, placeholder: '예: 베이스 3소켓 크리스 소드' },
 ]
 
-// 무기 베이스로 확정되면 방어구 전용 옵션(방어력 등)을 숨기고, 방어구 베이스면 무기
-// 전용 옵션(인핸스드 데미지 등)을 숨김 - 베이스를 알 수 없으면(우버 재료 등) 전부 노출
-export function optionPresetsFor(item) {
-  const kind = itemBaseKind(item)
+// 무기 베이스로 확정되면 방어구 전용 옵션을 숨기고, 방어구 베이스면 무기 전용 옵션을
+// 숨김 - 베이스를 알 수 없으면(우버 재료 등) 전부 노출. kind는 itemBaseKind() 결과나
+// (아이템 사전에 없는 매직/레어/일반처럼) 사용자가 직접 고른 무기/방어구 값을 받음
+export function optionPresetsFor(kind) {
   if (!kind) return CUSTOM_OPTION_PRESETS
   return CUSTOM_OPTION_PRESETS.filter((p) => !p.restrict || p.restrict === kind)
 }
