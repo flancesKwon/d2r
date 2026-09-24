@@ -219,10 +219,11 @@ function submitPost() {
         </div>
         <div v-else class="item-picker-search-wrap">
           <input
-            type="text" v-model="form.itemName" placeholder="아이템명 검색 (룬·보석·유니크·세트·룬워드·우버보스 재료 전체 검색)"
+            type="text" v-model="form.itemName" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
             class="write-input" @focus="showItemDropdown = true"
             @blur="hideItemDropdownSoon"
           />
+          <div class="item-picker-hint">룬·보석·유니크·세트·룬워드·우버보스 재료를 모두 검색할 수 있어요. 룬워드는 "룬워드"가 아니라 무한·인챈트처럼 완성된 룬워드 이름으로 검색하세요.</div>
           <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
             <button
               type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
@@ -391,6 +392,7 @@ function submitPost() {
 
 .item-picker{position:relative;}
 .item-picker-search-wrap{position:relative;}
+.item-picker-hint{font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.5;}
 .item-picker-selected{
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
   padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
