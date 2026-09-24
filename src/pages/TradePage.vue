@@ -1,4 +1,5 @@
 <script setup>
+import LogoMark from '../components/LogoMark.vue'
 import { ref, computed, watch } from 'vue'
 import {
   tradeState,
@@ -184,7 +185,7 @@ function submitPost() {
   <header>
     <div class="logo">
       <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <span class="logo-mark"></span>디아사전
+        <LogoMark />디아허브
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>거래게시판</b></div>

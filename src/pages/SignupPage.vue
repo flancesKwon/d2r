@@ -1,4 +1,5 @@
 <script setup>
+import LogoMark from '../components/LogoMark.vue'
 import { ref, computed, onBeforeUnmount } from 'vue'
 
 const form = ref({ nickname: '', email: '', password: '', passwordCheck: '', agree: false })
@@ -57,7 +58,7 @@ function onGoogleClick() {
   <header>
     <div class="logo">
       <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <span class="logo-mark"></span>디아사전
+        <LogoMark />디아허브
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>회원가입</b></div>
@@ -66,9 +67,9 @@ function onGoogleClick() {
   <div class="signup-wrap">
     <div class="signup-card">
       <div class="signup-head">
-        <span class="logo-mark signup-mark"></span>
+        <LogoMark :size="26" class="signup-mark" />
         <h1>회원가입</h1>
-        <p>디아사전에 가입하고 빌드·공략을 저장해보세요</p>
+        <p>디아허브에 가입하고 빌드·공략을 저장해보세요</p>
       </div>
 
       <div class="note-box signup-preview-note" v-if="!submitted">디자인 미리보기예요 — 실제 가입 처리는 아직 준비 중이에요.</div>

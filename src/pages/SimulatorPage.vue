@@ -1,4 +1,5 @@
 <script setup>
+import LogoMark from '../components/LogoMark.vue'
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
@@ -534,7 +535,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   <header>
     <div class="logo">
       <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <span class="logo-mark"></span>디아사전
+        <LogoMark />디아허브
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>스킬·스탯 시뮬레이터</b></div>
