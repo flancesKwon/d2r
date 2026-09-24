@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES } from '../tradeStore.js'
+import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import iconsData from '../data/icons.json'
 
@@ -44,6 +44,12 @@ function submitRequest() {
 function changeStatus(e) {
   updateTradeStatus(route.params.id, e.target.value)
 }
+
+function respond(requestId, decision) {
+  respondToRequest(route.params.id, requestId, decision)
+}
+
+const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨' }
 </script>
 
 <template>
@@ -93,10 +99,16 @@ function changeStatus(e) {
     <div class="request-list">
       <div class="request-item" v-for="r in post.requests" :key="r.id">
         <div class="request-top">
-          <b>{{ r.buyer }}</b><span class="request-qty">{{ r.qty }}개 신청</span><span class="request-date">{{ r.date }}</span>
+          <b>{{ r.buyer }}</b><span class="request-qty">{{ r.qty }}개 신청</span>
+          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+          <span class="request-date">{{ r.date }}</span>
         </div>
         <div class="request-contact" v-if="r.contact">연락처: {{ r.contact }}</div>
         <div class="request-message">{{ r.message }}</div>
+        <div class="request-actions" v-if="(r.status || 'pending') === 'pending'">
+          <button type="button" class="request-action-btn accept" @click="respond(r.id, 'accepted')">수락</button>
+          <button type="button" class="request-action-btn decline" @click="respond(r.id, 'declined')">거절</button>
+        </div>
       </div>
       <div class="empty-state" v-if="post.requests.length === 0">아직 구매신청이 없어요</div>
     </div>
@@ -172,9 +184,16 @@ function changeStatus(e) {
 .request-top{display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:6px;}
 .request-top b{color:var(--gold-dim); font-weight:600;}
 .request-qty{color:var(--teal); font-size:11px; border:1px solid var(--teal); padding:2px 9px; border-radius:999px;}
+.request-status{font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
+.request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
+.request-status.status-declined{color:var(--blood); border-color:var(--blood);}
 .request-date{color:var(--text-dim); margin-left:auto;}
 .request-contact{font-size:11.5px; color:var(--text-dim); margin-bottom:6px;}
 .request-message{font-size:13px; color:var(--text-muted); line-height:1.7;}
+.request-actions{display:flex; gap:8px; margin-top:10px;}
+.request-action-btn{font-size:12px; padding:6px 16px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
+.request-action-btn.accept:hover{border-color:var(--gold-dim); color:var(--gold);}
+.request-action-btn.decline:hover{border-color:var(--blood); color:var(--blood);}
 
 .request-form{display:flex; flex-direction:column; gap:12px; max-width:680px; position:relative;}
 .request-form-row{display:flex; gap:8px;}

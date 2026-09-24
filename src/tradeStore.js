@@ -221,7 +221,18 @@ export function addTradeRequest(postId, { buyer, contact, qty, message }) {
     qty: Number(qty) || 1,
     message: message || '',
     date: today(),
+    status: 'pending',
   })
+}
+
+// 판매자가 구매신청을 수락/거절 - 트레더리의 "오퍼 수락" 흐름과 비슷하게, 수락하면
+// 판매중이던 글이 자동으로 예약중으로 넘어가서 다른 구매자에게도 진행 상황이 보임
+export function respondToRequest(postId, requestId, decision) {
+  const post = tradeState.posts.find((p) => p.id === postId)
+  const req = post && post.requests.find((r) => r.id === requestId)
+  if (!req) return
+  req.status = decision
+  if (decision === 'accepted' && post.status === '판매중') post.status = '예약중'
 }
 
 export function updateTradeStatus(postId, status) {
