@@ -23,6 +23,10 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const activeCat = ref(null)
 const activeStatus = ref(null)
+const activeRealm = ref(null)
+const activeLadder = ref(null)
+const activeHardcore = ref(null)
+const etherealOnly = ref(false)
 const searchQuery = ref('')
 const showForm = ref(false)
 
@@ -110,6 +114,10 @@ const filteredPosts = computed(() => {
   let list = tradeState.posts
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
   if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
+  if (activeRealm.value) list = list.filter((p) => p.realm === activeRealm.value)
+  if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
+  if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
+  if (etherealOnly.value) list = list.filter((p) => p.ethereal)
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
@@ -171,6 +179,24 @@ function submitPost() {
         </select>
         <span class="result-count">{{ filteredPosts.length }}개</span>
         <button class="quality-toggle" @click="showForm = !showForm">{{ showForm ? '취소' : '판매글 등록' }}</button>
+      </div>
+      <div class="filter-row">
+        <select v-model="activeRealm" class="sort-select">
+          <option :value="null">전체 서버</option>
+          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ r }}</option>
+        </select>
+        <select v-model="activeLadder" class="sort-select">
+          <option :value="null">레더·논레더 전체</option>
+          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
+        </select>
+        <select v-model="activeHardcore" class="sort-select">
+          <option :value="null">일반·하드코어 전체</option>
+          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
+        </select>
+        <label class="ethereal-filter-check">
+          <input type="checkbox" v-model="etherealOnly" />
+          에테리얼만
+        </label>
       </div>
     </div>
   </div>
@@ -316,6 +342,10 @@ function submitPost() {
   background:var(--panel); border:1px solid var(--border); color:var(--text-muted); font-size:12.5px;
   padding:9px 10px; font-family:'Noto Sans KR', sans-serif;
 }
+
+.filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+.ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
+.ethereal-filter-check input{accent-color:var(--teal);}
 
 .write-form{display:flex; flex-direction:column; gap:10px; max-width:560px;}
 .write-select, .write-input{
