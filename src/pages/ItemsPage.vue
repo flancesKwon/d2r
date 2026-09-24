@@ -26,6 +26,10 @@ function runewordBaseIconUrl(item) {
 function runewordFullAffixes(item) {
   return [...item.affixes, ...runewordRuneAffixes(item, runeLookup)]
 }
+// min~max 범위로 굴러가는(주사위 판정) 옵션인지 - 고정값 옵션과 구분해서 색으로 표시하려고 씀
+function isVariable(a) {
+  return a.min !== undefined && a.max !== undefined && a.min !== '' && a.max !== '' && String(a.min) !== String(a.max)
+}
 function runeIconUrl(runeName) {
   const b64 = icons['invr' + runeName.toLowerCase() + '__rune']
   return b64 ? 'data:image/png;base64,' + b64 : null
@@ -247,7 +251,7 @@ const filteredItems = computed(() => {
             v-for="(a, i) in selected.affixes"
             :key="i"
             class="affix-line"
-            :class="{ unresolved: !a.text }"
+            :class="{ unresolved: !a.text, variable: isVariable(a) }"
           >
             <span class="a-text">{{ a.text || '추가 효과 있음 (텍스트 준비 중)' }}</span>
             <span class="a-raw" v-if="!a.text">{{ a.prop || a.raw || '' }}</span>
@@ -262,7 +266,7 @@ const filteredItems = computed(() => {
                 v-for="(a, i) in selected.extra.set_full_bonus"
                 :key="i"
                 class="affix-line"
-                :class="{ unresolved: !a.text }"
+                :class="{ unresolved: !a.text, variable: isVariable(a) }"
               >
                 <span class="a-text">{{ a.text || '추가 효과 있음 (텍스트 준비 중)' }}</span>
               </div>
@@ -309,7 +313,7 @@ const filteredItems = computed(() => {
             v-for="(a, i) in runewordFullAffixes(selected)"
             :key="i"
             class="affix-line"
-            :class="{ unresolved: !a.text }"
+            :class="{ unresolved: !a.text, variable: isVariable(a) }"
           >
             <span class="a-text">{{ a.text || '추가 효과 있음 (텍스트 준비 중)' }}</span>
             <span class="a-raw" v-if="!a.text">{{ a.prop || a.raw || '' }}</span>
@@ -348,7 +352,7 @@ const filteredItems = computed(() => {
             >
               효과 없음
             </div>
-            <div v-for="(a, i) in selected.extra[slot[1]]" :key="i" class="affix-line">
+            <div v-for="(a, i) in selected.extra[slot[1]]" :key="i" class="affix-line" :class="{ variable: isVariable(a) }">
               <span class="a-text">{{ a.text }}</span>
             </div>
           </div>
