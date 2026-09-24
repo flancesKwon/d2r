@@ -2,7 +2,8 @@
   {
     "id": "t1",
     "category": "룬",
-    "itemName": "이스(Ist) 룬",
+    "itemId": "g58",
+    "itemName": "이스트 룬",
     "amountLabel": "5개",
     "price": "1개당 30만 FG (묶음 구매 시 협의 가능)",
     "realm": "미국동",
@@ -13,7 +14,7 @@
     "date": "2026-09-12",
     "views": 41,
     "status": "판매중",
-    "content": "이스 룬 5개 개별 판매합니다. **묶음 구매 시 개당 할인** 해드려요.\n\n실화만 부탁드려요.",
+    "content": "이스트 룬 5개 개별 판매합니다. **묶음 구매 시 개당 할인** 해드려요.\n\n실화만 부탁드려요.",
     "requests": [
       { "id": 1, "buyer": "본넥유저", "contact": "디스코드: bonnec#0001", "qty": 2, "message": "2개 구매하고 싶어요, 지금 접속 가능하신가요?", "date": "2026-09-12" }
     ]
@@ -21,7 +22,8 @@
   {
     "id": "t2",
     "category": "퍼펙트 보석",
-    "itemName": "퍼펙트 다이아몬드",
+    "itemId": "g24",
+    "itemName": "최상급 다이아몬드",
     "amountLabel": "1스택(40개입)",
     "price": "스택 전체 15만 FG",
     "realm": "아시아",
@@ -38,6 +40,7 @@
   {
     "id": "t3",
     "category": "우버보스 재료",
+    "itemId": null,
     "itemName": "베히모스의 심장 + 미라의 눈물 + 창조의 돌 세트",
     "amountLabel": "3세트",
     "price": "1세트당 이스 룬 3개 교환",
@@ -57,7 +60,8 @@
   {
     "id": "t4",
     "category": "유니크/세트",
-    "itemName": "쉐이코의 마름모꼴 (Shako)",
+    "itemId": "u248",
+    "itemName": "할리퀸 관모",
     "amountLabel": "1개",
     "price": "50만 FG 또는 펄 룬 교환",
     "realm": "미국서",
@@ -68,13 +72,14 @@
     "date": "2026-09-18",
     "views": 19,
     "status": "판매중",
-    "content": "옵션 롤 좋은 쉐이코입니다. 자세한 옵션은 쪽지로 문의 주세요.",
+    "content": "옵션 롤 좋은 쉐이코(할리퀸 관모)입니다. 자세한 옵션은 쪽지로 문의 주세요.",
     "requests": []
   },
   {
     "id": "t5",
     "category": "룬워드",
-    "itemName": "인페르노(Infinity) 룬워드 창",
+    "itemId": "r37",
+    "itemName": "무한",
     "amountLabel": "1개",
     "price": "베르 룬 1개 + 미라의 눈물",
     "realm": "미국동",
@@ -85,12 +90,13 @@
     "date": "2026-09-19",
     "views": 12,
     "status": "판매중",
-    "content": "베이스 아이템은 3소켓 크리스 소드입니다. 완성품 그대로 드려요.",
+    "content": "무한(Infinity) 룬워드 창입니다. 베이스 아이템은 3소켓 크리스 소드입니다. 완성품 그대로 드려요.",
     "requests": []
   },
   {
     "id": "t6",
     "category": "기타",
+    "itemId": null,
     "itemName": "잊혀진 영혼(Forgotten Souls) 대량",
     "amountLabel": "10묶음(100개입)",
     "price": "묶음당 5000골드 상당 물물교환",

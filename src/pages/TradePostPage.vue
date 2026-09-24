@@ -1,12 +1,19 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, updateTradeStatus, TRADE_STATUSES } from '../tradeStore.js'
+import { getTradePost, addTradeRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
+import iconsData from '../data/icons.json'
 
 const route = useRoute()
 const post = computed(() => getTradePost(route.params.id))
 const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
+const linkedItem = computed(() => (post.value ? getTradeItem(post.value.itemId) : null))
+
+function iconUrlFor(iconKey) {
+  const b64 = iconKey && iconsData[iconKey]
+  return b64 ? 'data:image/png;base64,' + b64 : null
+}
 
 const reqBuyer = ref('')
 const reqContact = ref('')
@@ -51,6 +58,9 @@ function changeStatus(e) {
   <div class="grid-wrap trade-detail-wrap">
     <div class="d-eyebrow">{{ post.category }}</div>
     <div class="trade-title-line">
+      <span class="trade-title-icon" v-if="linkedItem">
+        <img v-if="iconUrlFor(linkedItem.icon_key)" :src="iconUrlFor(linkedItem.icon_key)" alt="" />
+      </span>
       <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
       <select class="status-select" :class="'status-' + post.status" :value="post.status" @change="changeStatus">
         <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
@@ -105,6 +115,11 @@ function changeStatus(e) {
 <style scoped>
 .trade-detail-wrap{max-width:720px;}
 .trade-title-line{display:flex; align-items:center; gap:12px; margin:10px 0 8px;}
+.trade-title-icon{
+  width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft);
+}
+.trade-title-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-post-title{font-size:24px; margin:0;}
 .trade-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:18px;}
 

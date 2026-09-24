@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   tradeState,
   TRADE_CATEGORIES,
@@ -9,7 +9,11 @@ import {
   TRADE_HARDCORE,
   UNIT_PRESETS,
   addTradePost,
+  itemDbSupportsCategory,
+  searchTradeItems,
+  getTradeItem,
 } from '../tradeStore.js'
+import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const activeCat = ref(null)
@@ -19,6 +23,7 @@ const showForm = ref(false)
 
 const emptyForm = () => ({
   category: TRADE_CATEGORIES[0],
+  itemId: null,
   itemName: '',
   amountLabel: '',
   price: '',
@@ -32,6 +37,42 @@ const emptyForm = () => ({
 const form = ref(emptyForm())
 
 const unitOptions = computed(() => UNIT_PRESETS[form.value.category] || ['1개'])
+
+const hasItemDb = computed(() => itemDbSupportsCategory(form.value.category))
+const itemSearch = ref('')
+const showItemDropdown = ref(false)
+const itemCandidates = computed(() => searchTradeItems(form.value.category, itemSearch.value))
+const selectedItem = computed(() => getTradeItem(form.value.itemId))
+
+function iconUrlFor(iconKey) {
+  const b64 = iconKey && iconsData[iconKey]
+  return b64 ? 'data:image/png;base64,' + b64 : null
+}
+
+function pickItem(it) {
+  form.value.itemId = it.id
+  form.value.itemName = it.name_ko
+  itemSearch.value = ''
+  showItemDropdown.value = false
+}
+
+function clearPickedItem() {
+  form.value.itemId = null
+  form.value.itemName = ''
+}
+
+function hideItemDropdownSoon() {
+  window.setTimeout(() => (showItemDropdown.value = false), 150)
+}
+
+watch(
+  () => form.value.category,
+  () => {
+    form.value.itemId = null
+    form.value.itemName = ''
+    itemSearch.value = ''
+  }
+)
 
 const filteredPosts = computed(() => {
   let list = tradeState.posts
@@ -101,7 +142,37 @@ function submitPost() {
         <select v-model="form.category" class="write-select">
           <option v-for="c in TRADE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
         </select>
-        <input type="text" v-model="form.itemName" placeholder="아이템명 (예: 이스 룬, 쉐이코)" class="write-input trade-item-input" />
+
+        <input
+          v-if="!hasItemDb"
+          type="text" v-model="form.itemName" placeholder="아이템명 (예: 다이아블로의 뿔)"
+          class="write-input trade-item-input"
+        />
+
+        <div v-else class="item-picker trade-item-input">
+          <div v-if="selectedItem" class="item-picker-selected">
+            <span class="item-picker-icon"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
+            <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
+            <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
+          </div>
+          <div v-else class="item-picker-search-wrap">
+            <input
+              type="text" v-model="itemSearch" placeholder="아이템 사전에서 검색 (예: 이스트, 할리퀸)"
+              class="write-input" @focus="showItemDropdown = true"
+              @blur="hideItemDropdownSoon"
+            />
+            <div class="item-picker-dropdown" v-if="showItemDropdown">
+              <button
+                type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
+                @mousedown.prevent="pickItem(it)"
+              >
+                <span class="item-picker-icon"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+              </button>
+              <p class="item-picker-empty" v-if="!itemCandidates.length">검색 결과가 없어요</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="trade-form-row">
@@ -143,6 +214,9 @@ function submitPost() {
   <div class="grid-wrap trade-list-wrap">
     <div class="trade-list">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+        <span class="trade-row-icon" v-if="p.itemId">
+          <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
+        </span>
         <span class="trade-cat">{{ p.category }}</span>
         <div class="trade-body">
           <div class="trade-title-row">
@@ -183,6 +257,39 @@ function submitPost() {
 .trade-unit-input{flex:1;}
 .trade-meta-select{flex:1; width:auto;}
 .unit-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
+
+.item-picker{position:relative;}
+.item-picker-search-wrap{position:relative;}
+.item-picker-selected{
+  display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
+  padding:6px 10px; height:41px; box-sizing:border-box;
+}
+.item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
+.item-picker-clear:hover{color:var(--blood);}
+.item-picker-dropdown{
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:280px; overflow-y:auto;
+  background:var(--panel-2); border:1px solid var(--border); box-shadow:0 8px 20px rgba(0,0,0,0.5);
+}
+.item-picker-row{
+  display:flex; align-items:center; gap:8px; width:100%; padding:8px 10px; text-align:left;
+  border-bottom:1px solid var(--border-soft); font-family:'Noto Sans KR', sans-serif;
+}
+.item-picker-row:last-child{border-bottom:none;}
+.item-picker-row:hover{background:rgba(255,255,255,0.06);}
+.item-picker-icon{
+  width:26px; height:26px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel); border:1px solid var(--border-soft);
+}
+.item-picker-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
+.item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
+
+.trade-row-icon{
+  width:36px; height:36px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft); margin-top:1px;
+}
+.trade-row-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 
 .trade-list-wrap{max-width:900px;}
 .trade-list{display:flex; flex-direction:column;}
