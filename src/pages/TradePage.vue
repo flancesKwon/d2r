@@ -12,6 +12,10 @@ import {
   itemDbSupportsCategory,
   searchTradeItems,
   getTradeItem,
+  categoryHasUnit,
+  getItemAffixes,
+  isRollRangeAffix,
+  resolveAffixText,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
@@ -39,10 +43,13 @@ const form = ref(emptyForm())
 const unitOptions = computed(() => UNIT_PRESETS[form.value.category] || ['1개'])
 
 const hasItemDb = computed(() => itemDbSupportsCategory(form.value.category))
+const hasUnit = computed(() => categoryHasUnit(form.value.category))
 const itemSearch = ref('')
 const showItemDropdown = ref(false)
 const itemCandidates = computed(() => searchTradeItems(form.value.category, itemSearch.value))
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
+const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
+const rolledValues = ref({})
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -54,11 +61,13 @@ function pickItem(it) {
   form.value.itemName = it.name_ko
   itemSearch.value = ''
   showItemDropdown.value = false
+  rolledValues.value = {}
 }
 
 function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
+  rolledValues.value = {}
 }
 
 function hideItemDropdownSoon() {
@@ -67,10 +76,12 @@ function hideItemDropdownSoon() {
 
 watch(
   () => form.value.category,
-  () => {
+  (cat) => {
     form.value.itemId = null
     form.value.itemName = ''
     itemSearch.value = ''
+    rolledValues.value = {}
+    form.value.amountLabel = categoryHasUnit(cat) ? '' : '1개'
   }
 )
 
@@ -89,8 +100,12 @@ const filteredPosts = computed(() => {
 
 function submitPost() {
   if (!form.value.itemName.trim() || !form.value.amountLabel.trim() || !form.value.price.trim()) return
-  addTradePost({ ...form.value })
+  const options = itemAffixes.value.map((a, i) =>
+    isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
+  )
+  addTradePost({ ...form.value, options })
   form.value = emptyForm()
+  rolledValues.value = {}
   showForm.value = false
 }
 </script>
@@ -175,16 +190,34 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="trade-form-row">
-        <input
-          type="text" v-model="form.amountLabel" placeholder="판매 수량/단위 (예: 5개, 10개입 묶음, 1스택(40개입), 3세트)"
-          class="write-input trade-unit-input" list="trade-unit-presets"
-        />
-        <datalist id="trade-unit-presets">
-          <option v-for="u in unitOptions" :key="u" :value="u" />
-        </datalist>
+      <template v-if="hasUnit">
+        <div class="trade-form-row">
+          <input
+            type="text" v-model="form.amountLabel" placeholder="판매 수량/단위 (예: 5개, 10개입 묶음, 1스택(40개입), 3세트)"
+            class="write-input trade-unit-input" list="trade-unit-presets"
+          />
+          <datalist id="trade-unit-presets">
+            <option v-for="u in unitOptions" :key="u" :value="u" />
+          </datalist>
+        </div>
+        <div class="unit-hint">수량과 단위를 자유롭게 정해서 적으면 돼요. 예: "{{ unitOptions.join('", "') }}"</div>
+      </template>
+      <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
+
+      <div class="option-editor" v-if="itemAffixes.length">
+        <div class="option-editor-title">실제 옵션 값 입력</div>
+        <div class="option-editor-hint">범위로 나오는 옵션은 이 아이템에 실제로 뜬 값을 직접 입력해주세요. 비워두면 범위 그대로 표시돼요.</div>
+        <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
+          <template v-if="isRollRangeAffix(a)">
+            <span class="option-text">{{ a.text }}</span>
+            <input
+              type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
+              class="write-input option-value-input"
+            />
+          </template>
+          <span class="option-text fixed" v-else>{{ a.text }}</span>
+        </div>
       </div>
-      <div class="unit-hint">수량과 단위를 자유롭게 정해서 적으면 돼요. 예: "{{ unitOptions.join('", "') }}"</div>
 
       <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 1개당 30만 FG, 이스 룬 교환)" class="write-input" />
 
@@ -284,6 +317,14 @@ function submitPost() {
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
 .item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
+
+.option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:12px 14px; display:flex; flex-direction:column; gap:8px;}
+.option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
+.option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
+.option-row{display:flex; align-items:center; gap:10px;}
+.option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
+.option-text.fixed{color:var(--text-dim);}
+.option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none;}
 
 .trade-row-icon{
   width:36px; height:36px; flex:none; display:flex; align-items:center; justify-content:center;

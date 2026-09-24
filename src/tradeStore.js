@@ -1,8 +1,40 @@
 import { reactive } from 'vue'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
+import { buildRuneLookup, runewordRuneAffixes } from './itemStats.js'
 
 export { itemsData }
+
+const runeLookup = buildRuneLookup(itemsData)
+
+// 룬워드는 고유 옵션(affixes) + 박힌 룬들 자체 효과가 합쳐져서 최종 옵션이 됨(아이템
+// 사전 페이지와 동일한 로직). 유니크·세트는 affixes 그대로.
+export function getItemAffixes(item) {
+  if (!item) return []
+  if (item.category === 'runeword') return [...item.affixes, ...runewordRuneAffixes(item, runeLookup)]
+  return item.affixes || []
+}
+
+// min~max 범위로 굴러가는 옵션인지 - 판매자가 실제 아이템에 뜬 값을 직접 입력하게
+// 하려고 구분함. 충전형 스킬(레벨/충전 횟수처럼 min!==max지만 실제로는 두 값 다 고정인
+// 경우)은 text에 "min~max" 패턴이 그대로 없으므로 자연히 제외됨
+export function isRollRangeAffix(a) {
+  if (!a || a.min === undefined || a.max === undefined || a.min === '' || a.max === '') return false
+  if (String(a.min) === String(a.max)) return false
+  return typeof a.text === 'string' && a.text.includes(`${a.min}~${a.max}`)
+}
+
+export function resolveAffixText(a, rolledValue) {
+  if (rolledValue === undefined || rolledValue === null || rolledValue === '') return a.text
+  return a.text.replace(`${a.min}~${a.max}`, String(rolledValue))
+}
+
+// 룬·퍼펙트 보석만 "판매 수량/단위"를 자유롭게 정함 - 장비(유니크·세트·룬워드)나
+// 우버보스 재료·기타는 낱개(1개) 단위로 취급
+export const UNIT_CATEGORIES = ['룬', '퍼펙트 보석']
+export function categoryHasUnit(category) {
+  return UNIT_CATEGORIES.includes(category)
+}
 
 export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '유니크/세트', '룬워드', '기타']
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
@@ -73,6 +105,7 @@ export function addTradePost({
   author,
   contact,
   content,
+  options,
 }) {
   const post = {
     id: 't-new-' + nextPostId++,
@@ -80,6 +113,7 @@ export function addTradePost({
     itemId: itemId || null,
     itemName,
     amountLabel,
+    options: options || [],
     price,
     realm,
     ladder,

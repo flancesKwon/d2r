@@ -75,6 +75,11 @@ function changeStatus(e) {
       <div class="trade-info-row"><span class="k">연락처</span><span class="v">{{ post.contact || '게시글로 문의' }}</span></div>
     </div>
 
+    <div class="trade-options-card" v-if="post.options && post.options.length">
+      <div class="d-section-title">아이템 옵션</div>
+      <div class="trade-option-line" v-for="(o, i) in post.options" :key="i">{{ o }}</div>
+    </div>
+
     <div class="trade-post-content" v-html="contentHtml"></div>
 
     <div class="d-section-title">구매신청 {{ post.requests.length }}건</div>
@@ -135,6 +140,10 @@ function changeStatus(e) {
 .trade-info-row{display:flex; gap:10px; font-size:13px;}
 .trade-info-row .k{color:var(--text-dim); flex:none; width:88px;}
 .trade-info-row .v{color:var(--text);}
+
+.trade-options-card{border:1px solid var(--border-soft); background:var(--panel); padding:14px 18px; margin-bottom:22px;}
+.trade-options-card .d-section-title{margin-bottom:8px;}
+.trade-option-line{font-size:12.5px; color:var(--text-muted); line-height:1.7;}
 
 .trade-post-content{
   font-size:14px; line-height:1.8; color:var(--text);
