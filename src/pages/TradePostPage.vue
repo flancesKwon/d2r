@@ -1,9 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES } from '../tradeStore.js'
+import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import iconsData from '../data/icons.json'
+import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
 const route = useRoute()
 const post = computed(() => getTradePost(route.params.id))
@@ -44,6 +45,12 @@ function submitRequest() {
 function changeStatus(e) {
   updateTradeStatus(route.params.id, e.target.value)
 }
+
+function respond(requestId, decision) {
+  respondToRequest(route.params.id, requestId, decision)
+}
+
+const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨' }
 </script>
 
 <template>
@@ -71,12 +78,24 @@ function changeStatus(e) {
         <select class="status-select" :class="'status-' + post.status" :value="post.status" @change="changeStatus">
           <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
         </select>
+        <button
+          type="button" class="favorite-star" :class="{ active: isFavorite(post.id) }"
+          :title="isFavorite(post.id) ? '찜 해제' : '찜하기'"
+          @click="toggleFavorite(post.id)"
+        >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">{{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
 
       <div class="trade-info-card">
         <div class="trade-info-row"><span class="k">수량 / 단위</span><span class="v">{{ post.amountLabel }}</span></div>
-        <div class="trade-info-row"><span class="k">희망 가격</span><span class="v">{{ post.price }}</span></div>
+        <div class="trade-info-row">
+          <span class="k">희망 가격</span>
+          <span class="v">
+            <template v-for="(t, i) in parsePriceTokens(post.price)" :key="i">
+              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+            </template>
+          </span>
+        </div>
         <div class="trade-info-row"><span class="k">서버</span><span class="v">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</span></div>
         <div class="trade-info-row"><span class="k">연락처</span><span class="v">{{ post.contact || '게시글로 문의' }}</span></div>
       </div>
@@ -93,10 +112,16 @@ function changeStatus(e) {
     <div class="request-list">
       <div class="request-item" v-for="r in post.requests" :key="r.id">
         <div class="request-top">
-          <b>{{ r.buyer }}</b><span class="request-qty">{{ r.qty }}개 신청</span><span class="request-date">{{ r.date }}</span>
+          <b>{{ r.buyer }}</b><span class="request-qty">{{ r.qty }}개 신청</span>
+          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+          <span class="request-date">{{ r.date }}</span>
         </div>
         <div class="request-contact" v-if="r.contact">연락처: {{ r.contact }}</div>
         <div class="request-message">{{ r.message }}</div>
+        <div class="request-actions" v-if="(r.status || 'pending') === 'pending'">
+          <button type="button" class="request-action-btn accept" @click="respond(r.id, 'accepted')">수락</button>
+          <button type="button" class="request-action-btn decline" @click="respond(r.id, 'declined')">거절</button>
+        </div>
       </div>
       <div class="empty-state" v-if="post.requests.length === 0">아직 구매신청이 없어요</div>
     </div>
@@ -144,6 +169,13 @@ function changeStatus(e) {
 
 .ethereal-badge{font-size:10.5px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
 
+.favorite-star{
+  font-size:24px; line-height:1; color:var(--text-dim); flex:none; margin-left:auto; padding:2px;
+  transition:color .1s, transform .1s;
+}
+.favorite-star:hover{color:var(--gold-dim); transform:scale(1.15);}
+.favorite-star.active{color:var(--gold);}
+
 .status-select{
   font-size:12px; padding:7px 12px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim);
   font-family:'Noto Sans KR', sans-serif; cursor:pointer; border-radius:999px;
@@ -156,6 +188,8 @@ function changeStatus(e) {
 .trade-info-row{display:flex; gap:10px; font-size:13px;}
 .trade-info-row .k{color:var(--text-dim); flex:none; width:88px;}
 .trade-info-row .v{color:var(--text);}
+.price-icon{display:inline-flex; width:16px; height:16px; vertical-align:-3px; margin:0 2px 0 3px;}
+.price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 
 .trade-options-card{border:1px solid var(--border-soft); background:var(--panel-2); padding:18px 22px; margin-bottom:22px; border-radius:14px;}
 .trade-options-card .d-section-title{margin-bottom:10px;}
@@ -172,9 +206,16 @@ function changeStatus(e) {
 .request-top{display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:6px;}
 .request-top b{color:var(--gold-dim); font-weight:600;}
 .request-qty{color:var(--teal); font-size:11px; border:1px solid var(--teal); padding:2px 9px; border-radius:999px;}
+.request-status{font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
+.request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
+.request-status.status-declined{color:var(--blood); border-color:var(--blood);}
 .request-date{color:var(--text-dim); margin-left:auto;}
 .request-contact{font-size:11.5px; color:var(--text-dim); margin-bottom:6px;}
 .request-message{font-size:13px; color:var(--text-muted); line-height:1.7;}
+.request-actions{display:flex; gap:8px; margin-top:10px;}
+.request-action-btn{font-size:12px; padding:6px 16px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
+.request-action-btn.accept:hover{border-color:var(--gold-dim); color:var(--gold);}
+.request-action-btn.decline:hover{border-color:var(--blood); color:var(--blood);}
 
 .request-form{display:flex; flex-direction:column; gap:12px; max-width:680px; position:relative;}
 .request-form-row{display:flex; gap:8px;}

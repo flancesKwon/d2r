@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   tradeState,
   TRADE_CATEGORIES,
@@ -7,20 +7,21 @@ import {
   TRADE_REALMS,
   TRADE_LADDERS,
   TRADE_HARDCORE,
-  UNIT_TYPE_OPTIONS,
   buildAmountLabel,
-  CUSTOM_OPTION_PRESETS,
+  optionPresetsFor,
   addTradePost,
   searchAllItems,
   tradeCategoryForItem,
   getTradeItem,
-  categoryHasUnit,
+  categoryHasQuantity,
   categorySupportsEthereal,
   getItemAffixes,
   isRollRangeAffix,
   resolveAffixText,
+  parsePriceTokens,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
+import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const activeCat = ref(null)
@@ -28,15 +29,40 @@ const activeStatus = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
+const favoritesOnly = ref(false)
 const searchQuery = ref('')
 const showForm = ref(false)
 
+// 트레더리처럼 아이콘 위주로 훑어보고 싶을 때는 그리드로, 옵션·메모까지 자세히
+// 보고 싶을 때는 리스트로 - 마지막으로 고른 보기 방식을 기억해둠
+const VIEW_MODE_KEY = 'd2r-trade-view-mode'
+function loadViewMode() {
+  try {
+    const saved = localStorage.getItem(VIEW_MODE_KEY)
+    return saved === 'grid' ? 'grid' : 'list'
+  } catch {
+    return 'list'
+  }
+}
+const viewMode = ref(loadViewMode())
+function setViewMode(mode) {
+  viewMode.value = mode
+  try {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  } catch {
+    // 프라이빗 창 등 localStorage를 못 쓰는 환경 - 이번 세션 안에서만 유지됨
+  }
+}
+
+// 카테고리는 더 이상 직접 고르지 않고 아이템 검색으로 자동 결정됨. 사전에 없는
+// 아이템(매직/레어/일반, 기타)만 검색 결과가 없을 때 뜨는 버튼으로 고를 수 있음
+const FALLBACK_CATEGORIES = ['매직/레어/일반', '기타']
+
 const emptyForm = () => ({
-  category: TRADE_CATEGORIES[0],
+  category: FALLBACK_CATEGORIES[0],
   itemId: null,
   itemName: '',
-  unitType: UNIT_TYPE_OPTIONS[TRADE_CATEGORIES[0]]?.[0] || '',
-  unitCount: '',
+  quantity: '',
   ethereal: false,
   price: '',
   realm: TRADE_REALMS[0],
@@ -48,21 +74,29 @@ const emptyForm = () => ({
 })
 const form = ref(emptyForm())
 
-const unitTypeOptions = computed(() => UNIT_TYPE_OPTIONS[form.value.category] || [])
-
-const hasUnit = computed(() => categoryHasUnit(form.value.category))
+const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
 const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
 const showItemDropdown = ref(false)
-// 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드)에서
-// 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 사전에 없으면 그냥 입력한 텍스트 그대로 등록
+// 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
+// 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
+// (매직/레어/일반, 기타처럼 매번 랜덤하거나 목록화가 불가능한 경우) 직접 입력한 이름 그대로 등록
 const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(form.value.itemName)))
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
 const customOptions = ref([])
-const customOptionType = ref(CUSTOM_OPTION_PRESETS[0].key)
+// 룬워드/유니크·세트는 베이스가 무기냐 방어구냐에 따라 실제로 붙을 수 있는 옵션이
+// 다르므로, 고른 아이템에 맞는 옵션만 콤보박스에 노출함
+const availableOptionPresets = computed(() => optionPresetsFor(selectedItem.value))
+const customOptionType = ref(availableOptionPresets.value[0].key)
 const customOptionValue = ref('')
-const selectedOptionPreset = computed(() => CUSTOM_OPTION_PRESETS.find((p) => p.key === customOptionType.value))
+const selectedOptionPreset = computed(
+  () => availableOptionPresets.value.find((p) => p.key === customOptionType.value) || availableOptionPresets.value[0]
+)
+
+watch(availableOptionPresets, (list) => {
+  if (!list.some((p) => p.key === customOptionType.value)) customOptionType.value = list[0].key
+})
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -75,12 +109,6 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-function resetUnitFields() {
-  const opts = UNIT_TYPE_OPTIONS[form.value.category]
-  form.value.unitType = opts ? opts[0] : ''
-  form.value.unitCount = ''
-}
-
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
@@ -88,7 +116,7 @@ function pickItem(it) {
   if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
-  resetUnitFields()
+  form.value.quantity = ''
 }
 
 function clearPickedItem() {
@@ -101,12 +129,8 @@ function hideItemDropdownSoon() {
   window.setTimeout(() => (showItemDropdown.value = false), 150)
 }
 
-function onCategoryManualChange() {
-  form.value.itemId = null
-  form.value.itemName = ''
-  rolledValues.value = {}
-  customOptions.value = []
-  resetUnitFields()
+function pickFallbackCategory(cat) {
+  form.value.category = cat
 }
 
 function addCustomOption() {
@@ -128,6 +152,7 @@ const filteredPosts = computed(() => {
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
+  if (favoritesOnly.value) list = list.filter((p) => isFavorite(p.id))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
@@ -138,7 +163,7 @@ const filteredPosts = computed(() => {
 })
 
 function submitPost() {
-  const amountLabel = hasUnit.value ? buildAmountLabel(form.value.unitType, form.value.unitCount) : '1개'
+  const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
   if (!form.value.itemName.trim() || !amountLabel.trim() || !form.value.price.trim()) return
   const dbOptions = itemAffixes.value.map((a, i) =>
     isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
@@ -148,7 +173,7 @@ function submitPost() {
   form.value = emptyForm()
   rolledValues.value = {}
   customOptions.value = []
-  customOptionType.value = CUSTOM_OPTION_PRESETS[0].key
+  customOptionType.value = availableOptionPresets.value[0].key
   customOptionValue.value = ''
   showForm.value = false
 }
@@ -190,6 +215,10 @@ function submitPost() {
           <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
         </select>
         <span class="result-count">{{ filteredPosts.length }}개</span>
+        <div class="view-mode-toggle">
+          <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" @click="setViewMode('list')">☰</button>
+          <button type="button" :class="{ active: viewMode === 'grid' }" title="그리드형" @click="setViewMode('grid')">▦</button>
+        </div>
         <button class="quality-toggle" @click="showForm = !showForm">{{ showForm ? '취소' : '판매글 등록' }}</button>
       </div>
       <div class="filter-row">
@@ -205,38 +234,45 @@ function submitPost() {
           <input type="checkbox" v-model="etherealOnly" />
           에테리얼만
         </label>
+        <label class="ethereal-filter-check favorite-filter-check">
+          <input type="checkbox" v-model="favoritesOnly" />
+          찜한 글만
+        </label>
       </div>
     </div>
   </div>
 
   <div class="quality-info" v-if="showForm">
     <div class="quality-info-inner write-form trade-write-form">
-      <div class="trade-form-row">
-        <select v-model="form.category" class="write-select" @change="onCategoryManualChange">
-          <option v-for="c in TRADE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
-        </select>
-
-        <div class="item-picker trade-item-input">
-          <div v-if="selectedItem" class="item-picker-selected">
-            <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
-            <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
-            <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
-          </div>
-          <div v-else class="item-picker-search-wrap">
-            <input
-              type="text" v-model="form.itemName" placeholder="아이템명 검색 (사전에 없으면 직접 입력한 이름 그대로 등록돼요)"
-              class="write-input" @focus="showItemDropdown = true"
-              @blur="hideItemDropdownSoon"
-            />
-            <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
-              <button
-                type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
-                @mousedown.prevent="pickItem(it)"
-              >
-                <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
-              </button>
-              <p class="item-picker-empty" v-if="!itemCandidates.length">사전에 없는 아이템이에요. 이 이름 그대로 등록돼요.</p>
+      <div class="item-picker trade-item-input">
+        <div v-if="selectedItem" class="item-picker-selected">
+          <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
+          <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
+          <span class="item-picker-cat">{{ form.category }}</span>
+          <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
+        </div>
+        <div v-else class="item-picker-search-wrap">
+          <input
+            type="text" v-model="form.itemName" placeholder="아이템명 검색 (룬·보석·유니크·세트·룬워드·우버보스 재료 전체 검색)"
+            class="write-input" @focus="showItemDropdown = true"
+            @blur="hideItemDropdownSoon"
+          />
+          <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
+            <button
+              type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
+              @mousedown.prevent="pickItem(it)"
+            >
+              <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+              <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+            </button>
+            <div class="item-picker-empty-block" v-if="!itemCandidates.length">
+              <p class="item-picker-empty">사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.</p>
+              <div class="fallback-cat-row">
+                <button
+                  type="button" v-for="c in FALLBACK_CATEGORIES" :key="c"
+                  :class="{ active: form.category === c }" @mousedown.prevent="pickFallbackCategory(c)"
+                >{{ c }}</button>
+              </div>
             </div>
           </div>
         </div>
@@ -247,17 +283,12 @@ function submitPost() {
         에테리얼(Ethereal) 아이템이에요
       </label>
 
-      <template v-if="hasUnit">
-        <div class="trade-form-row">
-          <select v-model="form.unitType" class="write-select trade-meta-select">
-            <option v-for="u in unitTypeOptions" :key="u" :value="u">{{ u }}</option>
-          </select>
-          <input
-            type="number" min="1" v-model="form.unitCount" placeholder="개수"
-            class="write-input trade-unit-count-input"
-          />
-        </div>
-        <div class="unit-hint">단위를 고르고 개수를 입력하세요. 예: "{{ form.unitCount || 3 }}{{ form.unitType }}"</div>
+      <template v-if="hasQuantity">
+        <input
+          type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
+          class="write-input trade-quantity-input"
+        />
+        <div class="unit-hint">개수만 입력하면 "N개"로 등록돼요.</div>
       </template>
       <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
 
@@ -278,14 +309,14 @@ function submitPost() {
 
       <div class="option-editor">
         <div class="option-editor-title">옵션 직접 추가</div>
-        <div class="option-editor-hint">룬워드는 박힌 룬 효과 말고도 베이스로 쓴 무기·방어구 자체의 옵션(방어력, 인핸스드 데미지 등)이 실거래가에 큰 영향을 줘요. 종류를 고르고 값을 입력해서 추가하세요.</div>
+        <div class="option-editor-hint">룬워드는 박힌 룬 효과 말고도 베이스로 쓴 무기·방어구 자체의 옵션이 실거래가에 큰 영향을 줘요. 종류를 고르고 값을 입력해서 추가하세요 (무기/방어구 베이스에 맞는 옵션만 나와요).</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
           <span>{{ o }}</span>
           <button type="button" @click="removeCustomOption(i)">✕</button>
         </div>
         <div class="custom-option-add-row">
           <select v-model="customOptionType" class="write-select custom-option-type-select">
-            <option v-for="p in CUSTOM_OPTION_PRESETS" :key="p.key" :value="p.key">{{ p.label }}</option>
+            <option v-for="p in availableOptionPresets" :key="p.key" :value="p.key">{{ p.label }}</option>
           </select>
           <input
             :type="selectedOptionPreset.freeText ? 'text' : 'number'"
@@ -321,8 +352,13 @@ function submitPost() {
   </div>
 
   <div class="grid-wrap trade-list-wrap">
-    <div class="trade-list">
+    <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+        <button
+          type="button" class="favorite-star" :class="{ active: isFavorite(p.id) }"
+          :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
+          @click.prevent.stop="toggleFavorite(p.id)"
+        >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-row-icon" :class="rarityClass(getTradeItem(p.itemId))">
           <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
         </span>
@@ -334,13 +370,44 @@ function submitPost() {
             <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span>
           </div>
           <div class="trade-meta">
-            {{ p.amountLabel }} · {{ p.price }}
+            {{ p.amountLabel }} ·
+            <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
+              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+            </template>
           </div>
           <div class="trade-sub-meta">
             {{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · {{ p.author }} · {{ p.date }}
           </div>
         </div>
         <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
+      </router-link>
+      <div class="empty-state" v-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
+    </div>
+
+    <div class="trade-grid" v-else>
+      <router-link class="trade-card" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+        <button
+          type="button" class="favorite-star trade-card-star" :class="{ active: isFavorite(p.id) }"
+          :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
+          @click.prevent.stop="toggleFavorite(p.id)"
+        >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
+        <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
+        <span class="trade-card-icon" :class="rarityClass(getTradeItem(p.itemId))">
+          <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
+        </span>
+        <span class="trade-cat trade-card-cat">{{ p.category }}</span>
+        <span class="trade-card-title">{{ p.itemName }}</span>
+        <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
+        <span class="trade-card-price">
+          {{ p.amountLabel }} ·
+          <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
+            <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+          </template>
+        </span>
+        <span class="trade-card-footer">
+          {{ p.author }} · {{ p.date }}
+          <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
+        </span>
       </router-link>
       <div class="empty-state" v-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
     </div>
@@ -362,6 +429,8 @@ function submitPost() {
 .filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
 .ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
 .ethereal-filter-check input{accent-color:var(--teal);}
+.favorite-filter-check{color:var(--gold);}
+.favorite-filter-check input{accent-color:var(--gold);}
 
 .write-form{display:flex; flex-direction:column; gap:12px; max-width:1180px;}
 .write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
@@ -374,7 +443,7 @@ function submitPost() {
 
 .trade-form-row{display:flex; gap:8px;}
 .trade-item-input{flex:1;}
-.trade-unit-count-input{width:140px;}
+.trade-quantity-input{width:160px;}
 .trade-meta-select{flex:1; width:auto;}
 .unit-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
 
@@ -384,6 +453,7 @@ function submitPost() {
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
   padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
 }
+.item-picker-cat{font-size:10.5px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 10px; border-radius:999px; flex:none;}
 .item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
 .item-picker-dropdown{
@@ -407,7 +477,14 @@ function submitPost() {
 .item-picker-icon.gem{border-color:var(--teal); box-shadow:0 0 8px -2px rgba(78,138,138,0.5);}
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
-.item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
+.item-picker-empty-block{padding:14px;}
+.item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
+.fallback-cat-row{display:flex; justify-content:center; gap:8px;}
+.fallback-cat-row button{
+  font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:7px 16px; border-radius:999px;
+}
+.fallback-cat-row button:hover{border-color:var(--gold-dim); color:var(--gold);}
+.fallback-cat-row button.active{color:var(--gold); border-color:var(--gold-dim); background:var(--panel);}
 
 .option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
@@ -432,6 +509,13 @@ function submitPost() {
 .custom-option-value-input{flex:1;}
 .custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
 .custom-option-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+
+.favorite-star{
+  font-size:20px; line-height:1; color:var(--text-dim); flex:none; padding:2px; margin-top:2px;
+  transition:color .1s, transform .1s;
+}
+.favorite-star:hover{color:var(--gold-dim); transform:scale(1.15);}
+.favorite-star.active{color:var(--gold);}
 
 .trade-row-icon{
   width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
@@ -461,6 +545,45 @@ function submitPost() {
 .trade-status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}
 .trade-status-badge.status-거래완료{color:var(--text-dim); border-color:var(--border);}
 .trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:6px;}
+.price-icon{display:inline-flex; width:15px; height:15px; vertical-align:-3px; margin:0 2px 0 3px;}
+.price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 .trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
+
+.view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
+.view-mode-toggle button{
+  font-size:14px; padding:8px 12px; color:var(--text-dim); background:var(--panel); line-height:1;
+}
+.view-mode-toggle button + button{border-left:1px solid var(--border);}
+.view-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
+
+.trade-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:16px;
+}
+.trade-card{
+  position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
+  padding:22px 16px 16px; border-radius:16px; background:var(--panel); border:1px solid var(--border-soft);
+  transition:transform .15s, box-shadow .15s, border-color .15s;
+}
+.trade-card:hover{transform:translateY(-3px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
+.trade-card-star{position:absolute; top:10px; right:12px; margin:0;}
+.trade-card-status{position:absolute; top:12px; left:12px; margin:0;}
+.trade-card-icon{
+  width:64px; height:64px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft); border-radius:12px; margin-top:8px;
+}
+.trade-card-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.trade-card-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 12px -3px rgba(200,163,77,0.5);}
+.trade-card-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
+.trade-card-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
+.trade-card-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
+.trade-card-cat{margin-top:4px;}
+.trade-card-title{
+  font-size:13.5px; color:var(--text); width:100%; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; margin-top:2px;
+}
+.trade-card-price{font-size:12px; color:var(--text-muted); line-height:1.6;}
+.trade-card-footer{
+  font-size:10.5px; color:var(--text-dim); display:flex; align-items:center; gap:6px; margin-top:4px;
+}
 </style>

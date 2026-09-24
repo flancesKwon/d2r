@@ -7,7 +7,7 @@
     "amountLabel": "5개",
     "options": [],
     "ethereal": false,
-    "price": "1개당 퍼펙트 다이아몬드 5개 (묶음 구매 시 협의 가능)",
+    "price": "1개당 최상급 다이아몬드 5개 (묶음 구매 시 협의 가능)",
     "realm": "아시아",
     "ladder": "레더",
     "hardcore": "일반",
@@ -18,7 +18,7 @@
     "status": "판매중",
     "content": "이스트 룬 5개 개별 판매합니다. **묶음 구매 시 개당 할인** 해드려요.\n\n실화만 부탁드려요.",
     "requests": [
-      { "id": 1, "buyer": "본넥유저", "contact": "디스코드: bonnec#0001", "qty": 2, "message": "2개 구매하고 싶어요, 지금 접속 가능하신가요?", "date": "2026-09-12" }
+      { "id": 1, "buyer": "본넥유저", "contact": "디스코드: bonnec#0001", "qty": 2, "message": "2개 구매하고 싶어요, 지금 접속 가능하신가요?", "date": "2026-09-12", "status": "pending" }
     ]
   },
   {
@@ -60,7 +60,7 @@
     "status": "예약중",
     "content": "우버 트리스트럼 열쇠 재료 3세트 있습니다. 룬 교환 우선이고 퍼펙트 보석 교환도 가능해요.",
     "requests": [
-      { "id": 1, "buyer": "하드코어러", "contact": "배틀태그: hcplayer#3344", "qty": 1, "message": "1세트 룬 교환으로 구매 원해요", "date": "2026-09-17" }
+      { "id": 1, "buyer": "하드코어러", "contact": "배틀태그: hcplayer#3344", "qty": 1, "message": "1세트 룬 교환으로 구매 원해요", "date": "2026-09-17", "status": "accepted" }
     ]
   },
   {
@@ -81,7 +81,7 @@
       "마력 +2"
     ],
     "ethereal": false,
-    "price": "펄 룬 1개 또는 퍼펙트 다이아몬드 20개",
+    "price": "펄 룬 1개 또는 최상급 다이아몬드 20개",
     "realm": "아시아",
     "ladder": "레더",
     "hardcore": "일반",
