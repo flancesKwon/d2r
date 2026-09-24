@@ -206,46 +206,53 @@ function submitPost() {
 </template>
 
 <style scoped>
+/* 벨로그처럼 여백 넉넉하고 둥근 카드 느낌으로 - 사이트 기본 톤(어두운 배경, 금색
+   포인트)은 유지하되 커뮤니티/거래게시판만 각진 테두리 대신 둥근 모서리 +
+   카드 구분 + 은은한 그림자로 가독성 위주로 다르게 감 */
+.cat-tabs button{border-radius:999px;}
+.search-input-wrap{border-radius:10px; overflow:hidden;}
+.quality-toggle{border-radius:10px;}
 .sort-select{
   background:var(--panel); border:1px solid var(--border); color:var(--text-muted); font-size:12.5px;
-  padding:9px 10px; font-family:'Noto Sans KR', sans-serif;
+  padding:9px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .active-tag-row{display:flex; align-items:center; gap:8px; margin-top:10px; max-width:1180px; margin-left:auto; margin-right:auto;}
 .active-tag-label{font-size:12px; color:var(--text-dim);}
 
-.write-form{display:flex; flex-direction:column; gap:10px; max-width:700px;}
+.write-form{display:flex; flex-direction:column; gap:12px; max-width:700px;}
+.write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
-  padding:10px 12px; font-family:'Noto Sans KR', sans-serif;
+  padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .write-select{width:120px;}
-.write-submit{align-self:flex-start; padding:10px 20px; font-size:13px;}
+.write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
 
 .tag-input-row{display:flex; flex-direction:column; gap:8px;}
 .tag-input-inline{display:flex; gap:8px;}
 .tag-input-inline .tag-text-input{flex:1;}
-.tag-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px;}
+.tag-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
 .tag-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 .tag-chip-row{display:flex; flex-wrap:wrap; gap:6px;}
 .tag-chip{
   font-size:11.5px; color:var(--gold-dim); border:1px solid var(--border); background:var(--panel-2);
-  padding:3px 9px; cursor:pointer;
+  padding:4px 12px; cursor:pointer; border-radius:999px;
 }
 .tag-chip:hover{border-color:var(--gold-dim); color:var(--gold);}
 .tag-chip.active{color:var(--gold); border-color:var(--gold-dim);}
-.tag-chip.small{font-size:10.5px; padding:2px 7px;}
+.tag-chip.small{font-size:10.5px; padding:3px 10px;}
 
 .attach-row{display:flex; align-items:center; gap:10px;}
-.attach-trigger{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); padding:8px 14px;}
+.attach-trigger{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); padding:8px 14px; border-radius:10px;}
 .attach-trigger:hover{border-color:var(--gold-dim); color:var(--gold);}
 .attach-input-hidden{display:none;}
 .attach-hint{font-size:11px; color:var(--text-dim);}
 .attach-preview-row{display:flex; flex-wrap:wrap; gap:8px;}
 .attach-chip{
   display:flex; align-items:center; gap:6px; border:1px solid var(--border-soft); background:var(--panel-2);
-  padding:5px 8px; font-size:11.5px; color:var(--text-muted);
+  padding:5px 10px; font-size:11.5px; color:var(--text-muted); border-radius:999px;
 }
-.attach-thumb{width:22px; height:22px; object-fit:cover; flex:none;}
+.attach-thumb{width:22px; height:22px; object-fit:cover; flex:none; border-radius:6px;}
 .attach-file-icon{font-size:13px;}
 .attach-name{max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .attach-size{color:var(--text-dim); flex:none;}
@@ -253,19 +260,20 @@ function submitPost() {
 .attach-remove:hover{color:var(--blood);}
 
 .community-list-wrap{max-width:1180px;}
-.community-list{display:flex; flex-direction:column;}
+.community-list{display:flex; flex-direction:column; gap:14px;}
 .community-row{
-  display:flex; align-items:flex-start; gap:14px; padding:16px 4px; border-bottom:1px solid var(--border-soft);
-  transition:background .1s;
+  display:flex; align-items:flex-start; gap:16px; padding:22px 24px; border-radius:16px;
+  background:var(--panel); border:1px solid var(--border-soft);
+  transition:transform .15s, box-shadow .15s, border-color .15s;
 }
-.community-row:hover{background:var(--panel);}
-.community-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:3px 9px; flex:none; margin-top:1px;}
+.community-row:hover{transform:translateY(-2px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
+.community-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:4px 12px; flex:none; margin-top:1px; border-radius:999px;}
 .community-body{flex:1; min-width:0;}
-.community-title-row{display:flex; align-items:center; gap:7px; margin-bottom:4px;}
-.community-title{font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.hot-badge{font-size:10px; color:var(--blood); border:1px solid var(--blood); padding:1px 6px; flex:none;}
+.community-title-row{display:flex; align-items:center; gap:7px; margin-bottom:6px;}
+.community-title{font-size:15.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.hot-badge{font-size:10px; color:var(--blood); border:1px solid var(--blood); padding:1px 8px; flex:none; border-radius:999px;}
 .attach-count-badge{font-size:10.5px; color:var(--text-dim); flex:none;}
-.community-meta{font-size:11.5px; color:var(--text-dim); margin-bottom:5px;}
-.community-tag-row{display:flex; flex-wrap:wrap; gap:5px;}
-.community-comment-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:2px 8px; flex:none; margin-top:1px;}
+.community-meta{font-size:11.5px; color:var(--text-dim); margin-bottom:8px; line-height:1.6;}
+.community-tag-row{display:flex; flex-wrap:wrap; gap:6px;}
+.community-comment-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
 </style>

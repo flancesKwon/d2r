@@ -338,22 +338,28 @@ function submitPost() {
 </template>
 
 <style scoped>
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
+   목록 행을 각진 구분선 대신 카드로, 입력창·태그류는 둥글게 다듬음 */
+.cat-tabs button{border-radius:999px;}
+.search-input-wrap{border-radius:10px; overflow:hidden;}
+.quality-toggle{border-radius:10px;}
 .sort-select{
   background:var(--panel); border:1px solid var(--border); color:var(--text-muted); font-size:12.5px;
-  padding:9px 10px; font-family:'Noto Sans KR', sans-serif;
+  padding:9px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 
 .filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
 .ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
 .ethereal-filter-check input{accent-color:var(--teal);}
 
-.write-form{display:flex; flex-direction:column; gap:10px; max-width:700px;}
+.write-form{display:flex; flex-direction:column; gap:12px; max-width:700px;}
+.write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
-  padding:10px 12px; font-family:'Noto Sans KR', sans-serif;
+  padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .write-select{width:120px;}
-.write-submit{align-self:flex-start; padding:10px 20px; font-size:13px;}
+.write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
 
 .trade-form-row{display:flex; gap:8px;}
 .trade-item-input{flex:1;}
@@ -365,23 +371,23 @@ function submitPost() {
 .item-picker-search-wrap{position:relative;}
 .item-picker-selected{
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
-  padding:6px 10px; height:41px; box-sizing:border-box;
+  padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
 }
 .item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
 .item-picker-dropdown{
-  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:380px; overflow-y:auto;
-  background:var(--panel-2); border:1px solid var(--border); box-shadow:0 8px 20px rgba(0,0,0,0.5);
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20; max-height:380px; overflow-y:auto;
+  background:var(--panel-2); border:1px solid var(--border); box-shadow:0 12px 28px -6px rgba(0,0,0,0.55);
+  border-radius:12px; padding:6px;
 }
 .item-picker-row{
-  display:flex; align-items:center; gap:8px; width:100%; padding:8px 10px; text-align:left;
-  border-bottom:1px solid var(--border-soft); font-family:'Noto Sans KR', sans-serif;
+  display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; text-align:left;
+  font-family:'Noto Sans KR', sans-serif; border-radius:9px;
 }
-.item-picker-row:last-child{border-bottom:none;}
 .item-picker-row:hover{background:rgba(255,255,255,0.06);}
 .item-picker-icon{
   width:26px; height:26px; flex:none; display:flex; align-items:center; justify-content:center;
-  background:var(--panel); border:1px solid var(--border-soft);
+  background:var(--panel); border:1px solid var(--border-soft); border-radius:7px;
 }
 .item-picker-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .item-picker-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 8px -2px rgba(200,163,77,0.5);}
@@ -392,32 +398,32 @@ function submitPost() {
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
 .item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
 
-.option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:12px 14px; display:flex; flex-direction:column; gap:8px;}
+.option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
 .option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
 .option-row{display:flex; align-items:center; gap:10px;}
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}
-.option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none;}
+.option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
 .ethereal-check input{accent-color:var(--teal);}
 
 .custom-option-chip{
   display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
-  padding:6px 10px; font-size:12.5px; color:var(--text-muted);
+  padding:7px 12px; font-size:12.5px; color:var(--text-muted); border-radius:999px;
 }
 .custom-option-chip span{flex:1;}
 .custom-option-chip button{color:var(--text-dim); flex:none;}
 .custom-option-chip button:hover{color:var(--blood);}
 .custom-option-add-row{display:flex; gap:8px;}
 .custom-option-add-row .write-input{flex:1;}
-.custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px;}
+.custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
 .custom-option-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 
 .trade-row-icon{
-  width:36px; height:36px; flex:none; display:flex; align-items:center; justify-content:center;
-  background:var(--panel-2); border:1px solid var(--border-soft); margin-top:1px;
+  width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px;
 }
 .trade-row-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-row-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 10px -3px rgba(200,163,77,0.5);}
@@ -426,22 +432,23 @@ function submitPost() {
 .trade-row-icon.gem{border-color:var(--teal); box-shadow:0 0 10px -3px rgba(78,138,138,0.5);}
 
 .trade-list-wrap{max-width:1180px;}
-.trade-list{display:flex; flex-direction:column;}
+.trade-list{display:flex; flex-direction:column; gap:14px;}
 .trade-row{
-  display:flex; align-items:flex-start; gap:14px; padding:16px 4px; border-bottom:1px solid var(--border-soft);
-  transition:background .1s;
+  display:flex; align-items:flex-start; gap:16px; padding:20px 22px; border-radius:16px;
+  background:var(--panel); border:1px solid var(--border-soft);
+  transition:transform .15s, box-shadow .15s, border-color .15s;
 }
-.trade-row:hover{background:var(--panel);}
-.trade-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:3px 9px; flex:none; margin-top:1px;}
+.trade-row:hover{transform:translateY(-2px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
+.trade-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:4px 12px; flex:none; margin-top:1px; border-radius:999px;}
 .trade-body{flex:1; min-width:0;}
-.trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:4px;}
-.trade-title{font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.ethereal-badge{font-size:10px; padding:2px 8px; border:1px solid var(--teal); color:var(--teal); flex:none;}
-.trade-status-badge{font-size:10px; padding:2px 8px; border:1px solid var(--border); flex:none; color:var(--text-dim);}
+.trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+.trade-title{font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.ethereal-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
+.trade-status-badge{font-size:10px; padding:2px 10px; border:1px solid var(--border); flex:none; color:var(--text-dim); border-radius:999px;}
 .trade-status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
 .trade-status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}
 .trade-status-badge.status-거래완료{color:var(--text-dim); border-color:var(--border);}
-.trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:4px;}
-.trade-sub-meta{font-size:11.5px; color:var(--text-dim);}
-.trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:2px 8px; flex:none; margin-top:1px;}
+.trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:6px;}
+.trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
+.trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
 </style>
