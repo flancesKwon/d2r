@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES } from '../tradeStore.js'
+import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import iconsData from '../data/icons.json'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -88,7 +88,14 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 
       <div class="trade-info-card">
         <div class="trade-info-row"><span class="k">수량 / 단위</span><span class="v">{{ post.amountLabel }}</span></div>
-        <div class="trade-info-row"><span class="k">희망 가격</span><span class="v">{{ post.price }}</span></div>
+        <div class="trade-info-row">
+          <span class="k">희망 가격</span>
+          <span class="v">
+            <template v-for="(t, i) in parsePriceTokens(post.price)" :key="i">
+              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+            </template>
+          </span>
+        </div>
         <div class="trade-info-row"><span class="k">서버</span><span class="v">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</span></div>
         <div class="trade-info-row"><span class="k">연락처</span><span class="v">{{ post.contact || '게시글로 문의' }}</span></div>
       </div>
@@ -181,6 +188,8 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 .trade-info-row{display:flex; gap:10px; font-size:13px;}
 .trade-info-row .k{color:var(--text-dim); flex:none; width:88px;}
 .trade-info-row .v{color:var(--text);}
+.price-icon{display:inline-flex; width:16px; height:16px; vertical-align:-3px; margin:0 2px 0 3px;}
+.price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 
 .trade-options-card{border:1px solid var(--border-soft); background:var(--panel-2); padding:18px 22px; margin-bottom:22px; border-radius:14px;}
 .trade-options-card .d-section-title{margin-bottom:10px;}

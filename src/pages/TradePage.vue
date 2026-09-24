@@ -18,6 +18,7 @@ import {
   getItemAffixes,
   isRollRangeAffix,
   resolveAffixText,
+  parsePriceTokens,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -344,7 +345,10 @@ function submitPost() {
             <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span>
           </div>
           <div class="trade-meta">
-            {{ p.amountLabel }} · {{ p.price }}
+            {{ p.amountLabel }} ·
+            <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
+              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+            </template>
           </div>
           <div class="trade-sub-meta">
             {{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · {{ p.author }} · {{ p.date }}
@@ -488,6 +492,8 @@ function submitPost() {
 .trade-status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}
 .trade-status-badge.status-거래완료{color:var(--text-dim); border-color:var(--border);}
 .trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:6px;}
+.price-icon{display:inline-flex; width:15px; height:15px; vertical-align:-3px; margin:0 2px 0 3px;}
+.price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 .trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
 </style>

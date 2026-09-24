@@ -19,6 +19,30 @@ export const UBER_MATERIALS = [
 ]
 const ALL_TRADE_ITEMS = [...itemsData, ...UBER_MATERIALS]
 
+// 희망 가격이 대부분 룬·보석 이름으로 적히는데("이스트 룬 2개" 등) 그냥 텍스트라
+// 뭔지 한눈에 안 들어옴 - 가격 문자열에서 룬·보석 이름을 찾아서 아이콘을 붙여주려고
+// 이름별로 찾아볼 수 있게 정리해둠. 긴 이름부터 매칭해야 "최상급 다이아몬드"가
+// "다이아몬드"보다 먼저 잡힘
+const CURRENCY_ITEMS = itemsData.filter((it) => it.category === 'gem')
+const CURRENCY_BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
+const CURRENCY_PATTERN = new RegExp(
+  '(' + [...CURRENCY_BY_NAME.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|') + ')',
+  'g'
+)
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// 가격 문자열을 일반 텍스트/룬·보석 이름 조각으로 쪼개서 반환 - 화면에서 룬·보석
+// 이름 앞에만 아이콘을 붙여 보여주는 데 씀
+export function parsePriceTokens(text) {
+  if (!text) return []
+  return text.split(CURRENCY_PATTERN).filter((part) => part !== '').map((part) => ({
+    text: part,
+    item: CURRENCY_BY_NAME.get(part) || null,
+  }))
+}
+
 const runeLookup = buildRuneLookup(itemsData)
 
 // 룬워드는 고유 옵션(affixes) + 박힌 룬들 자체 효과가 합쳐져서 최종 옵션이 됨(아이템
