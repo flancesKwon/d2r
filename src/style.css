@@ -84,9 +84,11 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .item-card.runeword .card-icon{border-color:var(--blood); box-shadow:0 0 14px -2px rgba(162,81,63,0.45);}
 .item-card.gem .card-icon{border-color:var(--teal); box-shadow:0 0 14px -2px rgba(78,138,138,0.45);}
 
-/* 룬워드: 전용 아이콘이 없어서 베이스 부위 실루엣 위에 소켓 개수만큼 룬을 줄지어 얹음 */
-.rw-icon{position:relative; overflow:hidden;}
-.rw-base{max-width:74%; max-height:74%; object-fit:contain; filter:brightness(1.7); opacity:0.85; image-rendering:pixelated;}
+/* 룬워드: 전용 아이콘이 없어서 베이스 부위 실루엣 위에 소켓 개수만큼 룬을 줄지어 얹음.
+   장비창 슬롯 아이콘과 똑같이 원본 비율(aspect-ratio)로 박스 모양 자체를 잡아서
+   벨트는 넓적하게, 무기는 길쭉하게 - 잘림/확대 없이 장비창이랑 톤이 맞게 함 */
+.rw-icon{position:relative; overflow:hidden; width:auto; height:auto; max-width:100%; max-height:100%;}
+.rw-base{width:96%; height:96%; object-fit:contain; filter:brightness(1.7); opacity:0.85; image-rendering:pixelated;}
 .rw-runes{position:absolute; left:0; right:0; bottom:6px; display:flex; align-items:center; justify-content:center; gap:2px; flex-wrap:wrap; padding:0 4px;}
 .rw-rune{width:13px; height:13px; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.9));}
 .d-head .rw-runes{bottom:8px;}
