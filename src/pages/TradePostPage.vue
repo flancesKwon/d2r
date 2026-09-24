@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import iconsData from '../data/icons.json'
+import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
 const route = useRoute()
 const post = computed(() => getTradePost(route.params.id))
@@ -77,6 +78,11 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
         <select class="status-select" :class="'status-' + post.status" :value="post.status" @change="changeStatus">
           <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
         </select>
+        <button
+          type="button" class="favorite-star" :class="{ active: isFavorite(post.id) }"
+          :title="isFavorite(post.id) ? '찜 해제' : '찜하기'"
+          @click="toggleFavorite(post.id)"
+        >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">{{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
 
@@ -155,6 +161,13 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 .trade-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:20px;}
 
 .ethereal-badge{font-size:10.5px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
+
+.favorite-star{
+  font-size:24px; line-height:1; color:var(--text-dim); flex:none; margin-left:auto; padding:2px;
+  transition:color .1s, transform .1s;
+}
+.favorite-star:hover{color:var(--gold-dim); transform:scale(1.15);}
+.favorite-star.active{color:var(--gold);}
 
 .status-select{
   font-size:12px; padding:7px 12px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim);

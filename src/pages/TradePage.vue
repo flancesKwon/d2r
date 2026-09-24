@@ -20,6 +20,7 @@ import {
   resolveAffixText,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
+import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const activeCat = ref(null)
@@ -27,6 +28,7 @@ const activeStatus = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
+const favoritesOnly = ref(false)
 const searchQuery = ref('')
 const showForm = ref(false)
 
@@ -128,6 +130,7 @@ const filteredPosts = computed(() => {
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
+  if (favoritesOnly.value) list = list.filter((p) => isFavorite(p.id))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
@@ -204,6 +207,10 @@ function submitPost() {
         <label class="ethereal-filter-check">
           <input type="checkbox" v-model="etherealOnly" />
           에테리얼만
+        </label>
+        <label class="ethereal-filter-check favorite-filter-check">
+          <input type="checkbox" v-model="favoritesOnly" />
+          찜한 글만
         </label>
       </div>
     </div>
@@ -321,6 +328,11 @@ function submitPost() {
   <div class="grid-wrap trade-list-wrap">
     <div class="trade-list">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+        <button
+          type="button" class="favorite-star" :class="{ active: isFavorite(p.id) }"
+          :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
+          @click.prevent.stop="toggleFavorite(p.id)"
+        >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-row-icon" :class="rarityClass(getTradeItem(p.itemId))">
           <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
         </span>
@@ -360,6 +372,8 @@ function submitPost() {
 .filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
 .ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
 .ethereal-filter-check input{accent-color:var(--teal);}
+.favorite-filter-check{color:var(--gold);}
+.favorite-filter-check input{accent-color:var(--gold);}
 
 .write-form{display:flex; flex-direction:column; gap:12px; max-width:1180px;}
 .write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
@@ -438,6 +452,13 @@ function submitPost() {
 .custom-option-value-input{flex:1;}
 .custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
 .custom-option-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+
+.favorite-star{
+  font-size:20px; line-height:1; color:var(--text-dim); flex:none; padding:2px; margin-top:2px;
+  transition:color .1s, transform .1s;
+}
+.favorite-star:hover{color:var(--gold-dim); transform:scale(1.15);}
+.favorite-star.active{color:var(--gold);}
 
 .trade-row-icon{
   width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
