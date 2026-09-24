@@ -78,7 +78,7 @@ function isImage(a) {
 
     <div class="comment-form">
       <input type="text" v-model="commentAuthor" placeholder="닉네임 (비우면 익명)" class="write-input comment-author-input" />
-      <MarkdownEditor v-model="commentDraft" placeholder="댓글을 입력하세요" min-height="70px" />
+      <MarkdownEditor v-model="commentDraft" placeholder="댓글을 입력하세요" min-height="110px" />
       <button class="btn-primary write-submit" @click="submitComment">댓글 등록</button>
     </div>
   </div>
@@ -91,7 +91,7 @@ function isImage(a) {
 </template>
 
 <style scoped>
-.community-detail-wrap{max-width:720px;}
+.community-detail-wrap{max-width:920px;}
 .community-post-title{font-size:24px; margin:10px 0 8px;}
 .community-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:14px;}
 
@@ -137,7 +137,7 @@ function isImage(a) {
 .comment-body :deep(p){margin-bottom:4px;}
 .comment-vote-row{display:flex; gap:8px;}
 
-.comment-form{display:flex; flex-direction:column; gap:10px; max-width:480px;}
+.comment-form{display:flex; flex-direction:column; gap:10px; max-width:680px;}
 .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
   padding:10px 12px; font-family:'Noto Sans KR', sans-serif;

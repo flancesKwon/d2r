@@ -107,7 +107,7 @@ function changeStatus(e) {
         <input type="number" min="1" v-model="reqQty" placeholder="신청 수량" class="write-input request-qty-input" />
       </div>
       <textarea
-        v-model="reqMessage" class="request-textarea" rows="3"
+        v-model="reqMessage" class="request-textarea" rows="6"
         placeholder="판매자에게 전할 메시지를 입력하세요 (예: 2개 구매하고 싶어요, 지금 거래 가능하신가요?)"
       ></textarea>
       <button class="btn-primary write-submit" @click="submitRequest">구매신청 보내기</button>
@@ -123,7 +123,7 @@ function changeStatus(e) {
 </template>
 
 <style scoped>
-.trade-detail-wrap{max-width:720px;}
+.trade-detail-wrap{max-width:920px;}
 .trade-title-line{display:flex; align-items:center; gap:12px; margin:10px 0 8px;}
 .trade-title-icon{
   width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
@@ -173,7 +173,7 @@ function changeStatus(e) {
 .request-contact{font-size:11.5px; color:var(--text-dim); margin-bottom:4px;}
 .request-message{font-size:13px; color:var(--text-muted); line-height:1.5;}
 
-.request-form{display:flex; flex-direction:column; gap:10px; max-width:520px; position:relative;}
+.request-form{display:flex; flex-direction:column; gap:10px; max-width:680px; position:relative;}
 .request-form-row{display:flex; gap:8px;}
 .request-qty-input{width:100px;}
 .write-input{

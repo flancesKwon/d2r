@@ -303,7 +303,7 @@ function submitPost() {
         <input type="text" v-model="form.contact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" />
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="90px" />
+      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="150px" />
 
       <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
     </div>
@@ -347,7 +347,7 @@ function submitPost() {
 .ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
 .ethereal-filter-check input{accent-color:var(--teal);}
 
-.write-form{display:flex; flex-direction:column; gap:10px; max-width:560px;}
+.write-form{display:flex; flex-direction:column; gap:10px; max-width:700px;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
   padding:10px 12px; font-family:'Noto Sans KR', sans-serif;
@@ -370,7 +370,7 @@ function submitPost() {
 .item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
 .item-picker-dropdown{
-  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:280px; overflow-y:auto;
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:380px; overflow-y:auto;
   background:var(--panel-2); border:1px solid var(--border); box-shadow:0 8px 20px rgba(0,0,0,0.5);
 }
 .item-picker-row{
@@ -425,7 +425,7 @@ function submitPost() {
 .trade-row-icon.runeword{border-color:var(--blood); box-shadow:0 0 10px -3px rgba(162,81,63,0.5);}
 .trade-row-icon.gem{border-color:var(--teal); box-shadow:0 0 10px -3px rgba(78,138,138,0.5);}
 
-.trade-list-wrap{max-width:900px;}
+.trade-list-wrap{max-width:1180px;}
 .trade-list{display:flex; flex-direction:column;}
 .trade-row{
   display:flex; align-items:flex-start; gap:14px; padding:16px 4px; border-bottom:1px solid var(--border-soft);

@@ -138,7 +138,7 @@ function submitPost() {
       <input type="text" v-model="form.title" placeholder="제목" class="write-input" />
       <input type="text" v-model="form.author" placeholder="닉네임 (비우면 익명)" class="write-input" />
 
-      <MarkdownEditor v-model="form.content" placeholder="내용을 입력하세요 (**굵게**, *기울임*, - 목록, > 인용 지원)" />
+      <MarkdownEditor v-model="form.content" placeholder="내용을 입력하세요 (**굵게**, *기울임*, - 목록, > 인용 지원)" min-height="180px" />
 
       <div class="tag-input-row">
         <div class="tag-input-inline">
@@ -213,7 +213,7 @@ function submitPost() {
 .active-tag-row{display:flex; align-items:center; gap:8px; margin-top:10px; max-width:1180px; margin-left:auto; margin-right:auto;}
 .active-tag-label{font-size:12px; color:var(--text-dim);}
 
-.write-form{display:flex; flex-direction:column; gap:10px; max-width:560px;}
+.write-form{display:flex; flex-direction:column; gap:10px; max-width:700px;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
   padding:10px 12px; font-family:'Noto Sans KR', sans-serif;
@@ -252,7 +252,7 @@ function submitPost() {
 .attach-remove{color:var(--text-dim); flex:none;}
 .attach-remove:hover{color:var(--blood);}
 
-.community-list-wrap{max-width:860px;}
+.community-list-wrap{max-width:1180px;}
 .community-list{display:flex; flex-direction:column;}
 .community-row{
   display:flex; align-items:flex-start; gap:14px; padding:16px 4px; border-bottom:1px solid var(--border-soft);
