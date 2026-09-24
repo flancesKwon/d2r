@@ -4,10 +4,29 @@ import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
 import { ICONS } from '../icons.js'
+import { runewordSlots } from '../itemStats.js'
 
 const items = itemsData
 const icons = iconsData
 const route = useRoute()
+
+// 룬워드는 실제 게임에서도 전용 아이콘이 없고(꽂힌 베이스 아이템 모양을 그대로 씀),
+// 소켓에 박힌 룬이 화면에 줄지어 보임 - 그 느낌을 살리려고 베이스 부위 실루엣 위에
+// 룬 아이콘을 소켓 개수만큼 겹쳐서 보여줌
+const equipIconModules = import.meta.glob('../assets/equipicons/*.png', { eager: true, import: 'default' })
+const equipIconUrl = Object.fromEntries(Object.entries(equipIconModules).map(([p, url]) => [p.split('/').pop().replace('.png', ''), url]))
+const RUNEWORD_SLOT_ICON_FILE = { weapon: 'weapon', shield: 'weapon', armor: 'armor', helm: 'helm' }
+function runewordBaseIconUrl(item) {
+  const slot = runewordSlots(item.subtitle)[0]
+  return equipIconUrl[RUNEWORD_SLOT_ICON_FILE[slot]] || null
+}
+function runePips(seq) {
+  return (seq || '').match(/[A-Z][a-z]+/g) || []
+}
+function runeIconUrl(runeName) {
+  const b64 = icons['invr' + runeName.toLowerCase() + '__rune']
+  return b64 ? 'data:image/png;base64,' + b64 : null
+}
 
 const activeCat = ref('all')
 const activeGroup = ref(null)
@@ -61,10 +80,6 @@ const filteredItems = computed(() => {
   }
   return list
 })
-
-function runePips(seq) {
-  return (seq || '').match(/[A-Z][a-z]+/g) || []
-}
 </script>
 
 <template>
@@ -149,7 +164,13 @@ function runePips(seq) {
         :class="it.category"
         @click="selected = it"
       >
-        <span class="card-icon" :class="[it.category]">
+        <span class="card-icon rw-icon" :class="[it.category]" v-if="it.category === 'runeword' && runewordBaseIconUrl(it)">
+          <img class="rw-base" :src="runewordBaseIconUrl(it)" alt="" />
+          <span class="rw-runes">
+            <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+          </span>
+        </span>
+        <span class="card-icon" :class="[it.category]" v-else>
           <img
             v-if="it.icon_key && icons[it.icon_key]"
             :src="'data:image/png;base64,' + icons[it.icon_key]"
@@ -250,7 +271,13 @@ function runePips(seq) {
       <template v-else-if="selected.category === 'runeword'">
         <div class="d-eyebrow">룬워드 · 소켓 {{ selected.extra.socket_count }}개</div>
         <div class="d-head">
-          <span class="icon-box" :class="selected.category">
+          <span class="icon-box rw-icon" :class="selected.category" v-if="runewordBaseIconUrl(selected)">
+            <img class="rw-base" :src="runewordBaseIconUrl(selected)" alt="" />
+            <span class="rw-runes">
+              <img v-for="(r, n) in runePips(selected.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+            </span>
+          </span>
+          <span class="icon-box" :class="selected.category" v-else>
             <img
               v-if="selected.icon_key && icons[selected.icon_key]"
               :src="'data:image/png;base64,' + icons[selected.icon_key]"
