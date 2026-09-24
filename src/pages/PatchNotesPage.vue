@@ -1,4 +1,5 @@
 <script setup>
+import LogoMark from '../components/LogoMark.vue'
 import { ref } from 'vue'
 import patchData from '../data/patchNotes.json'
 
@@ -11,7 +12,7 @@ const selected = ref(null)
   <header>
     <div class="logo">
       <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <span class="logo-mark"></span>디아사전
+        <LogoMark />디아허브
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>패치노트</b></div>

@@ -1,4 +1,5 @@
 <script setup>
+import LogoMark from '../components/LogoMark.vue'
 import ladder from '../data/ladder.json'
 </script>
 
@@ -7,7 +8,7 @@ import ladder from '../data/ladder.json'
   <header>
     <div class="logo">
       <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <span class="logo-mark"></span>디아사전
+        <LogoMark />디아허브
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>레더 시즌 정보</b></div>
