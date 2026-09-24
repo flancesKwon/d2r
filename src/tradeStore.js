@@ -1,9 +1,23 @@
 import { reactive } from 'vue'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
-import { buildRuneLookup, runewordRuneAffixes } from './itemStats.js'
+import { buildRuneLookup, runewordRuneAffixes, runewordSlots } from './itemStats.js'
 
 export { itemsData }
+
+// 아이템 사전엔 룬·보석·유니크·세트·룬워드(730종)만 있고 우버보스 열쇠 재료(다이아블로
+// 뿔 등 퀘스트용 소환 재료)는 장비가 아니라서 원래 사전에 없음 - 그래도 검색으로
+// 팔 수 있어야 해서 자주 거래되는 재료를 별도 목록으로 만들어 검색 대상에 포함시킴
+export const UBER_MATERIALS = [
+  { id: 'uber-diablo-horn', category: 'uber', name_ko: '다이아블로의 뿔', name_en: "Diablo's Horn" },
+  { id: 'uber-baal-eye', category: 'uber', name_ko: '바알의 눈', name_en: "Baal's Eye" },
+  { id: 'uber-meph-brain', category: 'uber', name_ko: '메피스토의 뇌', name_en: 'Mephisto Brain' },
+  { id: 'uber-essence-suffering', category: 'uber', name_ko: '고통의 뒤틀린 정수', name_en: 'Twisted Essence of Suffering' },
+  { id: 'uber-essence-hatred', category: 'uber', name_ko: '증오의 충전된 정수', name_en: 'Charged Essence of Hatred' },
+  { id: 'uber-essence-terror', category: 'uber', name_ko: '공포의 불타는 정수', name_en: 'Burning Essence of Terror' },
+  { id: 'uber-token', category: 'uber', name_ko: '용서의 증표', name_en: 'Token of Absolution' },
+]
+const ALL_TRADE_ITEMS = [...itemsData, ...UBER_MATERIALS]
 
 const runeLookup = buildRuneLookup(itemsData)
 
@@ -29,11 +43,11 @@ export function resolveAffixText(a, rolledValue) {
   return a.text.replace(`${a.min}~${a.max}`, String(rolledValue))
 }
 
-// 룬·퍼펙트 보석만 "판매 수량/단위"를 자유롭게 정함 - 장비(유니크·세트·룬워드)나
-// 우버보스 재료·기타는 낱개(1개) 단위로 취급
-export const UNIT_CATEGORIES = ['룬', '퍼펙트 보석']
-export function categoryHasUnit(category) {
-  return UNIT_CATEGORIES.includes(category)
+// 룬·퍼펙트 보석·우버보스 재료(소환 재료)는 여러 개를 묶어 파는 경우가 많아서 개수를
+// 입력받고, 장비(유니크·세트·룬워드·매직/레어/일반)나 기타는 낱개(1개)로 고정
+export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료']
+export function categoryHasQuantity(category) {
+  return QUANTITY_CATEGORIES.includes(category)
 }
 
 export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
@@ -44,12 +58,12 @@ export const TRADE_LADDERS = ['레더', '논레더']
 export const TRADE_HARDCORE = ['일반', '하드코어']
 
 // 카테고리를 미리 고르지 않아도 아이템명만 검색해서 바로 선택할 수 있게 하는
-// 통합 검색 - 사전에 있는 730종(룬·보석·유니크·세트·룬워드) 전체를 대상으로 찾고,
-// 고르면 트레이드 카테고리가 자동으로 맞춰짐
+// 통합 검색 - 사전 730종(룬·보석·유니크·세트·룬워드) + 우버보스 재료 목록을 대상으로
+// 찾고, 고르면 트레이드 카테고리가 자동으로 맞춰짐
 export function searchAllItems(query) {
   const q = query.trim().toLowerCase()
   if (!q) return []
-  return itemsData
+  return ALL_TRADE_ITEMS
     .filter((it) => it.name_ko.toLowerCase().includes(q) || it.name_en.toLowerCase().includes(q))
     .slice(0, 40)
 }
@@ -60,6 +74,28 @@ export function tradeCategoryForItem(item) {
   if (item.category === 'gem' && item.type_sub === '보석') return '퍼펙트 보석'
   if (item.category === 'unique' || item.category === 'set') return '유니크/세트'
   if (item.category === 'runeword') return '룬워드'
+  if (item.category === 'uber') return '우버보스 재료'
+  return null
+}
+
+// 룬워드·유니크·세트는 베이스가 무기인지 방어구인지에 따라 실제로 붙을 수 있는 옵션이
+// 갈려서(방어력은 방어구에만, 인핸스드 데미지는 무기에만 등), "옵션 직접 추가" 목록을
+// 그 아이템에 맞는 것만 보여주려고 구분함. 판단 불가능하면(우버 재료·자유입력 등) null
+const ARMOR_TYPE_SUBS = ['방패', '투구', '갑옷', '장갑', '신발', '벨트']
+export function itemBaseKind(item) {
+  if (!item) return null
+  if (item.category === 'runeword') {
+    const slots = runewordSlots(item.subtitle)
+    const hasWeapon = slots.includes('weapon')
+    const hasArmor = slots.some((s) => s !== 'weapon')
+    if (hasWeapon && !hasArmor) return 'weapon'
+    if (hasArmor && !hasWeapon) return 'armor'
+    return null
+  }
+  if (item.category === 'unique' || item.category === 'set') {
+    if (item.type_group === '무기') return 'weapon'
+    if (ARMOR_TYPE_SUBS.includes(item.type_sub)) return 'armor'
+  }
   return null
 }
 
@@ -75,11 +111,11 @@ export function categorySupportsEthereal(category) {
 // 큰 영향을 주는데 아이템 사전엔 그 데이터가 없어서, 자주 쓰는 옵션 종류를 정해두고
 // 값만 입력하면 되게 함. "기타"는 목록에 없는 옵션을 위한 자유 입력 폴백
 export const CUSTOM_OPTION_PRESETS = [
-  { key: 'defense', label: '방어력', format: (v) => `방어력 +${v}` },
-  { key: 'edef', label: '추가방어력(%)', format: (v) => `추가방어력 +${v}%` },
-  { key: 'edmg', label: '증가된 데미지(%)', format: (v) => `인핸스드 데미지 +${v}%` },
-  { key: 'ias', label: '공격 속도 증가(%)', format: (v) => `공격 속도 증가 +${v}%` },
-  { key: 'frw', label: '이동/공격 속도 증가(%)', format: (v) => `이동/공격 속도 증가 +${v}%` },
+  { key: 'defense', label: '방어력', restrict: 'armor', format: (v) => `방어력 +${v}` },
+  { key: 'edef', label: '추가방어력(%)', restrict: 'armor', format: (v) => `추가방어력 +${v}%` },
+  { key: 'edmg', label: '증가된 데미지(%)', restrict: 'weapon', format: (v) => `인핸스드 데미지 +${v}%` },
+  { key: 'ias', label: '공격 속도 증가(%)', restrict: 'weapon', format: (v) => `공격 속도 증가 +${v}%` },
+  { key: 'frw', label: '이동/공격 속도 증가(%)', restrict: 'armor', format: (v) => `이동/공격 속도 증가 +${v}%` },
   { key: 'sockets', label: '소켓 개수', format: (v) => `소켓 ${v}개` },
   { key: 'life', label: '생명력', format: (v) => `생명력 +${v}` },
   { key: 'mana', label: '마나', format: (v) => `마나 +${v}` },
@@ -103,15 +139,18 @@ export const CUSTOM_OPTION_PRESETS = [
   { key: 'custom', label: '기타 (직접 입력)', freeText: true, placeholder: '예: 베이스 3소켓 크리스 소드' },
 ]
 
-// 판매 수량/단위 - 단위(콤보박스로 선택)와 개수(숫자 입력)를 따로 받아서 합침.
-// 룬·퍼펙트 보석만 이렇게 자유롭게 정하고 나머지는 낱개(1개) 고정
-export const UNIT_TYPE_OPTIONS = {
-  룬: ['개', '묶음(10개입)', '스택(전체)'],
-  '퍼펙트 보석': ['개', '묶음(10개입)', '스택(40개입)'],
+// 무기 베이스로 확정되면 방어구 전용 옵션(방어력 등)을 숨기고, 방어구 베이스면 무기
+// 전용 옵션(인핸스드 데미지 등)을 숨김 - 베이스를 알 수 없으면(우버 재료 등) 전부 노출
+export function optionPresetsFor(item) {
+  const kind = itemBaseKind(item)
+  if (!kind) return CUSTOM_OPTION_PRESETS
+  return CUSTOM_OPTION_PRESETS.filter((p) => !p.restrict || p.restrict === kind)
 }
-export function buildAmountLabel(unitType, count) {
+
+// 콤보박스 없이 숫자만 입력받아서 "N개"로 만듦
+export function buildAmountLabel(count) {
   const n = Number(count) || 0
-  return n > 0 ? `${n}${unitType}` : ''
+  return n > 0 ? `${n}개` : ''
 }
 
 export const tradeState = reactive({
@@ -130,7 +169,7 @@ function today() {
 }
 
 export function getTradeItem(itemId) {
-  return itemId ? itemsData.find((it) => it.id === itemId) : null
+  return itemId ? ALL_TRADE_ITEMS.find((it) => it.id === itemId) : null
 }
 
 export function addTradePost({

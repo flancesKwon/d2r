@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   tradeState,
   TRADE_CATEGORIES,
@@ -7,14 +7,13 @@ import {
   TRADE_REALMS,
   TRADE_LADDERS,
   TRADE_HARDCORE,
-  UNIT_TYPE_OPTIONS,
   buildAmountLabel,
-  CUSTOM_OPTION_PRESETS,
+  optionPresetsFor,
   addTradePost,
   searchAllItems,
   tradeCategoryForItem,
   getTradeItem,
-  categoryHasUnit,
+  categoryHasQuantity,
   categorySupportsEthereal,
   getItemAffixes,
   isRollRangeAffix,
@@ -31,12 +30,15 @@ const etherealOnly = ref(false)
 const searchQuery = ref('')
 const showForm = ref(false)
 
+// 카테고리는 더 이상 직접 고르지 않고 아이템 검색으로 자동 결정됨. 사전에 없는
+// 아이템(매직/레어/일반, 기타)만 검색 결과가 없을 때 뜨는 버튼으로 고를 수 있음
+const FALLBACK_CATEGORIES = ['매직/레어/일반', '기타']
+
 const emptyForm = () => ({
-  category: TRADE_CATEGORIES[0],
+  category: FALLBACK_CATEGORIES[0],
   itemId: null,
   itemName: '',
-  unitType: UNIT_TYPE_OPTIONS[TRADE_CATEGORIES[0]]?.[0] || '',
-  unitCount: '',
+  quantity: '',
   ethereal: false,
   price: '',
   realm: TRADE_REALMS[0],
@@ -48,21 +50,29 @@ const emptyForm = () => ({
 })
 const form = ref(emptyForm())
 
-const unitTypeOptions = computed(() => UNIT_TYPE_OPTIONS[form.value.category] || [])
-
-const hasUnit = computed(() => categoryHasUnit(form.value.category))
+const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
 const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
 const showItemDropdown = ref(false)
-// 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드)에서
-// 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 사전에 없으면 그냥 입력한 텍스트 그대로 등록
+// 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
+// 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
+// (매직/레어/일반, 기타처럼 매번 랜덤하거나 목록화가 불가능한 경우) 직접 입력한 이름 그대로 등록
 const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(form.value.itemName)))
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
 const customOptions = ref([])
-const customOptionType = ref(CUSTOM_OPTION_PRESETS[0].key)
+// 룬워드/유니크·세트는 베이스가 무기냐 방어구냐에 따라 실제로 붙을 수 있는 옵션이
+// 다르므로, 고른 아이템에 맞는 옵션만 콤보박스에 노출함
+const availableOptionPresets = computed(() => optionPresetsFor(selectedItem.value))
+const customOptionType = ref(availableOptionPresets.value[0].key)
 const customOptionValue = ref('')
-const selectedOptionPreset = computed(() => CUSTOM_OPTION_PRESETS.find((p) => p.key === customOptionType.value))
+const selectedOptionPreset = computed(
+  () => availableOptionPresets.value.find((p) => p.key === customOptionType.value) || availableOptionPresets.value[0]
+)
+
+watch(availableOptionPresets, (list) => {
+  if (!list.some((p) => p.key === customOptionType.value)) customOptionType.value = list[0].key
+})
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -75,12 +85,6 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-function resetUnitFields() {
-  const opts = UNIT_TYPE_OPTIONS[form.value.category]
-  form.value.unitType = opts ? opts[0] : ''
-  form.value.unitCount = ''
-}
-
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
@@ -88,7 +92,7 @@ function pickItem(it) {
   if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
-  resetUnitFields()
+  form.value.quantity = ''
 }
 
 function clearPickedItem() {
@@ -101,12 +105,8 @@ function hideItemDropdownSoon() {
   window.setTimeout(() => (showItemDropdown.value = false), 150)
 }
 
-function onCategoryManualChange() {
-  form.value.itemId = null
-  form.value.itemName = ''
-  rolledValues.value = {}
-  customOptions.value = []
-  resetUnitFields()
+function pickFallbackCategory(cat) {
+  form.value.category = cat
 }
 
 function addCustomOption() {
@@ -138,7 +138,7 @@ const filteredPosts = computed(() => {
 })
 
 function submitPost() {
-  const amountLabel = hasUnit.value ? buildAmountLabel(form.value.unitType, form.value.unitCount) : '1개'
+  const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
   if (!form.value.itemName.trim() || !amountLabel.trim() || !form.value.price.trim()) return
   const dbOptions = itemAffixes.value.map((a, i) =>
     isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
@@ -148,7 +148,7 @@ function submitPost() {
   form.value = emptyForm()
   rolledValues.value = {}
   customOptions.value = []
-  customOptionType.value = CUSTOM_OPTION_PRESETS[0].key
+  customOptionType.value = availableOptionPresets.value[0].key
   customOptionValue.value = ''
   showForm.value = false
 }
@@ -211,32 +211,35 @@ function submitPost() {
 
   <div class="quality-info" v-if="showForm">
     <div class="quality-info-inner write-form trade-write-form">
-      <div class="trade-form-row">
-        <select v-model="form.category" class="write-select" @change="onCategoryManualChange">
-          <option v-for="c in TRADE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
-        </select>
-
-        <div class="item-picker trade-item-input">
-          <div v-if="selectedItem" class="item-picker-selected">
-            <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
-            <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
-            <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
-          </div>
-          <div v-else class="item-picker-search-wrap">
-            <input
-              type="text" v-model="form.itemName" placeholder="아이템명 검색 (사전에 없으면 직접 입력한 이름 그대로 등록돼요)"
-              class="write-input" @focus="showItemDropdown = true"
-              @blur="hideItemDropdownSoon"
-            />
-            <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
-              <button
-                type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
-                @mousedown.prevent="pickItem(it)"
-              >
-                <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
-              </button>
-              <p class="item-picker-empty" v-if="!itemCandidates.length">사전에 없는 아이템이에요. 이 이름 그대로 등록돼요.</p>
+      <div class="item-picker trade-item-input">
+        <div v-if="selectedItem" class="item-picker-selected">
+          <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
+          <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
+          <span class="item-picker-cat">{{ form.category }}</span>
+          <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
+        </div>
+        <div v-else class="item-picker-search-wrap">
+          <input
+            type="text" v-model="form.itemName" placeholder="아이템명 검색 (룬·보석·유니크·세트·룬워드·우버보스 재료 전체 검색)"
+            class="write-input" @focus="showItemDropdown = true"
+            @blur="hideItemDropdownSoon"
+          />
+          <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
+            <button
+              type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
+              @mousedown.prevent="pickItem(it)"
+            >
+              <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+              <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+            </button>
+            <div class="item-picker-empty-block" v-if="!itemCandidates.length">
+              <p class="item-picker-empty">사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.</p>
+              <div class="fallback-cat-row">
+                <button
+                  type="button" v-for="c in FALLBACK_CATEGORIES" :key="c"
+                  :class="{ active: form.category === c }" @mousedown.prevent="pickFallbackCategory(c)"
+                >{{ c }}</button>
+              </div>
             </div>
           </div>
         </div>
@@ -247,17 +250,12 @@ function submitPost() {
         에테리얼(Ethereal) 아이템이에요
       </label>
 
-      <template v-if="hasUnit">
-        <div class="trade-form-row">
-          <select v-model="form.unitType" class="write-select trade-meta-select">
-            <option v-for="u in unitTypeOptions" :key="u" :value="u">{{ u }}</option>
-          </select>
-          <input
-            type="number" min="1" v-model="form.unitCount" placeholder="개수"
-            class="write-input trade-unit-count-input"
-          />
-        </div>
-        <div class="unit-hint">단위를 고르고 개수를 입력하세요. 예: "{{ form.unitCount || 3 }}{{ form.unitType }}"</div>
+      <template v-if="hasQuantity">
+        <input
+          type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
+          class="write-input trade-quantity-input"
+        />
+        <div class="unit-hint">개수만 입력하면 "N개"로 등록돼요.</div>
       </template>
       <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
 
@@ -278,14 +276,14 @@ function submitPost() {
 
       <div class="option-editor">
         <div class="option-editor-title">옵션 직접 추가</div>
-        <div class="option-editor-hint">룬워드는 박힌 룬 효과 말고도 베이스로 쓴 무기·방어구 자체의 옵션(방어력, 인핸스드 데미지 등)이 실거래가에 큰 영향을 줘요. 종류를 고르고 값을 입력해서 추가하세요.</div>
+        <div class="option-editor-hint">룬워드는 박힌 룬 효과 말고도 베이스로 쓴 무기·방어구 자체의 옵션이 실거래가에 큰 영향을 줘요. 종류를 고르고 값을 입력해서 추가하세요 (무기/방어구 베이스에 맞는 옵션만 나와요).</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
           <span>{{ o }}</span>
           <button type="button" @click="removeCustomOption(i)">✕</button>
         </div>
         <div class="custom-option-add-row">
           <select v-model="customOptionType" class="write-select custom-option-type-select">
-            <option v-for="p in CUSTOM_OPTION_PRESETS" :key="p.key" :value="p.key">{{ p.label }}</option>
+            <option v-for="p in availableOptionPresets" :key="p.key" :value="p.key">{{ p.label }}</option>
           </select>
           <input
             :type="selectedOptionPreset.freeText ? 'text' : 'number'"
@@ -374,7 +372,7 @@ function submitPost() {
 
 .trade-form-row{display:flex; gap:8px;}
 .trade-item-input{flex:1;}
-.trade-unit-count-input{width:140px;}
+.trade-quantity-input{width:160px;}
 .trade-meta-select{flex:1; width:auto;}
 .unit-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
 
@@ -384,6 +382,7 @@ function submitPost() {
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
   padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
 }
+.item-picker-cat{font-size:10.5px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 10px; border-radius:999px; flex:none;}
 .item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
 .item-picker-dropdown{
@@ -407,7 +406,14 @@ function submitPost() {
 .item-picker-icon.gem{border-color:var(--teal); box-shadow:0 0 8px -2px rgba(78,138,138,0.5);}
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
-.item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
+.item-picker-empty-block{padding:14px;}
+.item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
+.fallback-cat-row{display:flex; justify-content:center; gap:8px;}
+.fallback-cat-row button{
+  font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:7px 16px; border-radius:999px;
+}
+.fallback-cat-row button:hover{border-color:var(--gold-dim); color:var(--gold);}
+.fallback-cat-row button.active{color:var(--gold); border-color:var(--gold-dim); background:var(--panel);}
 
 .option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
