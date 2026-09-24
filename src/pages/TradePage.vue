@@ -7,7 +7,9 @@ import {
   TRADE_REALMS,
   TRADE_LADDERS,
   TRADE_HARDCORE,
-  UNIT_PRESETS,
+  UNIT_TYPE_OPTIONS,
+  buildAmountLabel,
+  CUSTOM_OPTION_PRESETS,
   addTradePost,
   searchAllItems,
   tradeCategoryForItem,
@@ -23,7 +25,6 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const activeCat = ref(null)
 const activeStatus = ref(null)
-const activeRealm = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -34,7 +35,8 @@ const emptyForm = () => ({
   category: TRADE_CATEGORIES[0],
   itemId: null,
   itemName: '',
-  amountLabel: '',
+  unitType: UNIT_TYPE_OPTIONS[TRADE_CATEGORIES[0]]?.[0] || '',
+  unitCount: '',
   ethereal: false,
   price: '',
   realm: TRADE_REALMS[0],
@@ -46,7 +48,7 @@ const emptyForm = () => ({
 })
 const form = ref(emptyForm())
 
-const unitOptions = computed(() => UNIT_PRESETS[form.value.category] || ['1개'])
+const unitTypeOptions = computed(() => UNIT_TYPE_OPTIONS[form.value.category] || [])
 
 const hasUnit = computed(() => categoryHasUnit(form.value.category))
 const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
@@ -58,7 +60,9 @@ const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
 const customOptions = ref([])
-const customOptionInput = ref('')
+const customOptionType = ref(CUSTOM_OPTION_PRESETS[0].key)
+const customOptionValue = ref('')
+const selectedOptionPreset = computed(() => CUSTOM_OPTION_PRESETS.find((p) => p.key === customOptionType.value))
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -71,6 +75,12 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
+function resetUnitFields() {
+  const opts = UNIT_TYPE_OPTIONS[form.value.category]
+  form.value.unitType = opts ? opts[0] : ''
+  form.value.unitCount = ''
+}
+
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
@@ -78,7 +88,7 @@ function pickItem(it) {
   if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
-  if (!categoryHasUnit(form.value.category)) form.value.amountLabel = '1개'
+  resetUnitFields()
 }
 
 function clearPickedItem() {
@@ -96,14 +106,15 @@ function onCategoryManualChange() {
   form.value.itemName = ''
   rolledValues.value = {}
   customOptions.value = []
-  form.value.amountLabel = categoryHasUnit(form.value.category) ? '' : '1개'
+  resetUnitFields()
 }
 
 function addCustomOption() {
-  const v = customOptionInput.value.trim()
+  const preset = selectedOptionPreset.value
+  const v = customOptionValue.value.toString().trim()
   if (!v) return
-  customOptions.value.push(v)
-  customOptionInput.value = ''
+  customOptions.value.push(preset.freeText ? v : preset.format(v))
+  customOptionValue.value = ''
 }
 
 function removeCustomOption(i) {
@@ -114,7 +125,6 @@ const filteredPosts = computed(() => {
   let list = tradeState.posts
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
   if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
-  if (activeRealm.value) list = list.filter((p) => p.realm === activeRealm.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -128,16 +138,18 @@ const filteredPosts = computed(() => {
 })
 
 function submitPost() {
-  if (!form.value.itemName.trim() || !form.value.amountLabel.trim() || !form.value.price.trim()) return
+  const amountLabel = hasUnit.value ? buildAmountLabel(form.value.unitType, form.value.unitCount) : '1개'
+  if (!form.value.itemName.trim() || !amountLabel.trim() || !form.value.price.trim()) return
   const dbOptions = itemAffixes.value.map((a, i) =>
     isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   )
   const options = [...dbOptions, ...customOptions.value]
-  addTradePost({ ...form.value, options })
+  addTradePost({ ...form.value, amountLabel, options })
   form.value = emptyForm()
   rolledValues.value = {}
   customOptions.value = []
-  customOptionInput.value = ''
+  customOptionType.value = CUSTOM_OPTION_PRESETS[0].key
+  customOptionValue.value = ''
   showForm.value = false
 }
 </script>
@@ -181,10 +193,6 @@ function submitPost() {
         <button class="quality-toggle" @click="showForm = !showForm">{{ showForm ? '취소' : '판매글 등록' }}</button>
       </div>
       <div class="filter-row">
-        <select v-model="activeRealm" class="sort-select">
-          <option :value="null">전체 서버</option>
-          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ r }}</option>
-        </select>
         <select v-model="activeLadder" class="sort-select">
           <option :value="null">레더·논레더 전체</option>
           <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
@@ -241,15 +249,15 @@ function submitPost() {
 
       <template v-if="hasUnit">
         <div class="trade-form-row">
+          <select v-model="form.unitType" class="write-select trade-meta-select">
+            <option v-for="u in unitTypeOptions" :key="u" :value="u">{{ u }}</option>
+          </select>
           <input
-            type="text" v-model="form.amountLabel" placeholder="판매 수량/단위 (예: 5개, 10개입 묶음, 1스택(40개입), 3세트)"
-            class="write-input trade-unit-input" list="trade-unit-presets"
+            type="number" min="1" v-model="form.unitCount" placeholder="개수"
+            class="write-input trade-unit-count-input"
           />
-          <datalist id="trade-unit-presets">
-            <option v-for="u in unitOptions" :key="u" :value="u" />
-          </datalist>
         </div>
-        <div class="unit-hint">수량과 단위를 자유롭게 정해서 적으면 돼요. 예: "{{ unitOptions.join('", "') }}"</div>
+        <div class="unit-hint">단위를 고르고 개수를 입력하세요. 예: "{{ form.unitCount || 3 }}{{ form.unitType }}"</div>
       </template>
       <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
 
@@ -270,15 +278,21 @@ function submitPost() {
 
       <div class="option-editor">
         <div class="option-editor-title">옵션 직접 추가</div>
-        <div class="option-editor-hint">룬워드 베이스 아이템 정보(예: 3소켓 크리스 소드), 소켓 개수, 그 외 사전에 없는 옵션을 자유롭게 추가하세요.</div>
+        <div class="option-editor-hint">룬워드는 박힌 룬 효과 말고도 베이스로 쓴 무기·방어구 자체의 옵션(방어력, 인핸스드 데미지 등)이 실거래가에 큰 영향을 줘요. 종류를 고르고 값을 입력해서 추가하세요.</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
           <span>{{ o }}</span>
           <button type="button" @click="removeCustomOption(i)">✕</button>
         </div>
         <div class="custom-option-add-row">
+          <select v-model="customOptionType" class="write-select custom-option-type-select">
+            <option v-for="p in CUSTOM_OPTION_PRESETS" :key="p.key" :value="p.key">{{ p.label }}</option>
+          </select>
           <input
-            type="text" v-model="customOptionInput" placeholder="예: 베이스 3소켓 크리스 소드, 방어력 220"
-            class="write-input" @keydown.enter.prevent="addCustomOption"
+            :type="selectedOptionPreset.freeText ? 'text' : 'number'"
+            v-model="customOptionValue"
+            :placeholder="selectedOptionPreset.freeText ? (selectedOptionPreset.placeholder || '값 입력') : '수치 입력'"
+            class="write-input custom-option-value-input"
+            @keydown.enter.prevent="addCustomOption"
           />
           <button type="button" class="custom-option-add-btn" @click="addCustomOption">추가</button>
         </div>
@@ -287,9 +301,6 @@ function submitPost() {
       <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 이스트 룬 2개, 퍼펙트 다이아몬드 10개)" class="write-input" />
 
       <div class="trade-form-row">
-        <select v-model="form.realm" class="write-select trade-meta-select">
-          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ r }}</option>
-        </select>
         <select v-model="form.ladder" class="write-select trade-meta-select">
           <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
         </select>
@@ -303,7 +314,7 @@ function submitPost() {
         <input type="text" v-model="form.contact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" />
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="150px" />
+      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="260px" />
 
       <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
     </div>
@@ -352,7 +363,7 @@ function submitPost() {
 .ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
 .ethereal-filter-check input{accent-color:var(--teal);}
 
-.write-form{display:flex; flex-direction:column; gap:12px; max-width:700px;}
+.write-form{display:flex; flex-direction:column; gap:12px; max-width:1180px;}
 .write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
@@ -363,7 +374,7 @@ function submitPost() {
 
 .trade-form-row{display:flex; gap:8px;}
 .trade-item-input{flex:1;}
-.trade-unit-input{flex:1;}
+.trade-unit-count-input{width:140px;}
 .trade-meta-select{flex:1; width:auto;}
 .unit-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
 
@@ -417,7 +428,8 @@ function submitPost() {
 .custom-option-chip button{color:var(--text-dim); flex:none;}
 .custom-option-chip button:hover{color:var(--blood);}
 .custom-option-add-row{display:flex; gap:8px;}
-.custom-option-add-row .write-input{flex:1;}
+.custom-option-type-select{width:220px; flex:none;}
+.custom-option-value-input{flex:1;}
 .custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
 .custom-option-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 
