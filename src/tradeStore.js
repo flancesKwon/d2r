@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
+import { BASE_ITEM_KO_NAMES } from './data/baseItemNames.js'
 
 export { itemsData }
 
@@ -135,6 +136,43 @@ export function itemBaseKind(item) {
 export const ETHEREAL_CATEGORIES = ['유니크/세트', '룬워드', '매직/레어/일반']
 export function categorySupportsEthereal(category) {
   return ETHEREAL_CATEGORIES.includes(category)
+}
+
+// 룬워드·매직/레어/일반은 베이스로 실제 어떤 무기·방어구를 썼는지가 매번 달라서
+// 사전에 없음 - 대신 사전 속 유니크·세트 730종이 공유하는 베이스(subtitle) 400여
+// 종을 모아서 검색 가능한 베이스 아이템 목록을 만듦. 흔히 거래되는 베이스만 한글
+// 이름이 있고(baseItemNames.js), 나머지는 영문 이름 + 기존 한글 종류로 표시함
+function buildBaseItemCatalog(items) {
+  const bySubtitle = new Map()
+  items.forEach((it) => {
+    if (!it.subtitle || !it.base_stats) return
+    if (it.base_stats.category !== 'weapon' && it.base_stats.category !== 'armor') return
+    if (bySubtitle.has(it.subtitle)) return
+    bySubtitle.set(it.subtitle, {
+      id: 'base-' + it.subtitle,
+      subtitle: it.subtitle,
+      name_ko: BASE_ITEM_KO_NAMES[it.subtitle] || null,
+      type_group: it.type_group,
+      type_sub: it.type_sub,
+      base_stats: it.base_stats,
+    })
+  })
+  return [...bySubtitle.values()]
+}
+export const BASE_ITEMS = buildBaseItemCatalog(itemsData)
+
+export function searchBaseItems(query, kind) {
+  let list = BASE_ITEMS
+  if (kind === 'weapon' || kind === 'armor') list = list.filter((b) => b.base_stats.category === kind)
+  const q = query.trim().toLowerCase()
+  if (!q) return list.slice(0, 40)
+  return list
+    .filter((b) => b.subtitle.toLowerCase().includes(q) || (b.name_ko && b.name_ko.includes(q)))
+    .slice(0, 40)
+}
+
+export function baseItemLabel(b) {
+  return b.name_ko ? `${b.name_ko} (${b.subtitle})` : `${b.subtitle} · ${b.type_sub}`
 }
 
 // "기타 옵션 직접 추가" 콤보박스 목록 - 기본방어력/증가된방어력/추가내구도(방어구)나
