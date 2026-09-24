@@ -64,11 +64,7 @@ const selected = ref(null)
 <style scoped>
 /* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
    목록·모달을 각진 테두리 대신 둥근 카드로 바꿈 */
-.patch-hero{background:linear-gradient(180deg, #17130F, var(--bg)); border-bottom:1px solid var(--border-soft);}
-.patch-hero-inner{max-width:1180px; margin:0 auto; padding:40px 24px 28px;}
-.patch-hero .eyebrow{font-size:13px; color:var(--gold-dim); font-weight:600; margin-bottom:10px;}
-.patch-hero h1{font-size:28px; margin-bottom:10px; color:var(--gold);}
-.patch-hero p{font-size:14px; color:var(--text-muted);}
+/* .patch-hero 계열 기본 스타일은 여러 페이지가 공유해서 style.css(전역)로 옮김 */
 
 .patch-list-wrap{max-width:1180px;}
 .patch-list{display:flex; flex-direction:column; gap:14px;}
