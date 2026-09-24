@@ -84,12 +84,18 @@ const filteredGuides = computed(() => {
 </template>
 
 <style scoped>
-.guide-grid-wide{display:grid; grid-template-columns:repeat(3, 1fr); gap:14px;}
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤은 그대로 두고 카드만 둥글게 + 호버 시
+   그림자 생기게 (커뮤니티/거래게시판과 같은 톤) */
+.cat-tabs button{border-radius:999px;}
+.guide-grid-wide{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;}
+.guide-card{border-radius:16px; padding:22px 24px;}
+.guide-card:hover{box-shadow:0 10px 26px -10px rgba(0,0,0,0.55);}
 .guide-class-icon{
   width:26px; height:26px; border:1px solid var(--border); background:var(--panel-2);
-  display:flex; align-items:center; justify-content:center; flex:none; margin-right:2px;
+  display:flex; align-items:center; justify-content:center; flex:none; margin-right:2px; border-radius:8px;
 }
 .guide-class-icon svg{width:14px; height:14px; stroke:var(--gold-dim); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+.guide-class-badge{border-radius:999px;}
 @media (max-width:900px){ .guide-grid-wide{grid-template-columns:1fr 1fr;} }
 @media (max-width:600px){ .guide-grid-wide{grid-template-columns:1fr;} }
 </style>

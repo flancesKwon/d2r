@@ -43,16 +43,17 @@ import marketTiers from '../data/marketTiers.json'
 </template>
 
 <style scoped>
-.market-wrap{max-width:860px;}
-.market-warn{margin-bottom:26px; line-height:1.6;}
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤은 그대로 두고 카드·칩만 둥글게 */
+.market-wrap{max-width:1180px;}
+.market-warn{margin-bottom:26px; line-height:1.6; border-radius:12px;}
 .market-warn a{color:var(--gold-dim); border-bottom:1px solid var(--gold-dim);}
 .market-warn a:hover{color:var(--gold);}
 
 .market-tier-list{display:flex; flex-direction:column; gap:14px;}
-.market-tier-card{border:1px solid var(--border-soft); background:var(--panel); padding:18px 20px;}
+.market-tier-card{border:1px solid var(--border-soft); background:var(--panel); padding:22px 24px; border-radius:16px;}
 .market-tier-head{display:flex; align-items:baseline; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
 .market-tier-name{font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; color:var(--gold);}
 .market-tier-note{font-size:12px; color:var(--text-dim);}
 .market-item-chips{display:flex; flex-wrap:wrap; gap:8px;}
-.market-chip{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); padding:6px 12px;}
+.market-chip{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); padding:6px 14px; border-radius:999px;}
 </style>

@@ -34,7 +34,7 @@ const related = computed(() =>
     <p class="guide-detail-summary">{{ guide.summary }}</p>
 
     <div class="guide-detail-grid">
-      <main>
+      <main class="post-card">
         <div class="d-section-title">스탯 우선순위</div>
         <div class="note-box">{{ guide.statPriority }}</div>
 
@@ -98,26 +98,34 @@ const related = computed(() =>
 </template>
 
 <style scoped>
-.guide-detail-wrap{max-width:960px;}
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤은 그대로 두고 본문을 하나의 둥근 카드로,
+   사이드바 박스·소목록도 각지지 않게 다듬음 */
+.guide-detail-wrap{max-width:1180px;}
 .guide-class-icon{
   display:inline-flex; width:20px; height:20px; border:1px solid var(--border); background:var(--panel-2);
-  align-items:center; justify-content:center; vertical-align:-5px; margin-right:6px;
+  align-items:center; justify-content:center; vertical-align:-5px; margin-right:6px; border-radius:6px;
 }
 .guide-class-icon svg{width:11px; height:11px; stroke:var(--gold-dim); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
 .guide-detail-title{font-size:28px; margin:10px 0 8px;}
 .guide-detail-date{font-size:11.5px; color:var(--text-dim); margin-bottom:16px;}
 .guide-detail-summary{font-size:14px; color:var(--text-muted); margin-bottom:26px; line-height:1.65; max-width:640px;}
 
-.guide-detail-grid{display:grid; grid-template-columns:1fr 280px; gap:28px; align-items:start;}
+.guide-detail-grid{display:grid; grid-template-columns:1fr 300px; gap:28px; align-items:start;}
+.post-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:18px; padding:32px 36px;}
+.note-box{border-radius:12px;}
+.affix-list{border-radius:14px; overflow:hidden;}
 .skill-order-line{display:flex; gap:12px;}
 .skill-order-level{color:var(--gold-dim); font-weight:700; font-size:12px; flex:none; width:70px;}
 
-.strength-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;}
-.strength-box{border:1px solid var(--border-soft); padding:14px 16px;}
+.strength-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px;}
+.strength-box{border:1px solid var(--border-soft); background:var(--panel-2); padding:16px 18px; border-radius:14px;}
 .strength-box h4{font-size:12.5px; margin-bottom:8px; font-family:'Noto Serif KR', serif;}
 .strength-box.good h4{color:var(--green);}
 .strength-box.bad h4{color:var(--blood);}
 .strength-box li{font-size:12.5px; color:var(--text-muted); padding:3px 0; line-height:1.5;}
+
+.side-block{border-radius:14px; background:var(--panel); overflow:hidden;}
+.tool-box a{border-radius:8px;}
 
 @media (max-width:800px){
   .guide-detail-grid{grid-template-columns:1fr;}

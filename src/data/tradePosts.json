@@ -6,6 +6,7 @@
     "itemName": "이스트 룬",
     "amountLabel": "5개",
     "options": [],
+    "ethereal": false,
     "price": "1개당 퍼펙트 다이아몬드 5개 (묶음 구매 시 협의 가능)",
     "realm": "미국동",
     "ladder": "레더",
@@ -27,6 +28,7 @@
     "itemName": "최상급 다이아몬드",
     "amountLabel": "1스택(40개입)",
     "options": [],
+    "ethereal": false,
     "price": "스택 전체 이스트 룬 2개",
     "realm": "아시아",
     "ladder": "논레더",
@@ -46,6 +48,7 @@
     "itemName": "베히모스의 심장 + 미라의 눈물 + 창조의 돌 세트",
     "amountLabel": "3세트",
     "options": [],
+    "ethereal": false,
     "price": "1세트당 이스트 룬 3개 교환",
     "realm": "유럽",
     "ladder": "레더",
@@ -77,6 +80,7 @@
       "활력 +2",
       "마력 +2"
     ],
+    "ethereal": false,
     "price": "펄 룬 1개 또는 퍼펙트 다이아몬드 20개",
     "realm": "미국서",
     "ladder": "레더",
@@ -106,8 +110,10 @@
       "강타 확률 +20%",
       "괴물 회복 저지",
       "강타 확률 +20%",
-      "마법 아이템 발견 확률 30% 증가"
+      "마법 아이템 발견 확률 30% 증가",
+      "베이스: 3소켓 미늘창 (에테리얼)"
     ],
+    "ethereal": true,
     "price": "베르 룬 1개 + 미라의 눈물",
     "realm": "미국동",
     "ladder": "논레더",
@@ -117,7 +123,7 @@
     "date": "2026-09-19",
     "views": 12,
     "status": "판매중",
-    "content": "무한(Infinity) 룬워드 창입니다. 베이스 아이템은 3소켓 크리스 소드입니다. 완성품 그대로 드려요.",
+    "content": "무한(Infinity) 룬워드 창입니다. 베이스 아이템은 3소켓 에테리얼 미늘창입니다. 완성품 그대로 드려요.",
     "requests": []
   },
   {
@@ -127,6 +133,7 @@
     "itemName": "이중 저항 목걸이 (레어)",
     "amountLabel": "1개",
     "options": [],
+    "ethereal": false,
     "price": "펄 룬 1개",
     "realm": "미국동",
     "ladder": "레더",
@@ -146,6 +153,7 @@
     "itemName": "잊혀진 영혼(Forgotten Souls) 대량",
     "amountLabel": "10묶음(100개입)",
     "options": [],
+    "ethereal": false,
     "price": "묶음당 이스트 룬 1개 상당 물물교환",
     "realm": "아시아",
     "ladder": "레더",

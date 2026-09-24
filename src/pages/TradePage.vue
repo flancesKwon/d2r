@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import {
   tradeState,
   TRADE_CATEGORIES,
@@ -9,10 +9,11 @@ import {
   TRADE_HARDCORE,
   UNIT_PRESETS,
   addTradePost,
-  itemDbSupportsCategory,
-  searchTradeItems,
+  searchAllItems,
+  tradeCategoryForItem,
   getTradeItem,
   categoryHasUnit,
+  categorySupportsEthereal,
   getItemAffixes,
   isRollRangeAffix,
   resolveAffixText,
@@ -22,6 +23,10 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const activeCat = ref(null)
 const activeStatus = ref(null)
+const activeRealm = ref(null)
+const activeLadder = ref(null)
+const activeHardcore = ref(null)
+const etherealOnly = ref(false)
 const searchQuery = ref('')
 const showForm = ref(false)
 
@@ -30,6 +35,7 @@ const emptyForm = () => ({
   itemId: null,
   itemName: '',
   amountLabel: '',
+  ethereal: false,
   price: '',
   realm: TRADE_REALMS[0],
   ladder: TRADE_LADDERS[0],
@@ -42,14 +48,17 @@ const form = ref(emptyForm())
 
 const unitOptions = computed(() => UNIT_PRESETS[form.value.category] || ['1개'])
 
-const hasItemDb = computed(() => itemDbSupportsCategory(form.value.category))
 const hasUnit = computed(() => categoryHasUnit(form.value.category))
-const itemSearch = ref('')
+const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
 const showItemDropdown = ref(false)
-const itemCandidates = computed(() => searchTradeItems(form.value.category, itemSearch.value))
+// 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드)에서
+// 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 사전에 없으면 그냥 입력한 텍스트 그대로 등록
+const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(form.value.itemName)))
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
+const customOptions = ref([])
+const customOptionInput = ref('')
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -62,18 +71,14 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-const freeTextPlaceholder = computed(() => {
-  if (form.value.category === '우버보스 재료') return '아이템명 (예: 다이아블로의 뿔 세트)'
-  if (form.value.category === '매직/레어/일반') return '아이템명 (예: 매직 대검, 이중 저항 목걸이, 3소켓 모나크 방패)'
-  return '아이템명 (예: 잊혀진 영혼 대량)'
-})
-
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
-  itemSearch.value = ''
+  const cat = tradeCategoryForItem(it)
+  if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
+  if (!categoryHasUnit(form.value.category)) form.value.amountLabel = '1개'
 }
 
 function clearPickedItem() {
@@ -86,21 +91,33 @@ function hideItemDropdownSoon() {
   window.setTimeout(() => (showItemDropdown.value = false), 150)
 }
 
-watch(
-  () => form.value.category,
-  (cat) => {
-    form.value.itemId = null
-    form.value.itemName = ''
-    itemSearch.value = ''
-    rolledValues.value = {}
-    form.value.amountLabel = categoryHasUnit(cat) ? '' : '1개'
-  }
-)
+function onCategoryManualChange() {
+  form.value.itemId = null
+  form.value.itemName = ''
+  rolledValues.value = {}
+  customOptions.value = []
+  form.value.amountLabel = categoryHasUnit(form.value.category) ? '' : '1개'
+}
+
+function addCustomOption() {
+  const v = customOptionInput.value.trim()
+  if (!v) return
+  customOptions.value.push(v)
+  customOptionInput.value = ''
+}
+
+function removeCustomOption(i) {
+  customOptions.value.splice(i, 1)
+}
 
 const filteredPosts = computed(() => {
   let list = tradeState.posts
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
   if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
+  if (activeRealm.value) list = list.filter((p) => p.realm === activeRealm.value)
+  if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
+  if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
+  if (etherealOnly.value) list = list.filter((p) => p.ethereal)
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
@@ -112,12 +129,15 @@ const filteredPosts = computed(() => {
 
 function submitPost() {
   if (!form.value.itemName.trim() || !form.value.amountLabel.trim() || !form.value.price.trim()) return
-  const options = itemAffixes.value.map((a, i) =>
+  const dbOptions = itemAffixes.value.map((a, i) =>
     isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   )
+  const options = [...dbOptions, ...customOptions.value]
   addTradePost({ ...form.value, options })
   form.value = emptyForm()
   rolledValues.value = {}
+  customOptions.value = []
+  customOptionInput.value = ''
   showForm.value = false
 }
 </script>
@@ -160,23 +180,35 @@ function submitPost() {
         <span class="result-count">{{ filteredPosts.length }}개</span>
         <button class="quality-toggle" @click="showForm = !showForm">{{ showForm ? '취소' : '판매글 등록' }}</button>
       </div>
+      <div class="filter-row">
+        <select v-model="activeRealm" class="sort-select">
+          <option :value="null">전체 서버</option>
+          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ r }}</option>
+        </select>
+        <select v-model="activeLadder" class="sort-select">
+          <option :value="null">레더·논레더 전체</option>
+          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
+        </select>
+        <select v-model="activeHardcore" class="sort-select">
+          <option :value="null">일반·하드코어 전체</option>
+          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
+        </select>
+        <label class="ethereal-filter-check">
+          <input type="checkbox" v-model="etherealOnly" />
+          에테리얼만
+        </label>
+      </div>
     </div>
   </div>
 
   <div class="quality-info" v-if="showForm">
     <div class="quality-info-inner write-form trade-write-form">
       <div class="trade-form-row">
-        <select v-model="form.category" class="write-select">
+        <select v-model="form.category" class="write-select" @change="onCategoryManualChange">
           <option v-for="c in TRADE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
         </select>
 
-        <input
-          v-if="!hasItemDb"
-          type="text" v-model="form.itemName" :placeholder="freeTextPlaceholder"
-          class="write-input trade-item-input"
-        />
-
-        <div v-else class="item-picker trade-item-input">
+        <div class="item-picker trade-item-input">
           <div v-if="selectedItem" class="item-picker-selected">
             <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
             <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
@@ -184,11 +216,11 @@ function submitPost() {
           </div>
           <div v-else class="item-picker-search-wrap">
             <input
-              type="text" v-model="itemSearch" placeholder="아이템 사전에서 검색 (예: 이스트, 할리퀸)"
+              type="text" v-model="form.itemName" placeholder="아이템명 검색 (사전에 없으면 직접 입력한 이름 그대로 등록돼요)"
               class="write-input" @focus="showItemDropdown = true"
               @blur="hideItemDropdownSoon"
             />
-            <div class="item-picker-dropdown" v-if="showItemDropdown">
+            <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
               <button
                 type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
                 @mousedown.prevent="pickItem(it)"
@@ -196,11 +228,16 @@ function submitPost() {
                 <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <p class="item-picker-empty" v-if="!itemCandidates.length">검색 결과가 없어요</p>
+              <p class="item-picker-empty" v-if="!itemCandidates.length">사전에 없는 아이템이에요. 이 이름 그대로 등록돼요.</p>
             </div>
           </div>
         </div>
       </div>
+
+      <label class="ethereal-check" v-if="hasEthereal">
+        <input type="checkbox" v-model="form.ethereal" />
+        에테리얼(Ethereal) 아이템이에요
+      </label>
 
       <template v-if="hasUnit">
         <div class="trade-form-row">
@@ -231,6 +268,22 @@ function submitPost() {
         </div>
       </div>
 
+      <div class="option-editor">
+        <div class="option-editor-title">옵션 직접 추가</div>
+        <div class="option-editor-hint">룬워드 베이스 아이템 정보(예: 3소켓 크리스 소드), 소켓 개수, 그 외 사전에 없는 옵션을 자유롭게 추가하세요.</div>
+        <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
+          <span>{{ o }}</span>
+          <button type="button" @click="removeCustomOption(i)">✕</button>
+        </div>
+        <div class="custom-option-add-row">
+          <input
+            type="text" v-model="customOptionInput" placeholder="예: 베이스 3소켓 크리스 소드, 방어력 220"
+            class="write-input" @keydown.enter.prevent="addCustomOption"
+          />
+          <button type="button" class="custom-option-add-btn" @click="addCustomOption">추가</button>
+        </div>
+      </div>
+
       <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 이스트 룬 2개, 퍼펙트 다이아몬드 10개)" class="write-input" />
 
       <div class="trade-form-row">
@@ -250,7 +303,7 @@ function submitPost() {
         <input type="text" v-model="form.contact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" />
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="90px" />
+      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="150px" />
 
       <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
     </div>
@@ -266,6 +319,7 @@ function submitPost() {
         <div class="trade-body">
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
+            <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
             <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span>
           </div>
           <div class="trade-meta">
@@ -284,18 +338,28 @@ function submitPost() {
 </template>
 
 <style scoped>
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
+   목록 행을 각진 구분선 대신 카드로, 입력창·태그류는 둥글게 다듬음 */
+.cat-tabs button{border-radius:999px;}
+.search-input-wrap{border-radius:10px; overflow:hidden;}
+.quality-toggle{border-radius:10px;}
 .sort-select{
   background:var(--panel); border:1px solid var(--border); color:var(--text-muted); font-size:12.5px;
-  padding:9px 10px; font-family:'Noto Sans KR', sans-serif;
+  padding:9px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 
-.write-form{display:flex; flex-direction:column; gap:10px; max-width:560px;}
+.filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+.ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
+.ethereal-filter-check input{accent-color:var(--teal);}
+
+.write-form{display:flex; flex-direction:column; gap:12px; max-width:700px;}
+.write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
-  padding:10px 12px; font-family:'Noto Sans KR', sans-serif;
+  padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .write-select{width:120px;}
-.write-submit{align-self:flex-start; padding:10px 20px; font-size:13px;}
+.write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
 
 .trade-form-row{display:flex; gap:8px;}
 .trade-item-input{flex:1;}
@@ -307,23 +371,23 @@ function submitPost() {
 .item-picker-search-wrap{position:relative;}
 .item-picker-selected{
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
-  padding:6px 10px; height:41px; box-sizing:border-box;
+  padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
 }
 .item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
 .item-picker-dropdown{
-  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:280px; overflow-y:auto;
-  background:var(--panel-2); border:1px solid var(--border); box-shadow:0 8px 20px rgba(0,0,0,0.5);
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20; max-height:380px; overflow-y:auto;
+  background:var(--panel-2); border:1px solid var(--border); box-shadow:0 12px 28px -6px rgba(0,0,0,0.55);
+  border-radius:12px; padding:6px;
 }
 .item-picker-row{
-  display:flex; align-items:center; gap:8px; width:100%; padding:8px 10px; text-align:left;
-  border-bottom:1px solid var(--border-soft); font-family:'Noto Sans KR', sans-serif;
+  display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; text-align:left;
+  font-family:'Noto Sans KR', sans-serif; border-radius:9px;
 }
-.item-picker-row:last-child{border-bottom:none;}
 .item-picker-row:hover{background:rgba(255,255,255,0.06);}
 .item-picker-icon{
   width:26px; height:26px; flex:none; display:flex; align-items:center; justify-content:center;
-  background:var(--panel); border:1px solid var(--border-soft);
+  background:var(--panel); border:1px solid var(--border-soft); border-radius:7px;
 }
 .item-picker-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .item-picker-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 8px -2px rgba(200,163,77,0.5);}
@@ -334,17 +398,32 @@ function submitPost() {
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
 .item-picker-empty{padding:14px; text-align:center; color:var(--text-dim); font-size:12px; margin:0;}
 
-.option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:12px 14px; display:flex; flex-direction:column; gap:8px;}
+.option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
 .option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
 .option-row{display:flex; align-items:center; gap:10px;}
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}
-.option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none;}
+.option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
+
+.ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
+.ethereal-check input{accent-color:var(--teal);}
+
+.custom-option-chip{
+  display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
+  padding:7px 12px; font-size:12.5px; color:var(--text-muted); border-radius:999px;
+}
+.custom-option-chip span{flex:1;}
+.custom-option-chip button{color:var(--text-dim); flex:none;}
+.custom-option-chip button:hover{color:var(--blood);}
+.custom-option-add-row{display:flex; gap:8px;}
+.custom-option-add-row .write-input{flex:1;}
+.custom-option-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
+.custom-option-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 
 .trade-row-icon{
-  width:36px; height:36px; flex:none; display:flex; align-items:center; justify-content:center;
-  background:var(--panel-2); border:1px solid var(--border-soft); margin-top:1px;
+  width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px;
 }
 .trade-row-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-row-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 10px -3px rgba(200,163,77,0.5);}
@@ -352,22 +431,24 @@ function submitPost() {
 .trade-row-icon.runeword{border-color:var(--blood); box-shadow:0 0 10px -3px rgba(162,81,63,0.5);}
 .trade-row-icon.gem{border-color:var(--teal); box-shadow:0 0 10px -3px rgba(78,138,138,0.5);}
 
-.trade-list-wrap{max-width:900px;}
-.trade-list{display:flex; flex-direction:column;}
+.trade-list-wrap{max-width:1180px;}
+.trade-list{display:flex; flex-direction:column; gap:14px;}
 .trade-row{
-  display:flex; align-items:flex-start; gap:14px; padding:16px 4px; border-bottom:1px solid var(--border-soft);
-  transition:background .1s;
+  display:flex; align-items:flex-start; gap:16px; padding:20px 22px; border-radius:16px;
+  background:var(--panel); border:1px solid var(--border-soft);
+  transition:transform .15s, box-shadow .15s, border-color .15s;
 }
-.trade-row:hover{background:var(--panel);}
-.trade-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:3px 9px; flex:none; margin-top:1px;}
+.trade-row:hover{transform:translateY(-2px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
+.trade-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:4px 12px; flex:none; margin-top:1px; border-radius:999px;}
 .trade-body{flex:1; min-width:0;}
-.trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:4px;}
-.trade-title{font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.trade-status-badge{font-size:10px; padding:2px 8px; border:1px solid var(--border); flex:none; color:var(--text-dim);}
+.trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+.trade-title{font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.ethereal-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
+.trade-status-badge{font-size:10px; padding:2px 10px; border:1px solid var(--border); flex:none; color:var(--text-dim); border-radius:999px;}
 .trade-status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
 .trade-status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}
 .trade-status-badge.status-거래완료{color:var(--text-dim); border-color:var(--border);}
-.trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:4px;}
-.trade-sub-meta{font-size:11.5px; color:var(--text-dim);}
-.trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:2px 8px; flex:none; margin-top:1px;}
+.trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:6px;}
+.trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
+.trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
 </style>

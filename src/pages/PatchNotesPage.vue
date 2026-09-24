@@ -62,28 +62,33 @@ const selected = ref(null)
 </template>
 
 <style scoped>
+/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
+   목록·모달을 각진 테두리 대신 둥근 카드로 바꿈 */
 .patch-hero{background:linear-gradient(180deg, #17130F, var(--bg)); border-bottom:1px solid var(--border-soft);}
 .patch-hero-inner{max-width:1180px; margin:0 auto; padding:40px 24px 28px;}
 .patch-hero .eyebrow{font-size:13px; color:var(--gold-dim); font-weight:600; margin-bottom:10px;}
 .patch-hero h1{font-size:28px; margin-bottom:10px; color:var(--gold);}
 .patch-hero p{font-size:14px; color:var(--text-muted);}
 
-.patch-list-wrap{max-width:860px;}
-.patch-list{display:flex; flex-direction:column; gap:10px;}
+.patch-list-wrap{max-width:1180px;}
+.patch-list{display:flex; flex-direction:column; gap:14px;}
 .patch-row{
   display:block; width:100%; text-align:left; border:1px solid var(--border-soft); background:var(--panel);
-  padding:18px 20px; cursor:pointer; transition:border-color .15s, transform .1s;
+  padding:22px 24px; cursor:pointer; transition:transform .15s, box-shadow .15s, border-color .15s; border-radius:16px;
 }
-.patch-row:hover{border-color:var(--gold-dim); transform:translateY(-1px);}
+.patch-row:hover{border-color:var(--gold-dim); transform:translateY(-2px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55);}
 .patch-row-top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
 .patch-version{font-family:'Noto Serif KR', serif; font-weight:700; color:var(--gold); font-size:13px;}
-.patch-tag{font-size:10.5px; color:var(--text-muted); border:1px solid var(--border); padding:2px 8px;}
+.patch-tag{font-size:10.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; border-radius:999px;}
 .patch-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; margin-bottom:6px;}
-.patch-summary{font-size:13px; color:var(--text-muted); margin-bottom:8px; line-height:1.5;}
+.patch-summary{font-size:13px; color:var(--text-muted); margin-bottom:8px; line-height:1.6;}
 .patch-date{font-size:11px; color:var(--text-dim);}
 
+.modal-panel{border-radius:18px;}
+.modal-close{border-radius:10px;}
 .patch-modal{max-width:680px;}
 .patch-modal-title{font-size:24px; margin:10px 0 12px;}
 .patch-tag-row{display:flex; gap:6px; margin-bottom:16px;}
 .patch-modal-summary{font-size:13.5px; color:var(--text-muted); margin-bottom:22px; line-height:1.6;}
+.affix-list{border-radius:14px; overflow:hidden;}
 </style>
