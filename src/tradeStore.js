@@ -38,7 +38,8 @@ export function categoryHasUnit(category) {
 
 export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
-export const TRADE_REALMS = ['미국동', '미국서', '유럽', '아시아']
+// 아시아 서버 유저 대상 게시판이라 서버 선택 자체를 없앰 - 항상 아시아로 고정
+export const TRADE_REALMS = ['아시아']
 export const TRADE_LADDERS = ['레더', '논레더']
 export const TRADE_HARDCORE = ['일반', '하드코어']
 
@@ -69,13 +70,48 @@ export function categorySupportsEthereal(category) {
   return ETHEREAL_CATEGORIES.includes(category)
 }
 
-export const UNIT_PRESETS = {
-  룬: ['1개', '5개', '10개입 묶음', '스택 전체'],
-  '퍼펙트 보석': ['1개', '10개입 묶음', '1스택(40개입)'],
-  '우버보스 재료': ['1세트', '3세트', '1개'],
-  '유니크/세트': ['1개'],
-  룬워드: ['1개'],
-  기타: ['1개', '10개입 묶음'],
+// "옵션 직접 추가" 콤보박스 목록 - 룬워드는 박힌 룬 자체 효과 말고도 베이스로 쓴
+// 재료(무기·방어구)가 원래 갖고 있는 방어력·인핸스드 데미지 같은 옵션이 실거래가에
+// 큰 영향을 주는데 아이템 사전엔 그 데이터가 없어서, 자주 쓰는 옵션 종류를 정해두고
+// 값만 입력하면 되게 함. "기타"는 목록에 없는 옵션을 위한 자유 입력 폴백
+export const CUSTOM_OPTION_PRESETS = [
+  { key: 'defense', label: '방어력', format: (v) => `방어력 +${v}` },
+  { key: 'edef', label: '추가방어력(%)', format: (v) => `추가방어력 +${v}%` },
+  { key: 'edmg', label: '증가된 데미지(%)', format: (v) => `인핸스드 데미지 +${v}%` },
+  { key: 'ias', label: '공격 속도 증가(%)', format: (v) => `공격 속도 증가 +${v}%` },
+  { key: 'frw', label: '이동/공격 속도 증가(%)', format: (v) => `이동/공격 속도 증가 +${v}%` },
+  { key: 'sockets', label: '소켓 개수', format: (v) => `소켓 ${v}개` },
+  { key: 'life', label: '생명력', format: (v) => `생명력 +${v}` },
+  { key: 'mana', label: '마나', format: (v) => `마나 +${v}` },
+  { key: 'str', label: '힘', format: (v) => `힘 +${v}` },
+  { key: 'dex', label: '민첩', format: (v) => `민첩 +${v}` },
+  { key: 'vit', label: '활력', format: (v) => `활력 +${v}` },
+  { key: 'enr', label: '마력', format: (v) => `마력 +${v}` },
+  { key: 'allstats', label: '모든 속성', format: (v) => `모든 속성 +${v}` },
+  { key: 'allres', label: '모든 저항(%)', format: (v) => `모든 저항 +${v}%` },
+  { key: 'fireres', label: '화염 저항(%)', format: (v) => `화염 저항 +${v}%` },
+  { key: 'coldres', label: '냉기 저항(%)', format: (v) => `냉기 저항 +${v}%` },
+  { key: 'ltngres', label: '번개 저항(%)', format: (v) => `번개 저항 +${v}%` },
+  { key: 'poisres', label: '독 저항(%)', format: (v) => `독 저항 +${v}%` },
+  { key: 'allskills', label: '모든 기술', format: (v) => `모든 기술 +${v}` },
+  { key: 'skill', label: '특정 스킬', freeText: true, placeholder: '예: +3 파이어볼' },
+  { key: 'mf', label: '마법 아이템 발견 확률(%)', format: (v) => `마법 아이템 발견 확률 +${v}%` },
+  { key: 'gf', label: '골드 발견 확률(%)', format: (v) => `골드 발견 확률 +${v}%` },
+  { key: 'lifesteal', label: '공격 시 생명력 흡수(%)', format: (v) => `공격 시 생명력 흡수 +${v}%` },
+  { key: 'manasteal', label: '공격 시 마나 흡수(%)', format: (v) => `공격 시 마나 흡수 +${v}%` },
+  { key: 'fhr', label: '재빠른 히트 회복(%)', format: (v) => `재빠른 히트 회복 +${v}%` },
+  { key: 'custom', label: '기타 (직접 입력)', freeText: true, placeholder: '예: 베이스 3소켓 크리스 소드' },
+]
+
+// 판매 수량/단위 - 단위(콤보박스로 선택)와 개수(숫자 입력)를 따로 받아서 합침.
+// 룬·퍼펙트 보석만 이렇게 자유롭게 정하고 나머지는 낱개(1개) 고정
+export const UNIT_TYPE_OPTIONS = {
+  룬: ['개', '묶음(10개입)', '스택(전체)'],
+  '퍼펙트 보석': ['개', '묶음(10개입)', '스택(40개입)'],
+}
+export function buildAmountLabel(unitType, count) {
+  const n = Number(count) || 0
+  return n > 0 ? `${n}${unitType}` : ''
 }
 
 export const tradeState = reactive({
