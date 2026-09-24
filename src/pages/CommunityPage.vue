@@ -220,7 +220,7 @@ function submitPost() {
 .active-tag-row{display:flex; align-items:center; gap:8px; margin-top:10px; max-width:1180px; margin-left:auto; margin-right:auto;}
 .active-tag-label{font-size:12px; color:var(--text-dim);}
 
-.write-form{display:flex; flex-direction:column; gap:12px; max-width:700px;}
+.write-form{display:flex; flex-direction:column; gap:12px; max-width:1180px;}
 .write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
 .write-select, .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
