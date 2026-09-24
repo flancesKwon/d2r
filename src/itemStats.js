@@ -25,6 +25,41 @@ export function runewordSlots(subtitle) {
   return slots
 }
 
+export function runePips(seq) {
+  return (seq || '').match(/[A-Z][a-z]+/g) || []
+}
+
+// 룬워드 최종 옵션 = 룬워드 고유 옵션(runes.txt T1Code, 최대 7개) + 박힌 룬 각각의
+// 자체 효과(gems.txt weaponMod/helmMod/shieldMod, 장착 부위별로 다름) - 이 둘을 합쳐야
+// 실제 게임의 완전한 옵션 목록이 됨
+const RUNE_MOD_FIELD = { weapon: 'in_weapon', shield: 'in_shield', armor: 'in_helm', helm: 'in_helm' }
+
+// 룬 이름(El, Ber 등) -> 룬 아이템 데이터 조회 테이블
+export function buildRuneLookup(items) {
+  const lookup = {}
+  items.forEach((it) => {
+    if (it.type_sub === '룬' && it.name_en && it.name_en.endsWith(' Rune')) {
+      lookup[it.name_en.replace(' Rune', '')] = it
+    }
+  })
+  return lookup
+}
+
+// slotKey를 알면(실제 장착 중) 그 부위 기준, 모르면(목록 표시용) 장착 가능한 첫 번째
+// 부위 기준으로 룬들의 자체 효과를 모아서 반환
+export function runewordRuneAffixes(item, runeLookup, slotKey) {
+  if (item.category !== 'runeword' || !item.extra || !item.extra.rune_sequence) return []
+  const category = slotKey || runewordSlots(item.subtitle)[0]
+  const field = RUNE_MOD_FIELD[category]
+  if (!field) return []
+  const out = []
+  runePips(item.extra.rune_sequence).forEach((runeName) => {
+    const rune = runeLookup[runeName]
+    if (rune && rune.extra && rune.extra[field]) out.push(...rune.extra[field])
+  })
+  return out
+}
+
 function baseSlotOf(item) {
   if (item.category === 'runeword') return null // 별도 처리
   if (item.type_group === '무기') return 'weapon'
@@ -64,8 +99,9 @@ function avg(a) {
 
 const RESIST_STATS = { fireresist: 'fire', coldresist: 'cold', lightresist: 'ltng', poisonresist: 'pois' }
 
-// equippedItems: { slotKey: itemObject|null }, classKey: 'amazon' 등, extraItems: 참(charm) 등 슬롯 없이 추가되는 아이템 목록
-export function aggregateItemStats(equippedItems, classKey, extraItems = []) {
+// equippedItems: { slotKey: itemObject|null }, classKey: 'amazon' 등, extraItems: 참(charm) 등 슬롯 없이 추가되는 아이템 목록,
+// runeLookup: buildRuneLookup() 결과 - 룬워드에 박힌 룬 자체 효과까지 합산하는 데 씀
+export function aggregateItemStats(equippedItems, classKey, extraItems = [], runeLookup = {}) {
   const result = {
     str: 0,
     dex: 0,
@@ -83,22 +119,8 @@ export function aggregateItemStats(equippedItems, classKey, extraItems = []) {
     weaponDamage: null, // {min, max} 장착 무기 물리 데미지 (2handmindam 우선)
   }
 
-  ;[...Object.values(equippedItems), ...extraItems].forEach((item) => {
-    if (!item) return
-    if (item.base_stats && item.base_stats.category === 'weapon') {
-      const min = item.base_stats['2handmindam'] ?? item.base_stats.mindam
-      const max = item.base_stats['2handmaxdam'] ?? item.base_stats.maxdam
-      if (min != null && max != null) {
-        result.weaponDamage = result.weaponDamage || { min: 0, max: 0 }
-        result.weaponDamage.min += min
-        result.weaponDamage.max += max
-      }
-    }
-    if (item.base_stats && item.base_stats.minac != null) {
-      result.acFlat += avg({ min: item.base_stats.minac, max: item.base_stats.maxac })
-    }
-
-    ;(item.affixes || []).forEach((a) => {
+  function applyAffixes(affixes) {
+    ;(affixes || []).forEach((a) => {
       const v = avg(a)
       // "모든 속성"/"모든 저항"은 원본 데이터에 단일 스탯(strength/fireresist)으로만
       // 붙어있어서 나머지 3개가 누락됨 - prop으로 구분해서 4개 전부에 더해줌
@@ -157,7 +179,30 @@ export function aggregateItemStats(equippedItems, classKey, extraItems = []) {
           if (RESIST_STATS[a.stat]) result.resist[RESIST_STATS[a.stat]] += v
       }
     })
+  }
+
+  function applyItem(item) {
+    if (!item) return
+    if (item.base_stats && item.base_stats.category === 'weapon') {
+      const min = item.base_stats['2handmindam'] ?? item.base_stats.mindam
+      const max = item.base_stats['2handmaxdam'] ?? item.base_stats.maxdam
+      if (min != null && max != null) {
+        result.weaponDamage = result.weaponDamage || { min: 0, max: 0 }
+        result.weaponDamage.min += min
+        result.weaponDamage.max += max
+      }
+    }
+    if (item.base_stats && item.base_stats.minac != null) {
+      result.acFlat += avg({ min: item.base_stats.minac, max: item.base_stats.maxac })
+    }
+    applyAffixes(item.affixes)
+  }
+
+  Object.entries(equippedItems).forEach(([slotKey, item]) => {
+    applyItem(item)
+    if (item && item.category === 'runeword') applyAffixes(runewordRuneAffixes(item, runeLookup, slotKey))
   })
+  extraItems.forEach(applyItem)
 
   return result
 }
