@@ -6,7 +6,7 @@ import skillData from '../data/skills.json'
 import itemsData from '../data/items.json'
 import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
-import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus } from '../itemStats.js'
+import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildRuneLookup } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
 import iconsData from '../data/icons.json'
 
@@ -70,6 +70,7 @@ const equippedItems = reactive(Object.fromEntries(SLOT_DEFS.map((s) => [s.key, '
 
 const itemsBySlot = buildItemsBySlot(itemsData)
 const itemById = Object.fromEntries(itemsData.map((i) => [i.id, i]))
+const runeLookup = buildRuneLookup(itemsData)
 
 // ---- 장비 슬롯 선택 팝업 (검색 + 아이콘 미리보기) ----
 const slotPicker = ref(null) // 지금 고르는 중인 슬롯 키, 없으면 null
@@ -176,7 +177,7 @@ function removeCharm(id) {
 const itemAgg = computed(() => {
   const full = Object.fromEntries(SLOT_DEFS.map((s) => [s.key, equippedItems[s.key] ? itemById[equippedItems[s.key]] : null]))
   const charms = equippedCharms.map((id) => itemById[id]).filter(Boolean)
-  return aggregateItemStats(full, selectedClass.value, charms)
+  return aggregateItemStats(full, selectedClass.value, charms, runeLookup)
 })
 
 function resetAll() {

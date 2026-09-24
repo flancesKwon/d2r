@@ -4,11 +4,12 @@ import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
 import { ICONS } from '../icons.js'
-import { runewordSlots } from '../itemStats.js'
+import { runewordSlots, runePips, buildRuneLookup, runewordRuneAffixes } from '../itemStats.js'
 
 const items = itemsData
 const icons = iconsData
 const route = useRoute()
+const runeLookup = buildRuneLookup(itemsData)
 
 // 룬워드는 실제 게임에서도 전용 아이콘이 없고(꽂힌 베이스 아이템 모양을 그대로 씀),
 // 소켓에 박힌 룬이 화면에 줄지어 보임 - 그 느낌을 살리려고 베이스 부위 실루엣 위에
@@ -20,8 +21,10 @@ function runewordBaseIconUrl(item) {
   const slot = runewordSlots(item.subtitle)[0]
   return equipIconUrl[RUNEWORD_SLOT_ICON_FILE[slot]] || null
 }
-function runePips(seq) {
-  return (seq || '').match(/[A-Z][a-z]+/g) || []
+// 룬워드 화면에 보여줄 전체 옵션 = 룬워드 고유 옵션(affixes, 최대 7개) + 박힌 룬들 자체 효과.
+// 실제 게임 내부에서도 항상 이렇게 합쳐져서 나옴
+function runewordFullAffixes(item) {
+  return [...item.affixes, ...runewordRuneAffixes(item, runeLookup)]
 }
 function runeIconUrl(runeName) {
   const b64 = icons['invr' + runeName.toLowerCase() + '__rune']
@@ -297,12 +300,13 @@ const filteredItems = computed(() => {
         </div>
         <div class="note-box">장착 가능 베이스: <b>{{ selected.subtitle || '—' }}</b></div>
         <div class="d-section-title">옵션</div>
+        <p class="note-box" style="margin-bottom:10px">룬워드 고유 옵션에 박힌 룬들 자체 효과까지 합친 실제 최종 옵션이에요.</p>
         <div class="affix-list">
-          <div v-if="selected.affixes.length === 0" class="affix-line unresolved">
+          <div v-if="runewordFullAffixes(selected).length === 0" class="affix-line unresolved">
             <span class="a-text">옵션 데이터가 없어요</span>
           </div>
           <div
-            v-for="(a, i) in selected.affixes"
+            v-for="(a, i) in runewordFullAffixes(selected)"
             :key="i"
             class="affix-line"
             :class="{ unresolved: !a.text }"
