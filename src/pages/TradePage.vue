@@ -231,7 +231,7 @@ function submitPost() {
         </div>
       </div>
 
-      <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 1개당 30만 FG, 이스 룬 교환)" class="write-input" />
+      <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 이스트 룬 2개, 퍼펙트 다이아몬드 10개)" class="write-input" />
 
       <div class="trade-form-row">
         <select v-model="form.realm" class="write-select trade-meta-select">
