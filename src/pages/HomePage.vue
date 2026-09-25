@@ -40,6 +40,7 @@ import LogoMark from '../components/LogoMark.vue'
           <router-link to="/items?cat=runeword">룬워드 계산기</router-link>
           <router-link to="/simulator">스킬·스탯 시뮬레이터</router-link>
           <router-link to="/market">시세 게시판</router-link><router-link to="/ladder">레더 시즌 정보</router-link>
+          <router-link to="/cube">큐브 레시피</router-link>
         </div>
       </div>
       <router-link to="/items">아이템 사전</router-link>

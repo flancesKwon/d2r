@@ -14,6 +14,7 @@ import TradeNewPage from './pages/TradeNewPage.vue'
 import TradePostPage from './pages/TradePostPage.vue'
 import SignupPage from './pages/SignupPage.vue'
 import AdminPage from './pages/AdminPage.vue'
+import CubeRecipesPage from './pages/CubeRecipesPage.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -33,6 +34,7 @@ const router = createRouter({
     { path: '/trade/:id', name: 'trade-post', component: TradePostPage },
     { path: '/signup', name: 'signup', component: SignupPage },
     { path: '/admin', name: 'admin', component: AdminPage },
+    { path: '/cube', name: 'cube', component: CubeRecipesPage },
   ],
   scrollBehavior() {
     return { top: 0 }
