@@ -5,10 +5,13 @@ import { ref, computed } from 'vue'
 import { profileState, saveProfile } from '../profileStore.js'
 import { tradePostsByAuthor, tradePostsWithMyRequests, getTradeItem } from '../tradeStore.js'
 import { communityPostsByAuthor } from '../communityStore.js'
+import { reviewsForUser } from '../dealsStore.js'
 import iconsData from '../data/icons.json'
 
-const TABS = ['내가 쓴 글', '거래내역', '회원정보수정']
+const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '회원정보수정']
 const activeTab = ref(TABS[0])
+
+const myReviews = computed(() => reviewsForUser(profileState.nickname))
 
 const myTradePosts = computed(() => tradePostsByAuthor(profileState.nickname))
 const myCommunityPosts = computed(() => communityPostsByAuthor(profileState.nickname))
@@ -104,6 +107,19 @@ function saveProfileForm() {
       <div class="empty-state" v-if="!myPurchasePosts.length">보낸 구매신청이 없어요</div>
     </div>
 
+    <div v-else-if="activeTab === '받은 리뷰'" class="mypage-panel">
+      <div class="my-review-row" v-for="r in myReviews" :key="r.dealId">
+        <div class="my-review-top">
+          <span class="my-review-stars"><span v-for="n in 5" :key="n" class="star" :class="{ filled: n <= r.rating }">★</span></span>
+          <span class="my-review-from">{{ r.from }}</span>
+          <span class="my-review-post">{{ r.postTitle }}</span>
+          <span class="my-review-date">{{ r.date }}</span>
+        </div>
+        <div class="my-review-comment" v-if="r.comment">{{ r.comment }}</div>
+      </div>
+      <div class="empty-state" v-if="!myReviews.length">아직 받은 리뷰가 없어요</div>
+    </div>
+
     <div v-else class="mypage-panel profile-panel">
       <label class="profile-field">
         닉네임
@@ -171,6 +187,15 @@ function saveProfileForm() {
 .request-status{font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); flex:none;}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
 .request-status.status-declined{color:var(--blood); border-color:var(--blood);}
+
+.my-review-row{background:var(--panel); border:1px solid var(--border-soft); padding:14px 18px; border-radius:12px; display:flex; flex-direction:column; gap:8px;}
+.my-review-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.my-review-stars .star{font-size:14px; color:var(--border);}
+.my-review-stars .star.filled{color:var(--gold);}
+.my-review-from{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
+.my-review-post{font-size:11.5px; color:var(--text-dim); flex:1;}
+.my-review-date{font-size:11px; color:var(--text-dim);}
+.my-review-comment{font-size:13px; color:var(--text-muted); line-height:1.7;}
 
 .profile-panel{max-width:420px;}
 .profile-field{display:flex; flex-direction:column; gap:8px; font-size:12.5px; color:var(--text-dim);}

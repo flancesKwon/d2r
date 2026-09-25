@@ -4,6 +4,7 @@ import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 import { BASE_ITEM_KO_NAMES } from './data/baseItemNames.js'
 import { pushNotification } from './notificationsStore.js'
+import { createDeal } from './dealsStore.js'
 
 export { itemsData }
 
@@ -315,13 +316,17 @@ export function addTradeRequest(postId, { buyer, contact, qty, message, offerIte
 }
 
 // 판매자가 구매신청을 수락/거절 - 트레더리의 "오퍼 수락" 흐름과 비슷하게, 수락하면
-// 판매중이던 글이 자동으로 예약중으로 넘어가서 다른 구매자에게도 진행 상황이 보임
+// 판매중이던 글이 자동으로 예약중으로 넘어가서 다른 구매자에게도 진행 상황이 보이고,
+// 이 신청을 위한 거래방(채팅)이 "거래중인 품목"에 새로 열림
 export function respondToRequest(postId, requestId, decision) {
   const post = tradeState.posts.find((p) => p.id === postId)
   const req = post && post.requests.find((r) => r.id === requestId)
   if (!req) return
   req.status = decision
-  if (decision === 'accepted' && post.status === '판매중') post.status = '예약중'
+  if (decision === 'accepted') {
+    if (post.status === '판매중') post.status = '예약중'
+    createDeal(post, req)
+  }
   const decisionLabel = decision === 'accepted' ? '수락' : '거절'
   pushNotification(`"${post.itemName}" 구매신청이 ${decisionLabel}됐어요.`, `/trade/${postId}`)
 }

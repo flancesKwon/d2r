@@ -8,6 +8,7 @@ import {
   markAllNotificationsRead,
 } from '../notificationsStore.js'
 import { unreadMessageCount } from '../messagesStore.js'
+import { activeDealCount } from '../dealsStore.js'
 
 const router = useRouter()
 const showDropdown = ref(false)
@@ -54,6 +55,10 @@ function openNotification(n) {
     <router-link to="/messages" class="header-icon-btn" title="쪽지함">
       <span>✉️</span>
       <span class="header-icon-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</span>
+    </router-link>
+    <router-link to="/deals" class="header-icon-btn" title="거래중인 품목">
+      <span>🤝</span>
+      <span class="header-icon-badge" v-if="activeDealCount > 0">{{ activeDealCount > 9 ? '9+' : activeDealCount }}</span>
     </router-link>
     <router-link to="/mypage" class="header-icon-btn" title="마이페이지">
       <span>👤</span>
