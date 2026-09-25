@@ -267,6 +267,7 @@ export function addTradePost({
   content,
   options,
   ethereal,
+  negotiable,
 }) {
   const post = {
     id: 't-new-' + nextPostId++,
@@ -276,6 +277,7 @@ export function addTradePost({
     amountLabel,
     options: options || [],
     ethereal: !!ethereal,
+    negotiable: !!negotiable,
     price,
     realm,
     ladder,
@@ -292,7 +294,9 @@ export function addTradePost({
   return post
 }
 
-export function addTradeRequest(postId, { buyer, contact, qty, message }) {
+// kind: 'inquiry'(기존 구매신청 폼) | 'buy_now'(판매글의 "구매하기" 버튼) - 흥정 가능
+// 판매글이면 buy_now 신청에 offerItems(제안하는 룬/보석 목록)가 같이 담김
+export function addTradeRequest(postId, { buyer, contact, qty, message, offerItems = [], kind = 'inquiry' }) {
   const post = tradeState.posts.find((p) => p.id === postId)
   if (!post) return
   post.requests.push({
@@ -301,10 +305,13 @@ export function addTradeRequest(postId, { buyer, contact, qty, message }) {
     contact: contact || '',
     qty: Number(qty) || 1,
     message: message || '',
+    offerItems: offerItems || [],
+    kind,
     date: today(),
     status: 'pending',
   })
-  pushNotification(`"${post.itemName}" 판매글에 새 구매신청이 도착했어요.`, `/trade/${postId}`)
+  const label = kind === 'buy_now' ? '구매 신청' : '구매신청'
+  pushNotification(`"${post.itemName}" 판매글에 새 ${label}이 도착했어요.`, `/trade/${postId}`)
 }
 
 // 판매자가 구매신청을 수락/거절 - 트레더리의 "오퍼 수락" 흐름과 비슷하게, 수락하면
@@ -327,4 +334,16 @@ export function updateTradeStatus(postId, status) {
 
 export function getTradePost(postId) {
   return tradeState.posts.find((p) => p.id === postId)
+}
+
+// 로그인이 없어서 "내가 쓴 글"·"거래내역"은 프로필에 저장된 닉네임과 author/buyer
+// 문자열이 일치하는지로 찾음 - 마이페이지에서 사용
+export function tradePostsByAuthor(nickname) {
+  if (!nickname) return []
+  return tradeState.posts.filter((p) => p.author === nickname)
+}
+
+export function tradePostsWithMyRequests(nickname) {
+  if (!nickname) return []
+  return tradeState.posts.filter((p) => p.requests.some((r) => r.buyer === nickname))
 }

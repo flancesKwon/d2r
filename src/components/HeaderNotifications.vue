@@ -55,6 +55,9 @@ function openNotification(n) {
       <span>✉️</span>
       <span class="header-icon-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</span>
     </router-link>
+    <router-link to="/mypage" class="header-icon-btn" title="마이페이지">
+      <span>👤</span>
+    </router-link>
   </div>
 </template>
 

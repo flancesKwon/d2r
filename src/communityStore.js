@@ -92,3 +92,9 @@ export function allTags() {
   communityState.posts.forEach((p) => p.tags.forEach((t) => set.add(t)))
   return [...set]
 }
+
+// 마이페이지 "내가 쓴 글"용 - 프로필 닉네임과 author가 일치하는 글만 찾음
+export function communityPostsByAuthor(nickname) {
+  if (!nickname) return []
+  return communityState.posts.filter((p) => p.author === nickname)
+}

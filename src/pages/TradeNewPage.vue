@@ -28,6 +28,7 @@ import {
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import { profileState } from '../profileStore.js'
 
 const router = useRouter()
 
@@ -41,12 +42,13 @@ const emptyForm = () => ({
   itemName: '',
   quantity: '',
   ethereal: false,
+  negotiable: false,
   price: '',
   realm: TRADE_REALMS[0],
   ladder: TRADE_LADDERS[0],
   hardcore: TRADE_HARDCORE[0],
-  author: '',
-  contact: '',
+  author: profileState.nickname || '',
+  contact: profileState.contact || '',
   content: '',
 })
 const form = ref(emptyForm())
@@ -573,6 +575,11 @@ function submitPost() {
       </div>
       </template>
 
+      <label class="negotiable-check">
+        <input type="checkbox" v-model="form.negotiable" />
+        흥정 가능 (체크하면 구매자가 "구매하기"를 누를 때 룬·보석으로 교환 제안을 할 수 있어요)
+      </label>
+
       <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 이스트 룬 2개, 퍼펙트 다이아몬드 10개)" class="write-input" />
 
       <div class="trade-form-row">
@@ -670,6 +677,9 @@ function submitPost() {
 
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
 .ethereal-check input{accent-color:var(--teal);}
+
+.negotiable-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--gold-dim); cursor:pointer;}
+.negotiable-check input{accent-color:var(--gold-dim);}
 
 .custom-option-chip{
   display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
