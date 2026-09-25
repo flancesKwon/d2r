@@ -1,5 +1,6 @@
 <script setup>
 import LogoMark from '../components/LogoMark.vue'
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 // 정적 콘텐츠 위주 페이지라 별도 상태 로직은 없음
 </script>
 
@@ -9,7 +10,11 @@ import LogoMark from '../components/LogoMark.vue'
     <div class="header-top">
       <div class="logo"><LogoMark :size="20" />디아허브</div>
       <div class="search-pill"><span class="label">가이드 · 아이템 검색</span><span class="chev">▾</span></div>
-      <div class="header-icons"><router-link to="/signup" class="signup-link">회원가입</router-link><span>⚙</span></div>
+      <div class="header-icons">
+        <router-link to="/signup" class="signup-link">회원가입</router-link>
+        <HeaderNotifications />
+        <span>⚙</span>
+      </div>
     </div>
     <nav class="subnav">
       <router-link to="/" class="active">메인</router-link>

@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import marketTiers from '../data/marketTiers.json'
 </script>
@@ -12,6 +13,7 @@ import marketTiers from '../data/marketTiers.json'
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>시세 게시판</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

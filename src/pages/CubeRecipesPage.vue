@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import recipesData from '../data/cubeRecipes.json'
@@ -29,6 +30,7 @@ const filteredRecipes = computed(() => {
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>큐브 레시피</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

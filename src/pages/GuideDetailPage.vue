@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -23,6 +24,7 @@ const related = computed(() =>
     <div class="crumb">
       <router-link to="/">메인</router-link> / <router-link to="/guides">빌드 가이드</router-link> / <b>{{ guide.className }}</b>
     </div>
+    <HeaderNotifications />
   </header>
 
   <div class="grid-wrap guide-detail-wrap">

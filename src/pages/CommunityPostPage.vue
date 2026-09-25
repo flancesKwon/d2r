@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -35,6 +36,7 @@ function isImage(a) {
     <div class="crumb">
       <router-link to="/">메인</router-link> / <router-link to="/community">커뮤니티</router-link> / <b>{{ post.category }}</b>
     </div>
+    <HeaderNotifications />
   </header>
 
   <div class="grid-wrap community-detail-wrap">

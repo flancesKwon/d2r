@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -65,6 +66,7 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
     <div class="crumb">
       <router-link to="/">메인</router-link> / <router-link to="/trade">거래게시판</router-link> / <b>{{ post.category }}</b>
     </div>
+    <HeaderNotifications />
   </header>
 
   <div class="grid-wrap trade-detail-wrap">

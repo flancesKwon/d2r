@@ -3,6 +3,7 @@ import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 import { BASE_ITEM_KO_NAMES } from './data/baseItemNames.js'
+import { pushNotification } from './notificationsStore.js'
 
 export { itemsData }
 
@@ -303,6 +304,7 @@ export function addTradeRequest(postId, { buyer, contact, qty, message }) {
     date: today(),
     status: 'pending',
   })
+  pushNotification(`"${post.itemName}" 판매글에 새 구매신청이 도착했어요.`, `/trade/${postId}`)
 }
 
 // 판매자가 구매신청을 수락/거절 - 트레더리의 "오퍼 수락" 흐름과 비슷하게, 수락하면
@@ -313,6 +315,8 @@ export function respondToRequest(postId, requestId, decision) {
   if (!req) return
   req.status = decision
   if (decision === 'accepted' && post.status === '판매중') post.status = '예약중'
+  const decisionLabel = decision === 'accepted' ? '수락' : '거절'
+  pushNotification(`"${post.itemName}" 구매신청이 ${decisionLabel}됐어요.`, `/trade/${postId}`)
 }
 
 export function updateTradeStatus(postId, status) {

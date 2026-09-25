@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -104,6 +105,7 @@ const filteredItems = computed(() => {
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>아이템 사전</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="toolbar">

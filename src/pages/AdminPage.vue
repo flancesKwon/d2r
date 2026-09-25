@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { reactive, ref } from 'vue'
 import mock from '../data/adminMock.json'
@@ -33,6 +34,7 @@ function resolveReport(id) {
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>관리자</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -308,6 +309,7 @@ function submitPost() {
     <div class="crumb">
       <router-link to="/">메인</router-link> / <router-link to="/trade">거래게시판</router-link> / <b>판매글 등록</b>
     </div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">
