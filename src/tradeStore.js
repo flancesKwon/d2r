@@ -68,6 +68,22 @@ export function resolveAffixText(a, rolledValue) {
   return a.text.replace(`${a.min}~${a.max}`, String(rolledValue))
 }
 
+// 지옥불 횃불처럼 "무작위 직업 기술"이 붙는 아이템은 실제로는 아이템 하나당 7개
+// 직업 중 하나로 고정돼서 나옴 - 판매자가 자기 아이템이 어떤 직업으로 나왔는지
+// 고를 수 있게 함
+export function isRandomClassSkillAffix(a) {
+  return !!a && a.prop === 'randclassskill'
+}
+export const CLASS_SKILL_NAMES = {
+  ama: '아마존', sor: '소서리스', nec: '네크로맨서', pal: '팔라딘', bar: '바바리안', dru: '드루이드', ass: '어쌔신',
+}
+export function resolveRandomClassSkillText(a, classCode, level) {
+  const className = CLASS_SKILL_NAMES[classCode]
+  if (className && level) return `${className} 기술 레벨 +${level}`
+  if (className) return `${className} 기술 레벨 +${a.min}~${a.max}`
+  return a.text
+}
+
 // 룬워드는 박히는 룬 조합(rune_sequence)이 고정돼 있어서 필요한 재료 룬을 그대로
 // 보여줄 수 있음 - 판매글 등록할 때 재료가 뭔지 매번 직접 타이핑할 필요 없게 함
 export function runewordMaterials(item) {

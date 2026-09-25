@@ -17,6 +17,9 @@ import {
   getItemAffixes,
   isRollRangeAffix,
   resolveAffixText,
+  isRandomClassSkillAffix,
+  resolveRandomClassSkillText,
+  CLASS_SKILL_NAMES,
   itemBaseKind,
   runewordMaterials,
   searchBaseItems,
@@ -86,6 +89,10 @@ const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(f
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
+// 지옥불 횃불처럼 "무작위 직업 기술" 옵션은 실제로는 아이템 하나당 직업 하나로
+// 고정돼 있어서, 판매자가 자기 아이템이 어떤 직업으로 나왔는지 고를 수 있게 함
+const randClassChoice = ref({})
+const CLASS_SKILL_OPTIONS = Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => ({ code, name }))
 const customOptions = ref([])
 
 // 룬워드는 박힌 룬 조합이 고정돼 있어서 필요한 재료를 자동으로 보여줌
@@ -209,6 +216,7 @@ function pickItem(it) {
   if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
+  randClassChoice.value = {}
   form.value.quantity = ''
   manualBaseKind.value = null
   resetBaseStats()
@@ -218,6 +226,7 @@ function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
   rolledValues.value = {}
+  randClassChoice.value = {}
   manualBaseKind.value = null
   resetBaseStats()
 }
@@ -264,9 +273,10 @@ function submitPost() {
   if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
   if (!form.value.itemName.trim() || !amountLabel.trim() || !form.value.price.trim()) return
-  const dbOptions = itemAffixes.value.map((a, i) =>
-    isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
-  )
+  const dbOptions = itemAffixes.value.map((a, i) => {
+    if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
+    return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
+  })
   const options = [...dbOptions, ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value]
   const post = addTradePost({ ...form.value, amountLabel, options })
   router.push(`/trade/${post.id}`)
@@ -465,7 +475,18 @@ function submitPost() {
         <div class="option-editor-title">실제 옵션 값 입력</div>
         <div class="option-editor-hint">범위로 나오는 옵션은 이 아이템에 실제로 뜬 값을 직접 입력해주세요. 비워두면 범위 그대로 표시돼요.</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
-          <template v-if="isRollRangeAffix(a)">
+          <template v-if="isRandomClassSkillAffix(a)">
+            <span class="option-text">직업 기술 레벨 (아이템마다 직업 하나로 고정돼서 나와요)</span>
+            <select v-model="randClassChoice[i]" class="write-select option-value-select">
+              <option value="">직업 선택</option>
+              <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
+            </select>
+            <input
+              type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
+              class="write-input option-value-input"
+            />
+          </template>
+          <template v-else-if="isRollRangeAffix(a)">
             <span class="option-text">{{ a.text }}</span>
             <input
               type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
@@ -626,6 +647,7 @@ function submitPost() {
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}
 .option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
+.option-value-select{width:110px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
 .ethereal-check input{accent-color:var(--teal);}
