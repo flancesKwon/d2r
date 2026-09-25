@@ -254,8 +254,15 @@ function removeCustomOption(i) {
   customOptions.value.splice(i, 1)
 }
 
+// 필수 입력만 막고, 옵션류(직접 추가 옵션, 베이스 스탯 세부값, 지옥불 횃불 직업
+// 선택 등)는 전부 선택 사항이라 검증하지 않음. 예외는 룬워드 베이스 아이템
+// 선택 - 룬워드는 베이스가 뭐였는지가 실거래가에 큰 영향을 줘서 필수로 둠
+const formError = ref('')
+
 function submitBundle() {
-  if (!bundleItems.value.length || !form.value.price.trim()) return
+  if (!bundleItems.value.length) { formError.value = '팔 룬·보석을 하나 이상 담아주세요.'; return }
+  if (!form.value.price.trim()) { formError.value = '희망 가격을 입력해주세요.'; return }
+  formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
   const post = addTradePost({
@@ -272,7 +279,14 @@ function submitBundle() {
 function submitPost() {
   if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
-  if (!form.value.itemName.trim() || !amountLabel.trim() || !form.value.price.trim()) return
+  if (!form.value.itemName.trim()) { formError.value = '아이템을 검색해서 선택하거나 이름을 입력해주세요.'; return }
+  if (!amountLabel.trim()) { formError.value = '개수를 입력해주세요.'; return }
+  if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
+    formError.value = '룬워드는 베이스 아이템을 검색해서 선택해야 등록할 수 있어요.'
+    return
+  }
+  if (!form.value.price.trim()) { formError.value = '희망 가격을 입력해주세요.'; return }
+  formError.value = ''
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
@@ -333,6 +347,7 @@ function submitPost() {
             >
               <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+              <span class="item-picker-row-cat">{{ it.category_label }}</span>
             </button>
             <div class="item-picker-empty-block" v-if="!itemCandidates.length">
               <p class="item-picker-empty">사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.</p>
@@ -379,7 +394,7 @@ function submitPost() {
       </div>
 
       <div class="base-stats-input" v-if="needsManualBaseStats && effectiveBaseKind === 'armor'">
-        <div class="option-editor-title">베이스 방어구 정보</div>
+        <div class="option-editor-title">베이스 방어구 정보 <span class="required-mark" v-if="selectedItem?.category === 'runeword'">필수</span></div>
         <div class="option-editor-hint">실제 착용한 방어구를 검색해서 고르면 기본 방어력이 자동으로 채워져요. 못 찾으면 직접 입력해도 돼요.</div>
 
         <div class="base-item-picker">
@@ -418,7 +433,7 @@ function submitPost() {
         </div>
       </div>
       <div class="base-stats-input" v-else-if="needsManualBaseStats && effectiveBaseKind === 'weapon'">
-        <div class="option-editor-title">베이스 무기 정보</div>
+        <div class="option-editor-title">베이스 무기 정보 <span class="required-mark" v-if="selectedItem?.category === 'runeword'">필수</span></div>
         <div class="option-editor-hint">실제 착용한 무기를 검색해서 고르면 기본 데미지가 자동으로 채워져요. 못 찾으면 아래 옵션만 입력해도 돼요.</div>
 
         <div class="base-item-picker">
@@ -577,6 +592,7 @@ function submitPost() {
       <div class="trade-new-actions">
         <router-link to="/trade" class="trade-new-cancel">취소</router-link>
         <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
+        <span class="form-error" v-if="formError">{{ formError }}</span>
       </div>
     </div>
   </div>
@@ -631,6 +647,7 @@ function submitPost() {
 .item-picker-icon.gem{border-color:var(--teal); box-shadow:0 0 8px -2px rgba(78,138,138,0.5);}
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
+.item-picker-row-cat{font-size:10px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 8px; border-radius:999px; flex:none;}
 .item-picker-empty-block{padding:14px;}
 .item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
 .fallback-cat-row{display:flex; justify-content:center; gap:8px;}
@@ -686,6 +703,8 @@ function submitPost() {
 }
 
 .trade-new-actions{display:flex; align-items:center; gap:10px;}
+.form-error{font-size:12.5px; color:var(--blood);}
+.required-mark{font-size:10px; color:var(--blood); border:1px solid var(--blood); padding:1px 7px; border-radius:999px; font-weight:600; vertical-align:middle;}
 .trade-new-cancel{font-size:13px; color:var(--text-dim); padding:11px 18px;}
 .trade-new-cancel:hover{color:var(--text);}
 
