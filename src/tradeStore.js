@@ -290,6 +290,11 @@ export const TRADE_STAT_FILTERS = [
   { key: 'dr', label: '받는 물리 피해 감소(%)', pattern: `^받는 물리 피해 ${N}% 감소` },
   { key: 'cb', label: '강타 확률(%)', pattern: `^강타 확률 ${N}` },
   { key: 'ds', label: '치명적 공격(%)', pattern: `^치명적 공격 ${N}` },
+  { key: 'skilldmg', label: '원소·마법 기술 피해(%)', pattern: `^(?:냉기|화염|번개|독|마법) 기술 피해 ${N}` },
+  // "적의 냉기 저항 -7%"처럼 음수로 적히는 옵션이라 크기(양수)로 비교
+  { key: 'pierce', label: '적 저항 감소(%)', pattern: '^적(?:의)? (?:냉기|화염|번개|독|마법|물리 피해) 저항 -(\\d+)' },
+  { key: 'pdr', label: '피해 감소', pattern: `^피해 ${N} 감소` },
+  { key: 'mdr', label: '마법 피해 감소', pattern: `^마법 피해 ${N} 감소` },
 ].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
 const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
 
