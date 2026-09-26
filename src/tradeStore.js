@@ -109,12 +109,18 @@ export const TRADE_HARDCORE = ['일반', '하드코어']
 
 // 카테고리를 미리 고르지 않아도 아이템명만 검색해서 바로 선택할 수 있게 하는
 // 통합 검색 - 사전 730종(룬·보석·유니크·세트·룬워드) + 우버보스 재료 목록을 대상으로
-// 찾고, 고르면 트레이드 카테고리가 자동으로 맞춰짐
+// 찾고, 고르면 트레이드 카테고리가 자동으로 맞춰짐. 아이템 사전 검색처럼 별칭(샤코,
+// 애니참, 파괴참 등 유저들이 실제로 부르는 이름)으로도 찾을 수 있게 함
 export function searchAllItems(query) {
   const q = query.trim().toLowerCase()
   if (!q) return []
   return ALL_TRADE_ITEMS
-    .filter((it) => it.name_ko.toLowerCase().includes(q) || it.name_en.toLowerCase().includes(q))
+    .filter(
+      (it) =>
+        it.name_ko.toLowerCase().includes(q) ||
+        it.name_en.toLowerCase().includes(q) ||
+        (it.aliases || []).some((a) => a.toLowerCase().includes(q))
+    )
     .slice(0, 40)
 }
 
