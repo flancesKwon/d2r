@@ -460,7 +460,7 @@ function submitPost() {
           </div>
           <div v-else class="item-picker-search-wrap">
             <input
-              type="text" v-model="baseItemQuery" placeholder="베이스 방어구 검색 (예: Kite Shield, Field Plate)"
+              type="text" v-model="baseItemQuery" placeholder="베이스 방어구 검색 (예: 카이트 실드, Field Plate)"
               class="write-input" @focus="showBaseItemDropdown = true"
               @blur="hideBaseItemDropdownSoon"
             />
@@ -499,7 +499,7 @@ function submitPost() {
           </div>
           <div v-else class="item-picker-search-wrap">
             <input
-              type="text" v-model="baseItemQuery" placeholder="베이스 무기 검색 (예: Bardiche, Colossus Blade)"
+              type="text" v-model="baseItemQuery" placeholder="베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)"
               class="write-input" @focus="showBaseItemDropdown = true"
               @blur="hideBaseItemDropdownSoon"
             />
