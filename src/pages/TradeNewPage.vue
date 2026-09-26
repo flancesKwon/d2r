@@ -37,18 +37,15 @@ const router = useRouter()
 const FALLBACK_CATEGORIES = ['매직/레어/일반', '기타']
 
 const emptyForm = () => ({
-  category: FALLBACK_CATEGORIES[0],
+  category: null,
   itemId: null,
   itemName: '',
   quantity: '',
   ethereal: false,
   negotiable: false,
-  price: '',
   realm: TRADE_REALMS[0],
   ladder: TRADE_LADDERS[0],
   hardcore: TRADE_HARDCORE[0],
-  author: profileState.nickname || '',
-  contact: profileState.contact || '',
   content: '',
 })
 const form = ref(emptyForm())
@@ -84,7 +81,7 @@ function hideBundleDropdownSoon() {
 
 const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
 const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
-const showItemDropdown = ref(false)
+const showItemModal = ref(false)
 // 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
 // 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
 // (매직/레어/일반, 기타처럼 매번 랜덤하거나 목록화가 불가능한 경우) 직접 입력한 이름 그대로 등록
@@ -217,7 +214,7 @@ function pickItem(it) {
   form.value.itemName = it.name_ko
   const cat = tradeCategoryForItem(it)
   if (cat) form.value.category = cat
-  showItemDropdown.value = false
+  showItemModal.value = false
   rolledValues.value = {}
   randClassChoice.value = {}
   form.value.quantity = ''
@@ -228,21 +225,18 @@ function pickItem(it) {
 function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
+  form.value.category = null
   rolledValues.value = {}
   randClassChoice.value = {}
   manualBaseKind.value = null
   resetBaseStats()
 }
 
-function hideItemDropdownSoon() {
-  window.setTimeout(() => (showItemDropdown.value = false), 150)
-}
-
 function pickFallbackCategory(cat) {
   form.value.category = cat
   manualBaseKind.value = null
   resetBaseStats()
-  showItemDropdown.value = false
+  showItemModal.value = false
 }
 
 function addCustomOption() {
@@ -257,6 +251,33 @@ function removeCustomOption(i) {
   customOptions.value.splice(i, 1)
 }
 
+// 희망 가격은 자유 텍스트 대신 실제 룬·보석 아이템을 검색해서 개수와 함께 고르는
+// 방식으로 받음 - 여러 종류를 섞어서 받아도 되니(예: 이스트 룬 2개 + 최상급
+// 다이아몬드 5개) 묶음 판매 아이템 담기와 같은 패턴을 씀
+const priceItems = ref([])
+const priceQuery = ref('')
+const showPriceDropdown = ref(false)
+const priceCandidates = computed(() => {
+  if (!priceQuery.value.trim()) return []
+  return searchAllItems(priceQuery.value).filter((it) => it.category === 'gem')
+})
+function pickPriceItem(it) {
+  const existing = priceItems.value.find((p) => p.item.id === it.id)
+  if (existing) existing.qty += 1
+  else priceItems.value.push({ item: it, qty: 1 })
+  priceQuery.value = ''
+  showPriceDropdown.value = false
+}
+function removePriceItem(i) {
+  priceItems.value.splice(i, 1)
+}
+function hidePriceDropdownSoon() {
+  window.setTimeout(() => (showPriceDropdown.value = false), 150)
+}
+function buildPriceString() {
+  return priceItems.value.map((p) => `${p.item.name_ko} ${p.qty}개`).join(' + ')
+}
+
 // 필수 입력만 막고, 옵션류(직접 추가 옵션, 베이스 스탯 세부값, 지옥불 횃불 직업
 // 선택 등)는 전부 선택 사항이라 검증하지 않음. 예외는 룬워드 베이스 아이템
 // 선택 - 룬워드는 베이스가 뭐였는지가 실거래가에 큰 영향을 줘서 필수로 둠
@@ -264,7 +285,7 @@ const formError = ref('')
 
 function submitBundle() {
   if (!bundleItems.value.length) { formError.value = '팔 룬·보석을 하나 이상 담아주세요.'; return }
-  if (!form.value.price.trim()) { formError.value = '희망 가격을 입력해주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -275,6 +296,9 @@ function submitBundle() {
     itemName,
     amountLabel: `${bundleItems.value.length}종 묶음`,
     options: [],
+    price: buildPriceString(),
+    author: profileState.nickname,
+    contact: profileState.contact,
   })
   router.push(`/trade/${post.id}`)
 }
@@ -288,14 +312,21 @@ function submitPost() {
     formError.value = '룬워드는 베이스 아이템을 검색해서 선택해야 등록할 수 있어요.'
     return
   }
-  if (!form.value.price.trim()) { formError.value = '희망 가격을 입력해주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
   formError.value = ''
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   })
   const options = [...dbOptions, ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value]
-  const post = addTradePost({ ...form.value, amountLabel, options })
+  const post = addTradePost({
+    ...form.value,
+    amountLabel,
+    options,
+    price: buildPriceString(),
+    author: profileState.nickname,
+    contact: profileState.contact,
+  })
   router.push(`/trade/${post.id}`)
 }
 </script>
@@ -335,33 +366,48 @@ function submitPost() {
           <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
           <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
           <span class="item-picker-cat">{{ form.category }}</span>
+          <button type="button" class="item-picker-change" @click="showItemModal = true">변경</button>
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
-        <div v-else class="item-picker-search-wrap">
+        <div v-else-if="form.category" class="item-picker-selected">
+          <span class="item-picker-name">{{ form.itemName }}</span>
+          <span class="item-picker-cat">{{ form.category }}</span>
+          <button type="button" class="item-picker-change" @click="showItemModal = true">변경</button>
+          <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
+        </div>
+        <button v-else type="button" class="item-picker-trigger" @click="showItemModal = true">
+          아이템명을 검색해서 선택하세요 (예: 이스트 룬, 무한, 할리퀸 관모)
+        </button>
+      </div>
+
+      <div class="modal-overlay" v-if="showItemModal" @click.self="showItemModal = false">
+        <div class="modal-panel item-modal-panel">
+          <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
+          <div class="d-section-title">아이템 선택</div>
           <input
             type="text" v-model="form.itemName" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
-            class="write-input" @focus="showItemDropdown = true"
-            @blur="hideItemDropdownSoon"
+            class="write-input" autofocus
           />
           <div class="item-picker-hint">룬·보석·유니크·세트·룬워드·우버보스 재료를 모두 검색할 수 있어요. 룬워드는 "룬워드"가 아니라 무한·인챈트처럼 완성된 룬워드 이름으로 검색하세요.</div>
-          <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
+          <div class="item-modal-list">
             <button
               type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
-              @mousedown.prevent="pickItem(it)"
+              @click="pickItem(it)"
             >
               <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               <span class="item-picker-row-cat">{{ it.category_label }}</span>
             </button>
-            <div class="item-picker-empty-block" v-if="!itemCandidates.length">
+            <div class="item-picker-empty-block" v-if="form.itemName.trim() && !itemCandidates.length">
               <p class="item-picker-empty">사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.</p>
               <div class="fallback-cat-row">
                 <button
                   type="button" v-for="c in FALLBACK_CATEGORIES" :key="c"
-                  :class="{ active: form.category === c }" @mousedown.prevent="pickFallbackCategory(c)"
+                  :class="{ active: form.category === c }" @click="pickFallbackCategory(c)"
                 >{{ c }}</button>
               </div>
             </div>
+            <div class="item-modal-empty" v-if="!form.itemName.trim()">아이템명을 입력해서 검색하세요.</div>
           </div>
         </div>
       </div>
@@ -481,14 +527,16 @@ function submitPost() {
         에테리얼(Ethereal) 아이템이에요
       </label>
 
-      <template v-if="hasQuantity">
-        <input
-          type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
-          class="write-input trade-quantity-input"
-        />
-        <div class="unit-hint">개수만 입력하면 "N개"로 등록돼요.</div>
+      <template v-if="selectedItem || form.category">
+        <template v-if="hasQuantity">
+          <input
+            type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
+            class="write-input trade-quantity-input"
+          />
+          <div class="unit-hint">개수만 입력하면 "N개"로 등록돼요.</div>
+        </template>
+        <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
       </template>
-      <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
 
       <div class="option-editor" v-if="itemAffixes.length">
         <div class="option-editor-title">실제 옵션 값 입력</div>
@@ -516,7 +564,7 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="option-editor">
+      <div class="option-editor" v-if="selectedItem || form.category">
         <div class="option-editor-title">기타 옵션 직접 추가</div>
         <div class="option-editor-hint">위에 없는 스탯(생명력, 저항, 소켓 개수 등)은 종류를 고르고 값을 입력해서 추가하세요.</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
@@ -580,7 +628,38 @@ function submitPost() {
         흥정 가능 (체크하면 구매자가 "구매하기"를 누를 때 룬·보석으로 교환 제안을 할 수 있어요)
       </label>
 
-      <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 이스트 룬 2개, 퍼펙트 다이아몬드 10개)" class="write-input" />
+      <div class="price-picker">
+        <div class="option-editor-title">희망 가격 (룬·보석으로 받을 개수)</div>
+        <div class="option-editor-hint">받고 싶은 룬·보석을 검색해서 고르고 개수를 입력하세요. 여러 종류를 섞어서 받을 수도 있어요 (예: 이스트 룬 2개 + 최상급 다이아몬드 5개).</div>
+        <div class="bundle-chip-row" v-if="priceItems.length">
+          <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
+            <span class="item-picker-icon gem"><img v-if="iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
+            <span class="bundle-chip-name">{{ p.item.name_ko }}</span>
+            <input type="number" min="1" v-model="p.qty" class="bundle-chip-qty" />
+            <span class="bundle-chip-unit">개</span>
+            <button type="button" @click="removePriceItem(i)">✕</button>
+          </div>
+        </div>
+        <div class="item-picker">
+          <div class="item-picker-search-wrap">
+            <input
+              type="text" v-model="priceQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
+              class="write-input" @focus="showPriceDropdown = true"
+              @input="showPriceDropdown = true" @blur="hidePriceDropdownSoon"
+            />
+            <div class="item-picker-dropdown" v-if="showPriceDropdown && priceQuery.trim()">
+              <button
+                type="button" class="item-picker-row" v-for="it in priceCandidates" :key="it.id"
+                @mousedown.prevent="pickPriceItem(it)"
+              >
+                <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+              </button>
+              <div class="item-picker-empty" v-if="!priceCandidates.length">일치하는 룬·보석이 없어요.</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="trade-form-row">
         <select v-model="form.ladder" class="write-select trade-meta-select">
@@ -589,11 +668,6 @@ function submitPost() {
         <select v-model="form.hardcore" class="write-select trade-meta-select">
           <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
         </select>
-      </div>
-
-      <div class="trade-form-row">
-        <input type="text" v-model="form.author" placeholder="닉네임 (비우면 익명)" class="write-input" />
-        <input type="text" v-model="form.contact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" />
       </div>
 
       <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="260px" />
@@ -633,8 +707,15 @@ function submitPost() {
   padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
 }
 .item-picker-cat{font-size:10.5px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 10px; border-radius:999px; flex:none;}
-.item-picker-clear{margin-left:auto; color:var(--text-dim); font-size:12px; flex:none;}
+.item-picker-change{margin-left:auto; color:var(--text-dim); font-size:11.5px; flex:none; border:1px solid var(--border); padding:4px 12px; border-radius:999px;}
+.item-picker-change:hover{border-color:var(--gold-dim); color:var(--gold);}
+.item-picker-clear{color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
+.item-picker-trigger{
+  width:100%; text-align:left; font-size:13px; color:var(--text-dim); background:var(--panel);
+  border:1px dashed var(--border); padding:13px 16px; border-radius:10px; font-family:'Noto Sans KR', sans-serif;
+}
+.item-picker-trigger:hover{border-color:var(--gold-dim); color:var(--gold-dim);}
 .item-picker-dropdown{
   position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20; max-height:380px; overflow-y:auto;
   background:var(--panel-2); border:1px solid var(--border); box-shadow:0 12px 28px -6px rgba(0,0,0,0.55);
@@ -742,4 +823,10 @@ function submitPost() {
 .bundle-chip-unit{font-size:12px; color:var(--text-dim);}
 .bundle-chip button{color:var(--text-dim); flex:none;}
 .bundle-chip button:hover{color:var(--blood);}
+
+.price-picker{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:12px; border-radius:14px;}
+
+.item-modal-panel{max-width:560px; display:flex; flex-direction:column; gap:12px;}
+.item-modal-list{display:flex; flex-direction:column; gap:4px; max-height:420px; overflow-y:auto; margin-top:4px;}
+.item-modal-empty{text-align:center; color:var(--text-dim); font-size:12px; padding:24px 0;}
 </style>
