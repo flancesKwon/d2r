@@ -126,12 +126,17 @@ function pickManualBaseKind(kind) {
   resetBaseStats()
 }
 
-const effectiveBaseKind = computed(() => itemBaseKind(selectedItem.value) || manualBaseKind.value)
+// 영혼(검·방패)·인내(무기·갑옷)처럼 무기와 방어구 둘 다에 만들 수 있는 룬워드는 아이템만
+// 봐선 종류를 모름 - 고른 베이스로 정해짐
+const effectiveBaseKind = computed(
+  () => itemBaseKind(selectedItem.value) || selectedBaseItem.value?.base_stats.category || manualBaseKind.value
+)
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실물 아이템이 매번 달라서(어떤 방어구/무기를
 // 썼는지) 판매자가 직접 입력해야 함 - 유니크·세트는 이미 base_stats로 고정돼 있어서
-// 입력칸 대신 위의 참고 표시만 함
+// 입력칸 대신 위의 참고 표시만 함. 룬워드는 베이스 선택이 필수라 종류를 몰라도 항상 보여줌
 const needsManualBaseStats = computed(() => {
+  if (selectedItem.value?.category === 'runeword') return true
   if (!effectiveBaseKind.value) return false
   if (selectedItem.value && (selectedItem.value.category === 'unique' || selectedItem.value.category === 'set')) return false
   return true
@@ -145,9 +150,42 @@ const weaponStats = ref({ extraDamagePct: '', extraDurability: '', extraSkill: '
 const selectedBaseItem = ref(null)
 const baseItemQuery = ref('')
 const showBaseItemDropdown = ref(false)
+const isRuneword = computed(() => selectedItem.value?.category === 'runeword')
+// 룬워드는 만들 수 있는 베이스(허용 종류 + 필요 소켓 수)만 후보로 보여줌
 const baseItemCandidates = computed(() =>
-  selectedBaseItem.value ? [] : searchBaseItems(baseItemQuery.value, effectiveBaseKind.value)
+  selectedBaseItem.value
+    ? []
+    : searchBaseItems(baseItemQuery.value, effectiveBaseKind.value, isRuneword.value ? selectedItem.value : null)
 )
+const RUNEWORD_TYPE_KO = {
+  tors: '갑옷', shld: '방패', helm: '투구', weap: '모든 무기', mele: '근접 무기', miss: '활·석궁', swor: '검',
+  axe: '도끼', hamm: '망치', mace: '철퇴', club: '곤봉', pole: '폴암', spea: '창', staf: '지팡이', scep: '홀',
+  knif: '단검', wand: '완드', h2h: '어쌔신 클로', grim: '마법서', head: '네크로맨서 방패', ashd: '팔라딘 방패',
+}
+const runewordBaseRule = computed(() => {
+  const it = selectedItem.value
+  if (!isRuneword.value) return ''
+  const kinds = (it.subtitle || '').split('+').map((c) => RUNEWORD_TYPE_KO[c.trim()] || c.trim())
+  const sockets = it.extra?.socket_count
+  return `${kinds.join('·')}${sockets ? ` · ${sockets}소켓` : ''}`
+})
+const basePickerPlaceholder = computed(() => {
+  if (isRuneword.value) return '베이스 검색 또는 목록에서 선택 (예: 아칸 플레이트, 엘리트)'
+  return effectiveBaseKind.value === 'weapon'
+    ? '베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)'
+    : '베이스 방어구 검색 (예: 카이트 실드, Field Plate)'
+})
+// 입력한 기본 방어력이 고른 베이스의 범위를 벗어나면 알려줌 (에테리얼은 1.5배까지)
+const baseDefenseWarning = computed(() => {
+  const base = selectedBaseItem.value?.base_stats
+  const v = armorStats.value.baseDefense
+  if (!base || base.category !== 'armor' || v === '' || v === null) return ''
+  const mul = form.value.ethereal ? 1.5 : 1
+  const lo = Math.floor(base.minac * mul), hi = Math.floor(base.maxac * mul)
+  return Number(v) < lo || Number(v) > hi
+    ? `고른 베이스의 기본 방어력 범위(${lo}~${hi}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어나요. 다시 확인해 주세요.`
+    : ''
+})
 function pickBaseItem(b) {
   selectedBaseItem.value = b
   showBaseItemDropdown.value = false
@@ -170,8 +208,9 @@ function buildBaseStatOptions() {
   const out = []
   if (selectedBaseItem.value) out.push(`베이스: ${baseItemLabel(selectedBaseItem.value)}`)
   if (effectiveBaseKind.value === 'armor') {
+    // 실제 방어력을 입력했으면 그 값, 안 했으면 고른 베이스의 방어력 범위를 그대로 씀
     const base = selectedBaseItem.value?.base_stats
-    const baseDefense = base ? `${base.minac}~${base.maxac}` : armorStats.value.baseDefense
+    const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
     if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
     if (armorStats.value.extraDefensePct) out.push(`증가된 방어력 +${armorStats.value.extraDefensePct}%`)
     if (armorStats.value.extraDurability) out.push(`추가 내구도 +${armorStats.value.extraDurability}`)
@@ -484,83 +523,77 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="base-stats-input" v-if="needsManualBaseStats && effectiveBaseKind === 'armor'">
-        <div class="option-editor-title">베이스 방어구 정보 <span class="required-mark" v-if="selectedItem?.category === 'runeword'">필수</span></div>
-        <div class="option-editor-hint">실제 착용한 방어구를 검색해서 고르면 기본 방어력이 자동으로 채워져요. 못 찾으면 직접 입력해도 돼요.</div>
+      <div class="base-stats-input" v-if="needsManualBaseStats">
+        <div class="option-editor-title">
+          베이스 {{ effectiveBaseKind === 'armor' ? '방어구' : effectiveBaseKind === 'weapon' ? '무기' : '아이템' }} 정보
+          <span class="required-mark" v-if="isRuneword">필수</span>
+        </div>
+        <div class="option-editor-hint" v-if="isRuneword">
+          이 룬워드를 만들 수 있는 베이스만 보여줘요 ({{ runewordBaseRule }}). 실제로 쓴 베이스를 고르세요.
+        </div>
+        <div class="option-editor-hint" v-else>
+          실제 아이템의 베이스를 검색해서 고르면 기본 {{ effectiveBaseKind === 'weapon' ? '데미지' : '방어력' }} 범위가 표시돼요. 못 찾으면 아래 칸만 입력해도 돼요.
+        </div>
 
         <div class="base-item-picker">
           <div v-if="selectedBaseItem" class="item-picker-selected">
             <span class="item-picker-name">{{ baseItemLabel(selectedBaseItem) }}</span>
+            <span class="item-picker-cat">{{ selectedBaseItem.tier }} · {{ selectedBaseItem.type_sub }}</span>
             <button type="button" class="item-picker-clear" @click="clearBaseItem">✕</button>
           </div>
           <div v-else class="item-picker-search-wrap">
             <input
-              type="text" v-model="baseItemQuery" placeholder="베이스 방어구 검색 (예: 카이트 실드, Field Plate)"
-              class="write-input" @focus="showBaseItemDropdown = true"
+              type="text" v-model="baseItemQuery" :placeholder="basePickerPlaceholder"
+              class="write-input" @focus="showBaseItemDropdown = true" @input="showBaseItemDropdown = true"
               @blur="hideBaseItemDropdownSoon"
             />
-            <div class="item-picker-dropdown" v-if="showBaseItemDropdown && baseItemQuery.trim()">
+            <div class="item-picker-dropdown" v-if="showBaseItemDropdown && (baseItemQuery.trim() || isRuneword)">
               <button
                 type="button" class="item-picker-row" v-for="b in baseItemCandidates" :key="b.id"
                 @mousedown.prevent="pickBaseItem(b)"
               >
                 <span class="item-picker-name">{{ baseItemLabel(b) }}</span>
+                <span class="item-picker-row-cat">{{ b.tier }} · {{ b.type_sub }}{{ b.sockets ? ` · 최대 ${b.sockets}소켓` : '' }}</span>
               </button>
-              <div class="item-picker-empty" v-if="!baseItemCandidates.length">일치하는 베이스가 없어요. 아래 칸에 직접 입력하세요.</div>
+              <div class="item-picker-empty" v-if="!baseItemCandidates.length">
+                {{ isRuneword ? '이 룬워드를 만들 수 있는 베이스 중 일치하는 게 없어요.' : '일치하는 베이스가 없어요. 아래 칸에 직접 입력하세요.' }}
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="base-stats-ref-row" v-if="selectedBaseItem">
-          <span>기본 방어력 {{ selectedBaseItem.base_stats.minac }}~{{ selectedBaseItem.base_stats.maxac }}</span>
-          <span>내구도 {{ selectedBaseItem.base_stats.durability }}</span>
-          <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
-        </div>
-
-        <div class="base-stats-input-row">
-          <label v-if="!selectedBaseItem">기본 방어력<input type="number" v-model="armorStats.baseDefense" class="write-input" placeholder="예: 80" /></label>
-          <label>증가된 방어력(%)<input type="number" v-model="armorStats.extraDefensePct" class="write-input" placeholder="예: 15" /></label>
-          <label>추가 내구도<input type="number" v-model="armorStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
-        </div>
-      </div>
-      <div class="base-stats-input" v-else-if="needsManualBaseStats && effectiveBaseKind === 'weapon'">
-        <div class="option-editor-title">베이스 무기 정보 <span class="required-mark" v-if="selectedItem?.category === 'runeword'">필수</span></div>
-        <div class="option-editor-hint">실제 착용한 무기를 검색해서 고르면 기본 데미지가 자동으로 채워져요. 못 찾으면 아래 옵션만 입력해도 돼요.</div>
-
-        <div class="base-item-picker">
-          <div v-if="selectedBaseItem" class="item-picker-selected">
-            <span class="item-picker-name">{{ baseItemLabel(selectedBaseItem) }}</span>
-            <button type="button" class="item-picker-clear" @click="clearBaseItem">✕</button>
+        <template v-if="effectiveBaseKind === 'armor'">
+          <div class="base-stats-ref-row" v-if="selectedBaseItem">
+            <span>기본 방어력 범위 {{ selectedBaseItem.base_stats.minac }}~{{ selectedBaseItem.base_stats.maxac }}</span>
+            <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
+            <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
           </div>
-          <div v-else class="item-picker-search-wrap">
-            <input
-              type="text" v-model="baseItemQuery" placeholder="베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)"
-              class="write-input" @focus="showBaseItemDropdown = true"
-              @blur="hideBaseItemDropdownSoon"
-            />
-            <div class="item-picker-dropdown" v-if="showBaseItemDropdown && baseItemQuery.trim()">
-              <button
-                type="button" class="item-picker-row" v-for="b in baseItemCandidates" :key="b.id"
-                @mousedown.prevent="pickBaseItem(b)"
-              >
-                <span class="item-picker-name">{{ baseItemLabel(b) }}</span>
-              </button>
-              <div class="item-picker-empty" v-if="!baseItemCandidates.length">일치하는 베이스가 없어요. 아래 옵션만 입력해도 돼요.</div>
-            </div>
+          <div class="base-stats-input-row">
+            <label>
+              기본 방어력
+              <input
+                type="number" v-model="armorStats.baseDefense" class="write-input"
+                :placeholder="selectedBaseItem ? `${selectedBaseItem.base_stats.minac}~${selectedBaseItem.base_stats.maxac}` : '예: 80'"
+              />
+            </label>
+            <label>증가된 방어력(%)<input type="number" v-model="armorStats.extraDefensePct" class="write-input" placeholder="예: 15" /></label>
+            <label>추가 내구도<input type="number" v-model="armorStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
           </div>
-        </div>
+          <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
+        </template>
 
-        <div class="base-stats-ref-row" v-if="selectedBaseItem">
-          <span>기본 데미지 {{ weaponDamageRange(selectedBaseItem.base_stats)?.min }}~{{ weaponDamageRange(selectedBaseItem.base_stats)?.max }}</span>
-          <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
-          <span>내구도 {{ selectedBaseItem.base_stats.durability }}</span>
-        </div>
-
-        <div class="base-stats-input-row">
-          <label>증가된 데미지(%)<input type="number" v-model="weaponStats.extraDamagePct" class="write-input" placeholder="예: 20" /></label>
-          <label>추가 내구도<input type="number" v-model="weaponStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
-          <label>추가 스킬<input type="text" v-model="weaponStats.extraSkill" class="write-input" placeholder="예: +3 파이어볼" /></label>
-        </div>
+        <template v-else-if="effectiveBaseKind === 'weapon'">
+          <div class="base-stats-ref-row" v-if="selectedBaseItem">
+            <span>기본 데미지 {{ weaponDamageRange(selectedBaseItem.base_stats)?.min }}~{{ weaponDamageRange(selectedBaseItem.base_stats)?.max }}</span>
+            <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
+            <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
+          </div>
+          <div class="base-stats-input-row">
+            <label>증가된 데미지(%)<input type="number" v-model="weaponStats.extraDamagePct" class="write-input" placeholder="예: 20" /></label>
+            <label>추가 내구도<input type="number" v-model="weaponStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
+            <label>추가 스킬<input type="text" v-model="weaponStats.extraSkill" class="write-input" placeholder="예: +3 파이어볼" /></label>
+          </div>
+        </template>
       </div>
 
       <label class="ethereal-check" v-if="hasEthereal">
@@ -875,6 +908,7 @@ function submitPost() {
 .form-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
 
 .base-item-picker{position:relative;}
+.base-item-picker .write-input{width:100%; box-sizing:border-box;}
 .base-item-picker .item-picker-selected{height:auto;}
 
 .bundle-box{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:12px; border-radius:14px;}

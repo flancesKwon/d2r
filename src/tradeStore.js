@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
-import { BASE_ITEM_KO_NAMES } from './data/baseItemNames.js'
+import baseItemsData from './data/baseItems.json'
 import { pushNotification } from './notificationsStore.js'
 import { createDeal } from './dealsStore.js'
 
@@ -163,57 +163,36 @@ export function categorySupportsEthereal(category) {
 }
 
 // 룬워드·매직/레어/일반은 베이스로 실제 어떤 무기·방어구를 썼는지가 매번 달라서
-// 사전에 없음 - 대신 사전 속 유니크·세트 730종이 공유하는 베이스(subtitle) 400여
-// 종을 모아서 검색 가능한 베이스 아이템 목록을 만듦. 흔히 거래되는 베이스만 한글
-// 이름이 있고(baseItemNames.js), 나머지는 영문 이름 + 기존 한글 종류로 표시함
-// BASE_ITEM_KO_NAMES 키가 원본 데이터의 대소문자와 항상 일치하진 않아서
-// (예: 데이터엔 "war fork", 사전엔 "War Fork") 대소문자 구분 없이 찾음
-const BASE_ITEM_KO_NAMES_LOWER = new Map(
-  Object.entries(BASE_ITEM_KO_NAMES).map(([k, v]) => [k.toLowerCase(), v])
-)
+// 사전에 없음 - 게임 원본 데이터로 만든 전체 베이스 목록(508종, scripts/build-base-items.js)
+// 에서 고름. 한글 이름은 게임 공식 이름이고, 예전에 직접 붙였던 이름(alt_ko)도 검색됨
+export const BASE_ITEMS = baseItemsData
+const TIER_ORDER = { 엘리트: 0, 익셉셔널: 1, 노멀: 2 }
+const squash = (s) => (s || '').toLowerCase().replace(/\s+/g, '')
 
-function buildBaseItemCatalog(items) {
-  const bySubtitleLower = new Map()
-  items.forEach((it) => {
-    if (!it.subtitle || !it.base_stats) return
-    if (it.base_stats.category !== 'weapon' && it.base_stats.category !== 'armor') return
-    const key = it.subtitle.toLowerCase()
-    const existing = bySubtitleLower.get(key)
-    // 같은 베이스가 대소문자만 다르게 중복 저장돼있는 원본 데이터가 있어서
-    // (예: "War Fork"/"war fork") 대소문자 구분 없이 하나로 합침 - 표시용
-    // subtitle은 첫 글자가 대문자인 쪽을 우선 사용
-    if (existing) {
-      if (/^[A-Z]/.test(it.subtitle) && !/^[A-Z]/.test(existing.subtitle)) existing.subtitle = it.subtitle
-      return
-    }
-    bySubtitleLower.set(key, {
-      id: 'base-' + key,
-      subtitle: it.subtitle,
-      name_ko: BASE_ITEM_KO_NAMES_LOWER.get(key) || null,
-      type_group: it.type_group,
-      type_sub: it.type_sub,
-      base_stats: it.base_stats,
-    })
-  })
-  return [...bySubtitleLower.values()]
+// 룬워드를 만들 수 있는 베이스인지 - 룬워드 허용 종류(subtitle의 "pole + spea" 같은
+// 게임 종류 코드) 중 하나가 베이스의 종류/상위 분류에 있고, 필요한 소켓 수만큼 뚫을 수
+// 있어야 함 (예: 수수께끼 = 갑옷 3소켓 -> 신발·투구나 최대 2소켓인 퀼티드 아머는 제외)
+export function baseFitsRuneword(base, runeword) {
+  const allowed = (runeword.subtitle || '').split('+').map((s) => s.trim()).filter(Boolean)
+  const need = Number(runeword.extra?.socket_count) || 0
+  return allowed.some((c) => base.types.includes(c)) && base.sockets >= need
 }
-export const BASE_ITEMS = buildBaseItemCatalog(itemsData)
 
-export function searchBaseItems(query, kind) {
+// runeword를 넘기면 그 룬워드를 만들 수 있는 베이스만, 엘리트부터 전부 보여줌
+export function searchBaseItems(query, kind, runeword = null) {
   let list = BASE_ITEMS
-  if (kind === 'weapon' || kind === 'armor') list = list.filter((b) => b.base_stats.category === kind)
-  const q = query.trim().toLowerCase()
-  if (!q) return list.slice(0, 40)
-  // 한글 이름이 아직 없는 베이스도 검색이 완전히 막히지 않게, 세부 종류(예:
-  // "지팡이", "장갑")로도 걸리게 함 - 정확한 개별 이름 매칭보단 덜 정밀하지만
-  // 아예 검색이 안 되는 것보단 나음
-  return list
-    .filter((b) =>
-      b.subtitle.toLowerCase().includes(q) ||
-      (b.name_ko && b.name_ko.includes(q)) ||
-      (b.type_sub && b.type_sub.includes(q))
+  if (runeword) list = list.filter((b) => baseFitsRuneword(b, runeword))
+  else if (kind === 'weapon' || kind === 'armor') list = list.filter((b) => b.base_stats.category === kind)
+  // 띄어쓰기 차이(메이지플레이트 / 메이지 플레이트)는 무시하고, 세부 종류(갑옷, 폴암)나
+  // 등급(엘리트)으로도 찾을 수 있게 함
+  const q = squash(query)
+  if (q) {
+    list = list.filter((b) =>
+      [b.subtitle, b.name_ko, b.alt_ko, b.type_sub, b.tier].some((s) => squash(s).includes(q))
     )
-    .slice(0, 40)
+  }
+  if (runeword) return [...list].sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier])
+  return list.slice(0, 40)
 }
 
 export function baseItemLabel(b) {
