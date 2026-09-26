@@ -3,6 +3,7 @@ import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 import baseItemsData from './data/baseItems.json'
+import classSkillsData from './data/classSkills.json'
 import { pushNotification } from './notificationsStore.js'
 import { createDeal } from './dealsStore.js'
 
@@ -195,6 +196,19 @@ export function searchBaseItems(query, kind, runeword = null) {
   return list.slice(0, 40)
 }
 
+// 직업 전용 베이스에 실제로 붙을 수 있는 클래스 스킬만 (스태프 모드 규칙)
+// - 아이템 레벨이 높으면 낮은 단계 스킬은 안 붙음: 아이템 레벨 25~36이면 1단계(요구 레벨 1) 제외,
+//   37 이상이면 1~2단계(요구 레벨 1·6) 제외. 베이스 레벨보다 낮은 아이템 레벨로는 안 떨어져서
+//   베이스 레벨로 판단 (예: 엘리트 오브엔 파이어 볼트·웜쓰 등이 안 붙음)
+// - 특정 무기가 필요한 스킬은 그 종류 베이스에만 (홀엔 스마이트·홀리 실드 X, 바바리안 투구엔 근접 스킬 X)
+export function classSkillsForBase(base) {
+  const cls = base?.class_skills && classSkillsData[base.class_skills]
+  if (!cls) return null
+  const minReq = base.qlvl >= 37 ? 12 : base.qlvl >= 25 ? 6 : 1
+  const skills = cls.skills.filter((s) => s.req >= minReq && (!s.itype || base.types.includes(s.itype)))
+  return { name: cls.name, skills, minReq }
+}
+
 export function baseItemLabel(b) {
   return b.name_ko ? `${b.name_ko} (${b.subtitle})` : `${b.subtitle} · ${b.type_sub}`
 }
@@ -274,18 +288,24 @@ export const TRADE_STAT_FILTERS = [
   { key: 'pierce', label: '적 저항 감소(%)', pattern: '^적(?:의)? (?:냉기|화염|번개|독|마법|물리 피해) 저항 -(\\d+)' },
   { key: 'pdr', label: '피해 감소', pattern: `^피해 ${N} 감소` },
   { key: 'mdr', label: '마법 피해 감소', pattern: `^마법 피해 ${N} 감소` },
+  // 직업 전용 베이스 스킬("블리자드 +3 (소서리스 전용)") - 여러 개 붙어도 합치지 않고 가장 높은
+  // 수치로 비교해서 "3 이상" = +3짜리 스킬이 하나라도 있음
+  { key: 'classskill', label: '클래스 스킬 (가장 높은 수치)', pattern: '^.+ \\+(\\d+) \\((?:아마존|소서리스|네크로맨서|팔라딘|바바리안|드루이드|어쌔신|워록) 전용\\)$', agg: 'max' },
 ].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
 const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
 
 // 판매글에서 해당 옵션 수치를 찾아 반환 (같은 옵션이 여러 줄이면 합산 - 무한의
-// "강타 확률 +20%"처럼 룬워드 고유 옵션과 룬 효과가 겹쳐 두 번 붙는 경우), 없으면 null
+// "강타 확률 +20%"처럼 룬워드 고유 옵션과 룬 효과가 겹쳐 두 번 붙는 경우. agg: 'max'인
+// 조건은 합산 대신 가장 높은 값), 없으면 null
 export function postStatValue(post, key) {
   const stat = STAT_FILTER_BY_KEY.get(key)
   if (!stat) return null
   let total = null
   for (const line of post.options || []) {
     const m = stat.regex.exec(line)
-    if (m) total = (total ?? 0) + Number(m[1])
+    if (!m) continue
+    const v = Number(m[1])
+    total = total === null ? v : stat.agg === 'max' ? Math.max(total, v) : total + v
   }
   return total
 }
@@ -363,7 +383,8 @@ export function addTradePost({
     itemId: itemId || null,
     itemName,
     amountLabel,
-    options: options || [],
+    // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
+    options: (options || []).filter(Boolean),
     ethereal: !!ethereal,
     negotiable: !!negotiable,
     price,

@@ -106,6 +106,8 @@ const out = rows.map((b) => {
     type_sub: TYPE_KO[b.type],
     types: ancestors(b.type),
     sockets: Math.min(Number(b.gemsockets) || 0, typeMax || 6),
+    // 베이스 레벨 = 이 베이스가 떨어질 수 있는 최소 아이템 레벨 (클래스 스킬 단계 제한에 씀)
+    qlvl: num(b.level),
     class_skills: types.get(b.type)?.StaffMods || null,
     auto_mods: autoModsOf(b),
     base_stats: stats,
@@ -117,13 +119,16 @@ const noKo = out.filter((b) => !b.name_ko).map((b) => b.subtitle)
 console.log(`bases: ${out.length}, no official ko: ${noKo.length} (${noKo.join(', ')})`)
 
 // 직업별 스킬 목록 (공식 한글 이름 + 영문) -> src/data/classSkills.json
+// - req: 스킬 요구 레벨 (1/6/12/18/24/30 = 스태프 모드 1~6단계)
+// - itype: 이 스킬을 쓰려면 필요한 무기 종류 (예: 스마이트 = 방패). 베이스가 이 종류가 아니면
+//   그 베이스엔 안 붙음 (홀엔 스마이트·홀리 실드 X, 바바리안 투구엔 근접 스킬 X)
 const skillDesc = new Map(load('skilldesc.json').map((d) => [d.skilldesc, d]))
 const classSkills = {}
 for (const s of load('skills.json')) {
   if (!CLASS_KO[s.charclass] || !s.skilldesc) continue
   const ko = kor[skillDesc.get(s.skilldesc)?.['str name']] || null
   const entry = (classSkills[s.charclass] ??= { name: CLASS_KO[s.charclass], skills: [] })
-  entry.skills.push({ en: s.skill, ko: ko ? ko.trim() : null })
+  entry.skills.push({ en: s.skill, ko: ko ? ko.trim() : null, req: num(s.reqlevel), itype: s.itypea1 || null })
 }
 fs.writeFileSync(new URL('../src/data/classSkills.json', import.meta.url), JSON.stringify(classSkills) + '\n')
 const counts = Object.entries(classSkills).map(([c, v]) => `${c} ${v.skills.length}`).join(', ')

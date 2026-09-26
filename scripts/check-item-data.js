@@ -111,6 +111,18 @@ itemsData.forEach((it, idx) => {
     }
   })
 
+  // 옵션 문구가 비어 있으면 사전엔 "텍스트 준비 중"으로 나오고 판매글엔 빈 줄로 저장됨 -
+  // 고유 옵션과 룬의 부위별 효과(룬워드 최종 옵션에 합쳐짐) 모두 검사
+  ;(it.affixes || []).forEach((a, ai) => {
+    if (a.prop && !a.text) err(`${where}: affixes[${ai}] (${a.prop}) 옵션 문구(text)가 비어있음`)
+  })
+  // (cold-len/pois-len 같은 지속시간 값은 게임에서도 따로 줄로 안 나오고 피해 줄에 합쳐져서 제외)
+  for (const slot of ['in_weapon', 'in_helm', 'in_shield']) {
+    ;(it.extra?.[slot] || []).forEach((a, ai) => {
+      if (!a.text && !/-len$/.test(a.prop)) err(`${where}: extra.${slot}[${ai}] (${a.prop}) 옵션 문구(text)가 비어있음`)
+    })
+  }
+
   const key = `${it.category}|${it.name_ko}`
   if (!nameKoByCategory.has(key)) nameKoByCategory.set(key, [])
   nameKoByCategory.get(key).push(it.id)
