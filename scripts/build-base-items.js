@@ -68,13 +68,28 @@ function autoModsOf(b) {
   for (const a of automagic.filter((x) => String(x.group) === String(group) && Number(x.spawnable) === 1)) {
     const key = a.mod1code === 'skilltab' ? `skilltab:${a.mod1param}` : a.mod1code
     if (!AUTO_MOD_TEXT[key]) throw new Error(`no text for auto mod ${key} (${a.Name})`)
-    const m = mods.get(key) || { key, text: AUTO_MOD_TEXT[key], min: Infinity, max: -Infinity }
+    const m = mods.get(key) || { key, text: AUTO_MOD_TEXT[key], min: Infinity, max: -Infinity, set: new Set() }
     m.min = Math.min(m.min, Number(a.mod1min))
     m.max = Math.max(m.max, Number(a.mod1max))
+    for (let v = Number(a.mod1min); v <= Number(a.mod1max); v++) m.set.add(v)
     mods.set(key, m)
   }
-  return mods.size ? [...mods.values()] : null
+  // 단계 사이에 빈 값이 있으면(독 피해 8/16/32/64처럼) 가능한 값 목록을 values로 따로 둠
+  return mods.size
+    ? [...mods.values()].map(({ set, ...m }) => (set.size === m.max - m.min + 1 ? m : { ...m, values: [...set].sort((x, y) => x - y) }))
+    : null
 }
+
+// 아이템 사전(유니크·세트의 subtitle)에 게임 원본과 철자가 다르게 적힌 베이스 이름 -> 게임 코드.
+// 유니크·세트에서 자기 베이스를 찾을 때 쓰도록 aliases로 넣음 (staff·hammer는 퀘스트 아이템이라 없음)
+const DICT_NAME_ALIASES = {
+  '2-handed sword': '2hs', kris: 'kri', 'hard leather': 'hla', ancientarmor: 'aar', gloves: 'lgl',
+  bracers: 'mgl', 'leather boots': 'lbt', 'light plate boots': 'tbt', 'plate boots': 'hbt', girdle: 'hbl',
+  espadon: '92h', 'jo stalf': '8ss', cedarbow: '8lb', balista: '8hx', 'tresllised armor': 'xtu',
+  'battle guantlets': 'xtg', 'succubae skull': 'nee', 'mithril point': '7di', sabre: 'sbr', 'ornate plate': 'xar',
+}
+const aliasesByCode = {}
+for (const [name, code] of Object.entries(DICT_NAME_ALIASES)) (aliasesByCode[code] ??= []).push(name)
 
 const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v))
 const tierOf = (b) => (b.code === b.ultracode ? '엘리트' : b.code === b.ubercode ? '익셉셔널' : '노멀')
@@ -108,6 +123,9 @@ const out = rows.map((b) => {
     sockets: Math.min(Number(b.gemsockets) || 0, typeMax || 6),
     // 베이스 레벨 = 이 베이스가 떨어질 수 있는 최소 아이템 레벨 (클래스 스킬 단계 제한에 씀)
     qlvl: num(b.level),
+    // 내구도가 없는 베이스(활·석궁 nodurability, 파괴 불가인 페이즈 블레이드)는 에테리얼로 안 나옴
+    can_eth: Number(b.nodurability) !== 1 && Number(b.durability) > 0,
+    aliases: aliasesByCode[b.code] || undefined,
     class_skills: types.get(b.type)?.StaffMods || null,
     auto_mods: autoModsOf(b),
     base_stats: stats,

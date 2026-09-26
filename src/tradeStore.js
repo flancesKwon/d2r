@@ -209,6 +209,43 @@ export function classSkillsForBase(base) {
   return { name: cls.name, skills, minReq }
 }
 
+// 유니크·세트의 베이스 (아이템 사전 subtitle -> 베이스 목록, 철자가 다른 건 aliases로)
+const BASE_BY_NAME = new Map()
+for (const b of baseItemsData) {
+  BASE_BY_NAME.set(b.subtitle.toLowerCase(), b)
+  for (const a of b.aliases || []) BASE_BY_NAME.set(a, b)
+}
+export function baseForItem(item) {
+  if (!item || (item.category !== 'unique' && item.category !== 'set') || !item.subtitle) return null
+  return BASE_BY_NAME.get(item.subtitle.toLowerCase()) || null
+}
+
+// 상급(Superior) 흰 베이스에 붙는 옵션 - 게임 qualityitems.txt의 8가지 조합 중 하나만 붙음
+// (무기: 데미지%·명중률·내구도% 중 1~2개 / 방어구: 방어력%·내구도% 중 1~2개)
+export const SUPERIOR_MODS = {
+  'dmg%': { text: '증가된 데미지 +{v}%', min: 5, max: 15 },
+  att: { text: '명중률 +{v}', min: 1, max: 3 },
+  'ac%': { text: '증가된 방어력 +{v}%', min: 5, max: 15 },
+  'dur%': { text: '최대 내구도 +{v}%', min: 10, max: 15 },
+}
+const SUPERIOR_COMBOS = {
+  weapon: [['dmg%'], ['att'], ['dur%'], ['att', 'dmg%'], ['att', 'dur%'], ['dmg%', 'dur%']],
+  armor: [['ac%'], ['dur%'], ['ac%', 'dur%']],
+}
+export function superiorCombosFor(base) {
+  return base ? SUPERIOR_COMBOS[base.base_stats.category] || [] : []
+}
+
+// 입력값이 게임에서 나올 수 있는 값인지 - 정수이고 min~max 안(순서 무관), values가 있으면 그 중 하나
+export function isAllowedValue(v, { min, max, values } = {}) {
+  if (v === '' || v === null || v === undefined) return true
+  const n = Number(v)
+  if (!Number.isInteger(n)) return false
+  if (values) return values.includes(n)
+  const lo = Math.min(Number(min), Number(max)), hi = Math.max(Number(min), Number(max))
+  return n >= lo && n <= hi
+}
+
 export function baseItemLabel(b) {
   return b.name_ko ? `${b.name_ko} (${b.subtitle})` : `${b.subtitle} · ${b.type_sub}`
 }
