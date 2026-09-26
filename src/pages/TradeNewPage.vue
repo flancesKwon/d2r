@@ -28,6 +28,10 @@ import {
   itemsData,
   itemLevelReq,
   classSkillsForBase,
+  baseForItem,
+  superiorCombosFor,
+  SUPERIOR_MODS,
+  isAllowedValue,
 } from '../tradeStore.js'
 import { runewordBaseTypesKo } from '../itemStats.js'
 import iconsData from '../data/icons.json'
@@ -87,7 +91,6 @@ function hideBundleDropdownSoon() {
 }
 
 const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
-const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
 const showItemModal = ref(false)
 // 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
 // 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
@@ -145,7 +148,7 @@ const needsManualBaseStats = computed(() => {
 })
 
 const armorStats = ref({ baseDefense: '', extraDefensePct: '', extraDurability: '' })
-const weaponStats = ref({ baseDamageMin: '', baseDamageMax: '', extraDamagePct: '', extraDurability: '', extraSkill: '' })
+const weaponStats = ref({ extraDamagePct: '', extraDurability: '' })
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
 // 고르면 그 베이스가 원래 갖고 있는 방어력/데미지·내구도가 자동으로 채워짐
@@ -153,6 +156,38 @@ const selectedBaseItem = ref(null)
 const baseItemQuery = ref('')
 const showBaseItemDropdown = ref(false)
 const isRuneword = computed(() => selectedItem.value?.category === 'runeword')
+const isUniqueOrSet = computed(() => ['unique', 'set'].includes(selectedItem.value?.category))
+// 이 아이템의 실제 베이스 - 룬워드·매직/레어는 판매자가 고른 베이스, 유니크·세트는 고정 베이스
+const itemBase = computed(() => selectedBaseItem.value || baseForItem(selectedItem.value))
+
+// 에테리얼은 베이스가 에테리얼로 나올 수 있을 때만 (활·석궁·페이즈 블레이드처럼 내구도 없는 건 불가)
+const hasEthereal = computed(
+  () => categorySupportsEthereal(form.value.category) && (itemBase.value ? itemBase.value.can_eth : true)
+)
+watch(hasEthereal, (ok) => {
+  if (!ok) form.value.ethereal = false
+})
+
+// 상급(Superior) 흰 베이스 옵션 - 룬워드 베이스만 해당 (매직/레어는 상급이 아님).
+// 게임에서 정해진 조합 중 하나만 고를 수 있고, 수치도 조합별 범위 안에서만
+const superiorCombos = computed(() => (isRuneword.value ? superiorCombosFor(selectedBaseItem.value) : []))
+const superiorPick = ref({ combo: '', values: {} })
+const pickedSuperiorCombo = computed(() => superiorCombos.value[superiorPick.value.combo] || null)
+const superiorComboLabel = (combo) =>
+  combo.map((k) => SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`)).join(' + ')
+function buildSuperiorOptions() {
+  return (pickedSuperiorCombo.value || [])
+    .filter((k) => superiorPick.value.values[k] !== undefined && superiorPick.value.values[k] !== '')
+    .map((k) => SUPERIOR_MODS[k].text.replace('{v}', superiorPick.value.values[k]))
+}
+
+// 유니크·세트 소켓 (라르주크·큐브로 뚫은 개수) - 베이스 최대 소켓까지만
+const uniqueSockets = ref('')
+const uniqueMaxSockets = computed(() => (isUniqueOrSet.value ? itemBase.value?.sockets || 0 : 0))
+
+// 자유 입력 옵션은 사전에 없는 매직/레어/일반·기타 아이템에만 - 룬워드·유니크·세트는 붙을 수 있는
+// 옵션이 정해져 있어서 위의 전용 칸(베이스 옵션·상급·소켓)으로만 입력받음
+const allowsCustomOptions = computed(() => !selectedItem.value && ['매직/레어/일반', '기타'].includes(form.value.category))
 // 룬워드는 만들 수 있는 베이스(허용 종류 + 필요 소켓 수)만 후보로 보여줌
 const baseItemCandidates = computed(() =>
   selectedBaseItem.value
@@ -186,21 +221,12 @@ const baseDefenseWarning = computed(() => {
     ? `고른 베이스의 기본 방어력 범위(${exp.min}~${exp.max}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어나요. 다시 확인해 주세요.`
     : ''
 })
-// 무기 기본 데미지는 베이스마다 고정값이고 에테리얼이면 1.5배 - 그 값과 다르게 입력하면 알려줌
+// 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배) - 입력받지 않고 이 값을 그대로 저장
 const expectedWeaponDamage = computed(() => {
   const dmg = weaponDamageRange(selectedBaseItem.value?.base_stats)
   if (!dmg) return null
   const mul = form.value.ethereal ? 1.5 : 1
   return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
-})
-const baseDamageWarning = computed(() => {
-  const exp = expectedWeaponDamage.value
-  const { baseDamageMin: lo, baseDamageMax: hi } = weaponStats.value
-  if (!exp || (lo === '' && hi === '')) return ''
-  const off = (lo !== '' && Number(lo) !== exp.min) || (hi !== '' && Number(hi) !== exp.max)
-  return off
-    ? `고른 베이스의 기본 데미지는 ${exp.min}~${exp.max}${form.value.ethereal ? '(에테리얼)' : ''}예요. 다시 확인해 주세요.`
-    : ''
 })
 // 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
 // · 스킬: 오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀 등에 그 직업 스킬 최대 3개 × +1~3
@@ -232,6 +258,7 @@ const autoModNames = computed(() => baseAutoMods.value.map((m) => m.text.replace
 function resetBaseMods() {
   classSkillPicks.value = emptyClassSkillPicks()
   autoModPick.value = { key: '', value: '' }
+  superiorPick.value = { combo: '', values: {} }
 }
 function buildBaseModOptions() {
   const out = []
@@ -262,7 +289,7 @@ function hideBaseItemDropdownSoon() {
 
 function resetBaseStats() {
   armorStats.value = { baseDefense: '', extraDefensePct: '', extraDurability: '' }
-  weaponStats.value = { baseDamageMin: '', baseDamageMax: '', extraDamagePct: '', extraDurability: '', extraSkill: '' }
+  weaponStats.value = { extraDamagePct: '', extraDurability: '' }
   clearBaseItem()
 }
 
@@ -274,21 +301,48 @@ function buildBaseStatOptions() {
     const base = selectedBaseItem.value?.base_stats
     const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
     if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
-    if (armorStats.value.extraDefensePct) out.push(`증가된 방어력 +${armorStats.value.extraDefensePct}%`)
-    if (armorStats.value.extraDurability) out.push(`추가 내구도 +${armorStats.value.extraDurability}`)
+    // 매직/레어는 접사로 붙는 값이라 자유 입력, 룬워드는 아래 상급 옵션으로만
+    if (!isRuneword.value && armorStats.value.extraDefensePct) out.push(`증가된 방어력 +${armorStats.value.extraDefensePct}%`)
+    if (!isRuneword.value && armorStats.value.extraDurability) out.push(`추가 내구도 +${armorStats.value.extraDurability}`)
   } else if (effectiveBaseKind.value === 'weapon') {
-    // 기본 데미지도 방어력처럼 입력값이 우선이고, 비운 칸은 고른 베이스 값(에테리얼 반영)으로 채움
+    // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배)이라 입력받지 않고 그대로 씀
     const exp = expectedWeaponDamage.value
-    const min = weaponStats.value.baseDamageMin !== '' ? weaponStats.value.baseDamageMin : exp?.min
-    const max = weaponStats.value.baseDamageMax !== '' ? weaponStats.value.baseDamageMax : exp?.max
-    if (min !== undefined && max !== undefined) out.push(`기본 데미지 ${min}~${max}`)
-    if (weaponStats.value.extraDamagePct) out.push(`증가된 데미지 +${weaponStats.value.extraDamagePct}%`)
-    if (weaponStats.value.extraDurability) out.push(`추가 내구도 +${weaponStats.value.extraDurability}`)
-    if (weaponStats.value.extraSkill.trim()) out.push(weaponStats.value.extraSkill.trim())
+    if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
+    if (!isRuneword.value && weaponStats.value.extraDamagePct) out.push(`증가된 데미지 +${weaponStats.value.extraDamagePct}%`)
+    if (!isRuneword.value && weaponStats.value.extraDurability) out.push(`추가 내구도 +${weaponStats.value.extraDurability}`)
   }
-  out.push(...buildBaseModOptions())
+  out.push(...buildSuperiorOptions(), ...buildBaseModOptions())
+  if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
 }
+
+// 입력한 수치가 게임에서 나올 수 있는 값인지 전부 검사 - 틀린 게 있으면 첫 번째 것을 알려주고 등록을 막음
+const invalidInputs = computed(() => {
+  const bad = []
+  itemAffixes.value.forEach((a, i) => {
+    if ((isRollRangeAffix(a) || isRandomClassSkillAffix(a)) && !isAllowedValue(rolledValues.value[i], a)) {
+      // 옵션 문구에 이미 범위가 들어 있으면("방어력 750~775") 그대로, 아니면 범위를 붙여서
+      bad.push(a.text.includes(`${a.min}~${a.max}`) ? a.text : `${a.text} (${Math.min(a.min, a.max)}~${Math.max(a.min, a.max)})`)
+    }
+  })
+  randomGroups.value.forEach((g, gi) => {
+    const o = g[groupChoice.value[gi]]
+    if (o && !isAllowedValue(groupValues.value[gi], o)) bad.push(`${o.text} (${o.min}~${o.max})`)
+  })
+  if (expectedDefense.value && !isAllowedValue(armorStats.value.baseDefense, expectedDefense.value)) {
+    bad.push(`기본 방어력 (${expectedDefense.value.min}~${expectedDefense.value.max})`)
+  }
+  const auto = pickedAutoMod.value
+  if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
+  for (const k of pickedSuperiorCombo.value || []) {
+    if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
+      bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
+    }
+  }
+  return bad
+})
+// 칸별 빨간 표시용
+const outOfRange = (v, spec) => !isAllowedValue(v, spec)
 
 function buildMaterialsOption() {
   if (!materials.value.length) return []
@@ -343,6 +397,7 @@ function resetItemDependentFields() {
   manualBaseKind.value = null
   resetBaseStats()
   customOptions.value = []
+  uniqueSockets.value = ''
   priceItems.value = []
 }
 
@@ -363,6 +418,9 @@ function clearPickedItem() {
 }
 
 function pickFallbackCategory(cat) {
+  // 사전 아이템을 골랐다가 "변경"으로 사전에 없는 이름을 등록하는 경우, 이전 아이템 id가 남아서
+  // 새 이름으로 예전 아이템(아이콘·옵션)이 저장되지 않게 비움
+  form.value.itemId = null
   form.value.category = cat
   resetItemDependentFields()
   showItemModal.value = false
@@ -456,6 +514,10 @@ function submitPost() {
     return
   }
   if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
+  if (invalidInputs.value.length) {
+    formError.value = `게임에서 나올 수 없는 수치가 있어요: ${invalidInputs.value[0]}`
+    return
+  }
   formError.value = ''
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
@@ -638,42 +700,52 @@ function submitPost() {
               기본 방어력
               <input
                 type="number" v-model="armorStats.baseDefense" class="write-input"
+                :class="{ invalid: expectedDefense && outOfRange(armorStats.baseDefense, expectedDefense) }"
+                :min="expectedDefense?.min" :max="expectedDefense?.max"
                 :placeholder="expectedDefense ? `${expectedDefense.min}~${expectedDefense.max}` : '예: 80'"
               />
             </label>
-            <label>증가된 방어력(%)<input type="number" v-model="armorStats.extraDefensePct" class="write-input" placeholder="예: 15" /></label>
-            <label>추가 내구도<input type="number" v-model="armorStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
+            <template v-if="!isRuneword">
+              <label>증가된 방어력(%)<input type="number" v-model="armorStats.extraDefensePct" class="write-input" placeholder="예: 15" /></label>
+              <label>추가 내구도<input type="number" v-model="armorStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
+            </template>
           </div>
           <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
         </template>
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem">
-            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}</span>
+            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값이라 자동으로 들어가요</span>
             <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
           </div>
-          <div class="base-stats-input-row">
-            <label>
-              기본 데미지 (최소)
-              <input
-                type="number" v-model="weaponStats.baseDamageMin" class="write-input"
-                :placeholder="expectedWeaponDamage ? String(expectedWeaponDamage.min) : '예: 30'"
-              />
-            </label>
-            <label>
-              기본 데미지 (최대)
-              <input
-                type="number" v-model="weaponStats.baseDamageMax" class="write-input"
-                :placeholder="expectedWeaponDamage ? String(expectedWeaponDamage.max) : '예: 90'"
-              />
-            </label>
+          <div class="base-stats-input-row" v-if="!isRuneword">
             <label>증가된 데미지(%)<input type="number" v-model="weaponStats.extraDamagePct" class="write-input" placeholder="예: 20" /></label>
             <label>추가 내구도<input type="number" v-model="weaponStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
-            <label>추가 스킬<input type="text" v-model="weaponStats.extraSkill" class="write-input" placeholder="예: +3 파이어볼" /></label>
           </div>
-          <div class="unit-hint" v-if="baseDamageWarning">{{ baseDamageWarning }}</div>
         </template>
+
+        <div class="base-mods" v-if="superiorCombos.length">
+          <div class="option-editor-title">상급(Superior) 베이스 옵션</div>
+          <div class="option-editor-hint">
+            상급 흰 베이스로 만들었다면 아래 조합 중 하나가 붙어 있어요. 일반 베이스면 비워두세요.
+          </div>
+          <div class="option-row">
+            <select v-model="superiorPick.combo" class="write-select random-group-select" aria-label="상급 옵션 조합">
+              <option value="">상급 아님 (일반 베이스)</option>
+              <option v-for="(c, ci) in superiorCombos" :key="ci" :value="ci">{{ superiorComboLabel(c) }}</option>
+            </select>
+          </div>
+          <div class="option-row" v-for="k in pickedSuperiorCombo || []" :key="k">
+            <span class="option-text">{{ SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`) }}</span>
+            <select v-model="superiorPick.values[k]" class="write-select option-value-select" :aria-label="`${SUPERIOR_MODS[k].text} 수치`">
+              <option :value="undefined">수치</option>
+              <option v-for="n in SUPERIOR_MODS[k].max - SUPERIOR_MODS[k].min + 1" :key="n" :value="SUPERIOR_MODS[k].min + n - 1">
+                {{ SUPERIOR_MODS[k].min + n - 1 }}
+              </option>
+            </select>
+          </div>
+        </div>
 
         <div class="base-mods" v-if="baseClassSkills || baseAutoMods.length">
           <div class="option-editor-title">베이스 자체 옵션</div>
@@ -685,8 +757,13 @@ function submitPost() {
               <option value="">자동 옵션 선택 ({{ autoModNames }})</option>
               <option v-for="m in baseAutoMods" :key="m.key" :value="m.key">{{ m.text.replace('{v}', `${m.min}~${m.max}`) }}</option>
             </select>
+            <select v-if="pickedAutoMod && pickedAutoMod.values" v-model="autoModPick.value" class="write-select option-value-select" aria-label="자동 옵션 수치">
+              <option value="">수치</option>
+              <option v-for="v in pickedAutoMod.values" :key="v" :value="v">{{ v }}</option>
+            </select>
             <input
-              v-if="pickedAutoMod" type="number" v-model="autoModPick.value" :min="pickedAutoMod.min" :max="pickedAutoMod.max"
+              v-else-if="pickedAutoMod" type="number" v-model="autoModPick.value" :min="pickedAutoMod.min" :max="pickedAutoMod.max"
+              :class="{ invalid: outOfRange(autoModPick.value, pickedAutoMod) }"
               :placeholder="`${pickedAutoMod.min}~${pickedAutoMod.max}`" class="write-input option-value-input" aria-label="자동 옵션 수치"
             />
           </div>
@@ -746,6 +823,7 @@ function submitPost() {
             </select>
             <input
               type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
+              :min="Math.min(a.min, a.max)" :max="Math.max(a.min, a.max)" :class="{ invalid: outOfRange(rolledValues[i], a) }"
               class="write-input option-value-input"
             />
           </template>
@@ -753,6 +831,7 @@ function submitPost() {
             <span class="option-text">{{ a.text }}</span>
             <input
               type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
+              :min="Math.min(a.min, a.max)" :max="Math.max(a.min, a.max)" :class="{ invalid: outOfRange(rolledValues[i], a) }"
               class="write-input option-value-input"
             />
           </template>
@@ -771,12 +850,24 @@ function submitPost() {
           <input
             v-if="g[groupChoice[gi]]"
             type="number" v-model="groupValues[gi]" :placeholder="`${g[groupChoice[gi]].min}~${g[groupChoice[gi]].max}`"
+            :min="g[groupChoice[gi]].min" :max="g[groupChoice[gi]].max" :class="{ invalid: outOfRange(groupValues[gi], g[groupChoice[gi]]) }"
             class="write-input option-value-input" :aria-label="`${gi + 1}그룹 수치`"
           />
         </div>
       </div>
 
-      <div class="option-editor" v-if="selectedItem || form.category">
+      <div class="option-editor" v-if="uniqueMaxSockets">
+        <div class="option-editor-title">소켓</div>
+        <div class="option-editor-hint">라르주크 퀘스트·큐브로 소켓을 뚫었다면 개수를 고르세요 (이 베이스는 최대 {{ uniqueMaxSockets }}개).</div>
+        <div class="option-row">
+          <select v-model="uniqueSockets" class="write-select random-group-select" aria-label="소켓 개수">
+            <option value="">소켓 없음</option>
+            <option v-for="n in uniqueMaxSockets" :key="n" :value="n">{{ n }}소켓</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="option-editor" v-if="allowsCustomOptions">
         <div class="option-editor-title">기타 옵션 직접 추가</div>
         <div class="option-editor-hint">위에 없는 스탯(생명력, 저항, 소켓 개수 등)은 종류를 고르고 값을 입력해서 추가하세요.</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
@@ -1013,6 +1104,7 @@ function submitPost() {
 .manual-kind-row{border:1px solid var(--border-soft); background:var(--panel); padding:14px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
 
 .base-stats-input{border:1px solid var(--gold-dim); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
+.write-input.invalid{border-color:var(--blood) !important; box-shadow:0 0 0 1px var(--blood);}
 .base-mods{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--border); padding-top:12px; margin-top:2px;}
 .class-skill-rule b{color:var(--gold);}
 .class-skill-remove{flex:none; color:var(--text-dim); font-size:12px; padding:4px 6px;}
