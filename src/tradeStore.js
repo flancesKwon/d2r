@@ -160,22 +160,36 @@ export function categorySupportsEthereal(category) {
 // 사전에 없음 - 대신 사전 속 유니크·세트 730종이 공유하는 베이스(subtitle) 400여
 // 종을 모아서 검색 가능한 베이스 아이템 목록을 만듦. 흔히 거래되는 베이스만 한글
 // 이름이 있고(baseItemNames.js), 나머지는 영문 이름 + 기존 한글 종류로 표시함
+// BASE_ITEM_KO_NAMES 키가 원본 데이터의 대소문자와 항상 일치하진 않아서
+// (예: 데이터엔 "war fork", 사전엔 "War Fork") 대소문자 구분 없이 찾음
+const BASE_ITEM_KO_NAMES_LOWER = new Map(
+  Object.entries(BASE_ITEM_KO_NAMES).map(([k, v]) => [k.toLowerCase(), v])
+)
+
 function buildBaseItemCatalog(items) {
-  const bySubtitle = new Map()
+  const bySubtitleLower = new Map()
   items.forEach((it) => {
     if (!it.subtitle || !it.base_stats) return
     if (it.base_stats.category !== 'weapon' && it.base_stats.category !== 'armor') return
-    if (bySubtitle.has(it.subtitle)) return
-    bySubtitle.set(it.subtitle, {
-      id: 'base-' + it.subtitle,
+    const key = it.subtitle.toLowerCase()
+    const existing = bySubtitleLower.get(key)
+    // 같은 베이스가 대소문자만 다르게 중복 저장돼있는 원본 데이터가 있어서
+    // (예: "War Fork"/"war fork") 대소문자 구분 없이 하나로 합침 - 표시용
+    // subtitle은 첫 글자가 대문자인 쪽을 우선 사용
+    if (existing) {
+      if (/^[A-Z]/.test(it.subtitle) && !/^[A-Z]/.test(existing.subtitle)) existing.subtitle = it.subtitle
+      return
+    }
+    bySubtitleLower.set(key, {
+      id: 'base-' + key,
       subtitle: it.subtitle,
-      name_ko: BASE_ITEM_KO_NAMES[it.subtitle] || null,
+      name_ko: BASE_ITEM_KO_NAMES_LOWER.get(key) || null,
       type_group: it.type_group,
       type_sub: it.type_sub,
       base_stats: it.base_stats,
     })
   })
-  return [...bySubtitle.values()]
+  return [...bySubtitleLower.values()]
 }
 export const BASE_ITEMS = buildBaseItemCatalog(itemsData)
 
@@ -184,8 +198,15 @@ export function searchBaseItems(query, kind) {
   if (kind === 'weapon' || kind === 'armor') list = list.filter((b) => b.base_stats.category === kind)
   const q = query.trim().toLowerCase()
   if (!q) return list.slice(0, 40)
+  // 한글 이름이 아직 없는 베이스도 검색이 완전히 막히지 않게, 세부 종류(예:
+  // "지팡이", "장갑")로도 걸리게 함 - 정확한 개별 이름 매칭보단 덜 정밀하지만
+  // 아예 검색이 안 되는 것보단 나음
   return list
-    .filter((b) => b.subtitle.toLowerCase().includes(q) || (b.name_ko && b.name_ko.includes(q)))
+    .filter((b) =>
+      b.subtitle.toLowerCase().includes(q) ||
+      (b.name_ko && b.name_ko.includes(q)) ||
+      (b.type_sub && b.type_sub.includes(q))
+    )
     .slice(0, 40)
 }
 
