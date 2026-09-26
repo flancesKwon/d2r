@@ -25,12 +25,17 @@ import {
   runewordMaterials,
   searchBaseItems,
   baseItemLabel,
+  itemsData,
+  itemLevelReq,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import { profileState } from '../profileStore.js'
 
 const router = useRouter()
+
+// 팝업은 열릴 때 새로 그려져서 autofocus 속성이 안 먹음 - 마운트될 때 직접 포커스
+const vFocus = { mounted: (el) => el.focus() }
 
 // 카테고리는 직접 고르지 않고 아이템 검색으로 자동 결정됨. 사전에 없는
 // 아이템(매직/레어/일반, 기타)만 검색 결과가 없을 때 뜨는 버튼으로 고를 수 있음
@@ -273,26 +278,40 @@ function removeCustomOption(i) {
 
 // 희망 가격은 자유 텍스트 대신 실제 룬·보석 아이템을 검색해서 개수와 함께 고르는
 // 방식으로 받음 - 여러 종류를 섞어서 받아도 되니(예: 이스트 룬 2개 + 최상급
-// 다이아몬드 5개) 묶음 판매 아이템 담기와 같은 패턴을 씀
+// 다이아몬드 5개) 묶음 판매 아이템 담기와 같은 패턴을 씀. 고르는 건 아이템 선택과
+// 똑같이 팝업에서 검색 -> 선택 - 검색어가 없을 땐 거래에 제일 많이 쓰는 고급 룬부터 보여줌
 const priceItems = ref([])
 const priceQuery = ref('')
-const showPriceDropdown = ref(false)
+const showPriceModal = ref(false)
+const PRICE_CURRENCIES = itemsData.filter((it) => it.category === 'gem')
+const RUNES_HIGH_FIRST = PRICE_CURRENCIES
+  .filter((it) => it.type_sub === '룬')
+  .sort((a, b) => (itemLevelReq(b) ?? 0) - (itemLevelReq(a) ?? 0))
 const priceCandidates = computed(() => {
-  if (!priceQuery.value.trim()) return []
-  return searchAllItems(priceQuery.value).filter((it) => it.category === 'gem')
+  const q = priceQuery.value.trim().toLowerCase()
+  if (!q) return RUNES_HIGH_FIRST
+  return PRICE_CURRENCIES.filter(
+    (it) =>
+      it.name_ko.toLowerCase().includes(q) ||
+      it.name_en.toLowerCase().includes(q) ||
+      (it.aliases || []).some((a) => a.toLowerCase().includes(q))
+  )
 })
+function openPriceModal() {
+  priceQuery.value = ''
+  showPriceModal.value = true
+}
 function pickPriceItem(it) {
   const existing = priceItems.value.find((p) => p.item.id === it.id)
   if (existing) existing.qty += 1
   else priceItems.value.push({ item: it, qty: 1 })
-  priceQuery.value = ''
-  showPriceDropdown.value = false
+  showPriceModal.value = false
+}
+function priceQtyOf(it) {
+  return priceItems.value.find((p) => p.item.id === it.id)?.qty || 0
 }
 function removePriceItem(i) {
   priceItems.value.splice(i, 1)
-}
-function hidePriceDropdownSoon() {
-  window.setTimeout(() => (showPriceDropdown.value = false), 150)
 }
 function buildPriceString() {
   return priceItems.value.map((p) => `${p.item.name_ko} ${p.qty}개`).join(' + ')
@@ -408,7 +427,7 @@ function submitPost() {
           <div class="d-section-title">아이템 선택</div>
           <input
             type="text" v-model="form.itemName" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
-            class="write-input" autofocus
+            class="write-input" v-focus
           />
           <div class="item-picker-hint">룬·보석·유니크·세트·룬워드·우버보스 재료를 모두 검색할 수 있어요. 룬워드는 "룬워드"가 아니라 무한·인챈트처럼 완성된 룬워드 이름으로 검색하세요.</div>
           <div class="item-modal-list">
@@ -678,23 +697,32 @@ function submitPost() {
             <button type="button" @click="removePriceItem(i)">✕</button>
           </div>
         </div>
-        <div class="item-picker">
-          <div class="item-picker-search-wrap">
-            <input
-              type="text" v-model="priceQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
-              class="write-input" @focus="showPriceDropdown = true"
-              @input="showPriceDropdown = true" @blur="hidePriceDropdownSoon"
-            />
-            <div class="item-picker-dropdown" v-if="showPriceDropdown && priceQuery.trim()">
-              <button
-                type="button" class="item-picker-row" v-for="it in priceCandidates" :key="it.id"
-                @mousedown.prevent="pickPriceItem(it)"
-              >
-                <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
-              </button>
-              <div class="item-picker-empty" v-if="!priceCandidates.length">일치하는 룬·보석이 없어요.</div>
-            </div>
+        <button type="button" class="item-picker-trigger" @click="openPriceModal">
+          {{ priceItems.length ? '+ 룬·보석 더 추가하기' : '받고 싶은 룬·보석을 검색해서 선택하세요 (예: 이스트 룬, 최상급 자수정)' }}
+        </button>
+      </div>
+
+      <div class="modal-overlay" v-if="showPriceModal" @click.self="showPriceModal = false">
+        <div class="modal-panel item-modal-panel">
+          <button type="button" class="modal-close" @click="showPriceModal = false">✕</button>
+          <div class="d-section-title">희망 가격 룬·보석 선택</div>
+          <input
+            type="text" v-model="priceQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
+            class="write-input" v-focus aria-label="룬·보석 검색"
+          />
+          <div class="item-picker-hint">
+            {{ priceQuery.trim() ? '고르면 1개가 담기고, 개수는 담은 뒤에 바꿀 수 있어요. 같은 걸 또 고르면 1개씩 늘어나요.' : '검색어가 없을 땐 룬을 높은 등급부터 보여줘요. 보석은 이름으로 검색하세요.' }}
+          </div>
+          <div class="item-modal-list">
+            <button
+              type="button" class="item-picker-row" v-for="it in priceCandidates" :key="it.id"
+              @click="pickPriceItem(it)"
+            >
+              <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+              <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+              <span class="item-picker-row-cat price-picked" v-if="priceQtyOf(it)">담김 {{ priceQtyOf(it) }}개</span>
+            </button>
+            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석이 없어요.</div>
           </div>
         </div>
       </div>
@@ -776,6 +804,7 @@ function submitPost() {
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
 .item-picker-row-cat{font-size:10px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 8px; border-radius:999px; flex:none;}
+.item-picker-row-cat.price-picked{color:var(--teal); border-color:var(--teal); margin-left:auto;}
 .item-picker-empty-block{padding:14px;}
 .item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
 .fallback-cat-row{display:flex; justify-content:center; gap:8px;}
