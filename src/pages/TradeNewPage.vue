@@ -85,7 +85,7 @@ const showItemModal = ref(false)
 // 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
 // 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
 // (매직/레어/일반, 기타처럼 매번 랜덤하거나 목록화가 불가능한 경우) 직접 입력한 이름 그대로 등록
-const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(form.value.itemName)))
+const itemCandidates = computed(() => searchAllItems(form.value.itemName))
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
@@ -209,33 +209,39 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
+// 아이템을 바꾸면(변경 버튼으로 다른 아이템 재선택, 또는 클리어) 이전 아이템 기준으로
+// 입력해뒀던 수치들이 새 아이템에는 안 맞을 수 있어서 화면 처음 들어왔을 때처럼
+// 전부 초기화함 - 개수/에테리얼/옵션값/베이스 스탯/직접 추가한 옵션/희망 가격까지 전부
+function resetItemDependentFields() {
+  form.value.quantity = ''
+  form.value.ethereal = false
+  rolledValues.value = {}
+  randClassChoice.value = {}
+  manualBaseKind.value = null
+  resetBaseStats()
+  customOptions.value = []
+  priceItems.value = []
+}
+
 function pickItem(it) {
   form.value.itemId = it.id
   form.value.itemName = it.name_ko
   const cat = tradeCategoryForItem(it)
   if (cat) form.value.category = cat
   showItemModal.value = false
-  rolledValues.value = {}
-  randClassChoice.value = {}
-  form.value.quantity = ''
-  manualBaseKind.value = null
-  resetBaseStats()
+  resetItemDependentFields()
 }
 
 function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
   form.value.category = null
-  rolledValues.value = {}
-  randClassChoice.value = {}
-  manualBaseKind.value = null
-  resetBaseStats()
+  resetItemDependentFields()
 }
 
 function pickFallbackCategory(cat) {
   form.value.category = cat
-  manualBaseKind.value = null
-  resetBaseStats()
+  resetItemDependentFields()
   showItemModal.value = false
 }
 
