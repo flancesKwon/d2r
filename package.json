@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:items": "node scripts/check-item-data.js"
   },
   "dependencies": {
     "vue": "^3.4.21",
