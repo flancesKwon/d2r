@@ -2,6 +2,9 @@ import { reactive } from 'vue'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
+import { BASE_ITEM_KO_NAMES } from './data/baseItemNames.js'
+import { pushNotification } from './notificationsStore.js'
+import { createDeal } from './dealsStore.js'
 
 export { itemsData }
 
@@ -65,6 +68,22 @@ export function isRollRangeAffix(a) {
 export function resolveAffixText(a, rolledValue) {
   if (rolledValue === undefined || rolledValue === null || rolledValue === '') return a.text
   return a.text.replace(`${a.min}~${a.max}`, String(rolledValue))
+}
+
+// 지옥불 횃불처럼 "무작위 직업 기술"이 붙는 아이템은 실제로는 아이템 하나당 7개
+// 직업 중 하나로 고정돼서 나옴 - 판매자가 자기 아이템이 어떤 직업으로 나왔는지
+// 고를 수 있게 함
+export function isRandomClassSkillAffix(a) {
+  return !!a && a.prop === 'randclassskill'
+}
+export const CLASS_SKILL_NAMES = {
+  ama: '아마존', sor: '소서리스', nec: '네크로맨서', pal: '팔라딘', bar: '바바리안', dru: '드루이드', ass: '어쌔신',
+}
+export function resolveRandomClassSkillText(a, classCode, level) {
+  const className = CLASS_SKILL_NAMES[classCode]
+  if (className && level) return `${className} 기술 레벨 +${level}`
+  if (className) return `${className} 기술 레벨 +${a.min}~${a.max}`
+  return a.text
 }
 
 // 룬워드는 박히는 룬 조합(rune_sequence)이 고정돼 있어서 필요한 재료 룬을 그대로
@@ -135,6 +154,43 @@ export function itemBaseKind(item) {
 export const ETHEREAL_CATEGORIES = ['유니크/세트', '룬워드', '매직/레어/일반']
 export function categorySupportsEthereal(category) {
   return ETHEREAL_CATEGORIES.includes(category)
+}
+
+// 룬워드·매직/레어/일반은 베이스로 실제 어떤 무기·방어구를 썼는지가 매번 달라서
+// 사전에 없음 - 대신 사전 속 유니크·세트 730종이 공유하는 베이스(subtitle) 400여
+// 종을 모아서 검색 가능한 베이스 아이템 목록을 만듦. 흔히 거래되는 베이스만 한글
+// 이름이 있고(baseItemNames.js), 나머지는 영문 이름 + 기존 한글 종류로 표시함
+function buildBaseItemCatalog(items) {
+  const bySubtitle = new Map()
+  items.forEach((it) => {
+    if (!it.subtitle || !it.base_stats) return
+    if (it.base_stats.category !== 'weapon' && it.base_stats.category !== 'armor') return
+    if (bySubtitle.has(it.subtitle)) return
+    bySubtitle.set(it.subtitle, {
+      id: 'base-' + it.subtitle,
+      subtitle: it.subtitle,
+      name_ko: BASE_ITEM_KO_NAMES[it.subtitle] || null,
+      type_group: it.type_group,
+      type_sub: it.type_sub,
+      base_stats: it.base_stats,
+    })
+  })
+  return [...bySubtitle.values()]
+}
+export const BASE_ITEMS = buildBaseItemCatalog(itemsData)
+
+export function searchBaseItems(query, kind) {
+  let list = BASE_ITEMS
+  if (kind === 'weapon' || kind === 'armor') list = list.filter((b) => b.base_stats.category === kind)
+  const q = query.trim().toLowerCase()
+  if (!q) return list.slice(0, 40)
+  return list
+    .filter((b) => b.subtitle.toLowerCase().includes(q) || (b.name_ko && b.name_ko.includes(q)))
+    .slice(0, 40)
+}
+
+export function baseItemLabel(b) {
+  return b.name_ko ? `${b.name_ko} (${b.subtitle})` : `${b.subtitle} · ${b.type_sub}`
 }
 
 // "기타 옵션 직접 추가" 콤보박스 목록 - 기본방어력/증가된방어력/추가내구도(방어구)나
@@ -212,6 +268,7 @@ export function addTradePost({
   content,
   options,
   ethereal,
+  negotiable,
 }) {
   const post = {
     id: 't-new-' + nextPostId++,
@@ -221,6 +278,7 @@ export function addTradePost({
     amountLabel,
     options: options || [],
     ethereal: !!ethereal,
+    negotiable: !!negotiable,
     price,
     realm,
     ladder,
@@ -237,7 +295,9 @@ export function addTradePost({
   return post
 }
 
-export function addTradeRequest(postId, { buyer, contact, qty, message }) {
+// kind: 'inquiry'(기존 구매신청 폼) | 'buy_now'(판매글의 "구매하기" 버튼) - 흥정 가능
+// 판매글이면 buy_now 신청에 offerItems(제안하는 룬/보석 목록)가 같이 담김
+export function addTradeRequest(postId, { buyer, contact, qty, message, offerItems = [], kind = 'inquiry' }) {
   const post = tradeState.posts.find((p) => p.id === postId)
   if (!post) return
   post.requests.push({
@@ -246,19 +306,29 @@ export function addTradeRequest(postId, { buyer, contact, qty, message }) {
     contact: contact || '',
     qty: Number(qty) || 1,
     message: message || '',
+    offerItems: offerItems || [],
+    kind,
     date: today(),
     status: 'pending',
   })
+  const label = kind === 'buy_now' ? '구매 신청' : '구매신청'
+  pushNotification(`"${post.itemName}" 판매글에 새 ${label}이 도착했어요.`, `/trade/${postId}`)
 }
 
 // 판매자가 구매신청을 수락/거절 - 트레더리의 "오퍼 수락" 흐름과 비슷하게, 수락하면
-// 판매중이던 글이 자동으로 예약중으로 넘어가서 다른 구매자에게도 진행 상황이 보임
+// 판매중이던 글이 자동으로 예약중으로 넘어가서 다른 구매자에게도 진행 상황이 보이고,
+// 이 신청을 위한 거래방(채팅)이 "거래중인 품목"에 새로 열림
 export function respondToRequest(postId, requestId, decision) {
   const post = tradeState.posts.find((p) => p.id === postId)
   const req = post && post.requests.find((r) => r.id === requestId)
   if (!req) return
   req.status = decision
-  if (decision === 'accepted' && post.status === '판매중') post.status = '예약중'
+  if (decision === 'accepted') {
+    if (post.status === '판매중') post.status = '예약중'
+    createDeal(post, req)
+  }
+  const decisionLabel = decision === 'accepted' ? '수락' : '거절'
+  pushNotification(`"${post.itemName}" 구매신청이 ${decisionLabel}됐어요.`, `/trade/${postId}`)
 }
 
 export function updateTradeStatus(postId, status) {
@@ -269,4 +339,16 @@ export function updateTradeStatus(postId, status) {
 
 export function getTradePost(postId) {
   return tradeState.posts.find((p) => p.id === postId)
+}
+
+// 로그인이 없어서 "내가 쓴 글"·"거래내역"은 프로필에 저장된 닉네임과 author/buyer
+// 문자열이 일치하는지로 찾음 - 마이페이지에서 사용
+export function tradePostsByAuthor(nickname) {
+  if (!nickname) return []
+  return tradeState.posts.filter((p) => p.author === nickname)
+}
+
+export function tradePostsWithMyRequests(nickname) {
+  if (!nickname) return []
+  return tradeState.posts.filter((p) => p.requests.some((r) => r.buyer === nickname))
 }

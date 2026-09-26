@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -40,6 +41,7 @@ const filteredGuides = computed(() => {
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>빌드 가이드</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

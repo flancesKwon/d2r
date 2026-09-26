@@ -19,12 +19,12 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 
 .items-page header{
   height:56px; border-bottom:1px solid var(--border-soft); background:var(--bg-raise);
-  display:flex; align-items:center; justify-content:space-between;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
   padding:0 max(24px, calc((100% - 1180px) / 2 + 24px));
   position:sticky; top:0; z-index:20;
 }
 .items-page .logo{font-family:'Noto Serif KR', serif; font-weight:800; font-size:17px; display:flex; align-items:center; gap:8px;}
-.crumb{font-size:12.5px; color:var(--text-dim);}
+.crumb{font-size:12.5px; color:var(--text-dim); margin-left:auto;}
 .crumb b{color:var(--text-muted); font-weight:600;}
 .crumb a:hover{color:var(--gold);}
 

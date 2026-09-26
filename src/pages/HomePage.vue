@@ -1,5 +1,6 @@
 <script setup>
 import LogoMark from '../components/LogoMark.vue'
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 // 정적 콘텐츠 위주 페이지라 별도 상태 로직은 없음
 </script>
 
@@ -9,7 +10,11 @@ import LogoMark from '../components/LogoMark.vue'
     <div class="header-top">
       <div class="logo"><LogoMark :size="20" />디아허브</div>
       <div class="search-pill"><span class="label">가이드 · 아이템 검색</span><span class="chev">▾</span></div>
-      <div class="header-icons"><router-link to="/signup" class="signup-link">회원가입</router-link><span>⚙</span></div>
+      <div class="header-icons">
+        <router-link to="/signup" class="signup-link">회원가입</router-link>
+        <HeaderNotifications />
+        <span>⚙</span>
+      </div>
     </div>
     <nav class="subnav">
       <router-link to="/" class="active">메인</router-link>
@@ -31,6 +36,7 @@ import LogoMark from '../components/LogoMark.vue'
           <router-link to="/community?cat=잡담">자유게시판</router-link>
           <router-link to="/community?cat=질문">질문게시판</router-link>
           <router-link to="/trade">거래게시판</router-link>
+          <router-link to="/deals">거래중인 품목</router-link>
           <router-link to="/community?cat=공략">공략 인증</router-link>
         </div>
       </div>
@@ -40,6 +46,7 @@ import LogoMark from '../components/LogoMark.vue'
           <router-link to="/items?cat=runeword">룬워드 계산기</router-link>
           <router-link to="/simulator">스킬·스탯 시뮬레이터</router-link>
           <router-link to="/market">시세 게시판</router-link><router-link to="/ladder">레더 시즌 정보</router-link>
+          <router-link to="/cube">큐브 레시피</router-link>
         </div>
       </div>
       <router-link to="/items">아이템 사전</router-link>

@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref } from 'vue'
 import patchData from '../data/patchNotes.json'
@@ -16,6 +17,7 @@ const selected = ref(null)
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>패치노트</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

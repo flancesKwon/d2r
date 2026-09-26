@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -17,11 +18,17 @@ import {
   getItemAffixes,
   isRollRangeAffix,
   resolveAffixText,
+  isRandomClassSkillAffix,
+  resolveRandomClassSkillText,
+  CLASS_SKILL_NAMES,
   itemBaseKind,
   runewordMaterials,
+  searchBaseItems,
+  baseItemLabel,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import { profileState } from '../profileStore.js'
 
 const router = useRouter()
 
@@ -35,15 +42,45 @@ const emptyForm = () => ({
   itemName: '',
   quantity: '',
   ethereal: false,
+  negotiable: false,
   price: '',
   realm: TRADE_REALMS[0],
   ladder: TRADE_LADDERS[0],
   hardcore: TRADE_HARDCORE[0],
-  author: '',
-  contact: '',
+  author: profileState.nickname || '',
+  contact: profileState.contact || '',
   content: '',
 })
 const form = ref(emptyForm())
+
+// 룬·퍼펙트 보석은 "베르 룬 1개 + 퍼펙트 자수정 5개"처럼 서로 다른 룬/보석을
+// 섞어서 한 번에 파는 경우가 많아서, 단일 아이템 등록과 별도로 묶음 판매 모드를 둠
+const bundleMode = ref(false)
+const bundleItems = ref([])
+const bundleQuery = ref('')
+const showBundleDropdown = ref(false)
+const bundleCandidates = computed(() => {
+  const q = bundleQuery.value.trim().toLowerCase()
+  if (!q) return []
+  return searchAllItems(bundleQuery.value).filter((it) => it.category === 'gem')
+})
+function setBundleMode(on) {
+  bundleMode.value = on
+  clearPickedItem()
+}
+function pickBundleItem(it) {
+  const existing = bundleItems.value.find((b) => b.item.id === it.id)
+  if (existing) existing.qty += 1
+  else bundleItems.value.push({ item: it, qty: 1 })
+  bundleQuery.value = ''
+  showBundleDropdown.value = false
+}
+function removeBundleItem(i) {
+  bundleItems.value.splice(i, 1)
+}
+function hideBundleDropdownSoon() {
+  window.setTimeout(() => (showBundleDropdown.value = false), 150)
+}
 
 const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
 const hasEthereal = computed(() => categorySupportsEthereal(form.value.category))
@@ -55,6 +92,10 @@ const itemCandidates = computed(() => (form.value.itemId ? [] : searchAllItems(f
 const selectedItem = computed(() => getTradeItem(form.value.itemId))
 const itemAffixes = computed(() => getItemAffixes(selectedItem.value))
 const rolledValues = ref({})
+// 지옥불 횃불처럼 "무작위 직업 기술" 옵션은 실제로는 아이템 하나당 직업 하나로
+// 고정돼 있어서, 판매자가 자기 아이템이 어떤 직업으로 나왔는지 고를 수 있게 함
+const randClassChoice = ref({})
+const CLASS_SKILL_OPTIONS = Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => ({ code, name }))
 const customOptions = ref([])
 
 // 룬워드는 박힌 룬 조합이 고정돼 있어서 필요한 재료를 자동으로 보여줌
@@ -84,18 +125,46 @@ const needsManualBaseStats = computed(() => {
 
 const armorStats = ref({ baseDefense: '', extraDefensePct: '', extraDurability: '' })
 const weaponStats = ref({ extraDamagePct: '', extraDurability: '', extraSkill: '' })
+
+// 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
+// 고르면 그 베이스가 원래 갖고 있는 방어력/데미지·내구도가 자동으로 채워짐
+const selectedBaseItem = ref(null)
+const baseItemQuery = ref('')
+const showBaseItemDropdown = ref(false)
+const baseItemCandidates = computed(() =>
+  selectedBaseItem.value ? [] : searchBaseItems(baseItemQuery.value, effectiveBaseKind.value)
+)
+function pickBaseItem(b) {
+  selectedBaseItem.value = b
+  showBaseItemDropdown.value = false
+}
+function clearBaseItem() {
+  selectedBaseItem.value = null
+  baseItemQuery.value = ''
+}
+function hideBaseItemDropdownSoon() {
+  window.setTimeout(() => (showBaseItemDropdown.value = false), 150)
+}
+
 function resetBaseStats() {
   armorStats.value = { baseDefense: '', extraDefensePct: '', extraDurability: '' }
   weaponStats.value = { extraDamagePct: '', extraDurability: '', extraSkill: '' }
+  clearBaseItem()
 }
 
 function buildBaseStatOptions() {
   const out = []
+  if (selectedBaseItem.value) out.push(`베이스: ${baseItemLabel(selectedBaseItem.value)}`)
   if (effectiveBaseKind.value === 'armor') {
-    if (armorStats.value.baseDefense) out.push(`기본 방어력 ${armorStats.value.baseDefense}`)
+    const base = selectedBaseItem.value?.base_stats
+    const baseDefense = base ? `${base.minac}~${base.maxac}` : armorStats.value.baseDefense
+    if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
     if (armorStats.value.extraDefensePct) out.push(`증가된 방어력 +${armorStats.value.extraDefensePct}%`)
     if (armorStats.value.extraDurability) out.push(`추가 내구도 +${armorStats.value.extraDurability}`)
   } else if (effectiveBaseKind.value === 'weapon') {
+    const base = selectedBaseItem.value?.base_stats
+    const dmg = weaponDamageRange(base)
+    if (dmg) out.push(`기본 데미지 ${dmg.min}~${dmg.max}`)
     if (weaponStats.value.extraDamagePct) out.push(`증가된 데미지 +${weaponStats.value.extraDamagePct}%`)
     if (weaponStats.value.extraDurability) out.push(`추가 내구도 +${weaponStats.value.extraDurability}`)
     if (weaponStats.value.extraSkill.trim()) out.push(weaponStats.value.extraSkill.trim())
@@ -126,6 +195,17 @@ function iconUrlFor(iconKey) {
   return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
+// 양손 무기(폴암 등)는 mindam/maxdam이 비어있고 2handmindam/2handmaxdam에 데미지가
+// 들어있음 - 어느 쪽이 채워져 있는지 몰라도 항상 맞는 데미지 범위를 보여주기 위함
+function weaponDamageRange(base) {
+  if (!base) return null
+  if (base.mindam !== null && base.mindam !== undefined) return { min: base.mindam, max: base.maxdam }
+  if (base['2handmindam'] !== null && base['2handmindam'] !== undefined) {
+    return { min: base['2handmindam'], max: base['2handmaxdam'] }
+  }
+  return null
+}
+
 // 유니크(gold)·세트(green)·룬워드(blood)·룬·보석(teal) - 아이템 사전 페이지와
 // 똑같은 색 코드로 테두리를 맞춰서 어디서 보든 같은 등급은 같은 색으로 보이게 함
 function rarityClass(item) {
@@ -139,6 +219,7 @@ function pickItem(it) {
   if (cat) form.value.category = cat
   showItemDropdown.value = false
   rolledValues.value = {}
+  randClassChoice.value = {}
   form.value.quantity = ''
   manualBaseKind.value = null
   resetBaseStats()
@@ -148,6 +229,7 @@ function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
   rolledValues.value = {}
+  randClassChoice.value = {}
   manualBaseKind.value = null
   resetBaseStats()
 }
@@ -175,12 +257,43 @@ function removeCustomOption(i) {
   customOptions.value.splice(i, 1)
 }
 
+// 필수 입력만 막고, 옵션류(직접 추가 옵션, 베이스 스탯 세부값, 지옥불 횃불 직업
+// 선택 등)는 전부 선택 사항이라 검증하지 않음. 예외는 룬워드 베이스 아이템
+// 선택 - 룬워드는 베이스가 뭐였는지가 실거래가에 큰 영향을 줘서 필수로 둠
+const formError = ref('')
+
+function submitBundle() {
+  if (!bundleItems.value.length) { formError.value = '팔 룬·보석을 하나 이상 담아주세요.'; return }
+  if (!form.value.price.trim()) { formError.value = '희망 가격을 입력해주세요.'; return }
+  formError.value = ''
+  const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
+  const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
+  const post = addTradePost({
+    ...form.value,
+    category,
+    itemId: bundleItems.value[0].item.id,
+    itemName,
+    amountLabel: `${bundleItems.value.length}종 묶음`,
+    options: [],
+  })
+  router.push(`/trade/${post.id}`)
+}
+
 function submitPost() {
+  if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
-  if (!form.value.itemName.trim() || !amountLabel.trim() || !form.value.price.trim()) return
-  const dbOptions = itemAffixes.value.map((a, i) =>
-    isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
-  )
+  if (!form.value.itemName.trim()) { formError.value = '아이템을 검색해서 선택하거나 이름을 입력해주세요.'; return }
+  if (!amountLabel.trim()) { formError.value = '개수를 입력해주세요.'; return }
+  if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
+    formError.value = '룬워드는 베이스 아이템을 검색해서 선택해야 등록할 수 있어요.'
+    return
+  }
+  if (!form.value.price.trim()) { formError.value = '희망 가격을 입력해주세요.'; return }
+  formError.value = ''
+  const dbOptions = itemAffixes.value.map((a, i) => {
+    if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
+    return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
+  })
   const options = [...dbOptions, ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value]
   const post = addTradePost({ ...form.value, amountLabel, options })
   router.push(`/trade/${post.id}`)
@@ -198,6 +311,7 @@ function submitPost() {
     <div class="crumb">
       <router-link to="/">메인</router-link> / <router-link to="/trade">거래게시판</router-link> / <b>판매글 등록</b>
     </div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">
@@ -210,6 +324,12 @@ function submitPost() {
 
   <div class="grid-wrap trade-new-wrap">
     <div class="write-form trade-write-form">
+      <div class="form-mode-toggle">
+        <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">단일 아이템 등록</button>
+        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">룬·보석 묶음 판매</button>
+      </div>
+
+      <template v-if="!bundleMode">
       <div class="item-picker trade-item-input">
         <div v-if="selectedItem" class="item-picker-selected">
           <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
@@ -219,10 +339,11 @@ function submitPost() {
         </div>
         <div v-else class="item-picker-search-wrap">
           <input
-            type="text" v-model="form.itemName" placeholder="아이템명 검색 (룬·보석·유니크·세트·룬워드·우버보스 재료 전체 검색)"
+            type="text" v-model="form.itemName" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
             class="write-input" @focus="showItemDropdown = true"
             @blur="hideItemDropdownSoon"
           />
+          <div class="item-picker-hint">룬·보석·유니크·세트·룬워드·우버보스 재료를 모두 검색할 수 있어요. 룬워드는 "룬워드"가 아니라 무한·인챈트처럼 완성된 룬워드 이름으로 검색하세요.</div>
           <div class="item-picker-dropdown" v-if="showItemDropdown && form.itemName.trim()">
             <button
               type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
@@ -230,6 +351,7 @@ function submitPost() {
             >
               <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+              <span class="item-picker-row-cat">{{ it.category_label }}</span>
             </button>
             <div class="item-picker-empty-block" v-if="!itemCandidates.length">
               <p class="item-picker-empty">사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.</p>
@@ -261,7 +383,7 @@ function submitPost() {
           <span>내구도 {{ baseStatsRef.durability }}</span>
         </div>
         <div class="base-stats-ref-row" v-else-if="baseStatsRef.category === 'weapon'">
-          <span>기본 데미지 {{ baseStatsRef.mindam }}~{{ baseStatsRef.maxdam }}</span>
+          <span>기본 데미지 {{ weaponDamageRange(baseStatsRef)?.min }}~{{ weaponDamageRange(baseStatsRef)?.max }}</span>
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">공격 속도 {{ baseStatsRef.speed }}</span>
           <span>내구도 {{ baseStatsRef.durability }}</span>
         </div>
@@ -276,17 +398,77 @@ function submitPost() {
       </div>
 
       <div class="base-stats-input" v-if="needsManualBaseStats && effectiveBaseKind === 'armor'">
-        <div class="option-editor-title">베이스 방어구 정보</div>
-        <div class="option-editor-hint">실제 착용한 방어구의 기본 방어력·증가된 방어력·추가 내구도를 입력해주세요.</div>
+        <div class="option-editor-title">베이스 방어구 정보 <span class="required-mark" v-if="selectedItem?.category === 'runeword'">필수</span></div>
+        <div class="option-editor-hint">실제 착용한 방어구를 검색해서 고르면 기본 방어력이 자동으로 채워져요. 못 찾으면 직접 입력해도 돼요.</div>
+
+        <div class="base-item-picker">
+          <div v-if="selectedBaseItem" class="item-picker-selected">
+            <span class="item-picker-name">{{ baseItemLabel(selectedBaseItem) }}</span>
+            <button type="button" class="item-picker-clear" @click="clearBaseItem">✕</button>
+          </div>
+          <div v-else class="item-picker-search-wrap">
+            <input
+              type="text" v-model="baseItemQuery" placeholder="베이스 방어구 검색 (예: Kite Shield, Field Plate)"
+              class="write-input" @focus="showBaseItemDropdown = true"
+              @blur="hideBaseItemDropdownSoon"
+            />
+            <div class="item-picker-dropdown" v-if="showBaseItemDropdown && baseItemQuery.trim()">
+              <button
+                type="button" class="item-picker-row" v-for="b in baseItemCandidates" :key="b.id"
+                @mousedown.prevent="pickBaseItem(b)"
+              >
+                <span class="item-picker-name">{{ baseItemLabel(b) }}</span>
+              </button>
+              <div class="item-picker-empty" v-if="!baseItemCandidates.length">일치하는 베이스가 없어요. 아래 칸에 직접 입력하세요.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="base-stats-ref-row" v-if="selectedBaseItem">
+          <span>기본 방어력 {{ selectedBaseItem.base_stats.minac }}~{{ selectedBaseItem.base_stats.maxac }}</span>
+          <span>내구도 {{ selectedBaseItem.base_stats.durability }}</span>
+          <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
+        </div>
+
         <div class="base-stats-input-row">
-          <label>기본 방어력<input type="number" v-model="armorStats.baseDefense" class="write-input" placeholder="예: 80" /></label>
+          <label v-if="!selectedBaseItem">기본 방어력<input type="number" v-model="armorStats.baseDefense" class="write-input" placeholder="예: 80" /></label>
           <label>증가된 방어력(%)<input type="number" v-model="armorStats.extraDefensePct" class="write-input" placeholder="예: 15" /></label>
           <label>추가 내구도<input type="number" v-model="armorStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
         </div>
       </div>
       <div class="base-stats-input" v-else-if="needsManualBaseStats && effectiveBaseKind === 'weapon'">
-        <div class="option-editor-title">베이스 무기 정보</div>
-        <div class="option-editor-hint">실제 착용한 무기의 증가된 데미지·추가 내구도·추가 스킬을 입력해주세요.</div>
+        <div class="option-editor-title">베이스 무기 정보 <span class="required-mark" v-if="selectedItem?.category === 'runeword'">필수</span></div>
+        <div class="option-editor-hint">실제 착용한 무기를 검색해서 고르면 기본 데미지가 자동으로 채워져요. 못 찾으면 아래 옵션만 입력해도 돼요.</div>
+
+        <div class="base-item-picker">
+          <div v-if="selectedBaseItem" class="item-picker-selected">
+            <span class="item-picker-name">{{ baseItemLabel(selectedBaseItem) }}</span>
+            <button type="button" class="item-picker-clear" @click="clearBaseItem">✕</button>
+          </div>
+          <div v-else class="item-picker-search-wrap">
+            <input
+              type="text" v-model="baseItemQuery" placeholder="베이스 무기 검색 (예: Bardiche, Colossus Blade)"
+              class="write-input" @focus="showBaseItemDropdown = true"
+              @blur="hideBaseItemDropdownSoon"
+            />
+            <div class="item-picker-dropdown" v-if="showBaseItemDropdown && baseItemQuery.trim()">
+              <button
+                type="button" class="item-picker-row" v-for="b in baseItemCandidates" :key="b.id"
+                @mousedown.prevent="pickBaseItem(b)"
+              >
+                <span class="item-picker-name">{{ baseItemLabel(b) }}</span>
+              </button>
+              <div class="item-picker-empty" v-if="!baseItemCandidates.length">일치하는 베이스가 없어요. 아래 옵션만 입력해도 돼요.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="base-stats-ref-row" v-if="selectedBaseItem">
+          <span>기본 데미지 {{ weaponDamageRange(selectedBaseItem.base_stats)?.min }}~{{ weaponDamageRange(selectedBaseItem.base_stats)?.max }}</span>
+          <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
+          <span>내구도 {{ selectedBaseItem.base_stats.durability }}</span>
+        </div>
+
         <div class="base-stats-input-row">
           <label>증가된 데미지(%)<input type="number" v-model="weaponStats.extraDamagePct" class="write-input" placeholder="예: 20" /></label>
           <label>추가 내구도<input type="number" v-model="weaponStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
@@ -312,7 +494,18 @@ function submitPost() {
         <div class="option-editor-title">실제 옵션 값 입력</div>
         <div class="option-editor-hint">범위로 나오는 옵션은 이 아이템에 실제로 뜬 값을 직접 입력해주세요. 비워두면 범위 그대로 표시돼요.</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
-          <template v-if="isRollRangeAffix(a)">
+          <template v-if="isRandomClassSkillAffix(a)">
+            <span class="option-text">직업 기술 레벨 (아이템마다 직업 하나로 고정돼서 나와요)</span>
+            <select v-model="randClassChoice[i]" class="write-select option-value-select">
+              <option value="">직업 선택</option>
+              <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
+            </select>
+            <input
+              type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
+              class="write-input option-value-input"
+            />
+          </template>
+          <template v-else-if="isRollRangeAffix(a)">
             <span class="option-text">{{ a.text }}</span>
             <input
               type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
@@ -344,6 +537,48 @@ function submitPost() {
           <button type="button" class="custom-option-add-btn" @click="addCustomOption">추가</button>
         </div>
       </div>
+      </template>
+
+      <template v-else>
+      <div class="bundle-box">
+        <div class="option-editor-title">묶어서 팔 룬·보석 추가</div>
+        <div class="option-editor-hint">서로 다른 룬·보석을 여러 개 골라서 한 번에 팔 수 있어요 (예: 베르 룬 1개 + 퍼펙트 자수정 5개).</div>
+        <div class="bundle-chip-row" v-if="bundleItems.length">
+          <div class="bundle-chip" v-for="(b, i) in bundleItems" :key="b.item.id">
+            <span class="item-picker-icon" :class="rarityClass(b.item)"><img v-if="iconUrlFor(b.item.icon_key)" :src="iconUrlFor(b.item.icon_key)" alt="" /></span>
+            <span class="bundle-chip-name">{{ b.item.name_ko }}</span>
+            <input type="number" min="1" v-model="b.qty" class="bundle-chip-qty" />
+            <span class="bundle-chip-unit">개</span>
+            <button type="button" @click="removeBundleItem(i)">✕</button>
+          </div>
+        </div>
+        <div class="item-picker">
+          <div class="item-picker-search-wrap">
+            <input
+              type="text" v-model="bundleQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
+              class="write-input" @focus="showBundleDropdown = true"
+              @input="showBundleDropdown = true"
+              @blur="hideBundleDropdownSoon"
+            />
+            <div class="item-picker-dropdown" v-if="showBundleDropdown && bundleQuery.trim()">
+              <button
+                type="button" class="item-picker-row" v-for="it in bundleCandidates" :key="it.id"
+                @mousedown.prevent="pickBundleItem(it)"
+              >
+                <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+              </button>
+              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석이 없어요.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </template>
+
+      <label class="negotiable-check">
+        <input type="checkbox" v-model="form.negotiable" />
+        흥정 가능 (체크하면 구매자가 "구매하기"를 누를 때 룬·보석으로 교환 제안을 할 수 있어요)
+      </label>
 
       <input type="text" v-model="form.price" placeholder="희망 가격 / 교환 조건 (예: 이스트 룬 2개, 퍼펙트 다이아몬드 10개)" class="write-input" />
 
@@ -366,6 +601,7 @@ function submitPost() {
       <div class="trade-new-actions">
         <router-link to="/trade" class="trade-new-cancel">취소</router-link>
         <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
+        <span class="form-error" v-if="formError">{{ formError }}</span>
       </div>
     </div>
   </div>
@@ -391,6 +627,7 @@ function submitPost() {
 
 .item-picker{position:relative;}
 .item-picker-search-wrap{position:relative;}
+.item-picker-hint{font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.5;}
 .item-picker-selected{
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
   padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
@@ -419,6 +656,7 @@ function submitPost() {
 .item-picker-icon.gem{border-color:var(--teal); box-shadow:0 0 8px -2px rgba(78,138,138,0.5);}
 .item-picker-name{font-size:13px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .item-picker-name small{color:var(--text-dim); font-size:11px; margin-left:4px;}
+.item-picker-row-cat{font-size:10px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 8px; border-radius:999px; flex:none;}
 .item-picker-empty-block{padding:14px;}
 .item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
 .fallback-cat-row{display:flex; justify-content:center; gap:8px;}
@@ -435,9 +673,13 @@ function submitPost() {
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}
 .option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
+.option-value-select{width:110px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
 .ethereal-check input{accent-color:var(--teal);}
+
+.negotiable-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--gold-dim); cursor:pointer;}
+.negotiable-check input{accent-color:var(--gold-dim);}
 
 .custom-option-chip{
   display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
@@ -473,6 +715,31 @@ function submitPost() {
 }
 
 .trade-new-actions{display:flex; align-items:center; gap:10px;}
+.form-error{font-size:12.5px; color:var(--blood);}
+.required-mark{font-size:10px; color:var(--blood); border:1px solid var(--blood); padding:1px 7px; border-radius:999px; font-weight:600; vertical-align:middle;}
 .trade-new-cancel{font-size:13px; color:var(--text-dim); padding:11px 18px;}
 .trade-new-cancel:hover{color:var(--text);}
+
+.form-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; width:fit-content;}
+.form-mode-toggle button{font-size:12.5px; padding:9px 16px; color:var(--text-dim); background:var(--panel);}
+.form-mode-toggle button + button{border-left:1px solid var(--border);}
+.form-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
+
+.base-item-picker{position:relative;}
+.base-item-picker .item-picker-selected{height:auto;}
+
+.bundle-box{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:12px; border-radius:14px;}
+.bundle-chip-row{display:flex; flex-direction:column; gap:8px;}
+.bundle-chip{
+  display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
+  padding:6px 10px; border-radius:999px;
+}
+.bundle-chip-name{flex:1; font-size:13px; color:var(--text);}
+.bundle-chip-qty{
+  width:64px; background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:12.5px;
+  padding:5px 8px; border-radius:8px; font-family:'Noto Sans KR', sans-serif;
+}
+.bundle-chip-unit{font-size:12px; color:var(--text-dim);}
+.bundle-chip button{color:var(--text-dim); flex:none;}
+.bundle-chip button:hover{color:var(--blood);}
 </style>

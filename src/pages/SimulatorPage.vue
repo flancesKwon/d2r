@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -539,6 +540,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>스킬·스탯 시뮬레이터</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

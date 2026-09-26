@@ -1,8 +1,10 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { communityState, CATEGORIES, addPost, allTags } from '../communityStore.js'
+import { profileState } from '../profileStore.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const route = useRoute()
@@ -12,7 +14,7 @@ const searchQuery = ref('')
 const showForm = ref(false)
 const sortBy = ref('latest')
 
-const form = ref({ category: CATEGORIES[0], title: '', author: '', content: '' })
+const form = ref({ category: CATEGORIES[0], title: '', author: profileState.nickname || '', content: '' })
 const tagInput = ref('')
 const formTags = ref([])
 const attachments = ref([])
@@ -77,7 +79,7 @@ function setTagFilter(t) {
 function submitPost() {
   if (!form.value.title.trim() || !form.value.content.trim()) return
   addPost({ ...form.value, tags: [...formTags.value], attachments: [...attachments.value] })
-  form.value = { category: CATEGORIES[0], title: '', author: '', content: '' }
+  form.value = { category: CATEGORIES[0], title: '', author: profileState.nickname || '', content: '' }
   formTags.value = []
   attachments.value = []
   showForm.value = false
@@ -93,6 +95,7 @@ function submitPost() {
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>커뮤니티</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">

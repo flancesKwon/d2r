@@ -1,4 +1,5 @@
 <script setup>
+import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import ladder from '../data/ladder.json'
 </script>
@@ -12,6 +13,7 @@ import ladder from '../data/ladder.json'
       </router-link>
     </div>
     <div class="crumb"><router-link to="/">메인</router-link> / <b>레더 시즌 정보</b></div>
+    <HeaderNotifications />
   </header>
 
   <div class="patch-hero">
