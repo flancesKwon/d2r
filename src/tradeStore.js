@@ -250,6 +250,82 @@ export function optionPresetsFor(kind) {
   return CUSTOM_OPTION_PRESETS.filter((p) => !p.restrict || p.restrict === kind)
 }
 
+// 거래게시판 목록의 "옵션 조건" 필터 - 트레더리의 Stats 필터처럼 "모든 저항 20 이상"
+// 같은 조건으로 판매글을 거를 수 있게 함. 판매글 옵션은 완성된 문장(텍스트)으로만
+// 저장돼서, 아이템 사전 옵션 문구("마법 아이템 발견 확률 50% 증가")와 직접 추가 옵션
+// 문구("마법 아이템 발견 확률 +50%")를 둘 다 잡는 패턴으로 수치를 뽑아냄. 판매자가
+// 실제 값을 안 넣어서 "15~20"처럼 범위로 남은 옵션은 보장되는 최솟값(앞 숫자)으로 비교
+const N = '\\+?(-?\\d+)(?:~\\d+)?'
+export const TRADE_STAT_FILTERS = [
+  { key: 'allskills', label: '모든 기술', pattern: `^모든 기술 ${N}` },
+  { key: 'allres', label: '모든 저항(%)', pattern: `^모든 저항 ${N}` },
+  { key: 'fireres', label: '화염 저항(%)', pattern: `^화염 저항 ${N}` },
+  { key: 'coldres', label: '냉기 저항(%)', pattern: `^냉기 저항 ${N}` },
+  { key: 'ltngres', label: '번개 저항(%)', pattern: `^번개 저항 ${N}` },
+  { key: 'poisres', label: '독 저항(%)', pattern: `^독 저항 ${N}` },
+  { key: 'mf', label: '마법 아이템 발견 확률(%)', pattern: `^마법 아이템 발견 확률 ${N}` },
+  { key: 'gf', label: '골드 발견 확률(%)', pattern: `^(?:괴물에게서 얻는 금화|골드 발견 확률) ${N}` },
+  { key: 'life', label: '생명력', pattern: `^생명력 ${N}` },
+  { key: 'mana', label: '마나', pattern: `^마나 ${N}` },
+  { key: 'allstats', label: '모든 속성', pattern: `^모든 속성 ${N}` },
+  { key: 'str', label: '힘', pattern: `^힘 ${N}` },
+  { key: 'dex', label: '민첩', pattern: `^민첩 ${N}` },
+  { key: 'vit', label: '활력', pattern: `^활력 ${N}` },
+  { key: 'enr', label: '마력', pattern: `^마력 ${N}` },
+  { key: 'fcr', label: '시전 속도(%)', pattern: `^시전 속도 ${N}` },
+  { key: 'ias', label: '공격 속도(%)', pattern: `^공격 속도(?: 증가)? ${N}` },
+  { key: 'fhr', label: '타격 회복 속도(%)', pattern: `^(?:타격 회복 속도|재빠른 히트 회복) ${N}` },
+  { key: 'frw', label: '달리기/걷기 속도(%)', pattern: `^(?:달리기/걷기 속도|이동/공격 속도 증가) ${N}` },
+  { key: 'ed', label: '인핸스드 데미지(%)', pattern: `^(?:인핸스드 데미지|증가된 데미지) ${N}` },
+  { key: 'edef', label: '방어력 증가(%)', pattern: `^(?:방어력|증가된 방어력) ${N}%` },
+  { key: 'sockets', label: '소켓 개수', pattern: '^소켓 (\\d+)개' },
+  { key: 'lifesteal', label: '생명력 흡수(%)', pattern: `^(?:적중당 생명력|공격 시 생명력 흡수) ${N}` },
+  { key: 'manasteal', label: '마나 흡수(%)', pattern: `^(?:적중당 마나|공격 시 마나 흡수) ${N}` },
+  { key: 'dr', label: '받는 물리 피해 감소(%)', pattern: `^받는 물리 피해 ${N}% 감소` },
+  { key: 'cb', label: '강타 확률(%)', pattern: `^강타 확률 ${N}` },
+  { key: 'ds', label: '치명적 공격(%)', pattern: `^치명적 공격 ${N}` },
+].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
+const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
+
+// 판매글에서 해당 옵션 수치를 찾아 반환 (같은 옵션이 여러 줄이면 합산 - 무한의
+// "강타 확률 +20%"처럼 룬워드 고유 옵션과 룬 효과가 겹쳐 두 번 붙는 경우), 없으면 null
+export function postStatValue(post, key) {
+  const stat = STAT_FILTER_BY_KEY.get(key)
+  if (!stat) return null
+  let total = null
+  for (const line of post.options || []) {
+    const m = stat.regex.exec(line)
+    if (m) total = (total ?? 0) + Number(m[1])
+  }
+  return total
+}
+
+// 아이템 사전의 룬·룬워드는 level_req가 비어 있어서(유니크·세트만 채워짐) 룬 요구
+// 레벨을 따로 둠 - 게임 고정값(엘 11 ~ 조드 69). 룬워드 요구 레벨 = 박힌 룬 중 최고값
+const RUNE_LEVEL_REQ = {
+  El: 11, Eld: 11, Tir: 13, Nef: 13, Eth: 15, Ith: 15, Tal: 17, Ral: 19, Ort: 21, Thul: 23, Amn: 25,
+  Sol: 27, Shael: 29, Dol: 31, Hel: 33, Io: 35, Lum: 37, Ko: 39, Fal: 41, Lem: 43, Pul: 45, Um: 47,
+  Mal: 49, Ist: 51, Gul: 53, Vex: 55, Ohm: 57, Lo: 59, Sur: 61, Ber: 63, Jah: 65, Cham: 67, Zod: 69,
+}
+
+// 요구 레벨은 판매글이 아니라 아이템 사전 데이터에서 가져옴 - 사전에 없는 아이템(매직/
+// 레어, 기타, 우버 재료)이나 보석처럼 레벨 정보가 없는 건 null
+export function itemLevelReq(item) {
+  if (!item) return null
+  if (item.level_req) return Number(item.level_req)
+  if (item.type_sub === '룬' && item.name_en?.endsWith(' Rune')) {
+    return RUNE_LEVEL_REQ[item.name_en.replace(' Rune', '')] ?? null
+  }
+  if (item.category === 'runeword' && item.extra?.rune_sequence) {
+    const levels = runePips(item.extra.rune_sequence).map((r) => RUNE_LEVEL_REQ[r])
+    return levels.length && levels.every((lv) => lv !== undefined) ? Math.max(...levels) : null
+  }
+  return null
+}
+export function postLevelReq(post) {
+  return itemLevelReq(getTradeItem(post.itemId))
+}
+
 // 콤보박스 없이 숫자만 입력받아서 "N개"로 만듦
 export function buildAmountLabel(count) {
   const n = Number(count) || 0

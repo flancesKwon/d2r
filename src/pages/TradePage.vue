@@ -10,6 +10,9 @@ import {
   TRADE_HARDCORE,
   getTradeItem,
   parsePriceTokens,
+  TRADE_STAT_FILTERS,
+  postStatValue,
+  postLevelReq,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -54,6 +57,51 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
+// 옵션 조건: "모든 저항 20 이상"처럼 옵션 종류 + 최솟값을 여러 개 걸 수 있고 전부
+// 만족하는 글만 남김(AND). 최솟값을 비우면 그 옵션이 붙어 있기만 하면 통과
+const statConditions = ref([])
+const statPickKey = ref(TRADE_STAT_FILTERS[0].key)
+const statPickMin = ref('')
+// 드롭다운 라벨의 "(%)"는 칩·배지에선 떼고 수치 뒤에 %로 붙임 ("모든 저항 20% 이상")
+const statLabel = (key) => (TRADE_STAT_FILTERS.find((s) => s.key === key)?.label || key).replace('(%)', '')
+const statUnit = (key) => (TRADE_STAT_FILTERS.find((s) => s.key === key)?.label.includes('(%)') ? '%' : '')
+function addStatCondition() {
+  const min = statPickMin.value === '' ? null : Number(statPickMin.value)
+  const existing = statConditions.value.find((c) => c.key === statPickKey.value)
+  if (existing) existing.min = min
+  else statConditions.value.push({ key: statPickKey.value, min })
+  statPickMin.value = ''
+}
+function removeStatCondition(i) {
+  statConditions.value.splice(i, 1)
+}
+
+// 요구 레벨 범위 - 아이템 사전에 레벨 정보가 있는 글만 걸러지고, 범위를 하나라도
+// 입력하면 레벨을 알 수 없는 글(매직/레어·기타 등)은 제외됨
+const levelMin = ref('')
+const levelMax = ref('')
+
+const hasActiveFilters = computed(
+  () =>
+    activeCat.value !== null || activeStatus.value !== null || activeLadder.value !== null ||
+    activeHardcore.value !== null || etherealOnly.value || favoritesOnly.value ||
+    searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
+    levelMin.value !== '' || levelMax.value !== ''
+)
+function resetFilters() {
+  activeCat.value = null
+  activeStatus.value = null
+  activeLadder.value = null
+  activeHardcore.value = null
+  etherealOnly.value = false
+  favoritesOnly.value = false
+  searchQuery.value = ''
+  statConditions.value = []
+  statPickMin.value = ''
+  levelMin.value = ''
+  levelMax.value = ''
+}
+
 const filteredPosts = computed(() => {
   let list = tradeState.posts
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
@@ -67,6 +115,20 @@ const filteredPosts = computed(() => {
     list = list.filter(
       (p) => p.itemName.toLowerCase().includes(q) || p.content.toLowerCase().includes(q)
     )
+  }
+  for (const c of statConditions.value) {
+    list = list.filter((p) => {
+      const v = postStatValue(p, c.key)
+      return v !== null && (c.min === null || v >= c.min)
+    })
+  }
+  if (levelMin.value !== '' || levelMax.value !== '') {
+    const lo = levelMin.value === '' ? -Infinity : Number(levelMin.value)
+    const hi = levelMax.value === '' ? Infinity : Number(levelMax.value)
+    list = list.filter((p) => {
+      const lv = postLevelReq(p)
+      return lv !== null && lv >= lo && lv <= hi
+    })
   }
   return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 })
@@ -132,6 +194,28 @@ const filteredPosts = computed(() => {
           <input type="checkbox" v-model="favoritesOnly" />
           찜한 글만
         </label>
+        <div class="level-range">
+          <span class="level-range-label">요구 레벨</span>
+          <input type="number" min="1" max="99" v-model="levelMin" placeholder="최소" aria-label="요구 레벨 최소" />
+          <span class="level-range-sep">~</span>
+          <input type="number" min="1" max="99" v-model="levelMax" placeholder="최대" aria-label="요구 레벨 최대" />
+        </div>
+        <button type="button" class="reset-filters" v-if="hasActiveFilters" @click="resetFilters">필터 초기화</button>
+      </div>
+      <div class="filter-row stat-filter-row">
+        <span class="stat-filter-label">옵션 조건</span>
+        <select v-model="statPickKey" class="sort-select" aria-label="옵션 종류">
+          <option v-for="s in TRADE_STAT_FILTERS" :key="s.key" :value="s.key">{{ s.label }}</option>
+        </select>
+        <input
+          type="number" v-model="statPickMin" class="stat-min-input" placeholder="최솟값 (비우면 옵션 있기만 하면)"
+          aria-label="최솟값" @keydown.enter.prevent="addStatCondition"
+        />
+        <button type="button" class="stat-add-btn" @click="addStatCondition">조건 추가</button>
+        <span class="stat-chip" v-for="(c, i) in statConditions" :key="c.key">
+          {{ statLabel(c.key) }}{{ c.min === null ? ' 있음' : ` ${c.min}${statUnit(c.key)} 이상` }}
+          <button type="button" :aria-label="`${statLabel(c.key)} 조건 삭제`" @click="removeStatCondition(i)">✕</button>
+        </span>
       </div>
     </div>
   </div>
@@ -163,6 +247,11 @@ const filteredPosts = computed(() => {
           <div class="trade-sub-meta">
             {{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · {{ p.author }} · {{ p.date }}
           </div>
+          <div class="stat-match-row" v-if="statConditions.length">
+            <span class="stat-match" v-for="c in statConditions" :key="c.key">
+              {{ statLabel(c.key) }} {{ postStatValue(p, c.key) }}{{ statUnit(c.key) }}
+            </span>
+          </div>
         </div>
         <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
       </router-link>
@@ -188,6 +277,11 @@ const filteredPosts = computed(() => {
           <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
             <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
           </template>
+        </span>
+        <span class="stat-match-row" v-if="statConditions.length">
+          <span class="stat-match" v-for="c in statConditions" :key="c.key">
+            {{ statLabel(c.key) }} {{ postStatValue(p, c.key) }}{{ statUnit(c.key) }}
+          </span>
         </span>
         <span class="trade-card-footer">
           {{ p.author }} · {{ p.date }}
@@ -216,6 +310,42 @@ const filteredPosts = computed(() => {
 .ethereal-filter-check input{accent-color:var(--teal);}
 .favorite-filter-check{color:var(--gold);}
 .favorite-filter-check input{accent-color:var(--gold);}
+
+.level-range{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-muted);}
+.level-range-label{color:var(--text-dim);}
+.level-range input, .stat-min-input{
+  background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:12.5px;
+  padding:8px 10px; border-radius:10px; font-family:'Noto Sans KR', sans-serif;
+}
+.level-range input{width:64px;}
+.level-range-sep{color:var(--text-dim);}
+.reset-filters{
+  font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:7px 12px;
+  border-radius:999px; background:transparent; margin-left:auto;
+}
+.reset-filters:hover{color:var(--gold); border-color:var(--gold-dim);}
+
+.stat-filter-label{font-size:12.5px; color:var(--text-dim);}
+.stat-min-input{width:220px; max-width:100%;}
+.stat-add-btn{
+  font-size:12.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:8px 14px;
+  border-radius:10px; background:var(--panel);
+}
+.stat-add-btn:hover{background:var(--panel-2);}
+.stat-chip{
+  display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--gold);
+  border:1px solid var(--gold-dim); padding:5px 8px 5px 12px; border-radius:999px; background:var(--panel-2);
+}
+.stat-chip button{color:var(--text-dim); font-size:11px; line-height:1; padding:2px;}
+.stat-chip button:hover{color:var(--text);}
+
+.stat-match-row{display:flex; flex-wrap:wrap; justify-content:inherit; gap:6px; margin-top:8px;}
+.stat-match{font-size:11px; color:var(--teal); border:1px solid var(--teal); padding:2px 10px; border-radius:999px;}
+
+@media (max-width:640px){
+  .reset-filters{margin-left:0;}
+  .stat-min-input{width:100%;}
+}
 
 .favorite-star{
   font-size:20px; line-height:1; color:var(--text-dim); flex:none; padding:2px; margin-top:2px;
