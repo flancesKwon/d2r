@@ -95,6 +95,18 @@ const randClassChoice = ref({})
 const CLASS_SKILL_OPTIONS = Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => ({ code, name }))
 const customOptions = ref([])
 
+// 새로워진 파괴참처럼 제작 시 "그룹마다 하나씩" 무작위 옵션이 붙는 아이템은 판매자가
+// 그룹별로 실제 붙은 옵션을 고르고 수치를 입력함 - 고른 것만 옵션 목록에 들어감
+const randomGroups = computed(() => selectedItem.value?.extra?.random_groups || [])
+const groupChoice = ref({})
+const groupValues = ref({})
+function buildRandomGroupOptions() {
+  return randomGroups.value.flatMap((g, gi) => {
+    const opt = g[groupChoice.value[gi]]
+    return opt ? [resolveAffixText(opt, groupValues.value[gi])] : []
+  })
+}
+
 // 룬워드는 박힌 룬 조합이 고정돼 있어서 필요한 재료를 자동으로 보여줌
 const materials = computed(() => runewordMaterials(selectedItem.value))
 
@@ -217,6 +229,8 @@ function resetItemDependentFields() {
   form.value.ethereal = false
   rolledValues.value = {}
   randClassChoice.value = {}
+  groupChoice.value = {}
+  groupValues.value = {}
   manualBaseKind.value = null
   resetBaseStats()
   customOptions.value = []
@@ -324,7 +338,9 @@ function submitPost() {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   })
-  const options = [...dbOptions, ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value]
+  const options = [
+    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
+  ]
   const post = addTradePost({
     ...form.value,
     amountLabel,
@@ -570,6 +586,22 @@ function submitPost() {
         </div>
       </div>
 
+      <div class="option-editor" v-if="randomGroups.length">
+        <div class="option-editor-title">제작 시 붙은 무작위 옵션</div>
+        <div class="option-editor-hint">그룹마다 하나씩 붙어 있어요. 실제로 붙은 옵션을 고르고 수치를 입력하세요. 모르는 그룹은 비워둬도 돼요.</div>
+        <div class="option-row" v-for="(g, gi) in randomGroups" :key="gi">
+          <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="`${gi + 1}그룹 옵션`">
+            <option :value="undefined">{{ gi + 1 }}그룹 옵션 선택</option>
+            <option v-for="(o, oi) in g" :key="oi" :value="oi">{{ o.text }}</option>
+          </select>
+          <input
+            v-if="g[groupChoice[gi]]"
+            type="number" v-model="groupValues[gi]" :placeholder="`${g[groupChoice[gi]].min}~${g[groupChoice[gi]].max}`"
+            class="write-input option-value-input" :aria-label="`${gi + 1}그룹 수치`"
+          />
+        </div>
+      </div>
+
       <div class="option-editor" v-if="selectedItem || form.category">
         <div class="option-editor-title">기타 옵션 직접 추가</div>
         <div class="option-editor-hint">위에 없는 스탯(생명력, 저항, 소켓 개수 등)은 종류를 고르고 값을 입력해서 추가하세요.</div>
@@ -760,6 +792,7 @@ function submitPost() {
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}
 .option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
+.random-group-select{flex:1; min-width:0; padding:6px 8px !important; font-size:12.5px !important; border-radius:8px !important;}
 .option-value-select{width:110px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}

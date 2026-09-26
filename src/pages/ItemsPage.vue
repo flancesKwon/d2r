@@ -267,6 +267,34 @@ const filteredItems = computed(() => {
             <span class="a-raw" v-if="!a.text">{{ a.prop || a.raw || '' }}</span>
           </div>
         </div>
+        <template v-if="selected.extra && selected.extra.random_groups">
+          <div class="d-section-title">제작 시 무작위 옵션</div>
+          <p class="note-box" style="margin-bottom:10px">
+            큐브로 만들 때 아래 {{ selected.extra.random_groups.length }}개 그룹에서 <b>그룹마다 하나씩</b> 붙고, 수치는 범위 안에서 무작위로 정해져요.
+          </p>
+          <div class="random-group-list">
+            <div class="random-group" v-for="(g, gi) in selected.extra.random_groups" :key="gi">
+              <span class="random-group-no">{{ gi + 1 }}</span>
+              <div class="random-group-options">
+                <template v-for="(o, oi) in g" :key="oi">
+                  <span class="random-group-or" v-if="oi > 0">또는</span>
+                  <span class="random-group-option">{{ o.text }}</span>
+                </template>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template v-if="selected.extra && selected.extra.icon_variants">
+          <div class="d-section-title">아이템 그림</div>
+          <p class="note-box" style="margin-bottom:10px">게임에서는 아래 3가지 그림 중 하나로 무작위로 나와요. 옵션과는 상관없어요.</p>
+          <div class="icon-variant-row">
+            <div class="icon-variant" v-for="v in selected.extra.icon_variants" :key="v.key">
+              <img v-if="icons[v.key]" :src="'data:image/png;base64,' + icons[v.key]" alt="" />
+              <span>{{ v.label }}</span>
+            </div>
+          </div>
+        </template>
+        <div class="note-box warn" v-for="(n, ni) in (selected.extra && selected.extra.notes) || []" :key="'note' + ni">{{ n }}</div>
         <template v-if="selected.category === 'set' && selected.extra">
           <div class="note-box gold">소속 세트: <b>{{ selected.extra.set_name_ko }}</b></div>
           <template v-if="selected.extra.set_full_bonus && selected.extra.set_full_bonus.length">
