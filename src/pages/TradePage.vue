@@ -113,7 +113,11 @@ const filteredPosts = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
-      (p) => p.itemName.toLowerCase().includes(q) || p.content.toLowerCase().includes(q)
+      (p) =>
+        p.itemName.toLowerCase().includes(q) ||
+        p.content.toLowerCase().includes(q) ||
+        // 옵션 문구도 검색 (예: "블리자드"로 +블리자드 붙은 오브·지팡이 찾기)
+        (p.options || []).some((o) => (o || '').toLowerCase().includes(q))
     )
   }
   for (const c of statConditions.value) {
@@ -164,7 +168,7 @@ const filteredPosts = computed(() => {
       </div>
       <div class="search-row">
         <div class="search-input-wrap">
-          <input type="text" v-model="searchQuery" placeholder="아이템명·내용 검색" aria-label="거래글 검색" />
+          <input type="text" v-model="searchQuery" placeholder="아이템명·옵션·내용 검색" aria-label="거래글 검색" />
         </div>
         <select v-model="activeStatus" class="sort-select">
           <option :value="null">전체 상태</option>

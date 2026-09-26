@@ -27,9 +27,9 @@ import {
   baseItemLabel,
   itemsData,
   itemLevelReq,
+  classSkillsForBase,
 } from '../tradeStore.js'
 import { runewordBaseTypesKo } from '../itemStats.js'
-import classSkillsData from '../data/classSkills.json'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import { profileState } from '../profileStore.js'
@@ -205,13 +205,25 @@ const baseDamageWarning = computed(() => {
 // 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
 // · 스킬: 오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀 등에 그 직업 스킬 최대 3개 × +1~3
 // · 자동 옵션: 팔라딘 방패 = 모든 저항 또는 명중률, 오브 = 생명력 또는 마나, 아마존 무기 = 스킬 트리 +1~3 등
-const baseClassSkills = computed(() => {
-  const cls = selectedBaseItem.value?.class_skills
-  return cls ? classSkillsData[cls] : null
-})
+// 이 베이스에 실제로 붙을 수 있는 스킬만 (아이템 레벨 단계 + 필요 무기 종류로 거름)
+const baseClassSkills = computed(() => classSkillsForBase(selectedBaseItem.value))
 const baseAutoMods = computed(() => selectedBaseItem.value?.auto_mods || [])
-const emptyClassSkillPicks = () => [0, 1, 2].map(() => ({ skill: '', level: '' }))
+// 스킬은 게임에서 0~3개가 붙어서, 한 줄로 시작해서 "스킬 추가"로 3개까지 늘림
+const MAX_CLASS_SKILLS = 3
+const emptyClassSkillPicks = () => [{ skill: '', level: '' }]
 const classSkillPicks = ref(emptyClassSkillPicks())
+function addClassSkillRow() {
+  if (classSkillPicks.value.length < MAX_CLASS_SKILLS) classSkillPicks.value.push({ skill: '', level: '' })
+}
+function removeClassSkillRow(i) {
+  classSkillPicks.value.splice(i, 1)
+  if (!classSkillPicks.value.length) classSkillPicks.value.push({ skill: '', level: '' })
+}
+// 같은 스킬은 두 번 안 붙으니, 다른 줄에서 이미 고른 스킬은 선택지에서 뺌
+function classSkillOptionsFor(i) {
+  const taken = new Set(classSkillPicks.value.filter((_, j) => j !== i).map((p) => p.skill).filter(Boolean))
+  return baseClassSkills.value.skills.filter((s) => !taken.has(s.en))
+}
 const autoModPick = ref({ key: '', value: '' })
 const pickedAutoMod = computed(() => baseAutoMods.value.find((m) => m.key === autoModPick.value.key) || null)
 const skillLabel = (s) => (s.ko ? `${s.ko} (${s.en})` : s.en)
@@ -679,16 +691,29 @@ function submitPost() {
             />
           </div>
           <template v-if="baseClassSkills">
+            <div class="option-editor-hint class-skill-rule">
+              {{ baseClassSkills.name }} 스킬은 <b>0~3개</b>가 무작위로 붙고, 각각 <b>+1~3</b>이에요.
+              이 베이스에 붙을 수 있는 {{ baseClassSkills.skills.length }}종만 보여줘요
+              <template v-if="baseClassSkills.minReq > 1">(베이스 레벨 {{ selectedBaseItem.qlvl }}: 요구 레벨 {{ baseClassSkills.minReq }} 미만 스킬은 안 붙어요)</template>.
+            </div>
             <div class="option-row" v-for="(p, i) in classSkillPicks" :key="i">
               <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${baseClassSkills.name} 스킬 ${i + 1}`">
-                <option value="">{{ baseClassSkills.name }} 스킬 {{ i + 1 }} 선택 (없으면 비워두세요)</option>
-                <option v-for="s in baseClassSkills.skills" :key="s.en" :value="s.en">{{ skillLabel(s) }}</option>
+                <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
+                <option v-for="s in classSkillOptionsFor(i)" :key="s.en" :value="s.en">{{ skillLabel(s) }}</option>
               </select>
               <select v-if="p.skill" v-model="p.level" class="write-select option-value-select" :aria-label="`스킬 ${i + 1} 레벨`">
                 <option value="">+?</option>
                 <option v-for="n in 3" :key="n" :value="n">+{{ n }}</option>
               </select>
+              <button
+                type="button" class="class-skill-remove" v-if="classSkillPicks.length > 1 || p.skill"
+                :aria-label="`스킬 ${i + 1} 삭제`" @click="removeClassSkillRow(i)"
+              >✕</button>
             </div>
+            <button
+              type="button" class="class-skill-add" v-if="classSkillPicks.length < MAX_CLASS_SKILLS"
+              @click="addClassSkillRow"
+            >+ 스킬 추가 ({{ classSkillPicks.length }}/{{ MAX_CLASS_SKILLS }})</button>
           </template>
         </div>
       </div>
@@ -989,6 +1014,11 @@ function submitPost() {
 
 .base-stats-input{border:1px solid var(--gold-dim); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
 .base-mods{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--border); padding-top:12px; margin-top:2px;}
+.class-skill-rule b{color:var(--gold);}
+.class-skill-remove{flex:none; color:var(--text-dim); font-size:12px; padding:4px 6px;}
+.class-skill-remove:hover{color:var(--text);}
+.class-skill-add{align-self:flex-start; font-size:12.5px; color:var(--gold); border:1px dashed var(--gold-dim); padding:7px 14px; border-radius:10px; background:transparent;}
+.class-skill-add:hover{background:var(--panel-2);}
 .base-stats-input-row{display:flex; gap:12px; flex-wrap:wrap;}
 .base-stats-input-row label{
   flex:1; min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:11.5px; color:var(--text-dim);
