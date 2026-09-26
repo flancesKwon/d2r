@@ -89,15 +89,15 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .item-card.runeword .card-icon{border-color:var(--blood); box-shadow:0 0 14px -2px rgba(162,81,63,0.45);}
 .item-card.gem .card-icon{border-color:var(--teal); box-shadow:0 0 14px -2px rgba(78,138,138,0.45);}
 
-/* 룬워드: 전용 아이콘이 없어서 베이스 부위 실루엣 위에 소켓 개수만큼 룬을 줄지어 얹음.
-   장비창 슬롯 아이콘과 똑같이 원본 비율(aspect-ratio)로 박스 모양 자체를 잡아서
-   벨트는 넓적하게, 무기는 길쭉하게 - 잘림/확대 없이 장비창이랑 톤이 맞게 함 */
-.rw-icon{position:relative; overflow:hidden; width:auto; height:auto; max-width:100%; max-height:100%;}
-.rw-base{width:96%; height:96%; object-fit:contain; filter:brightness(1.7); opacity:0.85; image-rendering:pixelated;}
-.rw-runes{position:absolute; left:0; right:0; bottom:6px; display:flex; align-items:center; justify-content:center; gap:2px; flex-wrap:wrap; padding:0 4px;}
-.rw-rune{width:13px; height:13px; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.9));}
+/* 룬워드: 게임에서도 전용 아이콘 없이 베이스 아이템 모양 그대로라서, 대표 베이스의 실제
+   그림 위에 소켓 개수만큼 룬을 줄지어 얹음 */
+.rw-icon{position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center;}
+.card-icon .rw-base, .icon-box .rw-base{max-width:86%; max-height:86%; object-fit:contain; image-rendering:auto;}
+.rw-runes{position:absolute; left:0; right:0; bottom:6px; display:flex; align-items:center; justify-content:center; gap:1px; flex-wrap:nowrap; padding:0 2px;}
+/* 6소켓 룬워드도 한 줄에 들어가게, 칸이 좁으면(폰) 룬 아이콘이 알아서 줄어듦 */
+.rw-rune{flex:0 1 13px; min-width:0; height:auto; aspect-ratio:1; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.9));}
 .d-head .rw-runes{bottom:8px;}
-.d-head .rw-rune{width:16px; height:16px;}
+.d-head .rw-rune{flex-basis:16px;}
 .card-icon.unique{color:var(--gold);} .card-icon.set{color:var(--green);}
 .card-icon.runeword{color:var(--blood);} .card-icon.gem{color:var(--teal);}
 .card-name{

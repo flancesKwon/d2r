@@ -28,6 +28,7 @@ import {
   itemsData,
   itemLevelReq,
 } from '../tradeStore.js'
+import { runewordBaseTypesKo } from '../itemStats.js'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import { profileState } from '../profileStore.js'
@@ -157,17 +158,11 @@ const baseItemCandidates = computed(() =>
     ? []
     : searchBaseItems(baseItemQuery.value, effectiveBaseKind.value, isRuneword.value ? selectedItem.value : null)
 )
-const RUNEWORD_TYPE_KO = {
-  tors: '갑옷', shld: '방패', helm: '투구', weap: '모든 무기', mele: '근접 무기', miss: '활·석궁', swor: '검',
-  axe: '도끼', hamm: '망치', mace: '철퇴', club: '곤봉', pole: '폴암', spea: '창', staf: '지팡이', scep: '홀',
-  knif: '단검', wand: '완드', h2h: '어쌔신 클로', grim: '마법서', head: '네크로맨서 방패', ashd: '팔라딘 방패',
-}
 const runewordBaseRule = computed(() => {
   const it = selectedItem.value
   if (!isRuneword.value) return ''
-  const kinds = (it.subtitle || '').split('+').map((c) => RUNEWORD_TYPE_KO[c.trim()] || c.trim())
   const sockets = it.extra?.socket_count
-  return `${kinds.join('·')}${sockets ? ` · ${sockets}소켓` : ''}`
+  return `${runewordBaseTypesKo(it.subtitle)}${sockets ? ` · ${sockets}소켓` : ''}`
 })
 const basePickerPlaceholder = computed(() => {
   if (isRuneword.value) return '베이스 검색 또는 목록에서 선택 (예: 아칸 플레이트, 엘리트)'

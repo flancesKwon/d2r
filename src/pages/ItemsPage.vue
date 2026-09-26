@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
 import { ICONS } from '../icons.js'
-import { runewordSlots, runePips, buildRuneLookup, runewordRuneAffixes, DOLL_ICON_ASPECT } from '../itemStats.js'
+import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
 
 const items = itemsData
 const icons = iconsData
@@ -14,19 +14,10 @@ const route = useRoute()
 const runeLookup = buildRuneLookup(itemsData)
 
 // 룬워드는 실제 게임에서도 전용 아이콘이 없고(꽂힌 베이스 아이템 모양을 그대로 씀),
-// 소켓에 박힌 룬이 화면에 줄지어 보임 - 그 느낌을 살리려고 베이스 부위 실루엣 위에
-// 룬 아이콘을 소켓 개수만큼 겹쳐서 보여줌
-const equipIconModules = import.meta.glob('../assets/equipicons/*.png', { eager: true, import: 'default' })
-const equipIconUrl = Object.fromEntries(Object.entries(equipIconModules).map(([p, url]) => [p.split('/').pop().replace('.png', ''), url]))
-const RUNEWORD_SLOT_ICON_FILE = { weapon: 'weapon', shield: 'weapon', armor: 'armor', helm: 'helm' }
-function runewordBaseIconUrl(item) {
-  const slot = runewordSlots(item.subtitle)[0]
-  return equipIconUrl[RUNEWORD_SLOT_ICON_FILE[slot]] || null
-}
-// 장비창 슬롯 아이콘과 같은 비율로 맞춰서(벨트는 넓적하게, 무기는 길쭉하게) 잘림/여백 없이 보이게 함
-function runewordIconAspect(item) {
-  const slot = runewordSlots(item.subtitle)[0]
-  return DOLL_ICON_ASPECT[slot]
+// 소켓에 박힌 룬이 화면에 줄지어 보임 - 그 느낌을 살리려고 대표 베이스의 실제 그림
+// (icon_key, 예: 수수께끼 = 아칸 플레이트) 위에 룬 아이콘을 소켓 개수만큼 겹쳐서 보여줌
+function iconUrl(item) {
+  return item.icon_key && icons[item.icon_key] ? 'data:image/png;base64,' + icons[item.icon_key] : null
 }
 // 룬워드 화면에 보여줄 전체 옵션 = 룬워드 고유 옵션(affixes, 최대 7개) + 박힌 룬들 자체 효과.
 // 실제 게임 내부에서도 항상 이렇게 합쳐져서 나옴
@@ -179,9 +170,9 @@ const filteredItems = computed(() => {
         :class="it.category"
         @click="selected = it"
       >
-        <span class="card-icon" :class="[it.category]" v-if="it.category === 'runeword' && runewordBaseIconUrl(it)">
-          <span class="rw-icon" :style="{ aspectRatio: runewordIconAspect(it) }">
-            <img class="rw-base" :src="runewordBaseIconUrl(it)" alt="" />
+        <span class="card-icon" :class="[it.category]" v-if="it.category === 'runeword' && iconUrl(it)">
+          <span class="rw-icon">
+            <img class="rw-base" :src="iconUrl(it)" alt="" />
             <span class="rw-runes">
               <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
             </span>
@@ -196,7 +187,7 @@ const filteredItems = computed(() => {
           <svg v-else viewBox="0 0 24 24" v-html="ICONS[it.icon_type_key] || ICONS.unknown"></svg>
         </span>
         <div class="card-name">{{ it.name_ko }}</div>
-        <div class="card-sub">{{ it.subtitle || '' }}</div>
+        <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypesKo(it.subtitle) : it.subtitle || '' }}</div>
         <div class="card-level" v-if="it.level">Lv {{ it.level }}</div>
       </button>
       <div class="empty-state" v-if="filteredItems.length === 0">검색 결과가 없어요</div>
@@ -316,9 +307,9 @@ const filteredItems = computed(() => {
       <template v-else-if="selected.category === 'runeword'">
         <div class="d-eyebrow">룬워드 · 소켓 {{ selected.extra.socket_count }}개</div>
         <div class="d-head">
-          <span class="icon-box" :class="selected.category" v-if="runewordBaseIconUrl(selected)">
-            <span class="rw-icon" :style="{ aspectRatio: runewordIconAspect(selected) }">
-              <img class="rw-base" :src="runewordBaseIconUrl(selected)" alt="" />
+          <span class="icon-box" :class="selected.category" v-if="iconUrl(selected)">
+            <span class="rw-icon">
+              <img class="rw-base" :src="iconUrl(selected)" alt="" />
               <span class="rw-runes">
                 <img v-for="(r, n) in runePips(selected.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
               </span>
@@ -342,7 +333,10 @@ const filteredItems = computed(() => {
             {{ r }}
           </div>
         </div>
-        <div class="note-box">장착 가능 베이스: <b>{{ selected.subtitle || '—' }}</b></div>
+        <div class="note-box">
+          장착 가능 베이스: <b>{{ runewordBaseTypesKo(selected.subtitle) || '—' }}</b>
+          <span v-if="selected.extra.socket_count"> · 소켓 {{ selected.extra.socket_count }}개 필요</span>
+        </div>
         <div class="d-section-title">옵션</div>
         <p class="note-box" style="margin-bottom:10px">룬워드 고유 옵션에 박힌 룬들 자체 효과까지 합친 실제 최종 옵션이에요.</p>
         <div class="affix-list">

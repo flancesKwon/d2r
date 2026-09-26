@@ -34,6 +34,16 @@ export function runewordSlots(subtitle) {
   return slots
 }
 
+// 룬워드 subtitle에 적힌 게임 종류 코드("pole + spea")를 화면용 한글로 ("폴암·창")
+export const RUNEWORD_TYPE_KO = {
+  tors: '갑옷', shld: '방패', helm: '투구', weap: '모든 무기', mele: '근접 무기', miss: '활·석궁', swor: '검',
+  axe: '도끼', hamm: '망치', mace: '철퇴', club: '곤봉', pole: '폴암', spea: '창', staf: '지팡이', scep: '홀',
+  knif: '단검', wand: '완드', h2h: '어쌔신 클로', grim: '마법서', head: '네크로맨서 방패', ashd: '팔라딘 방패',
+}
+export function runewordBaseTypesKo(subtitle) {
+  return (subtitle || '').split('+').map((c) => RUNEWORD_TYPE_KO[c.trim()] || c.trim()).filter(Boolean).join('·')
+}
+
 export function runePips(seq) {
   return (seq || '').match(/[A-Z][a-z]+/g) || []
 }
