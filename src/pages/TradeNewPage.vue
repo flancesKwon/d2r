@@ -29,6 +29,7 @@ import {
   itemLevelReq,
 } from '../tradeStore.js'
 import { runewordBaseTypesKo } from '../itemStats.js'
+import classSkillsData from '../data/classSkills.json'
 import iconsData from '../data/icons.json'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import { profileState } from '../profileStore.js'
@@ -201,13 +202,47 @@ const baseDamageWarning = computed(() => {
     ? `고른 베이스의 기본 데미지는 ${exp.min}~${exp.max}${form.value.ethereal ? '(에테리얼)' : ''}예요. 다시 확인해 주세요.`
     : ''
 })
+// 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
+// · 스킬: 오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀 등에 그 직업 스킬 최대 3개 × +1~3
+// · 자동 옵션: 팔라딘 방패 = 모든 저항 또는 명중률, 오브 = 생명력 또는 마나, 아마존 무기 = 스킬 트리 +1~3 등
+const baseClassSkills = computed(() => {
+  const cls = selectedBaseItem.value?.class_skills
+  return cls ? classSkillsData[cls] : null
+})
+const baseAutoMods = computed(() => selectedBaseItem.value?.auto_mods || [])
+const emptyClassSkillPicks = () => [0, 1, 2].map(() => ({ skill: '', level: '' }))
+const classSkillPicks = ref(emptyClassSkillPicks())
+const autoModPick = ref({ key: '', value: '' })
+const pickedAutoMod = computed(() => baseAutoMods.value.find((m) => m.key === autoModPick.value.key) || null)
+const skillLabel = (s) => (s.ko ? `${s.ko} (${s.en})` : s.en)
+// "모든 저항 +{v}%" -> "모든 저항" 처럼 수치 자리를 뺀 이름들 (자동 옵션 선택칸 안내용)
+const autoModNames = computed(() => baseAutoMods.value.map((m) => m.text.replace(/ \+\{v\}%?/, '')).join(' 또는 '))
+function resetBaseMods() {
+  classSkillPicks.value = emptyClassSkillPicks()
+  autoModPick.value = { key: '', value: '' }
+}
+function buildBaseModOptions() {
+  const out = []
+  const auto = pickedAutoMod.value
+  if (auto && autoModPick.value.value !== '') out.push(auto.text.replace('{v}', autoModPick.value.value))
+  const cls = baseClassSkills.value
+  if (cls) {
+    for (const p of classSkillPicks.value) {
+      const s = cls.skills.find((x) => x.en === p.skill)
+      if (s && p.level) out.push(`${s.ko || s.en} +${p.level} (${cls.name} 전용)`)
+    }
+  }
+  return out
+}
 function pickBaseItem(b) {
   selectedBaseItem.value = b
   showBaseItemDropdown.value = false
+  resetBaseMods()
 }
 function clearBaseItem() {
   selectedBaseItem.value = null
   baseItemQuery.value = ''
+  resetBaseMods()
 }
 function hideBaseItemDropdownSoon() {
   window.setTimeout(() => (showBaseItemDropdown.value = false), 150)
@@ -239,6 +274,7 @@ function buildBaseStatOptions() {
     if (weaponStats.value.extraDurability) out.push(`추가 내구도 +${weaponStats.value.extraDurability}`)
     if (weaponStats.value.extraSkill.trim()) out.push(weaponStats.value.extraSkill.trim())
   }
+  out.push(...buildBaseModOptions())
   return out
 }
 
@@ -626,6 +662,35 @@ function submitPost() {
           </div>
           <div class="unit-hint" v-if="baseDamageWarning">{{ baseDamageWarning }}</div>
         </template>
+
+        <div class="base-mods" v-if="baseClassSkills || baseAutoMods.length">
+          <div class="option-editor-title">베이스 자체 옵션</div>
+          <div class="option-editor-hint">
+            직업 전용 베이스라서 게임에서 정해진 옵션이 붙어 있을 수 있어요. 실제로 붙은 것만 고르세요.
+          </div>
+          <div class="option-row" v-if="baseAutoMods.length">
+            <select v-model="autoModPick.key" class="write-select random-group-select" aria-label="자동 옵션">
+              <option value="">자동 옵션 선택 ({{ autoModNames }})</option>
+              <option v-for="m in baseAutoMods" :key="m.key" :value="m.key">{{ m.text.replace('{v}', `${m.min}~${m.max}`) }}</option>
+            </select>
+            <input
+              v-if="pickedAutoMod" type="number" v-model="autoModPick.value" :min="pickedAutoMod.min" :max="pickedAutoMod.max"
+              :placeholder="`${pickedAutoMod.min}~${pickedAutoMod.max}`" class="write-input option-value-input" aria-label="자동 옵션 수치"
+            />
+          </div>
+          <template v-if="baseClassSkills">
+            <div class="option-row" v-for="(p, i) in classSkillPicks" :key="i">
+              <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${baseClassSkills.name} 스킬 ${i + 1}`">
+                <option value="">{{ baseClassSkills.name }} 스킬 {{ i + 1 }} 선택 (없으면 비워두세요)</option>
+                <option v-for="s in baseClassSkills.skills" :key="s.en" :value="s.en">{{ skillLabel(s) }}</option>
+              </select>
+              <select v-if="p.skill" v-model="p.level" class="write-select option-value-select" :aria-label="`스킬 ${i + 1} 레벨`">
+                <option value="">+?</option>
+                <option v-for="n in 3" :key="n" :value="n">+{{ n }}</option>
+              </select>
+            </div>
+          </template>
+        </div>
       </div>
 
       <label class="ethereal-check" v-if="hasEthereal">
@@ -923,6 +988,7 @@ function submitPost() {
 .manual-kind-row{border:1px solid var(--border-soft); background:var(--panel); padding:14px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
 
 .base-stats-input{border:1px solid var(--gold-dim); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
+.base-mods{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--border); padding-top:12px; margin-top:2px;}
 .base-stats-input-row{display:flex; gap:12px; flex-wrap:wrap;}
 .base-stats-input-row label{
   flex:1; min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:11.5px; color:var(--text-dim);
