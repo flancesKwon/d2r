@@ -4,7 +4,8 @@ import LogoMark from '../components/LogoMark.vue'
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
-import skillData from '../data/skills.json'
+import rawSkillData from '../data/skills.json'
+import skillInfo from '../data/skillInfo.json'
 import itemsData from '../data/items.json'
 import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
@@ -187,6 +188,36 @@ let skipClassReset = false
 const selectedNode = ref(null) // { tabIdx, skillIdx } | null
 const hoveredNode = ref(null) // { tabIdx, skillIdx } | null - 필수 선행 스킬을 강조해서 보여주기 위한 포커스 대상
 
+// 스킬 아이콘에 마우스를 올리면 뜨는 툴팁 (설명·데미지·시너지). 커서 옆에 띄우되 화면 밖으로 안 나가게
+const tooltipPos = ref({ x: 0, y: 0 })
+const TOOLTIP_W = 320
+function showSkillTooltip(tabIdx, skillIdx, e) {
+  hoveredNode.value = { tabIdx, skillIdx }
+  moveSkillTooltip(e)
+}
+function moveSkillTooltip(e) {
+  if (e.type === 'focus') {
+    const r = e.target.getBoundingClientRect()
+    tooltipPos.value = { x: r.right, y: r.top }
+  } else tooltipPos.value = { x: e.clientX, y: e.clientY }
+}
+function hideSkillTooltip() {
+  hoveredNode.value = null
+}
+// 툴팁 실제 높이를 재서 화면 아래로 넘치지 않게 (내용에 따라 높이가 달라서)
+const tipEl = ref(null)
+const tipHeight = ref(0)
+watch([() => hoveredNode.value, tooltipPos], async () => {
+  await nextTick()
+  if (tipEl.value) tipHeight.value = tipEl.value.offsetHeight
+})
+const tooltipStyle = computed(() => {
+  const { x, y } = tooltipPos.value
+  const left = x + 18 + TOOLTIP_W > window.innerWidth ? Math.max(8, x - 18 - TOOLTIP_W) : x + 18
+  const top = Math.max(8, Math.min(y - 20, window.innerHeight - tipHeight.value - 8))
+  return { left: left + 'px', top: top + 'px', width: TOOLTIP_W + 'px' }
+})
+
 watch(selectedClass, () => {
   if (skipClassReset) return
   resetAll()
@@ -194,6 +225,25 @@ watch(selectedClass, () => {
 })
 
 const classInfo = computed(() => classStats[selectedClass.value])
+// 시너지는 게임 skills.txt 공식에서 뽑은 skillInfo(scripts/build-skill-info.js) 기준으로 덮어씀 -
+// 예전에 손으로 넣은 목록을 전부 포함하고(%도 동일) 빠져 있던 시너지(악마술사 등)까지 들어 있음
+const skillData = Object.fromEntries(
+  Object.entries(rawSkillData).map(([cls, data]) => [
+    cls,
+    {
+      ...data,
+      tabs: data.tabs.map((tab) => ({
+        ...tab,
+        skills: tab.skills.map((sk) => {
+          const syn = skillInfo[cls]?.[sk.name]?.syn
+          if (!syn) return sk
+          const pick = (kind) => syn.filter((x) => x.kind === kind).map(({ skill, percent }) => ({ skill, percent }))
+          return { ...sk, synergyEle: pick('ele'), synergyPhy: pick('phy') }
+        }),
+      })),
+    },
+  ])
+)
 const classTabs = computed(() => skillData[selectedClass.value].tabs)
 
 const clampedLevel = computed({
@@ -458,6 +508,30 @@ function resetTab(tabIdx) {
   if (selectedNode.value && selectedNode.value.tabIdx === tabIdx) selectedNode.value = null
 }
 
+// 툴팁 내용 - 현재/다음 레벨 데미지, 받는 시너지(지금 찍힌 포인트 기준 보너스), 주는 시너지
+const hoverTip = computed(() => {
+  const h = hoveredNode.value
+  if (!h) return null
+  const skill = classTabs.value[h.tabIdx]?.skills[h.skillIdx]
+  if (!skill) return null
+  const info = skillInfo[selectedClass.value]?.[skill.name] || { desc: [], syn: [] }
+  const hard = skillPoint(h.tabIdx, h.skillIdx)
+  const eff = effectiveSkillLevel(h.tabIdx, h.skillIdx)
+  const now = hard > 0 ? computeSkillDamage(skill, eff, skillPointByName) : null
+  const next = hard < 20 ? computeSkillDamage(skill, (eff || 0) + 1, skillPointByName) : null
+  const receives = info.syn.map((x) => ({ ...x, points: skillPointByName(x.skill), bonus: x.percent * skillPointByName(x.skill) }))
+  const gives = Object.entries(skillInfo[selectedClass.value] || {})
+    .flatMap(([target, v]) => v.syn.filter((x) => x.skill === skill.name).map((x) => ({ target, percent: x.percent, kind: x.kind })))
+  return { skill, info, hard, eff, now, next, receives, gives, tab: classTabs.value[h.tabIdx].name }
+})
+function dmgLine(d) {
+  if (!d) return []
+  const out = []
+  if (d.ele) out.push(`${ELEMENT_LABELS[d.ele.type] || ''} 데미지 ${d.ele.min}~${d.ele.max}`)
+  if (d.phy) out.push(`물리 데미지 ${d.phy.min}~${d.phy.max}`)
+  return out
+}
+
 const selectedSkill = computed(() => {
   if (!selectedNode.value) return null
   const { tabIdx, skillIdx } = selectedNode.value
@@ -690,10 +764,13 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                     selected: selectedNode && selectedNode.tabIdx === tabIdx && selectedNode.skillIdx === n.skillIdx,
                     'req-target': isFocusNode(tabIdx, n.skillIdx) && focusReqIdxs(tabIdx).length,
                   }"
-                  :title="n.skill.name"
+                  :aria-label="n.skill.name"
                   @click="onNodeClick(tabIdx, n.skillIdx)"
-                  @mouseenter="hoveredNode = { tabIdx, skillIdx: n.skillIdx }"
-                  @mouseleave="hoveredNode = null"
+                  @mouseenter="showSkillTooltip(tabIdx, n.skillIdx, $event)"
+                  @mousemove="moveSkillTooltip"
+                  @mouseleave="hideSkillTooltip"
+                  @focus="showSkillTooltip(tabIdx, n.skillIdx, $event)"
+                  @blur="hideSkillTooltip"
                 >
                   <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art hd-frame" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
                   <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
@@ -739,7 +816,47 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             </p>
           </div>
         </div>
-        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍어보세요</div>
+        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍어보세요 · 마우스를 올리면 설명과 시너지가 보여요</div>
+
+        <div class="skill-tip" v-if="hoverTip" ref="tipEl" :style="tooltipStyle" role="tooltip">
+          <div class="skill-tip-name">{{ hoverTip.skill.name }} <small>{{ hoverTip.skill.nameEn }}</small></div>
+          <div class="skill-tip-meta">
+            {{ hoverTip.tab }} · 요구 레벨 {{ hoverTip.skill.reqLevel }}
+            <template v-if="hoverTip.skill.reqSkills && hoverTip.skill.reqSkills.length"> · 선행: {{ hoverTip.skill.reqSkills.join(', ') }}</template>
+          </div>
+          <p class="skill-tip-desc" v-if="hoverTip.info.desc.length">
+            <template v-for="(l, i) in hoverTip.info.desc" :key="i">{{ l }}<br v-if="i < hoverTip.info.desc.length - 1" /></template>
+          </p>
+
+          <div class="skill-tip-block">
+            <div class="skill-tip-level">
+              <template v-if="hoverTip.hard > 0">
+                현재 레벨 <b>{{ hoverTip.eff }}</b>
+                <small v-if="hoverTip.eff !== hoverTip.hard">(하드 {{ hoverTip.hard }} + 장비 {{ hoverTip.eff - hoverTip.hard }})</small>
+              </template>
+              <template v-else>아직 투자하지 않았어요</template>
+            </div>
+            <div class="skill-tip-dmg" v-for="l in dmgLine(hoverTip.now)" :key="'n' + l">{{ l }}</div>
+            <div class="skill-tip-next" v-for="l in dmgLine(hoverTip.next)" :key="'x' + l">
+              {{ hoverTip.hard > 0 ? '다음 레벨' : '1레벨' }}: {{ l }}
+            </div>
+          </div>
+
+          <div class="skill-tip-block" v-if="hoverTip.receives.length">
+            <div class="skill-tip-label">받는 시너지 <span v-if="hoverTip.receives.some((r) => r.bonus)">현재 +{{ hoverTip.receives.reduce((s, r) => s + r.bonus, 0) }}%</span></div>
+            <div class="skill-tip-syn" v-for="r in hoverTip.receives" :key="r.skill + r.kind">
+              <span>{{ r.skill }}</span>
+              <span>레벨당 +{{ r.percent }}% {{ r.kind === 'phy' ? '물리' : '' }}데미지<b v-if="r.points"> ({{ r.points }}레벨 → +{{ r.bonus }}%)</b></span>
+            </div>
+          </div>
+          <div class="skill-tip-block" v-if="hoverTip.gives.length">
+            <div class="skill-tip-label">이 스킬이 시너지를 주는 스킬</div>
+            <div class="skill-tip-syn" v-for="g in hoverTip.gives" :key="g.target + g.kind">
+              <span>{{ g.target }}</span><span>레벨당 +{{ g.percent }}% {{ g.kind === 'phy' ? '물리' : '' }}데미지</span>
+            </div>
+          </div>
+          <div class="skill-tip-foot" v-if="!hoverTip.receives.length && !hoverTip.gives.length">시너지 없음</div>
+        </div>
       </section>
 
       <div class="sim-zone-divider"></div>
@@ -1044,6 +1161,28 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 .sim-tab-reset:hover{color:var(--blood); border-color:var(--blood);}
 
+/* 스킬 툴팁 - 게임 툴팁처럼 검은 반투명 바탕, 이름 금색, 시너지는 파랑 */
+.skill-tip{
+  position:fixed; z-index:200; pointer-events:none; background:rgba(8,8,10,0.96); border:1px solid rgba(200,163,77,0.45);
+  border-radius:6px; padding:12px 14px; box-shadow:0 14px 34px -10px rgba(0,0,0,0.85); font-size:12.5px; color:#d8d2c4;
+}
+.skill-tip-name{font-size:15px; font-weight:700; color:#C7B377;}
+.skill-tip-name small{font-size:11px; font-weight:400; color:#8C8C8C; margin-left:4px;}
+.skill-tip-meta{font-size:11.5px; color:#8C8C8C; margin:3px 0 8px;}
+.skill-tip-desc{margin:0 0 8px; line-height:1.6; color:#e8e4da;}
+.skill-tip-block{border-top:1px solid rgba(255,255,255,0.08); padding-top:7px; margin-top:7px;}
+.skill-tip-level{color:#e8e4da;}
+.skill-tip-level b{color:#fff;}
+.skill-tip-level small{color:#8C8C8C;}
+.skill-tip-dmg{color:#fff; font-weight:600;}
+.skill-tip-next{color:#9a9486; font-size:11.5px;}
+.skill-tip-label{font-size:11.5px; color:#C7B377; margin-bottom:3px; display:flex; justify-content:space-between;}
+.skill-tip-label span{color:#8f8fff;}
+.skill-tip-syn{display:flex; justify-content:space-between; gap:10px; color:#8f8fff; line-height:1.7;}
+.skill-tip-syn span:first-child{color:#d8d2c4;}
+.skill-tip-syn b{color:#b4b4ff; font-weight:600;}
+.skill-tip-foot{color:#6f6a60; font-size:11.5px; margin-top:6px;}
+@media (hover: none){ .skill-tip{display:none;} }
 .sim-detail{margin-top:18px; padding:14px 16px; border:1px solid var(--border-soft); border-radius:6px; background:rgba(0,0,0,0.25); min-height:60px;}
 .sim-detail-empty{display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:12.5px;}
 .sim-detail-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
