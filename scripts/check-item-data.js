@@ -373,6 +373,33 @@ for (const [, names] of iconByKey) {
     })
   }
   console.log('크래프트 시뮬레이터 검사: 통과 조건 확인')
+
+  // 교차 검사: 시뮬레이터가 굴린 결과는 판매글 등록 검사를 전부 통과해야 함 (두 기능이 같은 규칙인지)
+  // - 예전에 레벨당 옵션("마나 +0.75 (캐릭터 레벨당)")이 정수 검사에 걸려 등록이 막히던 버그를 이걸로 찾음
+  const bases = [...JSON.parse(readFileSync(join(__dirname, '../src/data/baseItems.json'), 'utf8')), ...data.miscBases.map((b) => ({ ...b, sockets: 0 }))]
+  let rolls = 0
+  let fails = 0
+  for (const b of bases) {
+    const recipes = R.craftRecipesFor(data, b)
+    if (!recipes.length) continue
+    const byKey = new Map(R.affixFamiliesFor(data, b, 'crafted').map((f) => [f.key, f]))
+    for (const r of recipes) {
+      for (const ilvl of [data.bases[b.code].qlvl, 45, 75, 98].filter((l) => l >= data.bases[b.code].qlvl)) {
+        const pools = R.craftPools(data, b, ilvl)
+        for (let i = 0; i < 20; i++) {
+          const res = R.rollCraft(pools, r, ilvl, rng)
+          rolls++
+          const picks = res.affixes.map((a) => ({ fam: byKey.get(a.key), values: a.values }))
+          const errs = picks.some((p) => !p.fam)
+            ? ['등록 화면에 없는 옵션']
+            : [...R.validateCraftValues(r, res.fixed), ...R.validateAffixPicks(data, b, 'crafted', picks)]
+          if (errs.length && fails++ < 3) bad(`${b.code} ${r.name} 아이템 레벨 ${ilvl} 결과가 등록 검사에서 막힘: ${errs.join(' / ')}`)
+        }
+      }
+    }
+  }
+  if (fails > 3) bad(`등록 검사에서 막힌 결과 총 ${fails}개`)
+  console.log(`크래프트 시뮬레이터 ↔ 판매글 등록 교차 검사: 결과 ${rolls}개`)
 }
 
 // ---------- 결과 출력 ----------

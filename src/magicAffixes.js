@@ -240,8 +240,12 @@ export const filledValues = (fam, values) =>
   fam.slotRanges.map(([lo, hi], i) => (lo === hi ? lo : values?.[i] === '' || values?.[i] === undefined || values?.[i] === null ? null : Number(values[i])))
 
 // 수치 칸이 범위 밖이면 그 칸 번호, 아니면 -1
+// (고정 수치 칸은 검사 안 함 - 레벨당 옵션은 '마나 +0.75 (캐릭터 레벨당)'처럼 원래 소수라 정수 검사에 걸림)
 const badSlot = (fam, vals) =>
-  vals.findIndex((v, i) => v !== null && (!Number.isInteger(v) || v < fam.slotRanges[i][0] || v > fam.slotRanges[i][1]))
+  vals.findIndex((v, i) => {
+    const [lo, hi] = fam.slotRanges[i]
+    return v !== null && lo !== hi && (!Number.isInteger(v) || v < lo || v > hi)
+  })
 
 // 크래프트 고정 옵션 수치 검사 -> 문제 문구 목록
 export function validateCraftValues(recipe, values) {
