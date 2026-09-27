@@ -8,11 +8,26 @@ import { renderMarkdown } from '../markdown.js'
 import iconsData from '../data/icons.json'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { profileState } from '../profileStore.js'
+import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
+import { buildTooltip } from '../itemTooltip.js'
 
 const route = useRoute()
 const post = computed(() => getTradePost(route.params.id))
 const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
 const linkedItem = computed(() => (post.value ? getTradeItem(post.value.itemId) : null))
+
+// 게임 툴팁 모양 아이템 카드 (이미지로 저장 가능)
+const tooltipCanvas = ref(null)
+const tooltip = computed(() =>
+  buildTooltip({
+    item: linkedItem.value,
+    name: post.value?.itemName,
+    category: post.value?.category,
+    options: post.value?.options || [],
+    ethereal: post.value?.ethereal,
+    amountLabel: post.value?.amountLabel,
+  })
+)
 
 function iconUrlFor(iconKey) {
   const b64 = iconKey && iconsData[iconKey]
@@ -170,9 +185,12 @@ function confirmBuy() {
         <span class="buy-now-hint">{{ post.negotiable ? '흥정 가능한 판매글이에요 - 룬·보석으로 교환을 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</span>
       </div>
 
-      <div class="trade-options-card" v-if="post.options && post.options.length">
-        <div class="d-section-title">아이템 옵션</div>
-        <div class="trade-option-line" v-for="(o, i) in post.options" :key="i">{{ o }}</div>
+      <div class="trade-options-card">
+        <div class="tooltip-card-head">
+          <div class="d-section-title">아이템 정보</div>
+          <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
+        </div>
+        <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
       </div>
 
       <div class="trade-post-content" v-html="contentHtml"></div>
@@ -362,7 +380,13 @@ function confirmBuy() {
 
 .trade-options-card{border:1px solid var(--border-soft); background:var(--panel-2); padding:18px 22px; margin-bottom:22px; border-radius:14px;}
 .trade-options-card .d-section-title{margin-bottom:10px;}
-.trade-option-line{font-size:12.5px; color:var(--text-muted); line-height:1.8;}
+.tooltip-card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;}
+.tooltip-card-head .d-section-title{margin-bottom:0;}
+.tooltip-save-btn{
+  font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:6px 12px; border-radius:8px;
+}
+.tooltip-save-btn:hover{background:var(--panel);}
+.trade-options-card .item-tooltip-canvas{margin:0 auto;}
 
 .trade-post-content{
   font-size:14.5px; line-height:1.9; color:var(--text);

@@ -37,6 +37,8 @@ import { runewordBaseTypesKo } from '../itemStats.js'
 import iconsData from '../data/icons.json'
 import { itemMatchesQuery } from '../itemSearch.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
+import { buildTooltip } from '../itemTooltip.js'
 import { profileState } from '../profileStore.js'
 
 const router = useRouter()
@@ -499,6 +501,31 @@ function submitBundle() {
   router.push(`/trade/${post.id}`)
 }
 
+// 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
+function buildAllOptions() {
+  const dbOptions = itemAffixes.value.map((a, i) => {
+    if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
+    return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
+  })
+  return [
+    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
+  ]
+}
+
+// 입력하는 동안 게임 툴팁 모양으로 바로 보여주는 미리보기 (묶음 판매·아이템 미선택이면 숨김)
+const previewTooltip = computed(() =>
+  !bundleMode.value && form.value.itemName.trim()
+    ? buildTooltip({
+        item: selectedItem.value,
+        name: form.value.itemName,
+        category: form.value.category,
+        options: buildAllOptions(),
+        ethereal: form.value.ethereal,
+        amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
+      })
+    : null
+)
+
 function submitPost() {
   if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
@@ -514,13 +541,7 @@ function submitPost() {
     return
   }
   formError.value = ''
-  const dbOptions = itemAffixes.value.map((a, i) => {
-    if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
-    return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
-  })
-  const options = [
-    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
-  ]
+  const options = buildAllOptions()
   const post = addTradePost({
     ...form.value,
     amountLabel,
@@ -979,6 +1000,12 @@ function submitPost() {
 
       <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="260px" />
 
+      <div class="tooltip-preview" v-if="previewTooltip">
+        <div class="option-editor-title">미리보기</div>
+        <div class="option-editor-hint">판매글에 이 모양으로 보이고, 이미지로도 저장할 수 있어요.</div>
+        <ItemTooltipCanvas :tooltip="previewTooltip" :file-name="form.itemName" />
+      </div>
+
       <div class="trade-new-actions">
         <router-link to="/trade" class="trade-new-cancel">취소</router-link>
         <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
@@ -1100,6 +1127,8 @@ function submitPost() {
 
 .base-stats-input{border:1px solid var(--gold-dim); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
 .write-input.invalid{border-color:var(--blood) !important; box-shadow:0 0 0 1px var(--blood);}
+.tooltip-preview{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:8px; align-items:center;}
+.tooltip-preview .option-editor-title, .tooltip-preview .option-editor-hint{align-self:stretch;}
 .base-mods{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--border); padding-top:12px; margin-top:2px;}
 .class-skill-rule b{color:var(--gold);}
 .class-skill-remove{flex:none; color:var(--text-dim); font-size:12px; padding:4px 6px;}
