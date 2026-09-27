@@ -249,6 +249,21 @@ const skillData = Object.fromEntries(
 )
 // 스킬 설명: skill_text.json (직업마다 다른 id 규칙은 src/skillText.js에서 처리)
 const skillTextIndex = buildSkillTextIndex(skillText, skillIdMap, rawSkillData)
+
+// 스킬 이름: 게임 최신 공식 한글 이름(skill_text ko)과 예전 음역 이름(skills.json)을 같이 보여줌
+// 내부 키는 계속 예전 이름(skills.json name)을 씀 - 표시만 바뀜
+function officialSkillName(name) {
+  return skillTextIndex[selectedClass.value]?.[name]?.ko || null
+}
+// "눈보라 (블리자드)" - 공식 이름이 없거나 같으면 그냥 이름
+function skillDisplayName(name) {
+  const o = officialSkillName(name)
+  return o && o !== name ? `${o} (${name})` : name
+}
+// 영문도 게임 내부 이름(Dopplezon) 대신 화면 표시 이름(Decoy)
+function skillEnglishName(skill) {
+  return skillTextIndex[selectedClass.value]?.[skill.name]?.en || skill.nameEn
+}
 const classTabs = computed(() => skillData[selectedClass.value].tabs)
 
 const clampedLevel = computed({
@@ -791,11 +806,11 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
         <div class="sim-detail" v-if="selectedSkill">
           <div class="sim-detail-head">
             <div class="sim-detail-title">
-              <strong>{{ selectedSkill.name }}</strong>
+              <strong>{{ skillDisplayName(selectedSkill.name) }}</strong>
               <span>
                 요구 레벨 {{ selectedSkill.reqLevel }}
                 <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length">
-                  · 필수 선행: <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ r }}</span>
+                  · 필수 선행: <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ skillDisplayName(r) }}</span>
                 </template>
               </span>
             </div>
@@ -818,17 +833,22 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent }}%)</span>
             </p>
             <p class="sim-detail-syn" v-if="synergySources(selectedSkill).length">
-              시너지 제공: <span v-for="(s, i) in synergySources(selectedSkill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ s.skill }}(+{{ s.percent }}%/lv)</span>
+              시너지 제공: <span v-for="(s, i) in synergySources(selectedSkill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ skillDisplayName(s.skill) }} +{{ s.percent }}%/lv</span>
             </p>
           </div>
         </div>
         <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍어보세요 · 마우스를 올리면 설명과 시너지가 보여요</div>
 
         <div class="skill-tip" v-if="hoverTip" ref="tipEl" :style="tooltipStyle" role="tooltip">
-          <div class="skill-tip-name">{{ hoverTip.skill.name }} <small>{{ hoverTip.skill.nameEn }}</small></div>
+          <div class="skill-tip-name">
+            {{ officialSkillName(hoverTip.skill.name) || hoverTip.skill.name }}
+            <small>
+              <template v-if="officialSkillName(hoverTip.skill.name) && officialSkillName(hoverTip.skill.name) !== hoverTip.skill.name">{{ hoverTip.skill.name }} · </template>{{ skillEnglishName(hoverTip.skill) }}
+            </small>
+          </div>
           <div class="skill-tip-meta">
             {{ hoverTip.tab }} · 요구 레벨 {{ hoverTip.skill.reqLevel }}
-            <template v-if="hoverTip.skill.reqSkills && hoverTip.skill.reqSkills.length"> · 선행: {{ hoverTip.skill.reqSkills.join(', ') }}</template>
+            <template v-if="hoverTip.skill.reqSkills && hoverTip.skill.reqSkills.length"> · 선행: {{ hoverTip.skill.reqSkills.map(skillDisplayName).join(', ') }}</template>
           </div>
           <p class="skill-tip-desc" v-if="hoverTip.desc.length">
             <template v-for="(l, i) in hoverTip.desc" :key="i">{{ l }}<br v-if="i < hoverTip.desc.length - 1" /></template>
@@ -851,14 +871,14 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <div class="skill-tip-block" v-if="hoverTip.receives.length">
             <div class="skill-tip-label">받는 시너지 <span v-if="hoverTip.receives.some((r) => r.bonus)">현재 +{{ hoverTip.receives.reduce((s, r) => s + r.bonus, 0) }}%</span></div>
             <div class="skill-tip-syn" v-for="r in hoverTip.receives" :key="r.skill + r.kind">
-              <span>{{ r.skill }}</span>
+              <span>{{ skillDisplayName(r.skill) }}</span>
               <span>레벨당 +{{ r.percent }}% {{ r.kind === 'phy' ? '물리' : '' }}데미지<b v-if="r.points"> ({{ r.points }}레벨 → +{{ r.bonus }}%)</b></span>
             </div>
           </div>
           <div class="skill-tip-block" v-if="hoverTip.gives.length">
             <div class="skill-tip-label">이 스킬이 시너지를 주는 스킬</div>
             <div class="skill-tip-syn" v-for="g in hoverTip.gives" :key="g.target + g.kind">
-              <span>{{ g.target }}</span><span>레벨당 +{{ g.percent }}% {{ g.kind === 'phy' ? '물리' : '' }}데미지</span>
+              <span>{{ skillDisplayName(g.target) }}</span><span>레벨당 +{{ g.percent }}% {{ g.kind === 'phy' ? '물리' : '' }}데미지</span>
             </div>
           </div>
           <div class="skill-tip-foot" v-if="!hoverTip.receives.length && !hoverTip.gives.length">시너지 없음</div>
