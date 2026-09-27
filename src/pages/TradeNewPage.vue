@@ -1,6 +1,4 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -611,6 +609,8 @@ const previewTooltip = computed(() =>
         name: form.value.itemName,
         category: form.value.category,
         quality: isManualEquip.value ? itemQuality.value : '',
+        // 사전에 없는 장비는 고른 베이스 아이콘 (반지·부적 등은 icon_key, 무기·방어구는 게임 invfile 기준 아이콘)
+        iconKey: selectedBaseItem.value?.icon_key || magicAffixData.bases[selectedBaseItem.value?.code]?.icon || null,
         options: buildAllOptions(),
         ethereal: form.value.ethereal,
         amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
@@ -649,17 +649,6 @@ function submitPost() {
 
 <template>
   <div class="items-page trade-new-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb">
-      <router-link to="/">메인</router-link> / <router-link to="/trade">거래게시판</router-link> / <b>판매글 등록</b>
-    </div>
-    <HeaderNotifications />
-  </header>
 
   <div class="patch-hero">
     <div class="patch-hero-inner">

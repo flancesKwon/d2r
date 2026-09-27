@@ -40,7 +40,8 @@ function nameColor(item, category, name, quality) {
 
 // { item, name, category, quality, options, ethereal, amountLabel } -> { icon_key, lines: [{ text, color }] }
 // quality: 사전에 없는 장비를 등록할 때 고른 품질(magic|rare|crafted|normal) - 이름 색에 씀
-export function buildTooltip({ item = null, name = '', category = '', quality = '', options = [], ethereal = false, amountLabel = '' }) {
+// iconKey: 사전에 없는 아이템의 아이콘 (베이스 아이콘 등)
+export function buildTooltip({ item = null, name = '', category = '', quality = '', options = [], ethereal = false, amountLabel = '', iconKey = null }) {
   const meta = {}
   const mods = []
   for (const line of options.filter(Boolean)) {
@@ -92,5 +93,5 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   if (sockets) tail.push(`소켓 (${sockets})`)
   if (tail.length) push(tail.join(', '), TOOLTIP_COLORS.magic)
 
-  return { icon_key: item?.icon_key || null, ethereal, lines }
+  return { icon_key: item?.icon_key || iconKey || null, ethereal, lines }
 }

@@ -89,12 +89,36 @@ const classOf = (typeList) => typeList.map((t) => types.get(t)?.Class).find(Bool
 // 레어 가능 여부는 베이스 자기 종류의 Rare 칸 (상위 분류까지 보면 부적도 misc 때문에 레어로 잡힘)
 const canRare = (type) => (Number(types.get(type)?.Rare) === 1 ? 1 : 0)
 
+// 아이콘: 게임 원본 invfile 칸(파일 이름)으로 src/data/icons.json 키를 찾음 ("invfile__종류" 모양, 코드로 추측하지 않음)
+const icons = JSON.parse(fs.readFileSync(new URL('../src/data/icons.json', import.meta.url), 'utf8'))
+const iconKeys = Object.keys(icons)
+const iconFor = (invfile, prefer) => {
+  if (!invfile) return null
+  const keys = iconKeys.filter((k) => k.startsWith(invfile + '__'))
+  return keys.find((k) => k.endsWith('__' + prefer)) || keys[0] || null
+}
+
 const bases = {}
+// icons.json 에 그림이 없는 베이스는 같은 계열(일반·익셉셔널·엘리트)의 그림을 대신 씀 (iconApprox 표시)
+const familyOf = {}
 for (const b of [...load('armor.json'), ...load('weapons.json')]) {
   if (!b.code || !b.name || Number(b.spawnable) !== 1) continue
   const tl = ancestors(b.type).concat(b.type2 ? ancestors(b.type2) : [])
   bases[b.code] = { qlvl: Number(b.level) || 0, types: [...new Set(tl)], cls: classOf(tl), rare: canRare(b.type) }
   if (num(b['magic lvl'])) bases[b.code].magic_lvl = Number(b['magic lvl'])
+  const icon = iconFor(b.invfile)
+  if (icon) bases[b.code].icon = icon
+  else familyOf[b.code] = [b.normcode, b.ubercode, b.ultracode].filter((c) => c && c !== b.code)
+  // 아이템 레벨 구간별 최대 소켓 (itemtypes MaxSockets1~3, 구간 기준 MaxSocketsLevelThreshold1·2 = 25·40), 베이스 gemsockets 가 상한
+  const t = types.get(b.type)
+  const cap = Number(b.gemsockets) || 0
+  bases[b.code].sock = [1, 2, 3].map((n) => Math.min(cap, Number(t?.['MaxSockets' + n]) || 0))
+  bases[b.code].sockLv = [Number(t?.MaxSocketsLevelThreshold1) || 25, Number(t?.MaxSocketsLevelThreshold2) || 40]
+}
+
+for (const [code, fam] of Object.entries(familyOf)) {
+  const alt = fam.map((c) => bases[c]?.icon).find(Boolean)
+  if (alt) Object.assign(bases[code], { icon: alt, iconApprox: true })
 }
 
 // 무기·방어구 외에 매직/레어로 거래되는 베이스 (판매글에서 버튼으로 고름)
@@ -112,7 +136,9 @@ const miscBases = MISC_BASES.map(({ code, name_ko }) => {
   if (!m) throw new Error(`no misc ${code}`)
   const tl = ancestors(m.type)
   bases[code] = { qlvl: Number(m.level) || 0, types: tl, cls: classOf(tl), rare: canRare(m.type) }
-  return { id: 'misc-' + code, code, name_ko, subtitle: m.name }
+  const icon = iconFor(m.invfile, { rin: 'ring', amu: 'amulet' }[code] || 'charm')
+  if (!icon) throw new Error(`no icon for ${code} (${m.invfile})`)
+  return { id: 'misc-' + code, code, name_ko, subtitle: m.name, icon_key: icon }
 })
 
 // 크래프트 제작법 (cubemain.txt 의 output "usetype,crf" 줄) - 재료 매직 아이템의 베이스가 그대로 결과 베이스가 되고,

@@ -402,6 +402,31 @@ for (const [, names] of iconByKey) {
   console.log(`크래프트 시뮬레이터 ↔ 판매글 등록 교차 검사: 결과 ${rolls}개`)
 }
 
+// ---------- 9. 시세 등급표 체크 (아이템을 사전 영문 이름으로 참조 - 틀린 이름 방지) ----------
+{
+  const tiers = JSON.parse(readFileSync(join(__dirname, '../src/data/marketTiers.json'), 'utf8'))
+  const names = new Set(itemsData.map((it) => it.name_en))
+  for (const t of tiers) for (const en of t.items) if (!names.has(en)) err(`시세 등급표(${t.tier}): 사전에 없는 아이템 "${en}"`)
+}
+
+// ---------- 10. 브레이크포인트 표 체크 (%는 오르고 프레임은 내려가야 함 - 여러 출처 표를 합칠 때 섞임 방지) ----------
+{
+  const bp = JSON.parse(readFileSync(join(__dirname, '../src/data/breakpoints.json'), 'utf8'))
+  for (const c of bp.classes) {
+    for (const stat of ['fcr', 'fhr', 'fbr']) {
+      for (const v of c[stat] || []) {
+        const t = v.table
+        if (t[0][0] !== 0) err(`브레이크포인트 ${c.name} ${stat} ${v.label}: 0%부터 시작하지 않음`)
+        for (let i = 1; i < t.length; i++) {
+          if (!(t[i][0] > t[i - 1][0]) || t[i][1] !== t[i - 1][1] - 1) {
+            err(`브레이크포인트 ${c.name} ${stat} ${v.label}: ${t[i - 1]} -> ${t[i]} 순서가 이상함`)
+          }
+        }
+      }
+    }
+  }
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)

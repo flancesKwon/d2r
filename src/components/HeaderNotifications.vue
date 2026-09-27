@@ -32,7 +32,7 @@ function openNotification(n) {
       type="button" class="header-icon-btn" title="알림"
       @click="toggleDropdown" @blur="hideDropdownSoon"
     >
-      <span>🔔</span>
+      <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 004 0"/></svg>
       <span class="header-icon-badge" v-if="unreadNotificationCount > 0">{{ unreadNotificationCount > 9 ? '9+' : unreadNotificationCount }}</span>
     </button>
     <div class="header-notif-dropdown" v-if="showDropdown">
@@ -53,15 +53,15 @@ function openNotification(n) {
       </div>
     </div>
     <router-link to="/messages" class="header-icon-btn" title="쪽지함">
-      <span>✉️</span>
+      <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
       <span class="header-icon-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</span>
     </router-link>
     <router-link to="/deals" class="header-icon-btn" title="거래중인 품목">
-      <span>🤝</span>
+      <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><path d="M7 7h10l3 3-3 3M17 17H7l-3-3 3-3"/></svg>
       <span class="header-icon-badge" v-if="activeDealCount > 0">{{ activeDealCount > 9 ? '9+' : activeDealCount }}</span>
     </router-link>
     <router-link to="/mypage" class="header-icon-btn" title="마이페이지">
-      <span>👤</span>
+      <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1-3.5 4-5 7-5s6 1.5 7 5"/></svg>
     </router-link>
   </div>
 </template>
@@ -72,6 +72,7 @@ function openNotification(n) {
   position:relative; font-size:16px; width:34px; height:34px; display:flex; align-items:center;
   justify-content:center; color:var(--text-dim); border-radius:10px;
 }
+.hi{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
 .header-icon-btn:hover{background:var(--panel-2); color:var(--text);}
 .header-icon-badge{
   position:absolute; top:-2px; right:-2px; min-width:15px; height:15px; padding:0 3px; border-radius:999px;

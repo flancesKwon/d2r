@@ -1,7 +1,5 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
@@ -40,6 +38,14 @@ const activeSub = ref(null)
 // ?q=이름 으로 들어오면(룬워드 찾기 등) 그 검색어로 시작
 const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const selected = ref(null)
+// 상단 통합 검색에서 아이템을 고르면 ?q=이름&id=아이템 으로 들어옴 -> 그 아이템 상세를 바로 열기
+// (이미 사전 페이지에 있을 때도 주소만 바뀌니 watch 로 따라감)
+function applyRouteQuery(q) {
+  if (typeof q.q === 'string') searchQuery.value = q.q
+  selected.value = (q.id && items.find((it) => it.id === q.id)) || null
+}
+applyRouteQuery(route.query)
+watch(() => route.query, applyRouteQuery)
 const showQualityInfo = ref(false)
 
 const urlCat = route.query.cat
@@ -83,15 +89,6 @@ const filteredItems = computed(() => {
 
 <template>
   <div class="items-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <b>아이템 사전</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="toolbar">
     <div class="toolbar-inner">

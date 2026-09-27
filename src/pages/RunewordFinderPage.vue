@@ -1,6 +1,4 @@
 <script setup>
-import LogoMark from '../components/LogoMark.vue'
-import HeaderNotifications from '../components/HeaderNotifications.vue'
 import { ref, computed, watch } from 'vue'
 import itemsData from '../data/items.json'
 import runeChain from '../data/runeUpgradeChain.json'
@@ -98,15 +96,6 @@ function runeSlots(rw) {
 
 <template>
   <div class="items-page rw-finder-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <b>룬워드 찾기</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
