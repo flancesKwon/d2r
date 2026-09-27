@@ -166,6 +166,15 @@ function confirmBuy() {
       </div>
       <div class="trade-post-meta">{{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
 
+      <!-- 상세 들어오자마자 보이게: 넓은 화면은 오른쪽, 폰은 제목 바로 아래 -->
+      <div class="post-top">
+      <div class="post-item-visual">
+        <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
+        <p class="tooltip-note">판매자가 입력한 아이템 정보·옵션으로 그린 이미지예요. 실제 아이템과 다를 수 있으니 거래 전에 꼭 확인하세요.</p>
+        <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
+      </div>
+
+      <div class="post-main">
       <div class="trade-info-card">
         <div class="trade-info-row"><span class="k">수량 / 단위</span><span class="v">{{ post.amountLabel }}</span></div>
         <div class="trade-info-row">
@@ -184,13 +193,7 @@ function confirmBuy() {
         <button type="button" class="btn-primary buy-now-btn" @click="openBuyModal">구매하기</button>
         <span class="buy-now-hint">{{ post.negotiable ? '흥정 가능한 판매글이에요 - 룬·보석으로 교환을 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</span>
       </div>
-
-      <div class="trade-options-card">
-        <div class="tooltip-card-head">
-          <div class="d-section-title">아이템 정보</div>
-          <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
-        </div>
-        <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
+      </div>
       </div>
 
       <div class="trade-post-content" v-html="contentHtml"></div>
@@ -336,7 +339,7 @@ function confirmBuy() {
    본문·구매신청 목록을 각진 구분선 대신 카드로 나눠서 편하게 읽히게 함 */
 .trade-detail-wrap{max-width:920px;}
 .post-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:18px; padding:32px 36px; margin-bottom:24px;}
-.trade-title-line{display:flex; align-items:center; gap:12px; margin:10px 0 8px;}
+.trade-title-line{display:flex; align-items:center; gap:12px; margin:10px 0 8px; flex-wrap:wrap;}
 .trade-title-icon{
   width:48px; height:48px; flex:none; display:flex; align-items:center; justify-content:center;
   background:var(--panel-2); border:1px solid var(--border-soft); border-radius:12px;
@@ -346,7 +349,7 @@ function confirmBuy() {
 .trade-title-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
 .trade-title-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
 .trade-title-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
-.trade-post-title{font-size:25px; margin:0;}
+.trade-post-title{font-size:25px; margin:0; word-break:keep-all; min-width:0;}
 .trade-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:20px;}
 
 .ethereal-badge{font-size:10.5px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
@@ -378,15 +381,20 @@ function confirmBuy() {
 .buy-now-btn{padding:12px 28px; font-size:14px; border-radius:10px; flex:none;}
 .buy-now-hint{font-size:12px; color:var(--text-dim);}
 
-.trade-options-card{border:1px solid var(--border-soft); background:var(--panel-2); padding:18px 22px; margin-bottom:22px; border-radius:14px;}
-.trade-options-card .d-section-title{margin-bottom:10px;}
-.tooltip-card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;}
-.tooltip-card-head .d-section-title{margin-bottom:0;}
+/* 판매 정보(왼쪽) + 아이템 툴팁 이미지(오른쪽). 폰에선 이미지가 먼저 */
+.post-top{display:grid; grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:'main visual'; gap:24px; align-items:start; margin-bottom:22px;}
+.post-main{grid-area:main; min-width:0;}
+.post-main .buy-now-row{margin-bottom:0;}
+.post-item-visual{grid-area:visual; display:flex; flex-direction:column; align-items:center; gap:10px; max-width:360px;}
+.tooltip-note{font-size:11.5px; color:var(--text-dim); line-height:1.6; text-align:center; margin:0;}
 .tooltip-save-btn{
   font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:6px 12px; border-radius:8px;
 }
-.tooltip-save-btn:hover{background:var(--panel);}
-.trade-options-card .item-tooltip-canvas{margin:0 auto;}
+.tooltip-save-btn:hover{background:var(--panel-2);}
+@media (max-width: 860px){
+  .post-top{grid-template-columns:minmax(0, 1fr); grid-template-areas:'visual' 'main';}
+  .post-item-visual{max-width:none;}
+}
 
 .trade-post-content{
   font-size:14.5px; line-height:1.9; color:var(--text);
