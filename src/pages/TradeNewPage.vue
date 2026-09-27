@@ -41,7 +41,9 @@ import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 import AffixPicker from '../components/AffixPicker.vue'
 import magicAffixData from '../data/magicAffixes.json'
-import { affixFamiliesFor, affixLimits, familyLines, filledValues, validateAffixPicks } from '../magicAffixes.js'
+import {
+  affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, filledValues, validateAffixPicks, validateCraftValues,
+} from '../magicAffixes.js'
 import { profileState } from '../profileStore.js'
 
 const router = useRouter()
@@ -145,16 +147,20 @@ function pickMiscBase(b) {
   resetBaseMods()
 }
 
-// 매직/레어/일반(흰색) 품질 - 사전에 없는 아이템을 베이스로 등록할 때 고름.
-// 매직·레어는 그 베이스에 붙을 수 있는 접사만(src/magicAffixes.js), 일반은 상급 옵션·소켓만
+// 매직/레어/크래프트/일반(흰색) 품질 - 사전에 없는 아이템을 베이스로 등록할 때 고름.
+// 매직·레어는 그 베이스에 붙을 수 있는 접사만(src/magicAffixes.js), 크래프트는 제작법 고정 옵션 +
+// 레어 접사 풀에서 최대 4개, 일반은 상급 옵션·소켓만
 const itemQuality = ref('')
-const QUALITY_KO = { magic: '매직', rare: '레어', normal: '일반(흰색)' }
+const QUALITY_KO = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반(흰색)' }
 const isManualEquip = computed(() => !selectedItem.value && form.value.category === '매직/레어/일반')
+// 이 베이스로 만들 수 있는 크래프트 제작법 (예: 반지 = 히트 파워·블러드·캐스터·세이프티)
+const craftRecipes = computed(() => (selectedBaseItem.value ? craftRecipesFor(magicAffixData, selectedBaseItem.value) : []))
 const qualityChoices = computed(() => {
   const b = selectedBaseItem.value
   if (!isManualEquip.value || !b) return []
   const out = ['magic']
   if (magicAffixData.bases[b.code]?.rare) out.push('rare')
+  if (craftRecipes.value.length) out.push('crafted')
   if (b.base_stats.category !== 'misc') out.push('normal')
   return out
 })
@@ -163,8 +169,30 @@ function pickQuality(q) {
   resetAffixPicks()
   superiorPick.value = { combo: '', values: {} }
   uniqueSockets.value = ''
+  // 제작법이 하나뿐이면 바로 고름
+  craftPick.value = { id: craftRecipes.value.length === 1 ? craftRecipes.value[0].id : '', values: [] }
 }
-const isAffixQuality = computed(() => isManualEquip.value && ['magic', 'rare'].includes(itemQuality.value))
+const isAffixQuality = computed(() => isManualEquip.value && ['magic', 'rare', 'crafted'].includes(itemQuality.value))
+const isCrafted = computed(() => isAffixQuality.value && itemQuality.value === 'crafted')
+const craftPick = ref({ id: '', values: [] })
+const pickedCraft = computed(() => (isCrafted.value ? craftRecipes.value.find((r) => r.id === craftPick.value.id) || null : null))
+function pickCraft(id) {
+  craftPick.value = { id, values: [] }
+}
+// 크래프트 고정 옵션 중 수치를 골라야 하는 칸 (고정 수치는 자동)
+const craftInputSlots = computed(() =>
+  pickedCraft.value ? pickedCraft.value.fam.slotRanges.map(([lo, hi], i) => ({ i, lo, hi })).filter((s) => s.lo !== s.hi) : []
+)
+function buildCraftOptions() {
+  if (!pickedCraft.value) return []
+  const vals = filledValues(pickedCraft.value.fam, craftPick.value.values)
+  return vals.some((v) => v === null) ? [] : familyLines(pickedCraft.value.fam, vals)
+}
+const craftErrors = computed(() => {
+  if (!isCrafted.value) return []
+  if (!pickedCraft.value) return ['크래프트 제작법을 골라주세요']
+  return validateCraftValues(pickedCraft.value, craftPick.value.values)
+})
 const affixFamilies = computed(() =>
   isAffixQuality.value ? affixFamiliesFor(magicAffixData, selectedBaseItem.value, itemQuality.value) : []
 )
@@ -373,7 +401,7 @@ function buildBaseStatOptions() {
     const exp = expectedWeaponDamage.value
     if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
   }
-  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...buildAffixOptions())
+  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...buildCraftOptions(), ...buildAffixOptions())
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
 }
@@ -399,7 +427,7 @@ const invalidInputs = computed(() => {
   for (const { fam, values } of pickedAffixes.value) {
     if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - 수치를 골라주세요`)
   }
-  bad.push(...affixErrors.value)
+  bad.push(...craftErrors.value, ...affixErrors.value)
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -883,8 +911,38 @@ function submitPost() {
             @click="pickQuality(q)"
           >{{ QUALITY_KO[q] }}</button>
         </div>
-        <template v-if="isAffixQuality">
+        <template v-if="isCrafted">
+          <div class="option-editor-title">크래프트 제작법</div>
           <div class="option-editor-hint">
+            {{ baseItemLabel(selectedBaseItem) }}로 만들 수 있는 제작법이에요. 제작법 고정 옵션은 항상 붙고, 수치만 골라주세요.
+          </div>
+          <div class="fallback-cat-row">
+            <button
+              type="button" v-for="r in craftRecipes" :key="r.id" :class="{ active: craftPick.id === r.id }"
+              @click="pickCraft(r.id)"
+            >{{ r.name }}</button>
+          </div>
+          <template v-if="pickedCraft">
+            <div class="option-text fixed">{{ pickedCraft.fam.label }}</div>
+            <div class="option-row craft-values" v-if="craftInputSlots.length">
+              <select
+                v-for="s in craftInputSlots" :key="s.i" v-model.number="craftPick.values[s.i]"
+                class="write-select option-value-select" :aria-label="`고정 옵션 수치 ${s.lo}~${s.hi}`"
+              >
+                <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
+                <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
+              </select>
+            </div>
+          </template>
+          <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
+          <div class="option-editor-title">무작위 옵션</div>
+        </template>
+        <template v-if="isAffixQuality">
+          <div class="option-editor-hint" v-if="isCrafted">
+            크래프트는 레어 옵션 중에서 최대 4개(접두사·접미사 각각 3개까지)가 붙어요. 4개가 붙으려면 아이템 레벨이 51 이상이어야 해서
+            저레벨에서만 나오는 옵션과는 같이 못 붙고, 같은 종류 옵션은 겹쳐 붙지 않아요.
+          </div>
+          <div class="option-editor-hint" v-else>
             {{ baseItemLabel(selectedBaseItem) }}에 {{ QUALITY_KO[itemQuality] }}로 붙을 수 있는 옵션만 보여줘요.
             {{ itemQuality === 'magic' ? '매직은 접두사·접미사 각각 1개까지' : affixLimitsNow.total === 4 ? '레어 주얼은 합쳐서 4개까지' : '레어는 접두사·접미사 각각 3개까지' }}고,
             같은 종류 옵션은 겹쳐 붙지 않아요. 수치도 게임에서 나오는 범위 안에서만 고를 수 있어요.
@@ -1166,6 +1224,7 @@ function submitPost() {
 .fallback-cat-row button.active{color:var(--gold); border-color:var(--gold-dim); background:var(--panel);}
 
 .affix-error{color:var(--blood);}
+.craft-values{flex-wrap:wrap;}
 .option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
 .option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}

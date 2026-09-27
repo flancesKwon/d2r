@@ -10,7 +10,7 @@
 //   요구 레벨(충전 스킬 레벨 계산용)을 같이 넣음
 //
 // 원본: https://github.com/blizzhackers/d2data (D2R 3.0 JSON) 의 json/magicprefix.json,
-// magicsuffix.json, armor.json, weapons.json, misc.json, itemtypes.json, skills.json 을 받은 폴더를 넘겨서 실행
+// magicsuffix.json, armor.json, weapons.json, misc.json, itemtypes.json, skills.json, cubemain.json 을 받은 폴더를 넘겨서 실행
 //   node scripts/build-magic-affixes.js <d2data json 폴더>
 import fs from 'fs'
 import path from 'path'
@@ -114,9 +114,41 @@ const miscBases = MISC_BASES.map(({ code, name_ko }) => {
   return { id: 'misc-' + code, code, name_ko, subtitle: m.name }
 })
 
+// 크래프트 제작법 (cubemain.txt 의 output "usetype,crf" 줄) - 재료 매직 아이템의 베이스가 그대로 결과 베이스가 되고,
+// 제작법 고정 옵션(mod 1~5)이 붙은 뒤 레어 접사 풀에서 무작위 옵션이 붙음
+// 재료 칸(input 1): "fhl,mag,upg" = 풀 헬름 매직(upg: 익셉셔널·엘리트 버전도), "blun,mag" = 둔기 종류 전체
+const CRAFT_KIND_KO = { 'Hit Power': '히트 파워', Blood: '블러드', Caster: '캐스터', Safety: '세이프티' }
+const CRAFT_SLOT_KO = { Helm: '투구', Boots: '신발', Gloves: '장갑', Belt: '벨트', Shield: '방패', Body: '갑옷', Amulet: '목걸이', Ring: '반지', Weapon: '무기' }
+const equipRows = new Map([...load('armor.json'), ...load('weapons.json')].filter((b) => b.code).map((b) => [b.code, b]))
+const crafts = load('cubemain.json')
+  .filter((r) => Number(r.enabled) === 1 && Number(r.version) === 100 && /\bcrf\b/.test(r.output || ''))
+  .map((r) => {
+    const m = r.description.match(/-> (Hit Power|Blood|Caster|Safety) (\w+)$/)
+    if (!m || !CRAFT_SLOT_KO[m[2]]) throw new Error(`unknown craft ${r.description}`)
+    const [input, ...flags] = r['input 1'].replace(/"/g, '').split(',')
+    const craft = { id: `${m[1]}-${m[2]}`.toLowerCase().replace(/ /g, '-'), name: `${CRAFT_KIND_KO[m[1]]} ${CRAFT_SLOT_KO[m[2]]}` }
+    // 종류 코드가 우선 ("axe"는 아이템 Axe 코드이기도 하지만 제작법에선 도끼 종류 전체)
+    const eq = !types.has(input) && equipRows.get(input)
+    if (eq) {
+      const codes = [input]
+      if (flags.includes('upg')) codes.push(eq.ubercode, eq.ultracode)
+      craft.codes = [...new Set(codes.filter(Boolean))]
+    } else if (types.has(input)) {
+      craft.type = input
+    } else throw new Error(`craft input ${input}`)
+    craft.mods = [1, 2, 3, 4, 5]
+      .filter((i) => r[`mod ${i}`])
+      .map((i) => {
+        const mod = { code: r[`mod ${i}`], param: num(r[`mod ${i} param`]), min: num(r[`mod ${i} min`]), max: num(r[`mod ${i} max`]) }
+        if (SKILL_CODES.has(mod.code)) mod.skill = skillInfo(mod.param)
+        return mod
+      })
+    return craft
+  })
+
 const affixes = [...affixRows('magicprefix.json', 'p'), ...affixRows('magicsuffix.json', 's')]
 fs.writeFileSync(
   new URL('../src/data/magicAffixes.json', import.meta.url),
-  JSON.stringify({ affixes, bases, miscBases }) + '\n'
+  JSON.stringify({ affixes, bases, miscBases, crafts }) + '\n'
 )
-console.log(`affixes ${affixes.length} (prefix ${affixes.filter((a) => a.slot === 'p').length}), bases ${Object.keys(bases).length}`)
+console.log(`affixes ${affixes.length} (prefix ${affixes.filter((a) => a.slot === 'p').length}), bases ${Object.keys(bases).length}, crafts ${crafts.length}`)

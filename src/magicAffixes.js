@@ -117,7 +117,7 @@ const MODS = {
       if (m.max > 0) return [fixed(m.max)]
       const step = Math.max(1, Math.floor((99 - m.skill.req) / -m.max))
       const lv = (ilvl) => Math.max(1, Math.floor((ilvl - m.skill.req) / step))
-      return [[lv(ctx.ilvlMin), lv(99)]]
+      return [[lv(ctx.ilvlMin), lv(ctx.ilvlMax)]]
     },
     text: ([lv], m) => {
       if (typeof lv !== 'number') return `${lv} 레벨 ${m.skill.ko} (충전)`
@@ -126,40 +126,64 @@ const MODS = {
     },
   },
 }
+// 크래프트 제작법 고정 옵션에만 나오는 것
+Object.assign(MODS, {
+  'ac-miss': simple('원거리 공격 방어력 +#'), 'ac-hth': simple('근접 공격 방어력 +#'),
+  deadly: simple('치명적 공격 +#%'), crush: simple('강타 확률 +#%'), openwounds: simple('상처 악화 확률 +#%'),
+  'demon-heal': simple('악마 처치 시 생명력 +#'), 'regen-mana': simple('마나 재생 #%'), 'mana%': simple('최대 마나 #% 증가'),
+  'res-mag': simple('마법 저항 +#%'),
+})
 for (const c of Object.keys(CLASS_KO)) MODS[c] = simple(`${CLASS_KO[c]} 기술 레벨 +#`)
 export const AFFIX_MOD_CODES = Object.keys(MODS)
 
-// 베이스의 affix level 최솟값: 아이템 레벨(ilvl)은 qlvl 이상. alvl = ilvl + magic lvl (지팡이·완드·오브·서클릿),
-// 아니면 ilvl < 99 - qlvl/2 일 때 ilvl - qlvl/2, 그 이상은 2*ilvl - 99. 최대는 99
-function minAffixLevel(b) {
-  const q = b.qlvl
-  if (b.magic_lvl) return Math.min(99, q + b.magic_lvl)
-  const half = Math.floor(q / 2)
-  return Math.min(99, q < 99 - half ? q - half : 2 * q - 99)
+// 아이템 레벨(ilvl) -> affix level(alvl): alvl = ilvl + magic lvl (지팡이·완드·오브·서클릿),
+// 아니면 ilvl < 99 - qlvl/2 일 때 ilvl - qlvl/2, 그 이상은 2*ilvl - 99 (1~99)
+function affixLevelAt(info, ilvl) {
+  const half = Math.floor(info.qlvl / 2)
+  const a = info.magic_lvl ? ilvl + info.magic_lvl : ilvl < 99 - half ? ilvl - half : 2 * ilvl - 99
+  return Math.max(1, Math.min(99, a))
 }
+// 품질별 아이템 레벨 범위: 드랍 매직/레어는 qlvl~99,
+// 크래프트는 (캐릭터 레벨/2 + 재료 아이템 레벨/2) 이라 qlvl/2 ~ 98
+function ilvlRange(info, quality) {
+  return quality === 'crafted' ? [Math.floor(info.qlvl / 2), 98] : [info.qlvl, 99]
+}
+// 크래프트는 아이템 레벨에 따라 무작위 옵션 개수가 정해짐: 30 이하 1개, 31~40 2개, 41~50 3개, 51 이상 4개
+const CRAFT_MIN_ILVL_FOR_COUNT = [0, 0, 31, 41, 51]
 
 // 한 접사 줄(tier)의 수치 칸들 - 여러 옵션(mod)의 칸을 순서대로 이어붙임
 function tierSlots(tier, ctx) {
   const sib = Object.fromEntries(tier.mods.map((m) => [m.code, m]))
-  return tier.mods.flatMap((m) => MODS[m.code].slots(m, sib, { ...ctx, ilvlMin: Math.max(ctx.qlvl, tier.level - (ctx.magicLvl || 0), 1) }))
+  const ilvlMin = Math.max(ctx.ilvlMin, tier.level - (ctx.magicLvl || 0), 1)
+  return tier.mods.flatMap((m) => MODS[m.code].slots(m, sib, { ...ctx, ilvlMin }))
 }
 const familyKey = (a) => a.slot + ':' + a.mods.map((m) => m.code + (IDENTITY_PARAM.has(m.code) ? '=' + m.param : '')).join('+')
+const withRanges = (f) => {
+  const n = f.tiers[0].slots.length
+  const slotRanges = Array.from({ length: n }, (_, i) => [
+    Math.min(...f.tiers.map((t) => t.slots[i][0])), Math.max(...f.tiers.map((t) => t.slots[i][1])),
+  ])
+  return { ...f, slotRanges, label: familyText(f, slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`))) }
+}
 
-// 이 베이스·품질(magic|rare)에 붙을 수 있는 옵션 종류 목록
-// -> [{ key, slot:'p'|'s', mods, tiers:[{ level, maxlevel, group, slots }], slotRanges }]
+// 이 베이스·품질(magic|rare|crafted)에 붙을 수 있는 옵션 종류 목록 (크래프트는 레어 접사 풀)
+// -> [{ key, slot:'p'|'s', mods, tiers:[{ level, maxlevel, group, slots }], slotRanges, label }]
 // base: { code, sockets } (baseItems.json 항목이나 MISC_BASES 항목)
 export function affixFamiliesFor(data, base, quality) {
   const info = base && data.bases[base.code]
+  const rarePool = quality === 'rare' || quality === 'crafted'
   if (!info || (quality === 'rare' && !info.rare)) return []
-  const ctx = { qlvl: info.qlvl, magicLvl: info.magic_lvl || 0, maxSockets: base.sockets || 0 }
-  const amin = minAffixLevel(info)
+  const [ilvlMin, ilvlMax] = ilvlRange(info, quality)
+  const ctx = { magicLvl: info.magic_lvl || 0, maxSockets: base.sockets || 0, ilvlMin, ilvlMax }
+  const amin = affixLevelAt(info, ilvlMin)
+  const amax = affixLevelAt(info, ilvlMax)
   const types = new Set(info.types)
   const fams = new Map()
   for (const a of data.affixes) {
-    if (quality === 'rare' && !a.rare) continue
+    if (rarePool && !a.rare) continue
     if (!a.itypes.some((t) => types.has(t)) || (a.etypes || []).some((t) => types.has(t))) continue
     if (a.cls && info.cls && a.cls !== info.cls) continue
-    if (a.level > 99 || (a.maxlevel && a.maxlevel < amin)) continue
+    if (a.level > amax || (a.maxlevel && a.maxlevel < amin)) continue
     if (a.mods.some((m) => !MODS[m.code])) continue
     const slots = tierSlots(a, ctx)
     // 소켓 옵션인데 이 베이스는 소켓을 못 뚫는 경우
@@ -168,14 +192,20 @@ export function affixFamiliesFor(data, base, quality) {
     if (!fams.has(key)) fams.set(key, { key, slot: a.slot, mods: a.mods, tiers: [] })
     fams.get(key).tiers.push({ level: a.level, maxlevel: a.maxlevel || 99, group: a.group, slots })
   }
-  const out = [...fams.values()].map((f) => {
-    const n = f.tiers[0].slots.length
-    const slotRanges = Array.from({ length: n }, (_, i) => [
-      Math.min(...f.tiers.map((t) => t.slots[i][0])), Math.max(...f.tiers.map((t) => t.slots[i][1])),
-    ])
-    return { ...f, slotRanges, label: familyText(f, slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`))) }
-  })
-  return out.sort((x, y) => x.label.localeCompare(y.label, 'ko'))
+  return [...fams.values()].map(withRanges).sort((x, y) => x.label.localeCompare(y.label, 'ko'))
+}
+
+// 이 베이스로 만들 수 있는 크래프트 제작법 -> [{ id, name, fam }] (fam: 고정 옵션을 옵션 종류 모양으로)
+export function craftRecipesFor(data, base) {
+  const info = base && data.bases[base.code]
+  if (!info) return []
+  const ctx = { magicLvl: info.magic_lvl || 0, maxSockets: base.sockets || 0, ilvlMin: 1, ilvlMax: 98 }
+  return (data.crafts || [])
+    .filter((c) => (c.codes ? c.codes.includes(base.code) : info.types.includes(c.type)))
+    .map((c) => ({
+      id: c.id, name: c.name,
+      fam: withRanges({ key: 'craft:' + c.id, slot: 'c', mods: c.mods, tiers: [{ level: 0, maxlevel: 99, group: null, slots: tierSlots({ mods: c.mods, level: 0 }, ctx) }] }),
+    }))
 }
 
 // 옵션 종류 + 수치 -> 판매글에 들어갈 옵션 줄들
@@ -183,7 +213,7 @@ export const familyText = (fam, values) => familyLines(fam, values).join(', ')
 export function familyLines(fam, values) {
   let i = 0
   return fam.mods.map((m) => {
-    const n = MODS[m.code].slots(m, {}, { qlvl: 1, maxSockets: 6, ilvlMin: 1 }).length
+    const n = MODS[m.code].slots(m, {}, { maxSockets: 6, ilvlMin: 1, ilvlMax: 99 }).length
     const vals = values.slice(i, i + n)
     i += n
     return MODS[m.code].text(vals, m)
@@ -192,12 +222,25 @@ export function familyLines(fam, values) {
 
 export const affixLimits = (base, quality) => {
   if (quality === 'magic') return { p: 1, s: 1, total: 2 }
-  return base?.code === 'jew' ? { p: 3, s: 3, total: 4 } : { p: 3, s: 3, total: 6 }
+  if (quality === 'crafted' || base?.code === 'jew') return { p: 3, s: 3, total: 4 }
+  return { p: 3, s: 3, total: 6 }
 }
 
 // 수치가 다 들어간 옵션인지 (고정 수치는 자동으로 채워짐)
 export const filledValues = (fam, values) =>
   fam.slotRanges.map(([lo, hi], i) => (lo === hi ? lo : values?.[i] === '' || values?.[i] === undefined || values?.[i] === null ? null : Number(values[i])))
+
+// 수치 칸이 범위 밖이면 그 칸 번호, 아니면 -1
+const badSlot = (fam, vals) =>
+  vals.findIndex((v, i) => v !== null && (!Number.isInteger(v) || v < fam.slotRanges[i][0] || v > fam.slotRanges[i][1]))
+
+// 크래프트 고정 옵션 수치 검사 -> 문제 문구 목록
+export function validateCraftValues(recipe, values) {
+  const vals = filledValues(recipe.fam, values)
+  if (vals.some((v) => v === null)) return [`${recipe.name} 고정 옵션 수치를 골라주세요`]
+  const bad = badSlot(recipe.fam, vals)
+  return bad >= 0 ? [`${recipe.name} 고정 옵션 (수치 ${recipe.fam.slotRanges[bad].join('~')})`] : []
+}
 
 // 고른 옵션들이 한 아이템에 같이 있을 수 있는지 검사 -> 문제 문구 목록 (없으면 [])
 // picks: [{ fam, values }]
@@ -214,7 +257,7 @@ export function validateAffixPicks(data, base, quality, picks) {
   const cands = []
   for (const p of picks) {
     const vals = filledValues(p.fam, p.values)
-    const bad = vals.findIndex((v, i) => v !== null && (!Number.isInteger(v) || v < p.fam.slotRanges[i][0] || v > p.fam.slotRanges[i][1]))
+    const bad = badSlot(p.fam, vals)
     if (bad >= 0) {
       const [lo, hi] = p.fam.slotRanges[bad]
       errs.push(`${p.fam.label} (수치 ${lo}~${hi})`)
@@ -229,8 +272,12 @@ export function validateAffixPicks(data, base, quality, picks) {
   }
   if (errs.length) return errs
   // 같은 그룹 금지 + 모든 옵션이 한 affix level 에서 동시에 가능해야 함 -> 단계 조합을 전부 시도
-  const amin = minAffixLevel(info)
-  const levels = [amin, ...cands.flatMap((c) => c.ts.map((t) => t.level))].filter((l) => l >= amin && l <= 99)
+  // (크래프트는 무작위 옵션 개수만큼 아이템 레벨이 높아야 함 -> alvl 하한이 올라감)
+  let [ilvlMin, ilvlMax] = ilvlRange(info, quality)
+  if (quality === 'crafted') ilvlMin = Math.max(ilvlMin, CRAFT_MIN_ILVL_FOR_COUNT[Math.min(picks.length, 4)])
+  const amin = affixLevelAt(info, ilvlMin)
+  const amax = affixLevelAt(info, ilvlMax)
+  const levels = [amin, ...cands.flatMap((c) => c.ts.map((t) => t.level))].filter((l) => l >= amin && l <= amax)
   const ok = levels.some((L) => {
     const used = new Set()
     const pick = (i) => {
