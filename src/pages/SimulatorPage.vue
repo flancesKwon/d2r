@@ -1246,6 +1246,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 }
 @media (max-width:560px){
   .sim-node-slot{width:36px; height:36px;}
+  /* 폰에서 장비 인형 오른쪽 칸이 화면 밖으로 잘리던 것 - 칸 사이 여백을 줄이고 칸이 줄어들 수 있게 */
+  .sim-doll{max-width:100%; gap:5px;}
+  .sim-doll > *{min-width:0;}
   .sim-controls{flex-direction:column; align-items:stretch;}
   .sim-field input{width:100%;}
 }
