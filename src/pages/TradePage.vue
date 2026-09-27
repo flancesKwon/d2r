@@ -2,6 +2,7 @@
 import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   tradeState,
   TRADE_CATEGORIES,
@@ -24,7 +25,9 @@ const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
 const favoritesOnly = ref(false)
-const searchQuery = ref('')
+// 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
+const route = useRoute()
+const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 
 // 트레더리처럼 아이콘 위주로 훑어보고 싶을 때는 그리드로, 옵션·메모까지 자세히
 // 보고 싶을 때는 리스트로 - 마지막으로 고른 보기 방식을 기억해둠

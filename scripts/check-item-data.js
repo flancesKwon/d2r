@@ -301,6 +301,38 @@ for (const [, names] of iconByKey) {
   console.log(`매직/레어 접사 검사: 베이스 ${bases.length}개, 옵션 종류 ${famCount}개, 크래프트 제작법 ${data.crafts.length}개`)
 }
 
+// ---------- 7. 룬워드 찾기 체크 (가진 룬 + 큐브 업그레이드 계산) ----------
+{
+  const F = await import('../src/runewordFinder.js')
+  const chain = JSON.parse(readFileSync(join(__dirname, '../src/data/runeUpgradeChain.json'), 'utf8'))
+  const table = F.buildRuneTable(itemsData, chain)
+  const list = F.buildRunewordList(itemsData, table)
+  const bad = (msg) => err(`룬워드 찾기: ${msg}`)
+  if (table.runes.length !== 33) bad(`룬이 33종이 아님 (${table.runes.length})`)
+  for (const rw of list) {
+    if (rw.runes.length !== rw.item.extra.socket_count) bad(`${rw.item.name_ko} 룬 개수 ${rw.runes.length} ≠ 소켓 ${rw.item.extra.socket_count}`)
+  }
+  const idx = (code) => table.byCode.get(code).index
+  const needOf = (...codes) => {
+    const need = new Map()
+    for (const c of codes) need.set(idx(c), (need.get(idx(c)) || 0) + 1)
+    return { need, runes: codes.map(idx) }
+  }
+  const run = (rw, have) => F.evaluateRuneword(rw, Object.fromEntries(Object.entries(have).map(([c, n]) => [idx(c), n])), table)
+  const enigma = list.find((r) => r.item.name_en === 'Enigma')
+  if (run(enigma, { Jah: 1, Ith: 1, Ber: 1 }).status !== 'ready') bad('자·아이드·베르로 수수께끼가 바로 안 됨')
+  // 랄 9개 -> 오르트 3개 -> 주울 1개 (3개씩)
+  const up = run(needOf('Thul'), { Ral: 9 })
+  if (up.status !== 'upgrade' || up.upgrades.map((u) => u.times).join() !== '3,1') bad(`랄 9개로 주울 업그레이드 계산 오류 (${JSON.stringify(up.upgrades)})`)
+  if (run(needOf('Thul'), { Ral: 8 }).status !== 'missing') bad('랄 8개로 주울이 만들어짐 (9개 필요)')
+  // 풀부터는 2개 + 보석
+  const pul = run(needOf('Um'), { Pul: 2 })
+  if (pul.status !== 'upgrade' || pul.gems.get('하급 다이아몬드') !== 1) bad('풀 2개 + 하급 다이아몬드 -> 우움 계산 오류')
+  // 위 룬은 아래로 못 내림
+  if (run(needOf('Ist'), { Ber: 1 }).status !== 'missing') bad('베르로 이스트를 만들 수 있다고 나옴 (내림 불가)')
+  console.log(`룬워드 찾기 검사: 룬 ${table.runes.length}종, 룬워드 ${list.length}개`)
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)

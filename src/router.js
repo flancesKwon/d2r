@@ -15,6 +15,7 @@ import TradePostPage from './pages/TradePostPage.vue'
 import SignupPage from './pages/SignupPage.vue'
 import AdminPage from './pages/AdminPage.vue'
 import CubeRecipesPage from './pages/CubeRecipesPage.vue'
+import RunewordFinderPage from './pages/RunewordFinderPage.vue'
 import MessagesPage from './pages/MessagesPage.vue'
 import MyPage from './pages/MyPage.vue'
 import DealsPage from './pages/DealsPage.vue'
@@ -38,6 +39,7 @@ const router = createRouter({
     { path: '/signup', name: 'signup', component: SignupPage },
     { path: '/admin', name: 'admin', component: AdminPage },
     { path: '/cube', name: 'cube', component: CubeRecipesPage },
+    { path: '/runewords', name: 'runewords', component: RunewordFinderPage },
     { path: '/messages', name: 'messages', component: MessagesPage },
     { path: '/mypage', name: 'mypage', component: MyPage },
     { path: '/deals', name: 'deals', component: DealsPage },
