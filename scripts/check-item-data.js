@@ -196,6 +196,39 @@ for (const [, names] of iconByKey) {
   if (names.length > 1) err(`룬/보석 중 서로 다른 아이템이 완전히 같은 아이콘 이미지를 공유함: ${names.join(', ')}`)
 }
 
+// ---------- 5. 스킬 설명 연결 체크 (시뮬레이터 스킬 -> skill_text.json) ----------
+// 직업마다 id 규칙이 달라서(드루이드·어쌔신 +1, 악마술사 id 없음) 잘못 연결되면 설명이 한 칸씩
+// 밀려 보여도 "전부 연결됨"으로 보이기 쉬움 - 영문 이름까지 대조해서 밀림을 잡음
+{
+  const { buildSkillTextIndex, skillDescLines } = await import('../src/skillText.js')
+  const readData = (f) => JSON.parse(readFileSync(join(__dirname, '../src/data/' + f), 'utf8'))
+  const skillsData = readData('skills.json')
+  const index = buildSkillTextIndex(readData('skill_text.json'), readData('skillIdMap.json'), skillsData)
+  // 게임 내부 이름(skills.json nameEn) ↔ 표시 이름(skill_text en)이 원래 다른 스킬들
+  const INTERNAL_NAMES = {
+    Dopplezon: 'Decoy', 'Plague Poppy': 'Poison Creeper', 'Cycle of Life': 'Carrion Vine', 'Summon Fenris': 'Summon Dire Wolf',
+    Vines: 'Solar Creeper', 'Shape Shifting': 'Lycanthropy', Eruption: 'Fissure', 'Fire Trauma': 'Fire Blast',
+    'Shock Field': 'Shock Web', 'Wake of Fire Sentry': 'Wake of Fire', 'Inferno Sentry': 'Wake of Inferno',
+    Quickness: 'Burst of Speed', 'Royal Strike': 'Phoenix Strike', Levitate: 'Levitation Mastery',
+    Wearwolf: 'Werewolf', Wearbear: 'Werebear', 'Pole Arm Mastery': 'Polearm Mastery',
+  }
+  const normEn = (s) => s.toLowerCase().replace(/[^a-z ]/g, ' ').replace(/golem/g, ' golem').split(/\s+/).filter(Boolean).map((w) => w.replace(/s$/, '')).sort().join(' ')
+  let checked = 0
+  for (const [cls, data] of Object.entries(skillsData)) {
+    for (const s of data.tabs.flatMap((t) => t.skills)) {
+      checked++
+      const e = index[cls]?.[s.name]
+      const where = `스킬 ${cls}/${s.name}`
+      if (!e) { err(`${where}: skill_text.json에 연결되는 설명이 없음`); continue }
+      if (!skillDescLines(e).length) err(`${where}: 설명(shortDesc/longDesc)이 비어있음`)
+      if (normEn(INTERNAL_NAMES[s.nameEn] || s.nameEn) !== normEn(e.en)) {
+        err(`${where}: 영문 이름 불일치 (시뮬레이터 ${s.nameEn} / 설명 ${e.en}) - id 규칙이 밀렸을 수 있음`)
+      }
+    }
+  }
+  console.log(`스킬 설명 연결 검사: ${checked}개`)
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)
