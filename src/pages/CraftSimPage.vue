@@ -1,6 +1,4 @@
 <script setup>
-import LogoMark from '../components/LogoMark.vue'
-import HeaderNotifications from '../components/HeaderNotifications.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { ref, computed, watch } from 'vue'
 import magicAffixData from '../data/magicAffixes.json'
@@ -72,7 +70,8 @@ const rollTooltip = computed(() => {
     ...familyLines(recipe.value.fam, r.fixed),
     ...r.affixes.flatMap((a) => familyLines(a, a.values)),
   ]
-  return buildTooltip({ name: recipe.value.name, category: '매직/레어/일반', quality: 'crafted', options })
+  const iconKey = base.value.icon_key || magicAffixData.bases[base.value.code]?.icon || null
+  return buildTooltip({ name: recipe.value.name, category: '매직/레어/일반', quality: 'crafted', options, iconKey })
 })
 
 // 목표 옵션 (최대 3개, 전부 붙어야 성공) + 여러 번 시뮬레이션
@@ -152,15 +151,6 @@ const tableRows = computed(() => {
 
 <template>
   <div class="items-page craft-sim-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <router-link to="/cube">큐브 레시피</router-link> / <b>크래프트 시뮬레이터</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="patch-hero">
     <div class="patch-hero-inner">

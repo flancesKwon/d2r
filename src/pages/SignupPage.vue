@@ -1,5 +1,4 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { ref, computed, onBeforeUnmount } from 'vue'
 
@@ -56,15 +55,6 @@ function onGoogleClick() {
 
 <template>
   <div class="items-page signup-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <b>회원가입</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="signup-wrap">
     <div class="signup-card">

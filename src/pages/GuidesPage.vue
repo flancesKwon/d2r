@@ -1,7 +1,5 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import guideData from '../data/guides.json'
 import { CLASS_ICONS } from '../icons.js'
@@ -20,7 +18,22 @@ const classList = [
   { key: 'warlock', name: '악마술사' },
 ]
 
-const activeClass = ref(['amazon', 'sorc', 'necro', 'paladin', 'barb', 'druid', 'assassin', 'warlock'].includes(route.query.class) ? route.query.class : null)
+const CLASS_KEYS = classList.map((c) => c.key)
+const activeClass = ref(CLASS_KEYS.includes(route.query.class) ? route.query.class : null)
+// 보기: 목록 / 티어리스트 (?view=tier) - 상단 메뉴에서 바로 들어올 수 있게 주소로도 받음
+const view = ref(route.query.view === 'tier' ? 'tier' : 'list')
+watch(() => route.query, (q) => {
+  view.value = q.view === 'tier' ? 'tier' : 'list'
+  activeClass.value = CLASS_KEYS.includes(q.class) ? q.class : null
+})
+// 티어별로 묶기 (S -> A -> B ...), 티어 안에서는 최신순
+const TIER_ORDER = ['S TIER', 'A TIER', 'B TIER', 'C TIER']
+const tierRows = computed(() =>
+  TIER_ORDER.map((t) => ({
+    tier: t.replace(' TIER', ''),
+    guides: filteredGuides.value.filter((g) => g.tier === t).sort((a, b) => b.date.localeCompare(a.date)),
+  })).filter((r) => r.guides.length)
+)
 
 function setClass(key) {
   activeClass.value = activeClass.value === key ? null : key
@@ -34,15 +47,6 @@ const filteredGuides = computed(() => {
 
 <template>
   <div class="items-page guides-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <b>빌드 가이드</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
@@ -54,6 +58,10 @@ const filteredGuides = computed(() => {
 
   <div class="toolbar">
     <div class="toolbar-inner">
+      <div class="cat-tabs view-tabs">
+        <button :class="{ active: view === 'list' }" @click="view = 'list'">목록</button>
+        <button :class="{ active: view === 'tier' }" @click="view = 'tier'">티어리스트</button>
+      </div>
       <div class="cat-tabs">
         <button :class="{ active: activeClass === null }" @click="activeClass = null">전체</button>
         <button
@@ -69,7 +77,20 @@ const filteredGuides = computed(() => {
   </div>
 
   <div class="grid-wrap">
-    <div class="guide-grid guide-grid-wide">
+    <div class="tier-list" v-if="view === 'tier'">
+      <div class="tier-row" v-for="r in tierRows" :key="r.tier" :class="'t-' + r.tier">
+        <div class="tier-badge">{{ r.tier }}</div>
+        <div class="tier-guides">
+          <router-link class="tier-guide" v-for="g in r.guides" :key="g.id" :to="`/guides/${g.id}`">
+            <span class="guide-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[g.classKey]"></svg></span>
+            <span class="tier-guide-text"><b>{{ g.title }}</b><small>{{ g.className }}</small></span>
+          </router-link>
+        </div>
+      </div>
+      <div class="empty-state" v-if="!tierRows.length">아직 등록된 가이드가 없어요</div>
+      <div class="tier-note">티어는 가이드 작성 기준(파밍 속도·안정성·장비 부담)이고, 시즌·패치에 따라 달라질 수 있어요.</div>
+    </div>
+    <div class="guide-grid guide-grid-wide" v-else>
       <router-link class="guide-card" v-for="g in filteredGuides" :key="g.id" :to="`/guides/${g.id}`">
         <div class="guide-top">
           <span class="guide-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[g.classKey]"></svg></span>
@@ -99,6 +120,21 @@ const filteredGuides = computed(() => {
 }
 .guide-class-icon svg{width:14px; height:14px; stroke:var(--gold-dim); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
 .guide-class-badge{border-radius:999px;}
+.view-tabs{margin-bottom:10px;}
+.tier-list{display:flex; flex-direction:column; gap:10px;}
+.tier-row{display:grid; grid-template-columns:72px 1fr; border:1px solid var(--border-soft); background:var(--panel); border-radius:14px; overflow:hidden;}
+.tier-badge{display:flex; align-items:center; justify-content:center; font-family:'Noto Serif KR', serif; font-size:28px; font-weight:900; color:#1b1714;}
+.t-S .tier-badge{background:#d4553a;}
+.t-A .tier-badge{background:var(--gold);}
+.t-B .tier-badge{background:var(--teal);}
+.t-C .tier-badge{background:var(--text-dim);}
+.tier-guides{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px; padding:12px;}
+.tier-guide{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border-soft); border-radius:10px; background:var(--panel-2); transition:border-color .15s;}
+.tier-guide:hover{border-color:var(--gold-dim);}
+.tier-guide-text{display:flex; flex-direction:column; min-width:0;}
+.tier-guide-text b{font-size:13px; color:var(--text); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.tier-guide-text small{font-size:11px; color:var(--text-dim);}
+.tier-note{font-size:11.5px; color:var(--text-dim); text-align:center; margin-top:6px;}
 @media (max-width:900px){ .guide-grid-wide{grid-template-columns:1fr 1fr;} }
 @media (max-width:600px){ .guide-grid-wide{grid-template-columns:1fr;} }
 </style>

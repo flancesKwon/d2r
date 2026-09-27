@@ -1,6 +1,4 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
@@ -14,6 +12,8 @@ import {
   TRADE_STAT_FILTERS,
   postStatValue,
   postLevelReq,
+  postIconKey,
+  postRarity,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
@@ -146,15 +146,6 @@ const filteredPosts = computed(() => {
 
 <template>
   <div class="items-page trade-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <b>거래게시판</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
@@ -238,8 +229,9 @@ const filteredPosts = computed(() => {
           :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
-        <span class="trade-row-icon" :class="rarityClass(getTradeItem(p.itemId))">
-          <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
+        <span class="trade-row-icon" :class="postRarity(p)">
+          <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
+          <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <span class="trade-cat">{{ p.category }}</span>
         <div class="trade-body">
@@ -276,8 +268,9 @@ const filteredPosts = computed(() => {
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
-        <span class="trade-card-icon" :class="rarityClass(getTradeItem(p.itemId))">
-          <img v-if="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" :src="iconUrlFor(getTradeItem(p.itemId)?.icon_key)" alt="" />
+        <span class="trade-card-icon" :class="postRarity(p)">
+          <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
+          <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <span class="trade-cat trade-card-cat">{{ p.category }}</span>
         <span class="trade-card-title">{{ p.itemName }}</span>
@@ -372,6 +365,10 @@ const filteredPosts = computed(() => {
 .trade-row-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 10px -3px rgba(200,163,77,0.5);}
 .trade-row-icon.set{border-color:var(--green); box-shadow:0 0 10px -3px rgba(92,138,91,0.5);}
 .trade-row-icon.runeword{border-color:var(--blood); box-shadow:0 0 10px -3px rgba(162,81,63,0.5);}
+.trade-row-icon.magic, .trade-card-icon.magic{border-color:#5b5bd6; box-shadow:0 0 10px -3px rgba(110,110,255,0.5);}
+.trade-row-icon.rare, .trade-card-icon.rare{border-color:#b8a33a; box-shadow:0 0 10px -3px rgba(230,210,80,0.5);}
+.trade-row-icon.crafted, .trade-card-icon.crafted{border-color:#c77a1e; box-shadow:0 0 10px -3px rgba(255,168,0,0.45);}
+.icon-fallback{font-family:'Noto Serif KR', serif; font-size:15px; font-weight:700; color:var(--text-dim);}
 .trade-row-icon.gem{border-color:var(--teal); box-shadow:0 0 10px -3px rgba(78,138,138,0.5);}
 
 .trade-list-wrap{max-width:1180px;}

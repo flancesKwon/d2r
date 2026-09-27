@@ -1,6 +1,4 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPost, addComment, votePost, voteComment } from '../communityStore.js'
@@ -27,17 +25,6 @@ function isImage(a) {
 
 <template>
   <div class="items-page community-post-page" v-if="post">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb">
-      <router-link to="/">메인</router-link> / <router-link to="/community">커뮤니티</router-link> / <b>{{ post.category }}</b>
-    </div>
-    <HeaderNotifications />
-  </header>
 
   <div class="grid-wrap community-detail-wrap">
     <div class="post-card">

@@ -1,6 +1,4 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import {
   messagesState,
@@ -29,15 +27,6 @@ function submitMessage() {
 
 <template>
   <div class="items-page messages-page">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb"><router-link to="/">메인</router-link> / <b>쪽지함</b></div>
-    <HeaderNotifications />
-  </header>
 
   <div class="patch-hero">
     <div class="patch-hero-inner">

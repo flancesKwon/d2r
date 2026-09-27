@@ -1,9 +1,7 @@
 <script setup>
-import HeaderNotifications from '../components/HeaderNotifications.vue'
-import LogoMark from '../components/LogoMark.vue'
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems } from '../tradeStore.js'
+import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import iconsData from '../data/icons.json'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -24,6 +22,7 @@ const tooltip = computed(() =>
     name: post.value?.itemName,
     category: post.value?.category,
     quality: post.value?.quality,
+    iconKey: post.value ? postIconKey(post.value) : null,
     options: post.value?.options || [],
     ethereal: post.value?.ethereal,
     amountLabel: post.value?.amountLabel,
@@ -154,17 +153,6 @@ function confirmBuy() {
 
 <template>
   <div class="items-page trade-detail-page" v-if="post">
-  <header>
-    <div class="logo">
-      <router-link to="/" style="display: flex; align-items: center; gap: 8px; color: inherit">
-        <LogoMark />디아허브
-      </router-link>
-    </div>
-    <div class="crumb">
-      <router-link to="/">메인</router-link> / <router-link to="/trade">거래게시판</router-link> / <b>{{ post.category }}</b>
-    </div>
-    <HeaderNotifications />
-  </header>
 
   <div class="grid-wrap trade-detail-wrap">
     <!-- 제목 영역: 분류·서버 칩, 아이콘 + 이름 + 뱃지, 작성 정보, 찜 -->
@@ -176,8 +164,8 @@ function confirmBuy() {
         <span class="post-chip">{{ post.hardcore }}</span>
       </div>
       <div class="trade-title-line">
-        <span class="trade-title-icon" v-if="linkedItem" :class="rarityClass(linkedItem)">
-          <img v-if="iconUrlFor(linkedItem.icon_key)" :src="iconUrlFor(linkedItem.icon_key)" alt="" />
+        <span class="trade-title-icon" v-if="postIconKey(post)" :class="postRarity(post)">
+          <img :src="iconUrlFor(postIconKey(post))" alt="" />
         </span>
         <div class="title-block">
           <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
@@ -365,8 +353,8 @@ function confirmBuy() {
         <div class="confirm-row">
           <span class="k">판매 아이템</span>
           <span class="v confirm-item">
-            <span class="trade-title-icon confirm-icon" v-if="linkedItem" :class="rarityClass(linkedItem)">
-              <img v-if="iconUrlFor(linkedItem.icon_key)" :src="iconUrlFor(linkedItem.icon_key)" alt="" />
+            <span class="trade-title-icon confirm-icon" v-if="postIconKey(post)" :class="postRarity(post)">
+              <img :src="iconUrlFor(postIconKey(post))" alt="" />
             </span>
             {{ post.itemName }}
           </span>
@@ -426,6 +414,9 @@ function confirmBuy() {
   background:var(--panel-2); border:1px solid var(--border-soft); border-radius:14px;
 }
 .trade-title-icon img{max-width:82%; max-height:82%; object-fit:contain;}
+.trade-title-icon.magic{border-color:#5b5bd6;}
+.trade-title-icon.rare{border-color:#b8a33a;}
+.trade-title-icon.crafted{border-color:#c77a1e;}
 .trade-title-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 14px -3px rgba(200,163,77,0.5);}
 .trade-title-icon.set{border-color:var(--green); box-shadow:0 0 14px -3px rgba(92,138,91,0.5);}
 .trade-title-icon.runeword{border-color:var(--blood); box-shadow:0 0 14px -3px rgba(162,81,63,0.5);}

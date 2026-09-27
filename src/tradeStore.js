@@ -7,6 +7,7 @@ import baseItemsData from './data/baseItems.json'
 import classSkillsData from './data/classSkills.json'
 import { pushNotification } from './notificationsStore.js'
 import { SKILL_TAB_NAMES } from './magicAffixes.js'
+import magicAffixData from './data/magicAffixes.json'
 import { createDeal } from './dealsStore.js'
 
 export { itemsData }
@@ -394,6 +395,30 @@ function today() {
 
 export function getTradeItem(itemId) {
   return itemId ? ALL_TRADE_ITEMS.find((it) => it.id === itemId) : null
+}
+
+// 판매글 목록·상세에 보여줄 아이콘 - 사전 아이템이면 그 아이콘, 사전에 없는 매직/레어 장비는
+// 옵션의 "베이스: ..." 줄(또는 이름의 반지·목걸이·부적 같은 말)로 베이스 아이콘을 찾음
+const MISC_BASE_BY_CODE = new Map(magicAffixData.miscBases.map((b) => [b.code, b]))
+const BASE_BY_LABEL = new Map([...BASE_ITEMS, ...magicAffixData.miscBases].map((b) => [baseItemLabel(b), b]))
+const MISC_WORDS = [['거대 부적', 'cm3'], ['큰 부적', 'cm2'], ['작은 부적', 'cm1'], ['주얼', 'jew'], ['목걸이', 'amu'], ['반지', 'rin']]
+export function postIconKey(post) {
+  const item = getTradeItem(post?.itemId)
+  if (item?.icon_key) return item.icon_key
+  const baseLine = (post?.options || []).find((l) => l.startsWith('베이스: '))
+  const code = (baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))?.code) ||
+    MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
+  if (!code) return null
+  return MISC_BASE_BY_CODE.get(code)?.icon_key || magicAffixData.bases[code]?.icon || null
+}
+// 아이콘 테두리 색 - 사전 아이템은 카테고리, 사전에 없는 장비는 고른 품질(예전 글은 이름의 매직/레어)
+export function postRarity(post) {
+  const item = getTradeItem(post?.itemId)
+  if (item) return item.category
+  if (post?.quality) return post.quality
+  if (/레어/.test(post?.itemName || '')) return 'rare'
+  if (/매직/.test(post?.itemName || '')) return 'magic'
+  return ''
 }
 
 export function addTradePost({

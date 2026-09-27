@@ -1,22 +1,22 @@
 [
   {
     "tier": "최상급",
-    "note": "거래량이 매우 적고, 매물 자체가 귀함",
-    "items": ["조던 룬 (Jah)", "존 룬 (Zod)", "쿰 룬 (Cham)", "인페르노 계열 최상위 유니크 (완벽 옵션)"]
+    "note": "거래 기준이 되는 최고가 룬과 엔드게임 필수 아이템",
+    "items": ["Jah Rune", "Ber Rune", "Griffon's Eye", "Death's Web", "Annihilus", "Hellfire Torch", "Tyrael's Might"]
   },
   {
     "tier": "상급",
-    "note": "레더 초반~중반 핵심 목표로 자주 거래됨",
-    "items": ["베르 룬 (Ber)", "라 룬 (Lo)", "선 룬 (Sur)", "그리프", "인피니티 베이스 조합"]
+    "note": "고급 룬워드 재료와 핵심 유니크 - 꾸준히 거래됨",
+    "items": ["Sur Rune", "Lo Rune", "Ohm Rune", "Cham Rune", "Zod Rune", "Mara's Kaleidoscope", "Harlequin Crest", "The Stone of Jordan", "Arachnid Mesh", "Crown of Ages", "Andariel's Visage"]
   },
   {
     "tier": "중급",
-    "note": "룬워드 제작용으로 수요가 꾸준함",
-    "items": ["이스트 룬 (Ist)", "굴 룬 (Gul)", "바스 룬 (Vex)", "스펠 룬워드 계열 유니크 베이스"]
+    "note": "룬워드 제작용으로 수요가 꾸준한 중간 룬과 인기 장비",
+    "items": ["Vex Rune", "Gul Rune", "Ist Rune", "Mal Rune", "War Traveler", "Skin of the Vipermagi", "Herald of Zakarum", "Nightwing's Veil", "Magefist", "Bul-Kathos' Wedding Band", "Gheed's Fortune"]
   },
   {
     "tier": "입문",
-    "note": "초반 자금 마련 및 스타터 룬워드용",
-    "items": ["펄 룬 (Pul)", "움 룬 (Um)", "멀 룬 (Mal)", "일반 유니크 (스파이크 계열 등)"]
+    "note": "초반 자금 마련과 스타터 룬워드용",
+    "items": ["Um Rune", "Pul Rune", "Lem Rune", "Fal Rune", "Ko Rune", "Chance Guards", "Wizardspike", "Raven Frost", "Verdungo's Hearty Cord", "Thundergod's Vigor", "Titan's Revenge", "Stormshield", "Highlord's Wrath"]
   }
 ]
