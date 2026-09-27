@@ -60,8 +60,28 @@ function submitRequest() {
   setTimeout(() => (showRequestSent.value = false), 2500)
 }
 
-function changeStatus(e) {
-  updateTradeStatus(route.params.id, e.target.value)
+function setStatus(status) {
+  updateTradeStatus(route.params.id, status)
+}
+
+// 희망 가격 "베르 룬 1개 + 미라의 눈물"을 항목별 칩으로 (룬·보석이면 아이콘과 함께)
+const priceParts = computed(() =>
+  (post.value?.price || '')
+    .split(/\s*\+\s*/)
+    .filter(Boolean)
+    .map((part) => ({ text: part, item: parsePriceTokens(part).find((t) => t.item)?.item || null }))
+)
+
+// 판매자 연락처 복사
+const copied = ref(false)
+async function copyContact() {
+  try {
+    await navigator.clipboard.writeText(post.value.contact)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 1500)
+  } catch {
+    // 클립보드 권한이 없는 환경 - 연락처는 화면에 그대로 보이니 무시
+  }
 }
 
 function respond(requestId, decision) {
@@ -146,99 +166,153 @@ function confirmBuy() {
   </header>
 
   <div class="grid-wrap trade-detail-wrap">
-    <div class="post-card">
-      <div class="d-eyebrow">{{ post.category }}</div>
+    <!-- 제목 영역: 분류·서버 칩, 아이콘 + 이름 + 뱃지, 작성 정보, 찜 -->
+    <div class="post-head">
+      <div class="post-chips">
+        <router-link class="post-chip cat" :to="{ path: '/trade' }">{{ post.category }}</router-link>
+        <span class="post-chip">{{ post.realm }}</span>
+        <span class="post-chip">{{ post.ladder }}</span>
+        <span class="post-chip">{{ post.hardcore }}</span>
+      </div>
       <div class="trade-title-line">
         <span class="trade-title-icon" v-if="linkedItem" :class="rarityClass(linkedItem)">
           <img v-if="iconUrlFor(linkedItem.icon_key)" :src="iconUrlFor(linkedItem.icon_key)" alt="" />
         </span>
-        <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
-        <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
-        <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
-        <select class="status-select" :class="'status-' + post.status" :value="post.status" @change="changeStatus">
-          <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
-        </select>
+        <div class="title-block">
+          <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
+          <div class="title-badges">
+            <span class="status-pill" :class="'status-' + post.status">{{ post.status }}</span>
+            <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
+            <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
+          </div>
+        </div>
         <button
           type="button" class="favorite-star" :class="{ active: isFavorite(post.id) }"
-          :title="isFavorite(post.id) ? '찜 해제' : '찜하기'"
+          :title="isFavorite(post.id) ? '찜 해제' : '찜하기'" :aria-label="isFavorite(post.id) ? '찜 해제' : '찜하기'"
           @click="toggleFavorite(post.id)"
         >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
-      <div class="trade-post-meta">{{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
-
-      <!-- 상세 들어오자마자 보이게: 넓은 화면은 오른쪽, 폰은 제목 바로 아래 -->
-      <div class="post-top">
-      <div class="post-item-visual">
-        <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
-        <p class="tooltip-note">판매자가 입력한 아이템 정보·옵션으로 그린 이미지예요. 실제 아이템과 다를 수 있으니 거래 전에 꼭 확인하세요.</p>
-        <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
-      </div>
-
-      <div class="post-main">
-      <div class="trade-info-card">
-        <div class="trade-info-row"><span class="k">수량 / 단위</span><span class="v">{{ post.amountLabel }}</span></div>
-        <div class="trade-info-row">
-          <span class="k">희망 가격</span>
-          <span class="v">
-            <template v-for="(t, i) in parsePriceTokens(post.price)" :key="i">
-              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
-            </template>
-          </span>
-        </div>
-        <div class="trade-info-row"><span class="k">서버</span><span class="v">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</span></div>
-        <div class="trade-info-row"><span class="k">연락처</span><span class="v">{{ post.contact || '게시글로 문의' }}</span></div>
-      </div>
-
-      <div class="buy-now-row">
-        <button type="button" class="btn-primary buy-now-btn" @click="openBuyModal">구매하기</button>
-        <span class="buy-now-hint">{{ post.negotiable ? '흥정 가능한 판매글이에요 - 룬·보석으로 교환을 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</span>
-      </div>
-      </div>
-      </div>
-
-      <div class="trade-post-content" v-html="contentHtml"></div>
+      <div class="trade-post-meta">{{ post.date }} 등록 · 조회 {{ post.views }} · 구매신청 {{ post.requests.length }}건</div>
     </div>
 
-    <div class="d-section-title">구매신청 {{ post.requests.length }}건</div>
-    <div class="request-list">
-      <div class="request-item" v-for="r in post.requests" :key="r.id">
-        <div class="request-top">
-          <span class="request-kind" v-if="r.kind === 'buy_now'">{{ REQUEST_KIND_LABEL.buy_now }}</span>
-          <b>{{ r.buyer }}</b><span class="request-qty">{{ r.qty }}개 신청</span>
-          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
-          <span class="request-date">{{ r.date }}</span>
-        </div>
-        <div class="request-contact" v-if="r.contact">연락처: {{ r.contact }}</div>
-        <div class="request-offer-row" v-if="r.offerItems && r.offerItems.length">
-          <span class="request-offer-label">제안:</span>
-          <span class="request-offer-chip" v-for="o in r.offerItems" :key="o.id">
-            <span class="request-offer-icon" v-if="iconUrlFor(o.icon_key)"><img :src="iconUrlFor(o.icon_key)" alt="" /></span>
-            {{ o.name_ko }} {{ o.qty }}개
-          </span>
-        </div>
-        <div class="request-message">{{ r.message }}</div>
-        <div class="request-actions" v-if="(r.status || 'pending') === 'pending'">
-          <button type="button" class="request-action-btn accept" @click="respond(r.id, 'accepted')">수락</button>
-          <button type="button" class="request-action-btn decline" @click="respond(r.id, 'declined')">거절</button>
-        </div>
+    <div class="post-layout">
+      <!-- 왼쪽: 아이템 이미지 + 판매자 설명 -->
+      <div class="post-left">
+        <section class="item-panel">
+          <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
+          <div class="item-panel-foot">
+            <p class="tooltip-note">판매자가 입력한 아이템 정보·옵션으로 그린 이미지예요. 실제 아이템과 다를 수 있으니 거래 전에 꼭 확인하세요.</p>
+            <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
+          </div>
+        </section>
+
+        <section class="side-card desc-card" v-if="post.content && post.content.trim()">
+          <div class="card-title">판매자 설명</div>
+          <div class="trade-post-content" v-html="contentHtml"></div>
+        </section>
       </div>
-      <div class="empty-state" v-if="post.requests.length === 0">아직 구매신청이 없어요</div>
+
+      <!-- 오른쪽: 가격·구매 / 판매자 / 판매자 전용 (넓은 화면에선 스크롤해도 따라옴) -->
+      <aside class="post-side">
+        <section class="side-card price-card">
+          <div class="card-title">희망 가격</div>
+          <div class="price-parts">
+            <span class="price-part" v-for="(p, i) in priceParts" :key="i">
+              <span class="price-part-icon" :class="{ empty: !p.item }"><img v-if="p.item && iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
+              <span class="price-part-text">{{ p.text }}</span>
+              <span class="price-or" v-if="i < priceParts.length - 1">+</span>
+            </span>
+          </div>
+          <div class="price-meta">
+            <span>수량 <b>{{ post.amountLabel }}</b></span>
+            <span v-if="post.negotiable" class="nego">룬·보석으로 흥정 제안 가능</span>
+          </div>
+          <button
+            type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료'"
+            @click="openBuyModal"
+          >{{ post.status === '거래완료' ? '거래가 완료된 글이에요' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
+          <p class="buy-now-hint">{{ post.negotiable ? '원하는 룬·보석을 골라 판매자에게 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</p>
+        </section>
+
+        <section class="side-card seller-card">
+          <div class="card-title">판매자</div>
+          <div class="seller-row">
+            <span class="seller-avatar" aria-hidden="true">{{ (post.author || '?').slice(0, 1) }}</span>
+            <div class="seller-name-block">
+              <div class="seller-name">{{ post.author }}</div>
+              <div class="seller-sub">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
+            </div>
+          </div>
+          <div class="contact-row">
+            <span class="contact-label">연락처</span>
+            <span class="contact-value">{{ post.contact || '구매신청으로 문의' }}</span>
+            <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ copied ? '복사됨' : '복사' }}</button>
+          </div>
+        </section>
+
+        <section class="side-card owner-card">
+          <div class="card-title">판매 상태 <span class="owner-tag">판매자 전용</span></div>
+          <div class="status-segment" role="radiogroup" aria-label="판매 상태">
+            <button
+              v-for="s in TRADE_STATUSES" :key="s" type="button" role="radio" :aria-checked="post.status === s"
+              :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
+            >{{ s }}</button>
+          </div>
+        </section>
+      </aside>
     </div>
 
-    <div class="request-form">
-      <div class="d-section-title">구매신청 보내기</div>
-      <div class="request-form-row">
-        <input type="text" v-model="reqBuyer" placeholder="닉네임 (비우면 익명)" class="write-input" />
-        <input type="text" v-model="reqContact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" />
-        <input type="number" min="1" v-model="reqQty" placeholder="신청 수량" class="write-input request-qty-input" />
+    <!-- 구매신청 -->
+    <section class="requests-section">
+      <div class="section-head">
+        <div class="section-title">구매신청 <span class="count">{{ post.requests.length }}</span></div>
       </div>
-      <textarea
-        v-model="reqMessage" class="request-textarea" rows="6"
-        placeholder="판매자에게 전할 메시지를 입력하세요 (예: 2개 구매하고 싶어요, 지금 거래 가능하신가요?)"
-      ></textarea>
-      <button class="btn-primary write-submit" @click="submitRequest">구매신청 보내기</button>
-      <span class="request-sent-toast" v-if="showRequestSent">신청을 보냈어요!</span>
-    </div>
+      <div class="request-list">
+        <div class="request-item" v-for="r in post.requests" :key="r.id">
+          <div class="request-top">
+            <span class="seller-avatar small" aria-hidden="true">{{ (r.buyer || '?').slice(0, 1) }}</span>
+            <b>{{ r.buyer }}</b>
+            <span class="request-kind" v-if="r.kind === 'buy_now'">{{ REQUEST_KIND_LABEL.buy_now }}</span>
+            <span class="request-qty">{{ r.qty }}개</span>
+            <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+            <span class="request-date">{{ r.date }}</span>
+          </div>
+          <div class="request-offer-row" v-if="r.offerItems && r.offerItems.length">
+            <span class="request-offer-label">제안</span>
+            <span class="request-offer-chip" v-for="o in r.offerItems" :key="o.id">
+              <span class="request-offer-icon" v-if="iconUrlFor(o.icon_key)"><img :src="iconUrlFor(o.icon_key)" alt="" /></span>
+              {{ o.name_ko }} {{ o.qty }}개
+            </span>
+          </div>
+          <div class="request-message">{{ r.message }}</div>
+          <div class="request-bottom">
+            <span class="request-contact" v-if="r.contact">연락처 {{ r.contact }}</span>
+            <div class="request-actions" v-if="(r.status || 'pending') === 'pending'">
+              <button type="button" class="request-action-btn accept" @click="respond(r.id, 'accepted')">수락</button>
+              <button type="button" class="request-action-btn decline" @click="respond(r.id, 'declined')">거절</button>
+            </div>
+          </div>
+        </div>
+        <div class="empty-state request-empty" v-if="post.requests.length === 0">아직 구매신청이 없어요. 첫 번째로 문의해 보세요.</div>
+      </div>
+
+      <div class="side-card request-form">
+        <div class="card-title">판매자에게 문의·구매신청</div>
+        <div class="request-form-row">
+          <input type="text" v-model="reqBuyer" placeholder="닉네임 (비우면 익명)" class="write-input" aria-label="닉네임" />
+          <input type="text" v-model="reqContact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" aria-label="연락처" />
+          <input type="number" min="1" v-model="reqQty" placeholder="수량" class="write-input request-qty-input" aria-label="신청 수량" />
+        </div>
+        <textarea
+          v-model="reqMessage" class="request-textarea" rows="4" aria-label="메시지"
+          placeholder="판매자에게 전할 메시지 (예: 2개 구매하고 싶어요, 지금 거래 가능하신가요?)"
+        ></textarea>
+        <div class="request-form-actions">
+          <span class="request-sent-toast" v-if="showRequestSent">신청을 보냈어요!</span>
+          <button class="btn-primary write-submit" :disabled="!reqMessage.trim()" @click="submitRequest">보내기</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="modal-overlay" v-if="showBuyModal" @click.self="closeBuyModal">
@@ -335,84 +409,132 @@ function confirmBuy() {
 </template>
 
 <style scoped>
-/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
-   본문·구매신청 목록을 각진 구분선 대신 카드로 나눠서 편하게 읽히게 함 */
-.trade-detail-wrap{max-width:920px;}
-.post-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:18px; padding:32px 36px; margin-bottom:24px;}
-.trade-title-line{display:flex; align-items:center; gap:12px; margin:10px 0 8px; flex-wrap:wrap;}
-.trade-title-icon{
-  width:48px; height:48px; flex:none; display:flex; align-items:center; justify-content:center;
-  background:var(--panel-2); border:1px solid var(--border-soft); border-radius:12px;
-}
-.trade-title-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
-.trade-title-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 12px -3px rgba(200,163,77,0.5);}
-.trade-title-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
-.trade-title-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
-.trade-title-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
-.trade-post-title{font-size:25px; margin:0; word-break:keep-all; min-width:0;}
-.trade-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:20px;}
+/* 판매글 상세 - 거래 사이트 상세(트레더리 등) 구조를 참고: 왼쪽 아이템 이미지·설명, 오른쪽에
+   가격·구매 → 판매자 → 판매자 전용 카드. 톤(어두운 배경, 금색 포인트)은 사이트 그대로 */
+.trade-detail-wrap{max-width:1120px;}
 
-.ethereal-badge{font-size:10.5px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
-.negotiable-badge{font-size:10.5px; padding:3px 11px; border:1px solid var(--gold-dim); color:var(--gold-dim); flex:none; border-radius:999px;}
+.post-head{margin-bottom:22px;}
+.post-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;}
+.post-chip{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 11px; border-radius:999px; background:var(--panel);}
+.post-chip.cat{color:var(--gold); border-color:var(--gold-dim);}
+.post-chip.cat:hover{background:var(--panel-2);}
+
+.trade-title-line{display:flex; align-items:center; gap:14px; margin-bottom:8px;}
+.trade-title-icon{
+  width:56px; height:56px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--border-soft); border-radius:14px;
+}
+.trade-title-icon img{max-width:82%; max-height:82%; object-fit:contain;}
+.trade-title-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 14px -3px rgba(200,163,77,0.5);}
+.trade-title-icon.set{border-color:var(--green); box-shadow:0 0 14px -3px rgba(92,138,91,0.5);}
+.trade-title-icon.runeword{border-color:var(--blood); box-shadow:0 0 14px -3px rgba(162,81,63,0.5);}
+.trade-title-icon.gem{border-color:var(--teal); box-shadow:0 0 14px -3px rgba(78,138,138,0.5);}
+.title-block{flex:1; min-width:0; display:flex; flex-direction:column; gap:7px;}
+.trade-post-title{font-size:27px; margin:0; line-height:1.25; word-break:keep-all;}
+.title-badges{display:flex; flex-wrap:wrap; gap:6px;}
+.trade-post-meta{font-size:12px; color:var(--text-dim);}
+
+.status-pill{font-size:11px; padding:3px 11px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
+.status-pill.status-판매중{color:#1f1a10; background:var(--gold); border-color:var(--gold);}
+.status-pill.status-예약중{color:var(--teal); border-color:var(--teal);}
+.ethereal-badge{font-size:11px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); border-radius:999px;}
+.negotiable-badge{font-size:11px; padding:3px 11px; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:999px;}
 
 .favorite-star{
-  font-size:24px; line-height:1; color:var(--text-dim); flex:none; margin-left:auto; padding:2px;
-  transition:color .1s, transform .1s;
+  font-size:26px; line-height:1; color:var(--text-dim); flex:none; align-self:flex-start; padding:4px 6px;
+  border:1px solid var(--border); border-radius:12px; background:var(--panel); transition:color .1s, border-color .1s;
 }
-.favorite-star:hover{color:var(--gold-dim); transform:scale(1.15);}
-.favorite-star.active{color:var(--gold);}
+.favorite-star:hover{color:var(--gold-dim); border-color:var(--gold-dim);}
+.favorite-star.active{color:var(--gold); border-color:var(--gold-dim);}
 
-.status-select{
-  font-size:12px; padding:7px 12px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim);
-  font-family:'Noto Sans KR', sans-serif; cursor:pointer; border-radius:999px;
+/* 본문 2단 */
+.post-layout{display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:22px; align-items:start; margin-bottom:34px;}
+.post-left{display:flex; flex-direction:column; gap:18px; min-width:0;}
+.post-side{display:flex; flex-direction:column; gap:14px; position:sticky; top:16px;}
+
+.item-panel{
+  background:radial-gradient(ellipse at 50% 0%, rgba(200,163,77,0.08), transparent 60%), var(--panel);
+  border:1px solid var(--border-soft); border-radius:18px; padding:30px 24px 20px;
+  display:flex; flex-direction:column; align-items:center; gap:18px;
 }
-.status-select.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
-.status-select.status-예약중{color:var(--teal); border-color:var(--teal);}
-.status-select.status-거래완료{color:var(--text-dim); border-color:var(--border);}
-
-.trade-info-card{border:1px solid var(--border-soft); background:var(--panel-2); padding:20px 22px; margin-bottom:22px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
-.trade-info-row{display:flex; gap:10px; font-size:13px;}
-.trade-info-row .k{color:var(--text-dim); flex:none; width:88px;}
-.trade-info-row .v{color:var(--text);}
-.price-icon{display:inline-flex; width:16px; height:16px; vertical-align:-3px; margin:0 2px 0 3px;}
-.price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
-
-.buy-now-row{display:flex; align-items:center; gap:14px; margin-bottom:22px; flex-wrap:wrap;}
-.buy-now-btn{padding:12px 28px; font-size:14px; border-radius:10px; flex:none;}
-.buy-now-hint{font-size:12px; color:var(--text-dim);}
-
-/* 판매 정보(왼쪽) + 아이템 툴팁 이미지(오른쪽). 폰에선 이미지가 먼저 */
-.post-top{display:grid; grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:'main visual'; gap:24px; align-items:start; margin-bottom:22px;}
-.post-main{grid-area:main; min-width:0;}
-.post-main .buy-now-row{margin-bottom:0;}
-.post-item-visual{grid-area:visual; display:flex; flex-direction:column; align-items:center; gap:10px; max-width:360px;}
-.tooltip-note{font-size:11.5px; color:var(--text-dim); line-height:1.6; text-align:center; margin:0;}
+.item-panel-foot{display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; border-top:1px solid var(--border-soft); padding-top:14px;}
+.tooltip-note{font-size:11.5px; color:var(--text-dim); line-height:1.6; margin:0;}
 .tooltip-save-btn{
-  font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:6px 12px; border-radius:8px;
+  flex:none; font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:7px 13px; border-radius:9px;
 }
 .tooltip-save-btn:hover{background:var(--panel-2);}
-@media (max-width: 860px){
-  .post-top{grid-template-columns:minmax(0, 1fr); grid-template-areas:'visual' 'main';}
-  .post-item-visual{max-width:none;}
-}
 
-.trade-post-content{
-  font-size:14.5px; line-height:1.9; color:var(--text);
+.side-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:18px 20px;}
+.card-title{font-size:12px; color:var(--text-dim); font-weight:600; letter-spacing:0.02em; margin-bottom:12px; display:flex; align-items:center; gap:8px;}
+
+.price-card{border-color:var(--gold-dim); box-shadow:0 14px 30px -18px rgba(200,163,77,0.35);}
+.price-parts{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
+.price-part{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.price-part-icon{
+  width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--panel-2); border:1px solid var(--teal); border-radius:9px; box-shadow:0 0 10px -3px rgba(78,138,138,0.5);
 }
+.price-part-icon img{width:80%; height:80%; object-fit:contain; image-rendering:pixelated;}
+.price-part-icon.empty{border-color:var(--border); box-shadow:none;}
+.price-part-icon.empty::after{content:'◆'; font-size:12px; color:var(--text-dim);}
+.price-part-text{font-size:17px; font-weight:700; color:var(--text);}
+.price-parts{gap:0 !important;}
+.price-part{padding:4px 0;}
+/* 항목 사이 + 는 얇은 구분선 가운데에 */
+.price-or{width:100%; display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-dim); margin:4px 0 0;}
+.price-or::before, .price-or::after{content:''; flex:1; height:1px; background:var(--border-soft);}
+.price-meta{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--text-dim); margin-bottom:14px;}
+.price-meta b{color:var(--text); font-weight:600;}
+.price-meta .nego{color:var(--gold-dim);}
+.buy-now-btn{width:100%; padding:13px; font-size:14.5px; border-radius:11px;}
+.buy-now-btn:disabled{opacity:0.45; cursor:not-allowed;}
+.buy-now-hint{font-size:11.5px; color:var(--text-dim); margin:9px 0 0; text-align:center;}
+
+.seller-row{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+.seller-avatar{
+  width:40px; height:40px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg, var(--gold-dim), var(--blood)); color:#fff; font-weight:700; font-size:16px;
+}
+.seller-avatar.small{width:26px; height:26px; font-size:12px;}
+.seller-name-block{min-width:0;}
+.seller-name{font-size:15px; font-weight:700; color:var(--text);}
+.seller-sub{font-size:11.5px; color:var(--text-dim);}
+.contact-row{display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px; padding:9px 10px 9px 12px;}
+.contact-label{font-size:11px; color:var(--text-dim); flex:none;}
+.contact-value{font-size:12.5px; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.copy-btn{flex:none; font-size:11.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:4px 10px; border-radius:7px;}
+.copy-btn:hover{background:var(--panel);}
+
+.owner-card{padding:14px 16px;}
+.owner-card .card-title{margin-bottom:10px;}
+.owner-tag{font-size:10px; font-weight:500; color:var(--text-dim); border:1px solid var(--border); padding:1px 7px; border-radius:999px;}
+.status-segment{display:grid; grid-template-columns:repeat(3, 1fr); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+.status-segment button{font-size:12px; padding:8px 0; color:var(--text-dim); background:var(--panel-2);}
+.status-segment button + button{border-left:1px solid var(--border);}
+.status-segment button.active.status-판매중{color:#1f1a10; background:var(--gold);}
+.status-segment button.active.status-예약중{color:var(--panel); background:var(--teal);}
+.status-segment button.active.status-거래완료{color:var(--text); background:var(--border);}
+
+.desc-card .card-title{margin-bottom:10px;}
+.trade-post-content{font-size:14.5px; line-height:1.9; color:var(--text);}
 .trade-post-content :deep(p){margin-bottom:10px;}
 .trade-post-content :deep(ul){margin:8px 0 8px 20px;}
 
-.request-list{display:flex; flex-direction:column; gap:12px; margin-bottom:24px;}
-.request-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:16px 20px;}
-.request-top{display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:6px;}
-.request-top b{color:var(--gold-dim); font-weight:600;}
-.request-kind{font-size:10.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:2px 9px; border-radius:999px; flex:none;}
+/* 구매신청 */
+.requests-section{display:flex; flex-direction:column; gap:14px; max-width:calc(100% - 362px);}
+.section-head{display:flex; align-items:center; justify-content:space-between;}
+.section-title{font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
+.section-title .count{font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:1px 9px; border-radius:999px;}
+.request-list{display:flex; flex-direction:column; gap:10px;}
+.request-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:14px 18px;}
+.request-top{display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; flex-wrap:wrap;}
+.request-top b{color:var(--text); font-weight:600; font-size:13px;}
+.request-kind{font-size:10.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:2px 9px; border-radius:999px;}
 .request-qty{color:var(--teal); font-size:11px; border:1px solid var(--teal); padding:2px 9px; border-radius:999px;}
 .request-status{font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
 .request-status.status-declined{color:var(--blood); border-color:var(--blood);}
 .request-date{color:var(--text-dim); margin-left:auto;}
-.request-contact{font-size:11.5px; color:var(--text-dim); margin-bottom:6px;}
 .request-offer-row{display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
 .request-offer-label{font-size:11px; color:var(--text-dim); flex:none;}
 .request-offer-chip{
@@ -421,25 +543,56 @@ function confirmBuy() {
 }
 .request-offer-icon{width:16px; height:16px; flex:none; display:flex; align-items:center; justify-content:center;}
 .request-offer-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
-.request-message{font-size:13px; color:var(--text-muted); line-height:1.7;}
-.request-actions{display:flex; gap:8px; margin-top:10px;}
+.request-message{font-size:13.5px; color:var(--text-muted); line-height:1.7;}
+.request-bottom{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;}
+.request-contact{font-size:11.5px; color:var(--text-dim);}
+.request-actions{display:flex; gap:8px; margin-left:auto;}
 .request-action-btn{font-size:12px; padding:6px 16px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
 .request-action-btn.accept:hover{border-color:var(--gold-dim); color:var(--gold);}
 .request-action-btn.decline:hover{border-color:var(--blood); color:var(--blood);}
+.request-empty{padding:26px 0; font-size:12.5px; border:1px dashed var(--border); border-radius:14px;}
 
-.request-form{display:flex; flex-direction:column; gap:12px; max-width:680px; position:relative;}
+.request-form{display:flex; flex-direction:column; gap:10px;}
 .request-form-row{display:flex; gap:8px;}
-.request-qty-input{width:100px;}
+.request-form-row .write-input{flex:1; min-width:0;}
+.request-qty-input{flex:0 0 90px !important;}
 .write-input{
-  background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:13px;
   padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .request-textarea{
-  background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:13px;
   padding:12px 14px; font-family:'Noto Sans KR', sans-serif; resize:vertical; border-radius:12px;
 }
-.write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
+.request-form-actions{display:flex; align-items:center; justify-content:flex-end; gap:12px;}
+.write-submit{padding:10px 24px; font-size:13px; border-radius:10px;}
+.write-submit:disabled{opacity:0.45; cursor:not-allowed;}
 .request-sent-toast{font-size:12px; color:var(--teal);}
+
+@media (max-width: 900px){
+  .post-layout{grid-template-columns:minmax(0, 1fr);}
+  .post-side{position:static;}
+  .requests-section{max-width:none;}
+  /* 폰: 이미지 -> 가격·구매 -> 판매자 -> 설명 순서 */
+  .post-layout{display:flex; flex-direction:column;}
+  .post-left, .post-side{display:contents;}
+  .item-panel{order:1;}
+  .price-card{order:2;}
+  .seller-card{order:3;}
+  .desc-card{order:4;}
+  .owner-card{order:5;}
+  .post-layout > * , .post-left > *, .post-side > *{margin-bottom:0;}
+  .post-layout{gap:14px;}
+}
+@media (max-width: 560px){
+  .trade-post-title{font-size:22px;}
+  .trade-title-icon{width:46px; height:46px;}
+  .item-panel{padding:22px 14px 16px;}
+  .item-panel-foot{flex-direction:column; align-items:stretch; text-align:center;}
+  .request-form-row{flex-wrap:wrap;}
+  .request-form-row .write-input{flex:1 1 100%;}
+  .request-qty-input{flex:1 1 100% !important;}
+}
 
 .buy-modal-panel{max-width:560px; display:flex; flex-direction:column; gap:16px;}
 .buy-modal-hint{font-size:12px; color:var(--text-dim); line-height:1.6; margin:-8px 0 0;}
