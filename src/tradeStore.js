@@ -6,6 +6,7 @@ import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from '.
 import baseItemsData from './data/baseItems.json'
 import classSkillsData from './data/classSkills.json'
 import { pushNotification } from './notificationsStore.js'
+import { SKILL_TAB_NAMES } from './magicAffixes.js'
 import { createDeal } from './dealsStore.js'
 
 export { itemsData }
@@ -285,6 +286,8 @@ export function optionPresetsFor(kind) {
 // 문구("마법 아이템 발견 확률 +50%")를 둘 다 잡는 패턴으로 수치를 뽑아냄. 판매자가
 // 실제 값을 안 넣어서 "15~20"처럼 범위로 남은 옵션은 보장되는 최솟값(앞 숫자)으로 비교
 const N = '\\+?(-?\\d+)(?:~\\d+)?'
+const CLASS_NAMES_RE = '아마존|소서리스|네크로맨서|팔라딘|바바리안|드루이드|어쌔신|워록|악마술사'
+const TAB_NAMES_RE = [...SKILL_TAB_NAMES, '보우 & 크로스보우 스킬', '재벌린 & 스피어 스킬'].join('|')
 export const TRADE_STAT_FILTERS = [
   { key: 'allskills', label: '모든 기술', pattern: `^모든 기술 ${N}` },
   { key: 'allres', label: '모든 저항(%)', pattern: `^모든 저항 ${N}` },
@@ -319,8 +322,10 @@ export const TRADE_STAT_FILTERS = [
   { key: 'pdr', label: '피해 감소', pattern: `^피해 ${N} 감소` },
   { key: 'mdr', label: '마법 피해 감소', pattern: `^마법 피해 ${N} 감소` },
   // 직업 전용 베이스 스킬("블리자드 +3 (소서리스 전용)") - 여러 개 붙어도 합치지 않고 가장 높은
-  // 수치로 비교해서 "3 이상" = +3짜리 스킬이 하나라도 있음
-  { key: 'classskill', label: '클래스 스킬 (가장 높은 수치)', pattern: '^.+ \\+(\\d+) \\((?:아마존|소서리스|네크로맨서|팔라딘|바바리안|드루이드|어쌔신|워록) 전용\\)$', agg: 'max' },
+  // 수치로 비교해서 "3 이상" = +3짜리 스킬이 하나라도 있음. 스킬 트리 옵션은 아래 skilltab 으로 따로
+  { key: 'classskill', label: '클래스 스킬 (가장 높은 수치)', pattern: `^(?!(?:${TAB_NAMES_RE}) \\+).+ \\+(\\d+) \\((?:${CLASS_NAMES_RE}) 전용\\)$`, agg: 'max' },
+  // 스킬 트리 옵션 (매직/레어 "번개 기술 +1 (소서리스 전용)", 아마존 무기 자동 옵션 등)
+  { key: 'skilltab', label: '스킬 트리 (가장 높은 수치)', pattern: `^(?:${TAB_NAMES_RE}) \\+(\\d+) \\((?:${CLASS_NAMES_RE}) 전용\\)$`, agg: 'max' },
 ].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
 const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
 
@@ -404,6 +409,7 @@ export function addTradePost({
   contact,
   content,
   options,
+  quality,
   ethereal,
   negotiable,
 }) {
@@ -415,6 +421,8 @@ export function addTradePost({
     amountLabel,
     // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
     options: (options || []).filter(Boolean),
+    // 사전에 없는 장비의 품질(magic|rare|normal) - 툴팁 이름 색
+    quality: quality || '',
     ethereal: !!ethereal,
     negotiable: !!negotiable,
     price,

@@ -23,7 +23,9 @@ const META = [
   { key: 'sockets', re: /^소켓 (\d+)개$/ },
 ]
 
-function nameColor(item, category, name) {
+function nameColor(item, category, name, quality) {
+  if (quality === 'magic') return TOOLTIP_COLORS.magic
+  if (quality === 'rare') return TOOLTIP_COLORS.rare
   if (item?.category === 'unique') return TOOLTIP_COLORS.unique
   if (item?.category === 'set') return TOOLTIP_COLORS.set
   if (item?.category === 'runeword') return TOOLTIP_COLORS.unique
@@ -35,8 +37,9 @@ function nameColor(item, category, name) {
   return TOOLTIP_COLORS.white
 }
 
-// { item, name, category, options, ethereal, amountLabel } -> { icon_key, lines: [{ text, color }] }
-export function buildTooltip({ item = null, name = '', category = '', options = [], ethereal = false, amountLabel = '' }) {
+// { item, name, category, quality, options, ethereal, amountLabel } -> { icon_key, lines: [{ text, color }] }
+// quality: 사전에 없는 장비를 등록할 때 고른 품질(magic|rare|normal) - 이름 색에 씀
+export function buildTooltip({ item = null, name = '', category = '', quality = '', options = [], ethereal = false, amountLabel = '' }) {
   const meta = {}
   const mods = []
   for (const line of options.filter(Boolean)) {
@@ -48,7 +51,7 @@ export function buildTooltip({ item = null, name = '', category = '', options = 
   const lines = []
   const push = (text, color = TOOLTIP_COLORS.white) => text && lines.push({ text, color })
   const displayName = (name || item?.name_ko || '').trim()
-  push(displayName, nameColor(item, category, displayName))
+  push(displayName, nameColor(item, category, displayName, quality))
 
   if (item?.category === 'runeword') {
     push(meta.base || '베이스 미정', TOOLTIP_COLORS.gray)
