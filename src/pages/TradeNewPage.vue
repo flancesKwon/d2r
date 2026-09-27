@@ -939,8 +939,8 @@ function submitPost() {
         </template>
         <template v-if="isAffixQuality">
           <div class="option-editor-hint" v-if="isCrafted">
-            크래프트는 레어 옵션 중에서 최대 4개(접두사·접미사 각각 3개까지)가 붙어요. 4개가 붙으려면 아이템 레벨이 51 이상이어야 해서
-            저레벨에서만 나오는 옵션과는 같이 못 붙고, 같은 종류 옵션은 겹쳐 붙지 않아요.
+            크래프트는 레어 옵션 중에서 1~4개(접두사·접미사 각각 3개까지)가 무작위로 붙고, 같은 종류 옵션은 겹쳐 붙지 않아요.
+            수치는 게임에서 나오는 범위 안에서만 고를 수 있어요.
           </div>
           <div class="option-editor-hint" v-else>
             {{ baseItemLabel(selectedBaseItem) }}에 {{ QUALITY_KO[itemQuality] }}로 붙을 수 있는 옵션만 보여줘요.
