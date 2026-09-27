@@ -37,7 +37,8 @@ function runeIconUrl(runeName) {
 const activeCat = ref('all')
 const activeGroup = ref(null)
 const activeSub = ref(null)
-const searchQuery = ref('')
+// ?q=이름 으로 들어오면(룬워드 찾기 등) 그 검색어로 시작
+const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const selected = ref(null)
 const showQualityInfo = ref(false)
 
