@@ -275,7 +275,30 @@ for (const [, names] of iconByKey) {
   expect(ed && edAr && !R.validateAffixPicks(data, B('7cr'), 'rare', [pickOf(ed), pickOf(edAr)]).length, '레어 무기 인핸스드 데미지 두 종류는 같이 가능')
   // 수치가 한 단계 안에서 안 나오는 조합 (Sharp 단계: 명중률 10~20 + 인핸스드 10~20 -> 명중률 10 + 인핸스드 30 불가)
   if (edAr) expect(R.validateAffixPicks(data, B('7cr'), 'rare', [{ fam: edAr, values: [10, 30] }]).length === 1, '단계가 다른 수치 조합이 통과됨')
-  console.log(`매직/레어 접사 검사: 베이스 ${bases.length}개, 옵션 종류 ${famCount}개`)
+  // 크래프트: 제작법 고정 옵션 문구, 제작법마다 재료 베이스가 있는지, 알려진 제작법 내용
+  const craftMissing = new Set(data.crafts.flatMap((c) => c.mods.map((m) => m.code)).filter((c) => !R.AFFIX_MOD_CODES.includes(c)))
+  if (craftMissing.size) err(`크래프트: 문구가 없는 옵션 코드 ${[...craftMissing].join(', ')} (src/magicAffixes.js MODS)`)
+  for (const c of data.crafts) {
+    const n = bases.filter((b) => R.craftRecipesFor(data, b).some((r) => r.id === c.id)).length
+    if (!n) err(`크래프트: ${c.name} 재료로 쓸 베이스가 없음`)
+  }
+  for (const b of bases) {
+    for (const r of R.craftRecipesFor(data, b)) {
+      if (/undefined|NaN/.test(r.fam.label)) err(`크래프트: ${b.code} ${r.name} 문구 오류 "${r.fam.label}"`)
+    }
+  }
+  const craftOf = (code, name) => R.craftRecipesFor(data, B(code)).find((r) => r.name === name)
+  expect(craftOf('rin', '블러드 반지')?.fam.label === '적중당 생명력 1~3% 훔침, 생명력 +10~20, 힘 +1~5', '블러드 반지 고정 옵션')
+  expect(craftOf('7wa', '블러드 무기'), '버서커 액스로 블러드 무기 가능 (도끼 종류 전체)')
+  expect(craftOf('uhl', '히트 파워 투구')?.fam.label.startsWith('피격 시 5% 확률로 4 레벨'), '히트 파워 투구 (엘리트 베이스 포함)')
+  expect(R.craftRecipesFor(data, B('amu')).length === 4, '목걸이 크래프트 4종')
+  // 크래프트 무작위 옵션은 최대 4개, 4개면 아이템 레벨 51 이상이라 저레벨 전용 접사와 같이 못 붙음
+  const cRing = R.affixFamiliesFor(data, B('rin'), 'crafted')
+  const fcr = cRing.find((f) => /^시전 속도/.test(f.label))
+  expect(fcr, '크래프트 반지 시전 속도')
+  const five = cRing.filter((f) => f.slot === 'p').slice(0, 3).concat(cRing.filter((f) => f.slot === 's').slice(0, 2))
+  expect(R.validateAffixPicks(data, B('rin'), 'crafted', five.map(pickOf)).some((e) => /최대 4개/.test(e)), '크래프트 옵션 5개가 통과됨')
+  console.log(`매직/레어 접사 검사: 베이스 ${bases.length}개, 옵션 종류 ${famCount}개, 크래프트 제작법 ${data.crafts.length}개`)
 }
 
 // ---------- 결과 출력 ----------

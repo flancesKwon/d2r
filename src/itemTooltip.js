@@ -26,6 +26,7 @@ const META = [
 function nameColor(item, category, name, quality) {
   if (quality === 'magic') return TOOLTIP_COLORS.magic
   if (quality === 'rare') return TOOLTIP_COLORS.rare
+  if (quality === 'crafted') return TOOLTIP_COLORS.orange
   if (item?.category === 'unique') return TOOLTIP_COLORS.unique
   if (item?.category === 'set') return TOOLTIP_COLORS.set
   if (item?.category === 'runeword') return TOOLTIP_COLORS.unique
@@ -38,7 +39,7 @@ function nameColor(item, category, name, quality) {
 }
 
 // { item, name, category, quality, options, ethereal, amountLabel } -> { icon_key, lines: [{ text, color }] }
-// quality: 사전에 없는 장비를 등록할 때 고른 품질(magic|rare|normal) - 이름 색에 씀
+// quality: 사전에 없는 장비를 등록할 때 고른 품질(magic|rare|crafted|normal) - 이름 색에 씀
 export function buildTooltip({ item = null, name = '', category = '', quality = '', options = [], ethereal = false, amountLabel = '' }) {
   const meta = {}
   const mods = []

@@ -421,7 +421,7 @@ export function addTradePost({
     amountLabel,
     // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
     options: (options || []).filter(Boolean),
-    // 사전에 없는 장비의 품질(magic|rare|normal) - 툴팁 이름 색
+    // 사전에 없는 장비의 품질(magic|rare|crafted|normal) - 툴팁 이름 색
     quality: quality || '',
     ethereal: !!ethereal,
     negotiable: !!negotiable,
