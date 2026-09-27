@@ -23,6 +23,7 @@ const tooltip = computed(() =>
     item: linkedItem.value,
     name: post.value?.itemName,
     category: post.value?.category,
+    quality: post.value?.quality,
     options: post.value?.options || [],
     ethereal: post.value?.ethereal,
     amountLabel: post.value?.amountLabel,

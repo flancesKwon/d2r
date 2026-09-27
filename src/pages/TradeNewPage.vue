@@ -39,6 +39,9 @@ import { itemMatchesQuery } from '../itemSearch.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
+import AffixPicker from '../components/AffixPicker.vue'
+import magicAffixData from '../data/magicAffixes.json'
+import { affixFamiliesFor, affixLimits, familyLines, filledValues, validateAffixPicks } from '../magicAffixes.js'
 import { profileState } from '../profileStore.js'
 
 const router = useRouter()
@@ -133,6 +136,61 @@ function pickManualBaseKind(kind) {
   manualBaseKind.value = manualBaseKind.value === kind ? null : kind
   resetBaseStats()
 }
+// 반지·목걸이·주얼·부적은 무기/방어구 목록에 없어서 버튼으로 바로 고름 (방어력·데미지·소켓 없음)
+const MISC_BASES = magicAffixData.miscBases.map((b) => ({
+  ...b, type_sub: b.name_ko, tier: '', sockets: 0, can_eth: false, base_stats: { category: 'misc' },
+}))
+function pickMiscBase(b) {
+  selectedBaseItem.value = selectedBaseItem.value?.code === b.code ? null : b
+  resetBaseMods()
+}
+
+// 매직/레어/일반(흰색) 품질 - 사전에 없는 아이템을 베이스로 등록할 때 고름.
+// 매직·레어는 그 베이스에 붙을 수 있는 접사만(src/magicAffixes.js), 일반은 상급 옵션·소켓만
+const itemQuality = ref('')
+const QUALITY_KO = { magic: '매직', rare: '레어', normal: '일반(흰색)' }
+const isManualEquip = computed(() => !selectedItem.value && form.value.category === '매직/레어/일반')
+const qualityChoices = computed(() => {
+  const b = selectedBaseItem.value
+  if (!isManualEquip.value || !b) return []
+  const out = ['magic']
+  if (magicAffixData.bases[b.code]?.rare) out.push('rare')
+  if (b.base_stats.category !== 'misc') out.push('normal')
+  return out
+})
+function pickQuality(q) {
+  itemQuality.value = itemQuality.value === q ? '' : q
+  resetAffixPicks()
+  superiorPick.value = { combo: '', values: {} }
+  uniqueSockets.value = ''
+}
+const isAffixQuality = computed(() => isManualEquip.value && ['magic', 'rare'].includes(itemQuality.value))
+const affixFamilies = computed(() =>
+  isAffixQuality.value ? affixFamiliesFor(magicAffixData, selectedBaseItem.value, itemQuality.value) : []
+)
+const affixLimitsNow = computed(() => affixLimits(selectedBaseItem.value, itemQuality.value))
+const emptyAffixPicks = () => ({ p: [{ key: '', values: [] }], s: [{ key: '', values: [] }] })
+const affixPicks = ref(emptyAffixPicks())
+function resetAffixPicks() {
+  affixPicks.value = emptyAffixPicks()
+}
+// 고른 옵션 (종류 + 수치) 목록 - 종류를 안 고른 빈 줄은 뺌
+const pickedAffixes = computed(() => {
+  const byKey = new Map(affixFamilies.value.map((f) => [f.key, f]))
+  return ['p', 's'].flatMap((slot) =>
+    affixPicks.value[slot].filter((r) => byKey.has(r.key)).map((r) => ({ fam: byKey.get(r.key), values: r.values }))
+  )
+})
+// 같은 종류(그룹) 겹침·수치 단계·아이템 레벨 조건 검사 - 입력하는 동안 바로 보여주고 등록도 막음
+const affixErrors = computed(() =>
+  isAffixQuality.value ? validateAffixPicks(magicAffixData, selectedBaseItem.value, itemQuality.value, pickedAffixes.value) : []
+)
+function buildAffixOptions() {
+  return pickedAffixes.value.flatMap(({ fam, values }) => {
+    const vals = filledValues(fam, values)
+    return vals.some((v) => v === null) ? [] : familyLines(fam, vals)
+  })
+}
 
 // 영혼(검·방패)·인내(무기·갑옷)처럼 무기와 방어구 둘 다에 만들 수 있는 룬워드는 아이템만
 // 봐선 종류를 모름 - 고른 베이스로 정해짐
@@ -145,13 +203,13 @@ const effectiveBaseKind = computed(
 // 입력칸 대신 위의 참고 표시만 함. 룬워드는 베이스 선택이 필수라 종류를 몰라도 항상 보여줌
 const needsManualBaseStats = computed(() => {
   if (selectedItem.value?.category === 'runeword') return true
-  if (!effectiveBaseKind.value) return false
+  if (!effectiveBaseKind.value || effectiveBaseKind.value === 'misc') return false
   if (selectedItem.value && (selectedItem.value.category === 'unique' || selectedItem.value.category === 'set')) return false
   return true
 })
 
-const armorStats = ref({ baseDefense: '', extraDefensePct: '', extraDurability: '' })
-const weaponStats = ref({ extraDamagePct: '', extraDurability: '' })
+// (증가된 방어력·데미지는 매직/레어 접사로, 추가 내구도는 상급 옵션으로만 입력받음)
+const armorStats = ref({ baseDefense: '' })
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
 // 고르면 그 베이스가 원래 갖고 있는 방어력/데미지·내구도가 자동으로 채워짐
@@ -171,9 +229,11 @@ watch(hasEthereal, (ok) => {
   if (!ok) form.value.ethereal = false
 })
 
-// 상급(Superior) 흰 베이스 옵션 - 룬워드 베이스만 해당 (매직/레어는 상급이 아님).
+// 상급(Superior) 흰 베이스 옵션 - 룬워드 베이스와 일반(흰색) 아이템만 해당 (매직/레어는 상급이 아님).
 // 게임에서 정해진 조합 중 하나만 고를 수 있고, 수치도 조합별 범위 안에서만
-const superiorCombos = computed(() => (isRuneword.value ? superiorCombosFor(selectedBaseItem.value) : []))
+const superiorCombos = computed(() =>
+  isRuneword.value || (isManualEquip.value && itemQuality.value === 'normal') ? superiorCombosFor(selectedBaseItem.value) : []
+)
 const superiorPick = ref({ combo: '', values: {} })
 const pickedSuperiorCombo = computed(() => superiorCombos.value[superiorPick.value.combo] || null)
 const superiorComboLabel = (combo) =>
@@ -184,13 +244,16 @@ function buildSuperiorOptions() {
     .map((k) => SUPERIOR_MODS[k].text.replace('{v}', superiorPick.value.values[k]))
 }
 
-// 유니크·세트 소켓 (라르주크·큐브로 뚫은 개수) - 베이스 최대 소켓까지만
+// 유니크·세트·일반(흰색) 소켓 - 베이스 최대 소켓까지만
 const uniqueSockets = ref('')
-const uniqueMaxSockets = computed(() => (isUniqueOrSet.value ? itemBase.value?.sockets || 0 : 0))
+const uniqueMaxSockets = computed(() =>
+  isUniqueOrSet.value || (isManualEquip.value && itemQuality.value === 'normal') ? itemBase.value?.sockets || 0 : 0
+)
 
-// 자유 입력 옵션은 사전에 없는 매직/레어/일반·기타 아이템에만 - 룬워드·유니크·세트는 붙을 수 있는
+// 자유 입력 옵션은 사전에 없는 기타 아이템에만 - 룬워드·유니크·세트는 붙을 수 있는
 // 옵션이 정해져 있어서 위의 전용 칸(베이스 옵션·상급·소켓)으로만 입력받음
-const allowsCustomOptions = computed(() => !selectedItem.value && ['매직/레어/일반', '기타'].includes(form.value.category))
+// (매직/레어/일반은 위의 품질·접사 입력으로만 - 게임에서 나올 수 없는 옵션이 들어가지 않게)
+const allowsCustomOptions = computed(() => !selectedItem.value && form.value.category === '기타')
 // 룬워드는 만들 수 있는 베이스(허용 종류 + 필요 소켓 수)만 후보로 보여줌
 const baseItemCandidates = computed(() =>
   selectedBaseItem.value
@@ -259,6 +322,8 @@ const skillLabel = (s) => (s.ko ? `${s.ko} (${s.en})` : s.en)
 // "모든 저항 +{v}%" -> "모든 저항" 처럼 수치 자리를 뺀 이름들 (자동 옵션 선택칸 안내용)
 const autoModNames = computed(() => baseAutoMods.value.map((m) => m.text.replace(/ \+\{v\}%?/, '')).join(' 또는 '))
 function resetBaseMods() {
+  itemQuality.value = ''
+  resetAffixPicks()
   classSkillPicks.value = emptyClassSkillPicks()
   autoModPick.value = { key: '', value: '' }
   superiorPick.value = { combo: '', values: {} }
@@ -291,8 +356,7 @@ function hideBaseItemDropdownSoon() {
 }
 
 function resetBaseStats() {
-  armorStats.value = { baseDefense: '', extraDefensePct: '', extraDurability: '' }
-  weaponStats.value = { extraDamagePct: '', extraDurability: '' }
+  armorStats.value = { baseDefense: '' }
   clearBaseItem()
 }
 
@@ -304,17 +368,12 @@ function buildBaseStatOptions() {
     const base = selectedBaseItem.value?.base_stats
     const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
     if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
-    // 매직/레어는 접사로 붙는 값이라 자유 입력, 룬워드는 아래 상급 옵션으로만
-    if (!isRuneword.value && armorStats.value.extraDefensePct) out.push(`증가된 방어력 +${armorStats.value.extraDefensePct}%`)
-    if (!isRuneword.value && armorStats.value.extraDurability) out.push(`추가 내구도 +${armorStats.value.extraDurability}`)
   } else if (effectiveBaseKind.value === 'weapon') {
     // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배)이라 입력받지 않고 그대로 씀
     const exp = expectedWeaponDamage.value
     if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
-    if (!isRuneword.value && weaponStats.value.extraDamagePct) out.push(`증가된 데미지 +${weaponStats.value.extraDamagePct}%`)
-    if (!isRuneword.value && weaponStats.value.extraDurability) out.push(`추가 내구도 +${weaponStats.value.extraDurability}`)
   }
-  out.push(...buildSuperiorOptions(), ...buildBaseModOptions())
+  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...buildAffixOptions())
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
 }
@@ -337,6 +396,10 @@ const invalidInputs = computed(() => {
   }
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
+  for (const { fam, values } of pickedAffixes.value) {
+    if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - 수치를 골라주세요`)
+  }
+  bad.push(...affixErrors.value)
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -519,6 +582,7 @@ const previewTooltip = computed(() =>
         item: selectedItem.value,
         name: form.value.itemName,
         category: form.value.category,
+        quality: isManualEquip.value ? itemQuality.value : '',
         options: buildAllOptions(),
         ethereal: form.value.ethereal,
         amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
@@ -546,6 +610,7 @@ function submitPost() {
     ...form.value,
     amountLabel,
     options,
+    quality: isManualEquip.value ? itemQuality.value : '',
     price: buildPriceString(),
     author: profileState.nickname,
     contact: profileState.contact,
@@ -663,6 +728,13 @@ function submitPost() {
         <div class="fallback-cat-row">
           <button type="button" :class="{ active: manualBaseKind === 'weapon' }" @click="pickManualBaseKind('weapon')">무기</button>
           <button type="button" :class="{ active: manualBaseKind === 'armor' }" @click="pickManualBaseKind('armor')">방어구</button>
+          <button type="button" :class="{ active: manualBaseKind === 'misc' }" @click="pickManualBaseKind('misc')">반지·목걸이·주얼·부적</button>
+        </div>
+        <div class="fallback-cat-row" v-if="manualBaseKind === 'misc'">
+          <button
+            type="button" v-for="b in MISC_BASES" :key="b.code" :class="{ active: selectedBaseItem?.code === b.code }"
+            @click="pickMiscBase(b)"
+          >{{ b.name_ko }}</button>
         </div>
       </div>
 
@@ -675,7 +747,7 @@ function submitPost() {
           이 룬워드를 만들 수 있는 베이스만 보여줘요 ({{ runewordBaseRule }}). 실제로 쓴 베이스를 고르세요.
         </div>
         <div class="option-editor-hint" v-else>
-          실제 아이템의 베이스를 검색해서 고르면 기본 {{ effectiveBaseKind === 'weapon' ? '데미지' : '방어력' }} 범위가 표시돼요. 못 찾으면 아래 칸만 입력해도 돼요.
+          실제 아이템의 베이스를 검색해서 고르세요. 기본 {{ effectiveBaseKind === 'weapon' ? '데미지' : '방어력' }}이 표시되고, 그 베이스에 붙을 수 있는 옵션만 고를 수 있어요.
         </div>
 
         <div class="base-item-picker">
@@ -721,10 +793,6 @@ function submitPost() {
                 :placeholder="expectedDefense ? `${expectedDefense.min}~${expectedDefense.max}` : '예: 80'"
               />
             </label>
-            <template v-if="!isRuneword">
-              <label>증가된 방어력(%)<input type="number" v-model="armorStats.extraDefensePct" class="write-input" placeholder="예: 15" /></label>
-              <label>추가 내구도<input type="number" v-model="armorStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
-            </template>
           </div>
           <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
         </template>
@@ -734,10 +802,6 @@ function submitPost() {
             <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값이라 자동으로 들어가요</span>
             <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
-          </div>
-          <div class="base-stats-input-row" v-if="!isRuneword">
-            <label>증가된 데미지(%)<input type="number" v-model="weaponStats.extraDamagePct" class="write-input" placeholder="예: 20" /></label>
-            <label>추가 내구도<input type="number" v-model="weaponStats.extraDurability" class="write-input" placeholder="예: 5" /></label>
           </div>
         </template>
 
@@ -809,6 +873,25 @@ function submitPost() {
             >+ 스킬 추가 ({{ classSkillPicks.length }}/{{ MAX_CLASS_SKILLS }})</button>
           </template>
         </div>
+      </div>
+
+      <div class="option-editor" v-if="qualityChoices.length">
+        <div class="option-editor-title">아이템 품질</div>
+        <div class="fallback-cat-row">
+          <button
+            type="button" v-for="q in qualityChoices" :key="q" :class="{ active: itemQuality === q }"
+            @click="pickQuality(q)"
+          >{{ QUALITY_KO[q] }}</button>
+        </div>
+        <template v-if="isAffixQuality">
+          <div class="option-editor-hint">
+            {{ baseItemLabel(selectedBaseItem) }}에 {{ QUALITY_KO[itemQuality] }}로 붙을 수 있는 옵션만 보여줘요.
+            {{ itemQuality === 'magic' ? '매직은 접두사·접미사 각각 1개까지' : affixLimitsNow.total === 4 ? '레어 주얼은 합쳐서 4개까지' : '레어는 접두사·접미사 각각 3개까지' }}고,
+            같은 종류 옵션은 겹쳐 붙지 않아요. 수치도 게임에서 나오는 범위 안에서만 고를 수 있어요.
+          </div>
+          <AffixPicker :families="affixFamilies" :limits="affixLimitsNow" v-model="affixPicks" />
+          <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
+        </template>
       </div>
 
       <label class="ethereal-check" v-if="hasEthereal">
@@ -1082,6 +1165,7 @@ function submitPost() {
 .fallback-cat-row button:hover{border-color:var(--gold-dim); color:var(--gold);}
 .fallback-cat-row button.active{color:var(--gold); border-color:var(--gold-dim); background:var(--panel);}
 
+.affix-error{color:var(--blood);}
 .option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
 .option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}

@@ -229,6 +229,55 @@ for (const [, names] of iconByKey) {
   console.log(`스킬 설명 연결 검사: ${checked}개`)
 }
 
+// ---------- 6. 매직/레어 접사 체크 (판매글 등록에서 베이스별로 고르는 옵션) ----------
+// 원본 접사 옵션 코드에 문구가 없으면 그 접사가 조용히 목록에서 빠지니 에러로 잡고, 알려진 게임 수치로 회귀 확인
+{
+  const R = await import('../src/magicAffixes.js')
+  const readData = (f) => JSON.parse(readFileSync(join(__dirname, '../src/data/' + f), 'utf8'))
+  const data = readData('magicAffixes.json')
+  const bases = [...readData('baseItems.json'), ...data.miscBases]
+  const missing = new Set(data.affixes.flatMap((a) => a.mods.map((m) => m.code)).filter((c) => !R.AFFIX_MOD_CODES.includes(c)))
+  if (missing.size) err(`매직/레어 접사: 문구가 없는 옵션 코드 ${[...missing].join(', ')} (src/magicAffixes.js MODS)`)
+  let famCount = 0
+  for (const b of bases) {
+    if (!data.bases[b.code]) { err(`매직/레어 접사: 베이스 정보 없음 ${b.code}`); continue }
+    for (const q of ['magic', 'rare']) {
+      const fams = R.affixFamiliesFor(data, b, q)
+      famCount += fams.length
+      if (q === 'magic' && !fams.length) err(`매직/레어 접사: ${b.code} 매직 옵션이 하나도 없음`)
+      for (const f of fams) {
+        if (/undefined|NaN/.test(f.label)) err(`매직/레어 접사: ${b.code} 문구 오류 "${f.label}"`)
+        if (f.slotRanges.some(([lo, hi]) => lo > hi)) err(`매직/레어 접사: ${b.code} 범위 오류 "${f.label}"`)
+      }
+    }
+  }
+  const B = (code) => bases.find((b) => b.code === code)
+  const fam = (code, q, re) => R.affixFamiliesFor(data, B(code), q).find((f) => re.test(f.label))
+  const expect = (cond, msg) => cond || err(`매직/레어 접사: ${msg}`)
+  expect(fam('cm3', 'magic', /^생명력 \+/)?.slotRanges[0][1] === 45, '거대 부적 생명력 최대 45')
+  expect(fam('cm1', 'magic', /^생명력 \+/)?.slotRanges[0][1] === 20, '작은 부적 생명력 최대 20')
+  expect(!fam('jew', 'rare', /^공격 속도/), '레어 주얼에 공격 속도 불가 (매직 전용)')
+  expect(fam('jew', 'magic', /^공격 속도/)?.slotRanges[0][1] === 15, '매직 주얼 공격 속도 15')
+  expect(fam('rin', 'rare', /^시전 속도/)?.slotRanges[0][1] === 10, '레어 반지 시전 속도 10')
+  expect(!R.affixFamiliesFor(data, B('cm3'), 'rare').length, '부적은 레어 불가')
+  // 같은 그룹(반지 접미사 "빛 반경+명중률" / "빛 반경+명중률 보너스")은 한 아이템에 같이 못 붙고,
+  // 그룹이 다른 인핸스드 데미지 두 종류(Jagged / Sharp)는 레어에 같이 붙을 수 있음
+  const pickOf = (f) => ({ fam: f, values: f.slotRanges.map((r) => r[0]) })
+  const lightAr = fam('rin', 'rare', /^빛 반경 \+[\d~]+, 명중률 \+/)
+  const lightArPct = fam('rin', 'rare', /^빛 반경 \+[\d~]+, 명중률 보너스/)
+  expect(lightAr && lightArPct, '레어 반지 빛 반경 옵션 두 종류')
+  if (lightAr && lightArPct) {
+    const errs = R.validateAffixPicks(data, B('rin'), 'rare', [pickOf(lightAr), pickOf(lightArPct)])
+    expect(errs.length === 1, `같은 그룹 두 개가 통과됨 (${errs.join(' / ')})`)
+  }
+  const ed = fam('7cr', 'rare', /^인핸스드 데미지 \+[\d~]+%$/)
+  const edAr = fam('7cr', 'rare', /^명중률 \+[\d~]+, 인핸스드 데미지/)
+  expect(ed && edAr && !R.validateAffixPicks(data, B('7cr'), 'rare', [pickOf(ed), pickOf(edAr)]).length, '레어 무기 인핸스드 데미지 두 종류는 같이 가능')
+  // 수치가 한 단계 안에서 안 나오는 조합 (Sharp 단계: 명중률 10~20 + 인핸스드 10~20 -> 명중률 10 + 인핸스드 30 불가)
+  if (edAr) expect(R.validateAffixPicks(data, B('7cr'), 'rare', [{ fam: edAr, values: [10, 30] }]).length === 1, '단계가 다른 수치 조합이 통과됨')
+  console.log(`매직/레어 접사 검사: 베이스 ${bases.length}개, 옵션 종류 ${famCount}개`)
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)
