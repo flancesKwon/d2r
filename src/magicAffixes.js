@@ -35,6 +35,7 @@ const range = (a, b) => [Math.min(a, b), Math.max(a, b)]
 const frames = (v, len) => Math.round((v * len) / 256) // 독 피해: 프레임당 값 -> 총 피해
 const sec = (len) => Math.round(len / 25)
 
+// 문구는 아이템 사전(items.json) 옵션 표기에 맞춤 (예: Light Radius = 시야, Knockback = 밀쳐내기)
 // 옵션 코드별: slots(mod, siblings, ctx) -> 수치 칸마다 [최소, 최대], text(values, mod) -> 옵션 문구
 // (수치 칸이 없는 옵션은 slots 가 빈 배열)
 const simple = (tpl) => ({ slots: (m) => [range(m.min, m.max)], text: ([v]) => tpl.replace('#', v) })
@@ -52,7 +53,7 @@ const MODS = {
   'dmg%': simple('인핸스드 데미지 +#%'), 'dmg-min': simple('최소 피해 +#'), 'dmg-max': simple('최대 피해 +#'),
   att: simple('명중률 +#'), 'att%': simple('명중률 보너스 #%'),
   'dmg-to-mana': simple('받는 피해의 +#%만큼 마나 회복'), 'regen-stam': simple('지구력 회복 속도 #% 증가'),
-  stam: simple('최대 지구력 +#'), light: simple('빛 반경 +#'), 'mag%': simple('마법 아이템 발견 확률 #% 증가'),
+  stam: simple('최대 지구력 +#'), light: simple('시야 +#'), 'mag%': simple('마법 아이템 발견 확률 #% 증가'),
   'gold%': simple('괴물에게서 얻는 금화 #% 증가'),
   mana: simple('마나 +#'), hp: simple('생명력 +#'), regen: simple('생명력 회복 +#'),
   'res-all': simple('모든 저항 +#%'), 'res-cold': simple('냉기 저항 +#%'), 'res-fire': simple('화염 저항 +#%'),
@@ -60,11 +61,11 @@ const MODS = {
   'mana-kill': simple('적 처치 시 마나 +#'),
   'att-demon': simple('악마에 대한 명중률 +#'), 'dmg-demon': simple('악마에게 주는 피해 +#%'),
   'att-undead': simple('언데드에 대한 명중률 +#'), 'dmg-undead': simple('언데드에게 주는 피해 +#%'),
-  stack: simple('최대 수량 +#'),
+  stack: simple('중첩 수량 +#'),
   'cold-min': simple('최소 냉기 피해 +#'), 'cold-max': simple('최대 냉기 피해 +#'),
   'fire-min': simple('최소 화염 피해 +#'), 'fire-max': simple('최대 화염 피해 +#'),
   'ltng-min': simple('최소 번개 피해 +#'), 'ltng-max': simple('최대 번개 피해 +#'),
-  'cold-len': { slots: (m) => [range(sec(m.min), sec(m.max))], text: ([v]) => `냉기 지속시간 ${v}초` },
+  'cold-len': { slots: (m) => [range(sec(m.min), sec(m.max))], text: ([v]) => `냉기 효과 지속시간 ${v}초` },
   'red-dmg': simple('피해 # 감소'), 'red-mag': simple('마법 피해 # 감소'),
   'dmg-ac': { slots: (m) => [range(Math.abs(m.min), Math.abs(m.max))], text: ([v]) => `적중당 괴물 방어력 -${v} 감소` },
   thorns: simple('공격자가 피해를 # 받음'),
@@ -76,11 +77,11 @@ const MODS = {
   move1: simple('달리기/걷기 속도 +#%'), move2: simple('달리기/걷기 속도 +#%'), move3: simple('달리기/걷기 속도 +#%'),
   str: simple('힘 +#'), dex: simple('민첩 +#'), enr: simple('마력 +#'), vit: simple('활력 +#'),
   lifesteal: simple('적중당 생명력 #% 훔침'), manasteal: simple('적중당 마나 #% 훔침'),
-  'res-pois-len': simple('독 지속시간 #% 감소'), ease: simple('요구 조건 #%'), stamdrain: simple('지구력 고갈 속도 #% 감소'),
+  'res-pois-len': simple('독 지속시간 #% 감소'), ease: simple('착용 조건 #%'), stamdrain: simple('지구력 고갈 속도 #% 감소'),
   // 적중 시 괴물 도주: 128 = 100%
   howl: { slots: (m) => [range(Math.round((m.min * 100) / 128), Math.round((m.max * 100) / 128))], text: ([v]) => `적중 시 괴물 도주 +${v}%` },
   'ignore-ac': noValue('대상의 방어력 무시'), 'half-freeze': noValue('빙결 지속시간 절반으로 감소'),
-  noheal: noValue('괴물 회복 저지'), knock: noValue('넉백'), indestruct: noValue('파괴 불가'),
+  noheal: noValue('괴물 회복 저지'), knock: noValue('밀쳐내기'), indestruct: noValue('파괴 불가'),
   'rep-dur': { slots: (m) => [fixed(Math.round(100 / m.param))], text: ([v]) => `내구도 1 회복 (매 ${v}초)` },
   'rep-quant': { slots: (m) => [fixed(Math.round(100 / m.param))], text: ([v]) => `수량 1 회복 (매 ${v}초)` },
   'ac/lvl': perLevel('방어력', 8), 'dmg/lvl': perLevel('최대 피해', 8), 'att/lvl': perLevel('명중률', 2),

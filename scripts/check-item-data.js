@@ -260,12 +260,12 @@ for (const [, names] of iconByKey) {
   expect(fam('jew', 'magic', /^공격 속도/)?.slotRanges[0][1] === 15, '매직 주얼 공격 속도 15')
   expect(fam('rin', 'rare', /^시전 속도/)?.slotRanges[0][1] === 10, '레어 반지 시전 속도 10')
   expect(!R.affixFamiliesFor(data, B('cm3'), 'rare').length, '부적은 레어 불가')
-  // 같은 그룹(반지 접미사 "빛 반경+명중률" / "빛 반경+명중률 보너스")은 한 아이템에 같이 못 붙고,
+  // 같은 그룹(반지 접미사 "시야+명중률" / "시야+명중률 보너스")은 한 아이템에 같이 못 붙고,
   // 그룹이 다른 인핸스드 데미지 두 종류(Jagged / Sharp)는 레어에 같이 붙을 수 있음
   const pickOf = (f) => ({ fam: f, values: f.slotRanges.map((r) => r[0]) })
-  const lightAr = fam('rin', 'rare', /^빛 반경 \+[\d~]+, 명중률 \+/)
-  const lightArPct = fam('rin', 'rare', /^빛 반경 \+[\d~]+, 명중률 보너스/)
-  expect(lightAr && lightArPct, '레어 반지 빛 반경 옵션 두 종류')
+  const lightAr = fam('rin', 'rare', /^시야 \+[\d~]+, 명중률 \+/)
+  const lightArPct = fam('rin', 'rare', /^시야 \+[\d~]+, 명중률 보너스/)
+  expect(lightAr && lightArPct, '레어 반지 시야 옵션 두 종류')
   if (lightAr && lightArPct) {
     const errs = R.validateAffixPicks(data, B('rin'), 'rare', [pickOf(lightAr), pickOf(lightArPct)])
     expect(errs.length === 1, `같은 그룹 두 개가 통과됨 (${errs.join(' / ')})`)
