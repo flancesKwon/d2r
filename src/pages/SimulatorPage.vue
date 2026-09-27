@@ -36,9 +36,10 @@ function itemIconUrl(item) {
   return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
-// 7개 직업은 클래식 DC6에서 뽑은 png, 워록(악마술사)은 클래식 DC6가 드루이드 복사본(더미)이라
-// D2R HD 스프라이트(waskillicon.sprite)의 프레임을 쓴 webp - 테두리가 그림에 포함돼 있어서 .hd-frame으로 잘라 씀
-const iconFileModules = import.meta.glob('../assets/skillicons/*.{png,webp}', { eager: true, import: 'default' })
+// 8개 직업 모두 D2R HD 스프라이트(*skillicon.sprite) 프레임 webp로 통일 (skilldesc.txt IconCel로 매칭).
+// 워록은 클래식 DC6가 드루이드 복사본(더미)이라 HD가 유일한 원본이기도 함. 그림에 장식 테두리가
+// 포함돼 있어서 .hd-frame으로 안쪽만 보이게 잘라 씀
+const iconFileModules = import.meta.glob('../assets/skillicons/*.webp', { eager: true, import: 'default' })
 const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
 function realIconUrl(classKey, skillName) {
   const fname = skillIconManifest[classKey]?.[skillName]
@@ -694,7 +695,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                   @mouseenter="hoveredNode = { tabIdx, skillIdx: n.skillIdx }"
                   @mouseleave="hoveredNode = null"
                 >
-                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :class="{ 'hd-frame': selectedClass === 'warlock' }" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
+                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art hd-frame" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
                   <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
                 </button>
                 <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
