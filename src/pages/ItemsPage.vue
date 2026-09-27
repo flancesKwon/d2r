@@ -5,6 +5,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
+import { itemMatchesQuery } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
 
@@ -73,16 +74,8 @@ const filteredItems = computed(() => {
   if (activeCat.value !== 'all') list = list.filter((it) => it.category === activeCat.value)
   if (activeGroup.value) list = list.filter((it) => it.type_group === activeGroup.value)
   if (activeSub.value) list = list.filter((it) => it.type_sub === activeSub.value)
-  const q = searchQuery.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter(
-      (it) =>
-        it.name_ko.toLowerCase().includes(q) ||
-        it.name_en.toLowerCase().includes(q) ||
-        (it.subtitle || '').toLowerCase().includes(q) ||
-        (it.aliases || []).some((a) => a.toLowerCase().includes(q))
-    )
-  }
+  // 공식 이름·영문·별칭(조던, 에니그마 등)·베이스 이름, 띄어쓰기 무시
+  if (searchQuery.value.trim()) list = list.filter((it) => itemMatchesQuery(it, searchQuery.value, [it.subtitle]))
   return list
 })
 </script>

@@ -35,6 +35,7 @@ import {
 } from '../tradeStore.js'
 import { runewordBaseTypesKo } from '../itemStats.js'
 import iconsData from '../data/icons.json'
+import { itemMatchesQuery } from '../itemSearch.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import { profileState } from '../profileStore.js'
 
@@ -450,14 +451,8 @@ const RUNES_HIGH_FIRST = PRICE_CURRENCIES
   .filter((it) => it.type_sub === '룬')
   .sort((a, b) => (itemLevelReq(b) ?? 0) - (itemLevelReq(a) ?? 0))
 const priceCandidates = computed(() => {
-  const q = priceQuery.value.trim().toLowerCase()
-  if (!q) return RUNES_HIGH_FIRST
-  return PRICE_CURRENCIES.filter(
-    (it) =>
-      it.name_ko.toLowerCase().includes(q) ||
-      it.name_en.toLowerCase().includes(q) ||
-      (it.aliases || []).some((a) => a.toLowerCase().includes(q))
-  )
+  if (!priceQuery.value.trim()) return RUNES_HIGH_FIRST
+  return PRICE_CURRENCIES.filter((it) => itemMatchesQuery(it, priceQuery.value))
 })
 function openPriceModal() {
   priceQuery.value = ''
