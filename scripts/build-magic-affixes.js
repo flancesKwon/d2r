@@ -72,6 +72,7 @@ function affixRows(file, slot) {
         })
       const row = {
         slot, name: x.Name, level: Number(x.level) || 0, rare: Number(x.rare) === 1 ? 1 : 0, group: num(x.group),
+        freq: Number(x.frequency), // 뽑힐 가중치 (크래프트 시뮬레이터)
         itypes: [1, 2, 3, 4, 5, 6, 7].map((i) => x[`itype${i}`]).filter(Boolean),
         mods,
       }
@@ -127,6 +128,11 @@ const crafts = load('cubemain.json')
     if (!m || !CRAFT_SLOT_KO[m[2]]) throw new Error(`unknown craft ${r.description}`)
     const [input, ...flags] = r['input 1'].replace(/"/g, '').split(',')
     const craft = { id: `${m[1]}-${m[2]}`.toLowerCase().replace(/ /g, '-'), name: `${CRAFT_KIND_KO[m[1]]} ${CRAFT_SLOT_KO[m[2]]}` }
+    // 재료: 매직 아이템 + 주얼 + 룬 + 퍼펙트 보석 (영문 이름 - 화면에서 아이템 사전의 한글 이름·아이콘으로 바꿈)
+    const mat = r.description.match(/\+ (?:1 )?(\w+ Rune) \+ 1 (Perfect \w+)/)
+    if (!mat) throw new Error(`craft materials ${r.description}`)
+    craft.rune = mat[1]
+    craft.gem = mat[2]
     // 종류 코드가 우선 ("axe"는 아이템 Axe 코드이기도 하지만 제작법에선 도끼 종류 전체)
     const eq = !types.has(input) && equipRows.get(input)
     if (eq) {

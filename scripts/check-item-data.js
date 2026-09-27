@@ -292,7 +292,7 @@ for (const [, names] of iconByKey) {
   expect(craftOf('7wa', '블러드 무기'), '버서커 액스로 블러드 무기 가능 (도끼 종류 전체)')
   expect(craftOf('uhl', '히트 파워 투구')?.fam.label.startsWith('피격 시 5% 확률로 4 레벨'), '히트 파워 투구 (엘리트 베이스 포함)')
   expect(R.craftRecipesFor(data, B('amu')).length === 4, '목걸이 크래프트 4종')
-  // 크래프트 무작위 옵션은 최대 4개, 4개면 아이템 레벨 51 이상이라 저레벨 전용 접사와 같이 못 붙음
+  // 크래프트 무작위 옵션은 최대 4개 (아이템 레벨이 낮아도 4개는 나올 수 있음 - 개수는 확률)
   const cRing = R.affixFamiliesFor(data, B('rin'), 'crafted')
   const fcr = cRing.find((f) => /^시전 속도/.test(f.label))
   expect(fcr, '크래프트 반지 시전 속도')
@@ -331,6 +331,48 @@ for (const [, names] of iconByKey) {
   // 위 룬은 아래로 못 내림
   if (run(needOf('Ist'), { Ber: 1 }).status !== 'missing') bad('베르로 이스트를 만들 수 있다고 나옴 (내림 불가)')
   console.log(`룬워드 찾기 검사: 룬 ${table.runes.length}종, 룬워드 ${list.length}개`)
+}
+
+// ---------- 8. 크래프트 시뮬레이터 체크 (옵션 개수 확률·그룹 중복·접두/접미 3개·수치 범위) ----------
+{
+  const R = await import('../src/magicAffixes.js')
+  const data = JSON.parse(readFileSync(join(__dirname, '../src/data/magicAffixes.json'), 'utf8'))
+  const bad = (msg) => err(`크래프트 시뮬레이터: ${msg}`)
+  // 결과가 매번 같도록 고정 시드 난수
+  let seed = 12345
+  const rng = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648)
+  for (const ilvl of [1, 30, 31, 50, 51, 70, 71, 98]) {
+    const s = R.craftAffixCountOdds(ilvl).reduce((a, b) => a + b, 0)
+    if (Math.abs(s - 1) > 1e-9) bad(`아이템 레벨 ${ilvl} 옵션 개수 확률 합이 1이 아님`)
+  }
+  if (R.craftItemLevel(data.bases.amu, 99, 99) !== 98) bad('캐릭터 99 + 재료 99 크래프트 아이템 레벨이 98이 아님')
+  if (R.craftItemLevel(data.bases.uhl, 1, 1) !== data.bases.uhl.qlvl) bad('크래프트 아이템 레벨이 베이스 qlvl 보다 낮게 나옴')
+  const amu = data.miscBases.find((b) => b.code === 'amu')
+  const recipe = R.craftRecipesFor(data, amu).find((r) => r.name === '캐스터 목걸이')
+  for (const ilvl of [20, 94]) {
+    const pools = R.craftPools(data, amu, ilvl)
+    const counts = [0, 0, 0, 0]
+    const N = 4000
+    for (let i = 0; i < N; i++) {
+      const res = R.rollCraft(pools, recipe, ilvl, rng)
+      counts[res.affixes.length - 1]++
+      const groups = new Set()
+      const perSlot = { p: 0, s: 0 }
+      for (const a of res.affixes) {
+        const tier = pools[a.slot].find((t) => t.key === a.key && t.slots.every(([lo, hi], k) => a.values[k] >= lo && a.values[k] <= hi))
+        if (!tier) { bad(`아이템 레벨 ${ilvl}: 범위 밖 수치 ${a.key} ${a.values}`); break }
+        perSlot[a.slot]++
+        groups.add(a.key)
+      }
+      if (perSlot.p > 3 || perSlot.s > 3) { bad(`아이템 레벨 ${ilvl}: 접두사/접미사가 3개 초과`); break }
+      if (groups.size !== res.affixes.length) { bad(`아이템 레벨 ${ilvl}: 같은 옵션이 두 번 붙음`); break }
+    }
+    const expected = R.craftAffixCountOdds(ilvl)
+    counts.forEach((c, i) => {
+      if (Math.abs(c / N - expected[i]) > 0.03) bad(`아이템 레벨 ${ilvl}: ${i + 1}개 비율 ${(c / N).toFixed(3)} (기대 ${expected[i]})`)
+    })
+  }
+  console.log('크래프트 시뮬레이터 검사: 통과 조건 확인')
 }
 
 // ---------- 결과 출력 ----------

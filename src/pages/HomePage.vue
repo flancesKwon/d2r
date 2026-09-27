@@ -46,7 +46,7 @@ import HeaderNotifications from '../components/HeaderNotifications.vue'
           <router-link to="/runewords">룬워드 찾기</router-link>
           <router-link to="/simulator">스킬·스탯 시뮬레이터</router-link>
           <router-link to="/market">시세 게시판</router-link><router-link to="/ladder">레더 시즌 정보</router-link>
-          <router-link to="/cube">큐브 레시피</router-link>
+          <router-link to="/cube">큐브 레시피</router-link><router-link to="/craft-sim">크래프트 시뮬레이터</router-link>
         </div>
       </div>
       <router-link to="/items">아이템 사전</router-link>

@@ -139,18 +139,26 @@ export const AFFIX_MOD_CODES = Object.keys(MODS)
 
 // 아이템 레벨(ilvl) -> affix level(alvl): alvl = ilvl + magic lvl (지팡이·완드·오브·서클릿),
 // 아니면 ilvl < 99 - qlvl/2 일 때 ilvl - qlvl/2, 그 이상은 2*ilvl - 99 (1~99)
-function affixLevelAt(info, ilvl) {
+export function affixLevelAt(info, ilvl) {
   const half = Math.floor(info.qlvl / 2)
   const a = info.magic_lvl ? ilvl + info.magic_lvl : ilvl < 99 - half ? ilvl - half : 2 * ilvl - 99
   return Math.max(1, Math.min(99, a))
 }
 // 품질별 아이템 레벨 범위: 드랍 매직/레어는 qlvl~99,
-// 크래프트는 (캐릭터 레벨/2 + 재료 아이템 레벨/2) 이라 qlvl/2 ~ 98
+// 크래프트는 캐릭터 레벨/2 + 재료 아이템 레벨/2 (최대 49+49=98), qlvl 보다 낮으면 qlvl
 function ilvlRange(info, quality) {
-  return quality === 'crafted' ? [Math.floor(info.qlvl / 2), 98] : [info.qlvl, 99]
+  return quality === 'crafted' ? [Math.min(info.qlvl, 98), 98] : [info.qlvl, 99]
 }
-// 크래프트는 아이템 레벨에 따라 무작위 옵션 개수가 정해짐: 30 이하 1개, 31~40 2개, 41~50 3개, 51 이상 4개
-const CRAFT_MIN_ILVL_FOR_COUNT = [0, 0, 31, 41, 51]
+// 크래프트 아이템 레벨 = floor(캐릭터 레벨/2) + floor(재료 아이템 레벨/2), 베이스 qlvl 보다 낮으면 qlvl
+export const craftItemLevel = (info, clvl, inputIlvl) => Math.max(info.qlvl, Math.floor(clvl / 2) + Math.floor(inputIlvl / 2))
+// 크래프트 무작위 옵션 개수 확률 (아이템 레벨 구간별) - [1개, 2개, 3개, 4개]
+// 1~30: 40/20/20/20%, 31~50: 0/60/20/20%, 51~70: 0/0/80/20%, 71 이상: 항상 4개. 레벨이 낮아도 4개는 나올 수 있음
+export function craftAffixCountOdds(ilvl) {
+  if (ilvl <= 30) return [0.4, 0.2, 0.2, 0.2]
+  if (ilvl <= 50) return [0, 0.6, 0.2, 0.2]
+  if (ilvl <= 70) return [0, 0, 0.8, 0.2]
+  return [0, 0, 0, 1]
+}
 
 // 한 접사 줄(tier)의 수치 칸들 - 여러 옵션(mod)의 칸을 순서대로 이어붙임
 function tierSlots(tier, ctx) {
@@ -273,9 +281,7 @@ export function validateAffixPicks(data, base, quality, picks) {
   }
   if (errs.length) return errs
   // 같은 그룹 금지 + 모든 옵션이 한 affix level 에서 동시에 가능해야 함 -> 단계 조합을 전부 시도
-  // (크래프트는 무작위 옵션 개수만큼 아이템 레벨이 높아야 함 -> alvl 하한이 올라감)
-  let [ilvlMin, ilvlMax] = ilvlRange(info, quality)
-  if (quality === 'crafted') ilvlMin = Math.max(ilvlMin, CRAFT_MIN_ILVL_FOR_COUNT[Math.min(picks.length, 4)])
+  const [ilvlMin, ilvlMax] = ilvlRange(info, quality)
   const amin = affixLevelAt(info, ilvlMin)
   const amax = affixLevelAt(info, ilvlMax)
   const levels = [amin, ...cands.flatMap((c) => c.ts.map((t) => t.level))].filter((l) => l >= amin && l <= amax)
@@ -295,4 +301,97 @@ export function validateAffixPicks(data, base, quality, picks) {
   })
   if (!ok) errs.push('고른 옵션들은 한 아이템에 같이 붙을 수 없어요 (같은 종류 옵션이 겹치거나 아이템 레벨 조건이 안 맞아요)')
   return errs
+}
+
+// ---------- 크래프트 시뮬레이터 ----------
+// 게임 방식: 옵션 개수를 아이템 레벨 구간 확률로 정한 뒤, 하나씩 접두사/접미사를 50:50으로 정하고
+// (한쪽이 3개 찼거나 뽑을 게 없으면 다른 쪽) 레어 접사 풀에서 frequency 가중치로 뽑음. 같은 그룹은 다시 안 나옴.
+// 수치는 고른 단계의 범위 안에서 균등하게
+
+// 이 베이스·크래프트 아이템 레벨에서 뽑힐 수 있는 접사 -> { p: [...], s: [...], alvl }
+export function craftPools(data, base, ilvl) {
+  const info = data.bases[base.code]
+  const alvl = affixLevelAt(info, ilvl)
+  const types = new Set(info.types)
+  const ctx = { magicLvl: info.magic_lvl || 0, maxSockets: base.sockets || 0, ilvlMin: ilvl, ilvlMax: ilvl }
+  const pools = { p: [], s: [], alvl }
+  for (const a of data.affixes) {
+    if (!a.rare || !(a.freq > 0)) continue
+    if (!a.itypes.some((t) => types.has(t)) || (a.etypes || []).some((t) => types.has(t))) continue
+    if (a.cls && info.cls && a.cls !== info.cls) continue
+    if (a.level > alvl || (a.maxlevel && a.maxlevel < alvl)) continue
+    if (a.mods.some((m) => !MODS[m.code])) continue
+    const slots = tierSlots(a, ctx)
+    if (a.mods.some((m) => m.code === 'sock') && slots.some(([, hi]) => hi <= 0)) continue
+    pools[a.slot].push({ key: familyKey(a), mods: a.mods, group: a.group, freq: a.freq, slots })
+  }
+  return pools
+}
+
+// 뽑힐 수 있는 옵션 종류 (목표 옵션 선택용) -> [{ key, slot, mods, slotRanges, label }]
+export function craftPoolFamilies(pools) {
+  const fams = new Map()
+  for (const slot of ['p', 's']) {
+    for (const a of pools[slot]) {
+      if (!fams.has(a.key)) fams.set(a.key, { key: a.key, slot, mods: a.mods, tiers: [] })
+      fams.get(a.key).tiers.push({ slots: a.slots })
+    }
+  }
+  return [...fams.values()].map(withRanges).sort((x, y) => x.label.localeCompare(y.label, 'ko'))
+}
+
+const rollInt = (lo, hi, rng) => lo + Math.floor(rng() * (hi - lo + 1))
+function pickWeighted(list, rng) {
+  const total = list.reduce((s, a) => s + a.freq, 0)
+  let r = rng() * total
+  for (const a of list) {
+    r -= a.freq
+    if (r < 0) return a
+  }
+  return list[list.length - 1]
+}
+
+// 한 번 제작 -> { count, fixed: 고정 옵션 수치, affixes: [{ key, slot, mods, values }] }
+export function rollCraft(pools, recipe, ilvl, rng = Math.random) {
+  const odds = craftAffixCountOdds(ilvl)
+  let r = rng()
+  let count = 4
+  for (let i = 0; i < 4; i++) {
+    r -= odds[i]
+    if (r < 0) { count = i + 1; break }
+  }
+  const used = new Set()
+  const n = { p: 0, s: 0 }
+  const affixes = []
+  const avail = (slot) => (n[slot] < 3 ? pools[slot].filter((a) => !used.has(a.group)) : [])
+  for (let k = 0; k < count; k++) {
+    const ap = avail('p')
+    const as = avail('s')
+    let slot
+    if (ap.length && as.length) slot = rng() < 0.5 ? 'p' : 's'
+    else if (ap.length) slot = 'p'
+    else if (as.length) slot = 's'
+    else break
+    const a = pickWeighted(slot === 'p' ? ap : as, rng)
+    used.add(a.group)
+    n[slot]++
+    affixes.push({ key: a.key, slot, mods: a.mods, values: a.slots.map(([lo, hi]) => rollInt(lo, hi, rng)) })
+  }
+  const fixed = recipe.fam.slotRanges.map(([lo, hi]) => rollInt(lo, hi, rng))
+  return { count, fixed, affixes }
+}
+
+// 여러 번 제작해서 통계 -> { runs, countDist: [1~4개 횟수], keyHits: Map<key, 횟수>, targetHits }
+// targets: [{ key, min }] - 그 옵션이 붙고 첫 수치가 min 이상 (전부 만족해야 성공)
+export function simulateCraft(pools, recipe, ilvl, runs, targets = [], rng = Math.random) {
+  const countDist = [0, 0, 0, 0]
+  const keyHits = new Map()
+  let targetHits = 0
+  for (let i = 0; i < runs; i++) {
+    const res = rollCraft(pools, recipe, ilvl, rng)
+    countDist[res.affixes.length - 1] = (countDist[res.affixes.length - 1] || 0) + 1
+    for (const a of res.affixes) keyHits.set(a.key, (keyHits.get(a.key) || 0) + 1)
+    if (targets.length && targets.every((t) => res.affixes.some((a) => a.key === t.key && (a.values[0] ?? 0) >= (t.min || 0)))) targetHits++
+  }
+  return { runs, countDist, keyHits, targetHits }
 }
