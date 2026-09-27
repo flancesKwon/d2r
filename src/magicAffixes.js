@@ -327,18 +327,18 @@ export function craftPools(data, base, ilvl) {
     if (a.mods.some((m) => !MODS[m.code])) continue
     const slots = tierSlots(a, ctx)
     if (a.mods.some((m) => m.code === 'sock') && slots.some(([, hi]) => hi <= 0)) continue
-    pools[a.slot].push({ key: familyKey(a), mods: a.mods, group: a.group, freq: a.freq, slots })
+    pools[a.slot].push({ key: familyKey(a), mods: a.mods, group: a.group, freq: a.freq, slots, name: a.name, level: a.level, maxlevel: a.maxlevel || null })
   }
   return pools
 }
 
-// 뽑힐 수 있는 옵션 종류 (목표 옵션 선택용) -> [{ key, slot, mods, slotRanges, label }]
+// 뽑힐 수 있는 옵션 종류 (목표 옵션 선택·가중치 표) -> [{ key, slot, mods, slotRanges, label, tiers: [{ name, level, maxlevel, freq, slots }] }]
 export function craftPoolFamilies(pools) {
   const fams = new Map()
   for (const slot of ['p', 's']) {
     for (const a of pools[slot]) {
       if (!fams.has(a.key)) fams.set(a.key, { key: a.key, slot, mods: a.mods, tiers: [] })
-      fams.get(a.key).tiers.push({ slots: a.slots })
+      fams.get(a.key).tiers.push({ slots: a.slots, name: a.name, level: a.level, maxlevel: a.maxlevel, freq: a.freq })
     }
   }
   return [...fams.values()].map(withRanges).sort((x, y) => x.label.localeCompare(y.label, 'ko'))
