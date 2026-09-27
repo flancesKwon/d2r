@@ -11,6 +11,7 @@ import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildRuneLookup, DOLL_ICON_ASPECT } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
 import iconsData from '../data/icons.json'
+import { itemMatchesQuery } from '../itemSearch.js'
 
 // 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
 // (무기·방패는 세로로 긴 슬롯, 목걸이는 갑옷 옆, 반지는 벨트 양옆)
@@ -86,14 +87,8 @@ function selectSlotItem(slotKey, itemId) {
 const slotPickerItems = computed(() => {
   if (!slotPicker.value) return []
   const list = itemsBySlot[slotPicker.value] || []
-  const q = slotPickerSearch.value.trim().toLowerCase()
-  if (!q) return list
-  return list.filter(
-    (it) =>
-      it.name_ko.toLowerCase().includes(q) ||
-      (it.name_en && it.name_en.toLowerCase().includes(q)) ||
-      (it.aliases || []).some((a) => a.toLowerCase().includes(q))
-  )
+  if (!slotPickerSearch.value.trim()) return list
+  return list.filter((it) => itemMatchesQuery(it, slotPickerSearch.value))
 })
 
 // ---- 인벤토리 참(charm) ----

@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { itemMatchesQuery } from './itemSearch.js'
 import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
@@ -113,16 +114,8 @@ export const TRADE_HARDCORE = ['일반', '하드코어']
 // 찾고, 고르면 트레이드 카테고리가 자동으로 맞춰짐. 아이템 사전 검색처럼 별칭(샤코,
 // 애니참, 파괴참 등 유저들이 실제로 부르는 이름)으로도 찾을 수 있게 함
 export function searchAllItems(query) {
-  const q = query.trim().toLowerCase()
-  if (!q) return []
-  return ALL_TRADE_ITEMS
-    .filter(
-      (it) =>
-        it.name_ko.toLowerCase().includes(q) ||
-        it.name_en.toLowerCase().includes(q) ||
-        (it.aliases || []).some((a) => a.toLowerCase().includes(q))
-    )
-    .slice(0, 40)
+  if (!query.trim()) return []
+  return ALL_TRADE_ITEMS.filter((it) => itemMatchesQuery(it, query)).slice(0, 40)
 }
 
 export function tradeCategoryForItem(item) {

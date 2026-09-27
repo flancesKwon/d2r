@@ -15,6 +15,7 @@ import {
   postLevelReq,
 } from '../tradeStore.js'
 import iconsData from '../data/icons.json'
+import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
 const activeCat = ref(null)
@@ -110,14 +111,16 @@ const filteredPosts = computed(() => {
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
   if (favoritesOnly.value) list = list.filter((p) => isFavorite(p.id))
-  const q = searchQuery.value.trim().toLowerCase()
+  const q = searchQuery.value.trim()
   if (q) {
     list = list.filter(
       (p) =>
-        p.itemName.toLowerCase().includes(q) ||
-        p.content.toLowerCase().includes(q) ||
+        textMatchesQuery(p.itemName, q) ||
+        textMatchesQuery(p.content, q) ||
         // 옵션 문구도 검색 (예: "블리자드"로 +블리자드 붙은 오브·지팡이 찾기)
-        (p.options || []).some((o) => (o || '').toLowerCase().includes(q))
+        (p.options || []).some((o) => textMatchesQuery(o, q)) ||
+        // 아이템 별칭으로도 (예: "조던"으로 요르단의 반지, "에니그마"로 수수께끼 판매글)
+        (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), searchQuery.value))
     )
   }
   for (const c of statConditions.value) {
