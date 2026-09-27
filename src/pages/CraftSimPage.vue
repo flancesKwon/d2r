@@ -9,7 +9,7 @@ import itemsData from '../data/items.json'
 import iconsData from '../data/icons.json'
 import { buildTooltip } from '../itemTooltip.js'
 import {
-  craftRecipesFor, craftItemLevel, craftAffixCountOdds, craftPools, craftPoolFamilies, rollCraft, simulateCraft, familyLines,
+  craftRecipesFor, craftItemLevel, craftAffixCountOdds, craftPools, craftPoolFamilies, rollCraft, simulateCraft, familyLines, familyText,
 } from '../magicAffixes.js'
 
 // 크래프트 시뮬레이터 - 제작법·베이스·캐릭터 레벨·재료 아이템 레벨을 정하면 게임 방식대로 결과를 굴려봄
@@ -108,6 +108,46 @@ const topAffixes = computed(() =>
 )
 const successP = computed(() => (result.value?.targets.length ? pct(result.value.targetHits, result.value.runs) : null))
 const expectedTries = computed(() => (successP.value ? Math.ceil(100 / successP.value) : null))
+
+// ---------- 가중치 표: 게임 데이터(frequency) 그대로 + 아이템에 붙을 확률 ----------
+const tab = ref('sim')
+const tableSlot = ref('')
+const tableQuery = ref('')
+const openKey = ref('')
+// 한 번 뽑을 때 확률 = 옵션 가중치 ÷ 같은 쪽(접두사/접미사) 가중치 합 - 데이터만으로 정확히 나옴
+const slotTotals = computed(() => {
+  const t = { p: 0, s: 0 }
+  for (const slot of ['p', 's']) for (const a of pools.value?.[slot] || []) t[slot] += a.freq
+  return t
+})
+// 아이템에 붙을 확률은 뽑는 순서·그룹 제외 때문에 공식 한 줄로 안 나와서 많이 굴려서 계산 (입력이 바뀌면 다시)
+const TABLE_RUNS = 50000
+const tableHits = ref(null)
+let tableTimer = null
+watch([tab, pools, recipe], () => {
+  clearTimeout(tableTimer)
+  tableHits.value = null
+  if (tab.value !== 'table' || !pools.value || !recipe.value) return
+  tableTimer = setTimeout(() => {
+    tableHits.value = simulateCraft(pools.value, recipe.value, ilvl.value, TABLE_RUNS).keyHits
+  }, 150)
+}, { immediate: true })
+const tierText = (f, t) => familyText(f, t.slots.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`)))
+const tableRows = computed(() => {
+  const q = tableQuery.value.trim()
+  return families.value
+    .filter((f) => (!tableSlot.value || f.slot === tableSlot.value) && (!q || f.label.includes(q)))
+    .map((f) => {
+      const weight = f.tiers.reduce((s, t) => s + t.freq, 0)
+      return {
+        f, weight,
+        pick: weight / slotTotals.value[f.slot],
+        onItem: tableHits.value ? (tableHits.value.get(f.key) || 0) / TABLE_RUNS : null,
+        levels: `${Math.min(...f.tiers.map((t) => t.level))}~${Math.max(...f.tiers.map((t) => t.maxlevel || 99))}`,
+      }
+    })
+    .sort((a, b) => b.weight - a.weight || a.f.label.localeCompare(b.f.label, 'ko'))
+})
 </script>
 
 <template>
@@ -179,7 +219,64 @@ const expectedTries = computed(() => (successP.value ? Math.ceil(100 / successP.
       </div>
     </section>
 
-    <div class="cs-cols">
+    <div class="cat-tabs cs-tabs">
+      <button :class="{ active: tab === 'sim' }" @click="tab = 'sim'">시뮬레이션</button>
+      <button :class="{ active: tab === 'table' }" @click="tab = 'table'">가중치 표</button>
+    </div>
+
+    <section class="cs-panel" v-if="tab === 'table'">
+      <div class="cs-title">옵션별 가중치 표</div>
+      <div class="cs-hint">
+        게임 데이터(magicprefix·magicsuffix)의 가중치(frequency) 그대로예요. 이 베이스·옵션 레벨 {{ pools?.alvl }}에서 레어 옵션으로 뽑힐 수 있는 것만 보여줘요.
+        <b>한 번 뽑을 때</b> = 가중치 ÷ 같은 쪽 가중치 합(접두사 {{ slotTotals.p }}, 접미사 {{ slotTotals.s }})으로 데이터만으로 정확한 값이고,
+        <b>아이템에 붙을 확률</b>은 옵션 개수·접두/접미 50:50·같은 종류 제외를 반영해 {{ TABLE_RUNS.toLocaleString() }}번 굴린 값이에요.
+        제작법 고정 옵션은 항상 붙어서 빠져 있어요. 줄을 누르면 단계별 가중치가 보여요.
+      </div>
+      <div class="cs-table-tools">
+        <div class="cat-tabs">
+          <button :class="{ active: !tableSlot }" @click="tableSlot = ''">전체 {{ families.length }}</button>
+          <button :class="{ active: tableSlot === 'p' }" @click="tableSlot = 'p'">접두사</button>
+          <button :class="{ active: tableSlot === 's' }" @click="tableSlot = 's'">접미사</button>
+        </div>
+        <input type="text" v-model="tableQuery" class="cs-input cs-table-search" placeholder="옵션 검색 (예: 저항, 소서리스)" aria-label="옵션 검색" />
+      </div>
+      <div class="cs-table-wrap">
+        <table class="cs-table">
+          <thead>
+            <tr><th>구분</th><th>옵션 (수치 범위)</th><th>가중치</th><th>한 번 뽑을 때</th><th>아이템에 붙을 확률</th><th>옵션 레벨</th></tr>
+          </thead>
+          <tbody>
+            <template v-for="r in tableRows" :key="r.f.key">
+              <tr class="cs-trow" :class="{ open: openKey === r.f.key }" @click="openKey = openKey === r.f.key ? '' : r.f.key">
+                <td><span class="cs-slot" :class="r.f.slot">{{ r.f.slot === 'p' ? '접두' : '접미' }}</span></td>
+                <td class="cs-tlabel">{{ r.f.label }}</td>
+                <td class="num">{{ r.weight }}</td>
+                <td class="num">{{ fmtPct(r.pick * 100) }}</td>
+                <td class="num">
+                  <template v-if="r.onItem !== null">
+                    <span class="cs-tbar"><span :style="{ width: Math.min(100, r.onItem * 400) + '%' }"></span></span>{{ fmtPct(r.onItem * 100) }}
+                  </template>
+                  <span v-else class="cs-dim">계산 중…</span>
+                </td>
+                <td class="num">{{ r.levels }}</td>
+              </tr>
+              <tr class="cs-tiers" v-if="openKey === r.f.key">
+                <td></td>
+                <td colspan="5">
+                  <div class="cs-tier" v-for="t in r.f.tiers" :key="t.name + t.level">
+                    <span class="cs-tier-name">{{ t.name }}</span>
+                    <span>{{ tierText(r.f, t) }}</span>
+                    <span class="cs-dim">가중치 {{ t.freq }} · 레벨 {{ t.level }}~{{ t.maxlevel || 99 }}</span>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="cs-cols" v-else>
       <section class="cs-panel">
         <div class="cs-title">한 번 제작해보기</div>
         <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="craftOnce">제작하기</button>
@@ -288,6 +385,27 @@ const expectedTries = computed(() => (successP.value ? Math.ceil(100 / successP.
 .cs-bar-label{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .cs-bar-track{height:8px; background:var(--panel-2); border-radius:999px; overflow:hidden;}
 .cs-bar-fill{height:100%; background:var(--gold-dim); border-radius:999px;}
+.cs-tabs button{border-radius:999px;}
+.cs-table-tools{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; justify-content:space-between;}
+.cs-table-search{width:260px; max-width:100%;}
+.cs-table-wrap{overflow-x:auto;}
+.cs-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+.cs-table th{text-align:left; font-weight:600; color:var(--gold-dim); padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+.cs-table td{padding:8px 10px; border-bottom:1px solid var(--border-soft); color:var(--text-muted); vertical-align:middle;}
+.cs-table .num{text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.cs-table th:nth-child(n+3){text-align:right;}
+.cs-trow{cursor:pointer;}
+.cs-trow:hover td, .cs-trow.open td{background:var(--panel-2);}
+.cs-tlabel{color:#8c8cff; min-width:220px;}
+.cs-slot{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border);}
+.cs-slot.p{color:var(--gold); border-color:var(--gold-dim);}
+.cs-slot.s{color:var(--teal); border-color:var(--teal);}
+.cs-tbar{display:inline-block; width:56px; height:6px; background:var(--panel-2); border-radius:999px; margin-right:8px; vertical-align:middle; overflow:hidden;}
+.cs-tbar span{display:block; height:100%; background:var(--gold-dim);}
+.cs-dim{color:var(--text-dim);}
+.cs-tiers td{background:var(--panel-2);}
+.cs-tier{display:flex; flex-wrap:wrap; gap:4px 14px; padding:3px 0; font-size:12px;}
+.cs-tier-name{color:var(--text); min-width:120px;}
 @media (max-width:860px){
   .cs-cols{grid-template-columns:1fr;}
   .cs-bar{grid-template-columns:minmax(0, 140px) 1fr 56px;}
