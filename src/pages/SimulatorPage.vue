@@ -6,6 +6,9 @@ import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
 import rawSkillData from '../data/skills.json'
 import skillInfo from '../data/skillInfo.json'
+import skillText from '../data/skill_text.json'
+import skillIdMap from '../data/skillIdMap.json'
+import { buildSkillTextIndex, skillDescLines } from '../skillText.js'
 import itemsData from '../data/items.json'
 import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
@@ -244,6 +247,8 @@ const skillData = Object.fromEntries(
     },
   ])
 )
+// 스킬 설명: skill_text.json (직업마다 다른 id 규칙은 src/skillText.js에서 처리)
+const skillTextIndex = buildSkillTextIndex(skillText, skillIdMap, rawSkillData)
 const classTabs = computed(() => skillData[selectedClass.value].tabs)
 
 const clampedLevel = computed({
@@ -514,7 +519,8 @@ const hoverTip = computed(() => {
   if (!h) return null
   const skill = classTabs.value[h.tabIdx]?.skills[h.skillIdx]
   if (!skill) return null
-  const info = skillInfo[selectedClass.value]?.[skill.name] || { desc: [], syn: [] }
+  const info = skillInfo[selectedClass.value]?.[skill.name] || { syn: [] }
+  const desc = skillDescLines(skillTextIndex[selectedClass.value]?.[skill.name])
   const hard = skillPoint(h.tabIdx, h.skillIdx)
   const eff = effectiveSkillLevel(h.tabIdx, h.skillIdx)
   const now = hard > 0 ? computeSkillDamage(skill, eff, skillPointByName) : null
@@ -522,7 +528,7 @@ const hoverTip = computed(() => {
   const receives = info.syn.map((x) => ({ ...x, points: skillPointByName(x.skill), bonus: x.percent * skillPointByName(x.skill) }))
   const gives = Object.entries(skillInfo[selectedClass.value] || {})
     .flatMap(([target, v]) => v.syn.filter((x) => x.skill === skill.name).map((x) => ({ target, percent: x.percent, kind: x.kind })))
-  return { skill, info, hard, eff, now, next, receives, gives, tab: classTabs.value[h.tabIdx].name }
+  return { skill, info, desc, hard, eff, now, next, receives, gives, tab: classTabs.value[h.tabIdx].name }
 })
 function dmgLine(d) {
   if (!d) return []
@@ -824,8 +830,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             {{ hoverTip.tab }} · 요구 레벨 {{ hoverTip.skill.reqLevel }}
             <template v-if="hoverTip.skill.reqSkills && hoverTip.skill.reqSkills.length"> · 선행: {{ hoverTip.skill.reqSkills.join(', ') }}</template>
           </div>
-          <p class="skill-tip-desc" v-if="hoverTip.info.desc.length">
-            <template v-for="(l, i) in hoverTip.info.desc" :key="i">{{ l }}<br v-if="i < hoverTip.info.desc.length - 1" /></template>
+          <p class="skill-tip-desc" v-if="hoverTip.desc.length">
+            <template v-for="(l, i) in hoverTip.desc" :key="i">{{ l }}<br v-if="i < hoverTip.desc.length - 1" /></template>
           </p>
 
           <div class="skill-tip-block">
