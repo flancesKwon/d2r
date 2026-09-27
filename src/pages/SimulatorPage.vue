@@ -36,7 +36,9 @@ function itemIconUrl(item) {
   return b64 ? 'data:image/png;base64,' + b64 : null
 }
 
-const iconFileModules = import.meta.glob('../assets/skillicons/*.png', { eager: true, import: 'default' })
+// 7개 직업은 클래식 DC6에서 뽑은 png, 워록(악마술사)은 클래식 DC6가 드루이드 복사본(더미)이라
+// D2R HD 스프라이트(waskillicon.sprite)의 프레임을 쓴 webp - 테두리가 그림에 포함돼 있어서 .hd-frame으로 잘라 씀
+const iconFileModules = import.meta.glob('../assets/skillicons/*.{png,webp}', { eager: true, import: 'default' })
 const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
 function realIconUrl(classKey, skillName) {
   const fname = skillIconManifest[classKey]?.[skillName]
@@ -692,7 +694,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                   @mouseenter="hoveredNode = { tabIdx, skillIdx: n.skillIdx }"
                   @mouseleave="hoveredNode = null"
                 >
-                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
+                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art" :class="{ 'hd-frame': selectedClass === 'warlock' }" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
                   <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
                 </button>
                 <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
@@ -1026,6 +1028,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
    그레이스케일/대비 필터를 넣으면 돌 질감과 문양의 명암차가 과도하게 벌어져서
    아이콘이 반으로 쪼개진 것처럼 보이는 부작용이 있어서 필터 없이 원본 그대로 씀 */
 .sim-node-art{width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:1px;}
+/* D2R HD 아이콘은 자체 장식 테두리가 있어서 노드 테두리와 겹치지 않게 안쪽만 보이도록 확대해 자름 */
+.sim-node:has(.hd-frame){overflow:hidden; padding:0;}
+.sim-node-art.hd-frame{transform:scale(1.28);}
 .sim-node-art-fallback{width:65%; height:65%; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; color:#a8a296;}
 .sim-node-badge{
   position:absolute; right:-5px; bottom:-5px; min-width:16px; height:14px; padding:0 3px; border-radius:3px;
