@@ -25,6 +25,10 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 }
 .items-page .logo{font-family:'Noto Serif KR', serif; font-weight:800; font-size:17px; display:flex; align-items:center; gap:8px;}
 .crumb{font-size:12.5px; color:var(--text-dim); margin-left:auto;}
+/* 폰에서 로고가 한 글자씩 줄바꿈되던 것 - 로고는 한 줄 고정, 좁으면 경로(crumb)를 숨김 */
+.items-page .logo{white-space:nowrap; flex:none;}
+.crumb{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+@media (max-width: 560px){ .items-page header .crumb{display:none;} }
 .crumb b{color:var(--text-muted); font-weight:600;}
 .crumb a:hover{color:var(--gold);}
 
