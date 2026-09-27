@@ -348,6 +348,13 @@ const filteredPosts = computed(() => {
 @media (max-width:640px){
   .reset-filters{margin-left:0;}
   .stat-min-input{width:100%;}
+  /* 폰: 카테고리 칩을 빼고 제목이 줄바꿈되게 - 예전엔 제목이 "이…"로 잘리고 본문이 한 글자씩 세로로 꺾였음 */
+  .trade-row{gap:10px; padding:14px; flex-wrap:wrap;}
+  .trade-cat{display:none;}
+  .trade-row-icon{width:40px; height:40px;}
+  .trade-title-row{flex-wrap:wrap;}
+  .trade-title{white-space:normal; flex-basis:100%;}
+  .trade-request-count{margin-left:auto;}
 }
 
 .favorite-star{

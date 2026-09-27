@@ -148,6 +148,13 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
     </div>
 
     <div class="site-mobile" v-if="mobileOpen">
+      <div class="site-mobile-search">
+        <input v-model="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색" @keydown.enter.prevent="submitSearch" />
+        <div class="site-mobile-hits" v-if="itemHits.length || pageHits.length">
+          <button type="button" v-for="p in pageHits" :key="p.to" @click="goPage(p)">{{ p.section }} · {{ p.label }}</button>
+          <button type="button" v-for="it in itemHits" :key="it.id" @click="goItem(it)">{{ it.name_ko }}</button>
+        </div>
+      </div>
       <div class="site-mobile-group" v-for="m in MENUS" :key="m.key">
         <div class="site-mobile-title">{{ m.label }}</div>
         <div class="site-mobile-links">
@@ -217,7 +224,12 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-burger{display:flex;}
   .site-search{width:auto; flex:1; max-width:320px;}
 }
+.site-mobile-search input{width:100%; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:9px 12px; font-size:14px;}
+.site-mobile-hits{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.site-mobile-hits button{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:4px 11px;}
 @media (max-width:560px){
+  .site-search{display:none;}
+  .header-notif-wrap{margin-left:auto;}
   .site-header-inner{gap:10px; padding:0 12px;}
   .site-logo{font-size:16px;}
   .site-search-results{width:calc(100vw - 24px); right:auto; left:0;}
