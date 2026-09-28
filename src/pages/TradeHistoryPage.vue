@@ -72,7 +72,7 @@ const summaryIcon = (s) => iconUrl(s.iconKey)
           </div>
           <div class="th-links">
             <router-link to="/trade/history">← 다른 아이템</router-link>
-            <router-link v-if="item && item.category !== 'uber'" :to="{ path: '/items', query: { q: item.name_ko, id: item.id } }">아이템 사전에서 보기</router-link>
+            <router-link v-if="item && item.category !== 'uber' && item.category !== 'essence'" :to="{ path: '/items', query: { q: item.name_ko, id: item.id } }">아이템 사전에서 보기</router-link>
             <router-link :to="{ path: '/trade', query: { q: title } }">거래게시판에서 찾기</router-link>
           </div>
         </template>

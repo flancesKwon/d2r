@@ -12,32 +12,40 @@ import { createDeal } from './dealsStore.js'
 
 export { itemsData }
 
-// 아이템 사전엔 룬·보석·유니크·세트·룬워드(730종)만 있고 우버보스 소환 재료(열쇠·장기·정수)는
-// 장비가 아니라서 원래 사전에 없음 - 그래도 검색으로 팔 수 있어야 해서 별도 목록으로 검색 대상에 포함시킴
-const uber = (id, name_ko, name_en, icon_key, aliases = []) =>
-  ({ id: 'uber-' + id, category: 'uber', category_label: '우버 재료', name_ko, name_en, icon_key, aliases })
+// 아이템 사전엔 룬·보석·유니크·세트·룬워드(730종)만 있고 우버보스 소환 재료(열쇠·장기)와
+// 면죄의 징표 재료(정수·징표)는 장비가 아니라서 원래 사전에 없음 - 그래도 검색으로 팔 수 있어야 해서
+// 별도 목록으로 검색 대상에 포함시킴. 이름은 게임 공식 한글 표기
+const material = (category, category_label) => (id, name_ko, name_en, icon_key, aliases = []) =>
+  ({ id: 'uber-' + id, category, category_label, name_ko, name_en, icon_key, aliases })
+const uber = material('uber', '우버 재료')
+const essence = material('essence', '정수·징표')
 export const UBER_MATERIALS = [
   uber('key-terror', '공포의 열쇠', 'Key of Terror', 'invmph__key', ['공포키', '공포 열쇠']),
   uber('key-hate', '증오의 열쇠', 'Key of Hate', 'invmph__key', ['증오키', '증오 열쇠']),
   uber('key-destruction', '파괴의 열쇠', 'Key of Destruction', 'invmph__key', ['파괴키', '파괴 열쇠']),
-  uber('diablo-horn', '다이아블로의 뿔', "Diablo's Horn", 'invfang__uber', ['디아뿔']),
+  uber('diablo-horn', '디아블로의 뿔', "Diablo's Horn", 'invfang__uber', ['디아뿔', '다이아블로의 뿔']),
   uber('baal-eye', '바알의 눈', "Baal's Eye", 'inveye__uber', ['바알눈']),
   uber('meph-brain', '메피스토의 뇌', "Mephisto's Brain", 'invbrnz__uber', ['메피뇌']),
-  uber('essence-suffering', '고통의 뒤틀린 정수', 'Twisted Essence of Suffering', 'invtes__uber'),
-  uber('essence-hatred', '증오의 충전된 정수', 'Charged Essence of Hatred', 'invceh__uber'),
-  uber('essence-terror', '공포의 불타는 정수', 'Burning Essence of Terror', 'invbet__uber'),
-  uber('essence-destruction', '파괴의 곪은 정수', 'Festering Essence of Destruction', 'invfed__uber'),
-  uber('token', '용서의 증표', 'Token of Absolution', 'invtoa__uber', ['토큰']),
 ]
-const ALL_TRADE_ITEMS = [...itemsData, ...UBER_MATERIALS]
+// 액트 보스(안다리엘·듀리엘 / 메피스토 / 디아블로 / 바알)가 떨어뜨리는 정수 4종 + 그걸로 만드는 면죄의 징표
+// (스킬·스탯 초기화용) - 우버 재료가 아님. id는 예전 판매글과 이어지게 그대로 둠
+export const ESSENCE_MATERIALS = [
+  essence('essence-suffering', '고통의 일그러진 정수', 'Twisted Essence of Suffering', 'invtes__uber', ['고통의 뒤틀린 정수']),
+  essence('essence-hatred', '증오의 강렬한 정수', 'Charged Essence of Hatred', 'invceh__uber', ['증오의 충전된 정수']),
+  essence('essence-terror', '공포의 불타는 정수', 'Burning Essence of Terror', 'invbet__uber'),
+  essence('essence-destruction', '파괴의 부패한 정수', 'Festering Essence of Destruction', 'invfed__uber', ['파괴의 곪은 정수']),
+  essence('token', '면죄의 징표', 'Token of Absolution', 'invtoa__uber', ['토큰', '면죄', '용서의 증표']),
+]
+export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS]
+const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS]
 
 // 희망 가격이 대부분 룬·보석 이름으로 적히는데("이스트 룬 2개" 등) 그냥 텍스트라
 // 뭔지 한눈에 안 들어옴 - 가격 문자열에서 룬·보석 이름을 찾아서 아이콘을 붙여주려고
 // 이름별로 찾아볼 수 있게 정리해둠. 긴 이름부터 매칭해야 "최상급 다이아몬드"가
 // "다이아몬드"보다 먼저 잡힘
-// 룬·보석·우버 재료는 거래에서 화폐처럼 쓰여서(희망 가격, 묶음 판매, 흥정 제안) 같은 목록으로 다룸
-export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber'
-export const CURRENCY_ITEMS = [...itemsData.filter(isCurrencyItem), ...UBER_MATERIALS]
+// 룬·보석·우버 재료·정수는 거래에서 화폐처럼 쓰여서(희망 가격, 묶음 판매, 흥정 제안) 같은 목록으로 다룸
+export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber' || it?.category === 'essence'
+export const CURRENCY_ITEMS = [...itemsData.filter(isCurrencyItem), ...EXTRA_MATERIALS]
 const CURRENCY_BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
 const CURRENCY_PATTERN = new RegExp(
   '(' + [...CURRENCY_BY_NAME.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|') + ')',
@@ -106,12 +114,12 @@ export function runewordMaterials(item) {
 
 // 룬·퍼펙트 보석·우버보스 재료(소환 재료)는 여러 개를 묶어 파는 경우가 많아서 개수를
 // 입력받고, 장비(유니크·세트·룬워드·매직/레어/일반)나 기타는 낱개(1개)로 고정
-export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료']
+export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표']
 export function categoryHasQuantity(category) {
   return QUANTITY_CATEGORIES.includes(category)
 }
 
-export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
+export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
 // 아시아 서버 유저 대상 게시판이라 서버 선택 자체를 없앰 - 항상 아시아로 고정
 export const TRADE_REALMS = ['아시아']
@@ -134,6 +142,7 @@ export function tradeCategoryForItem(item) {
   if (item.category === 'unique' || item.category === 'set') return '유니크/세트'
   if (item.category === 'runeword') return '룬워드'
   if (item.category === 'uber') return '우버보스 재료'
+  if (item.category === 'essence') return '정수·징표'
   return null
 }
 
