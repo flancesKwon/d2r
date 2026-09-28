@@ -395,7 +395,22 @@ const expectedWeaponDamage = computed(() => {
 // · 자동 옵션: 팔라딘 방패 = 모든 저항 또는 명중률, 오브 = 생명력 또는 마나, 아마존 무기 = 스킬 트리 +1~3 등
 // 이 베이스에 실제로 붙을 수 있는 스킬만 (아이템 레벨 단계 + 필요 무기 종류로 거름)
 const baseClassSkills = computed(() => classSkillsForBase(selectedBaseItem.value))
-const baseAutoMods = computed(() => selectedBaseItem.value?.auto_mods || [])
+// 레어·크래프트는 가장 높은 단계가 안 붙어서 레어 가능 단계의 범위로 바꿈 (예: 팔라딘 방패 모든 저항 5~45 -> 5~35)
+const baseAutoMods = computed(() => {
+  const mods = selectedBaseItem.value?.auto_mods || []
+  if (!['rare', 'crafted'].includes(itemQuality.value)) return mods
+  const rare = magicAffixData.bases[selectedBaseItem.value.code]?.autoRare || {}
+  return mods.filter((m) => rare[m.key]).map((m) => {
+    const { values, ...rest } = m
+    return { ...rest, ...rare[m.key] }
+  })
+})
+// 품질을 바꿔서 고른 자동 옵션 수치가 새 범위를 넘으면 수치를 비움
+watch(baseAutoMods, (list) => {
+  const m = list.find((x) => x.key === autoModPick.value.key)
+  if (!m) autoModPick.value = { key: '', value: '' }
+  else if (autoModPick.value.value !== '' && !isAllowedValue(autoModPick.value.value, m)) autoModPick.value.value = ''
+})
 // 스킬은 게임에서 0~3개가 붙어서, 한 줄로 시작해서 "스킬 추가"로 3개까지 늘림
 const MAX_CLASS_SKILLS = 3
 const emptyClassSkillPicks = () => [{ skill: '', level: '' }]
