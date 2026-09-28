@@ -159,10 +159,10 @@ const craftRecipes = computed(() => (selectedBaseItem.value ? craftRecipesFor(ma
 const qualityChoices = computed(() => {
   const b = selectedBaseItem.value
   if (!isManualEquip.value || !b) return []
-  const out = ['magic']
+  // 일반(흰색) -> 매직 -> 레어 -> 크래프트 순 (반지·목걸이 등은 일반 없음)
+  const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
   if (magicAffixData.bases[b.code]?.rare) out.push('rare')
   if (craftRecipes.value.length) out.push('crafted')
-  if (b.base_stats.category !== 'misc') out.push('normal')
   return out
 })
 function pickQuality(q) {
@@ -255,6 +255,11 @@ const effectiveBaseKind = computed(
 // 입력칸 대신 위의 참고 표시만 함. 룬워드는 베이스 선택이 필수라 종류를 몰라도 항상 보여줌
 const needsManualBaseStats = computed(() => {
   if (selectedItem.value?.category === 'runeword') return true
+  // 베이스를 고른 매직/레어/일반 장비: 품질을 고른 뒤에, 적을 게 있을 때만 (방어구 기본 방어력, 일반이면 상급 옵션, 직업 베이스 옵션)
+  if (lockedEquipBase.value) {
+    if (!itemQuality.value) return false
+    return effectiveBaseKind.value === 'armor' || superiorCombos.value.length > 0 || !!baseClassSkills.value || baseAutoMods.value.length > 0
+  }
   if (!effectiveBaseKind.value || effectiveBaseKind.value === 'misc') return false
   if (selectedItem.value && (selectedItem.value.category === 'unique' || selectedItem.value.category === 'set')) return false
   return true
@@ -373,6 +378,15 @@ const skillLabel = (s) => (s.ko ? `${s.ko} (${s.en})` : s.en)
 const autoModNames = computed(() => baseAutoMods.value.map((m) => m.text.replace(/ \+\{v\}%?/, '')).join(' 또는 '))
 // 반지·목걸이 등 고른 모양 (빈 값이면 기본 그림) - 베이스가 바뀌면 초기화
 const iconVariant = ref('')
+// 사전에 없는 장비를 무기·방어구 베이스(메이지플레이트 등)로 고른 상태 - 베이스는 고정하고 품질부터 고르게 함.
+// (예전엔 아래 "베이스 정보" 칸에서 베이스를 지울 수 있어서, 지우면 반지 같은 다른 종류로 바뀔 수 있었음)
+const lockedEquipBase = computed(
+  () => isManualEquip.value && !!selectedBaseItem.value && selectedBaseItem.value.base_stats.category !== 'misc'
+)
+// 다른 베이스로 바꾸기 = 아이템 검색창을 다시 열기 (검색어는 지금 이름 그대로 -> 같은 종류 베이스가 바로 보임)
+function changeEquipBase() {
+  showItemModal.value = true
+}
 function changeMiscBase() {
   clearBaseItem()
   manualBaseKind.value = 'misc'
@@ -547,10 +561,9 @@ const autoTitle = ref('')
 const equipTitle = (q, b) => `${q ? QUALITY_SHORT[q] + ' ' : ''}${b?.name_ko || ''}`
 const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
 function baseQualities(b) {
-  const out = ['magic']
+  const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
   if (magicAffixData.bases[b.code]?.rare) out.push('rare')
   if (craftRecipesFor(magicAffixData, b).length) out.push('crafted')
-  if (b.base_stats.category !== 'misc') out.push('normal')
   return out
 }
 const equipBaseCandidates = computed(() => {
@@ -850,13 +863,65 @@ function submitPost() {
         </template>
       </div>
 
+      <div class="manual-kind-row" v-if="lockedEquipBase">
+        <div class="option-editor-title">
+          베이스: {{ selectedBaseItem.name_ko }}
+          <small class="base-sub">{{ selectedBaseItem.tier }} · {{ selectedBaseItem.type_sub }}</small>
+          <button type="button" class="base-change-btn" @click="changeEquipBase">다른 베이스</button>
+        </div>
+        <div class="unit-hint" v-if="!itemQuality">아래에서 품질(일반·매직·레어·크래프트)을 먼저 골라주세요.</div>
+      </div>
+
+      <div class="option-editor" v-if="qualityChoices.length">
+        <div class="option-editor-title">아이템 품질</div>
+        <div class="fallback-cat-row">
+          <button
+            type="button" v-for="q in qualityChoices" :key="q" :class="{ active: itemQuality === q }"
+            @click="pickQuality(q)"
+          >{{ QUALITY_KO[q] }}</button>
+        </div>
+        <template v-if="isCrafted">
+          <div class="option-editor-title">크래프트 제작법</div>
+          <div class="fallback-cat-row">
+            <button
+              type="button" v-for="r in craftRecipes" :key="r.id" :class="{ active: craftPick.id === r.id }"
+              @click="pickCraft(r.id)"
+            >{{ r.name }}</button>
+          </div>
+          <template v-if="pickedCraft">
+            <div class="option-editor-title craft-fixed-title">고정 옵션 <span class="craft-sub-note">항상 붙음</span></div>
+            <div class="craft-fixed-list">
+              <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
+                <span class="option-text fixed">{{ line.text }}</span>
+                <template v-for="s in craftInputSlots.filter((c) => line.slots.includes(c.i))" :key="s.i">
+                  <select
+                    v-model.number="craftPick.values[s.i]"
+                    class="write-select option-value-select" :aria-label="`${line.text} 수치 ${s.lo}~${s.hi}`"
+                  >
+                    <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
+                    <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
+                  </select>
+                </template>
+              </div>
+            </div>
+          </template>
+          <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
+          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개</span></div>
+        </template>
+        <template v-if="isAffixQuality">
+          <AffixPicker :families="affixFamilies" :limits="affixLimitsNow" v-model="affixPicks" />
+          <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
+        </template>
+      </div>
+
       <div class="base-stats-input" v-if="needsManualBaseStats">
         <div class="option-editor-title">
-          베이스 {{ effectiveBaseKind === 'armor' ? '방어구' : effectiveBaseKind === 'weapon' ? '무기' : '아이템' }} 정보
+          <template v-if="lockedEquipBase">기본 정보</template>
+          <template v-else>베이스 {{ effectiveBaseKind === 'armor' ? '방어구' : effectiveBaseKind === 'weapon' ? '무기' : '아이템' }} 정보</template>
           <span class="required-mark" v-if="isRuneword">필수</span>
         </div>
 
-        <div class="base-item-picker">
+        <div class="base-item-picker" v-if="!lockedEquipBase">
           <div v-if="selectedBaseItem" class="item-picker-selected">
             <span class="item-picker-name">{{ baseItemLabel(selectedBaseItem) }}</span>
             <span class="item-picker-cat">{{ selectedBaseItem.tier }} · {{ selectedBaseItem.type_sub }}</span>
@@ -884,7 +949,7 @@ function submitPost() {
         </div>
 
         <template v-if="effectiveBaseKind === 'armor'">
-          <div class="base-stats-ref-row" v-if="selectedBaseItem">
+          <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
             <span v-if="expectedDefense">기본 방어력 범위 {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
             <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
@@ -904,7 +969,7 @@ function submitPost() {
         </template>
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
-          <div class="base-stats-ref-row" v-if="selectedBaseItem">
+          <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
             <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값이라 자동으로 들어가요</span>
             <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
@@ -968,48 +1033,6 @@ function submitPost() {
             >+ 스킬 추가 ({{ classSkillPicks.length }}/{{ MAX_CLASS_SKILLS }})</button>
           </template>
         </div>
-      </div>
-
-      <div class="option-editor" v-if="qualityChoices.length">
-        <div class="option-editor-title">아이템 품질</div>
-        <div class="fallback-cat-row">
-          <button
-            type="button" v-for="q in qualityChoices" :key="q" :class="{ active: itemQuality === q }"
-            @click="pickQuality(q)"
-          >{{ QUALITY_KO[q] }}</button>
-        </div>
-        <template v-if="isCrafted">
-          <div class="option-editor-title">크래프트 제작법</div>
-          <div class="fallback-cat-row">
-            <button
-              type="button" v-for="r in craftRecipes" :key="r.id" :class="{ active: craftPick.id === r.id }"
-              @click="pickCraft(r.id)"
-            >{{ r.name }}</button>
-          </div>
-          <template v-if="pickedCraft">
-            <div class="option-editor-title craft-fixed-title">고정 옵션 <span class="craft-sub-note">항상 붙음</span></div>
-            <div class="craft-fixed-list">
-              <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
-                <span class="option-text fixed">{{ line.text }}</span>
-                <template v-for="s in craftInputSlots.filter((c) => line.slots.includes(c.i))" :key="s.i">
-                  <select
-                    v-model.number="craftPick.values[s.i]"
-                    class="write-select option-value-select" :aria-label="`${line.text} 수치 ${s.lo}~${s.hi}`"
-                  >
-                    <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
-                    <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
-                  </select>
-                </template>
-              </div>
-            </div>
-          </template>
-          <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
-          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개</span></div>
-        </template>
-        <template v-if="isAffixQuality">
-          <AffixPicker :families="affixFamilies" :limits="affixLimitsNow" v-model="affixPicks" />
-          <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
-        </template>
       </div>
 
       <label class="ethereal-check" v-if="hasEthereal">
@@ -1299,6 +1322,7 @@ function submitPost() {
 .craft-fixed-row{padding:6px 10px; background:var(--panel-2); border-radius:8px;}
 .craft-fixed-row .option-text.fixed{color:#8c8cff;}
 .craft-sub-note{font-size:11px; font-weight:400; color:var(--text-dim); margin-left:6px;}
+.base-sub{font-size:11.5px; font-weight:400; color:var(--text-dim); margin-left:6px;}
 .base-change-btn{font-size:11px; font-weight:400; color:var(--gold-dim); margin-left:10px; text-decoration:underline; text-underline-offset:3px;}
 .shape-title{margin-top:10px;}
 .shape-row{display:flex; flex-wrap:wrap; gap:8px;}
