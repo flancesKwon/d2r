@@ -99,8 +99,8 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .rw-runes{position:absolute; left:0; right:0; bottom:6px; display:flex; align-items:center; justify-content:center; gap:1px; flex-wrap:nowrap; padding:0 2px;}
 /* 6소켓 룬워드도 한 줄에 들어가게, 칸이 좁으면(폰) 룬 아이콘이 알아서 줄어듦 */
 .rw-rune{flex:0 1 13px; min-width:0; height:auto; aspect-ratio:1; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.9));}
-.d-head .rw-runes{bottom:8px;}
-.d-head .rw-rune{flex-basis:16px;}
+.d-head .rw-runes{bottom:12px; gap:2px;}
+.d-head .rw-rune{flex-basis:26px;}
 .card-icon.unique{color:var(--gold);} .card-icon.set{color:var(--green);}
 .card-icon.runeword{color:var(--blood);} .card-icon.gem{color:var(--teal);}
 .card-name{
@@ -130,9 +130,14 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 
 .d-eyebrow{font-size:13px; color:var(--gold-dim); margin-bottom:14px;}
 .d-head{display:flex; align-items:center; gap:24px; margin-bottom:30px;}
-.d-head .icon-box{width:108px; height:108px; border:1px solid var(--border); background:var(--panel-2); display:flex; align-items:center; justify-content:center; flex:none;}
-.d-head .icon-box img{max-width:82%; max-height:82%; image-rendering:pixelated;}
-.d-head .icon-box svg{width:52px; height:52px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
+/* 상세창 그림: 게임 인벤토리 원본(작은 픽셀 그림)을 칸에 맞춰 크게 키움 - 픽셀이 뭉개지지 않게 pixelated.
+   무기처럼 세로로 긴 그림도 들어가게 세로가 조금 더 긴 칸 */
+.d-head .icon-box{width:176px; height:208px; border:1px solid var(--border); background:radial-gradient(circle at 50% 45%, #2a231c, var(--panel-2) 70%); display:flex; align-items:center; justify-content:center; flex:none; border-radius:14px; padding:14px;}
+.d-head .icon-box > img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+/* 룬·보석은 원본이 28px 로 아주 작아서 칸 가득 키우면 뭉툭해 보임 - 4배(112px)까지만 */
+.d-head .icon-box.gem > img{width:112px; height:112px;}
+.d-head .icon-box .rw-base{width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; image-rendering:pixelated;}
+.d-head .icon-box svg{width:72px; height:72px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
 .d-head .icon-box.unique{color:var(--gold); border-color:var(--gold-dim);}
 .d-head .icon-box.set{color:var(--green); border-color:var(--green);}
 .d-head .icon-box.runeword{color:var(--blood); border-color:var(--blood);}
@@ -187,6 +192,10 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .slot-box .affix-line{padding:5px 0; font-size:12.5px; border:none;}
 
 @media (max-width:600px){
+  .d-head{align-items:flex-start;}
+  .d-head .icon-box{width:112px; height:136px; padding:10px;}
+  .d-head .icon-box.gem > img{width:84px; height:84px;}
+  .d-head .rw-rune{flex-basis:18px;}
   .item-grid{grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px;}
   .item-card{padding:16px 10px;}
   .card-icon{width:72px; height:72px;}
@@ -195,7 +204,7 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
   .search-row .search-input-wrap{flex-basis:100%;}
   .modal-panel{padding:26px;}
   .d-head{gap:16px;}
-  .d-head .icon-box{width:76px; height:76px;}
+  /* (폰 상세창 그림 크기는 이 블록 위쪽 .d-head .icon-box 112x136 에서 정함) */
   .d-name{font-size:26px;}
 }
 
