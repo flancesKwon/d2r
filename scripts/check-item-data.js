@@ -8,7 +8,7 @@
 // 실행: node scripts/check-item-data.js
 // exit code 0 = 문제 없음(경고는 있을 수 있음), 1 = errors 존재
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -16,7 +16,12 @@ import { dirname, join } from 'node:path'
 // CI에서도 그대로 돌아가게 fs로 직접 읽음
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const itemsData = JSON.parse(readFileSync(join(__dirname, '../src/data/items.json'), 'utf8'))
-const iconsData = JSON.parse(readFileSync(join(__dirname, '../src/data/icons.json'), 'utf8'))
+// 아이템 아이콘 = src/assets/itemicons/<icon_key>.png (키 -> 그림 파일 내용)
+const ICON_DIR = join(__dirname, '../src/assets/itemicons')
+const iconsData = Object.fromEntries(
+  readdirSync(ICON_DIR).filter((f) => f.endsWith('.png')).map((f) => [f.slice(0, -4), readFileSync(join(ICON_DIR, f)).toString('base64')]),
+)
+const iconKeyList = JSON.parse(readFileSync(join(__dirname, 'icon-keys.json'), 'utf8'))
 
 // itemStats.js는 다른 data/*.json을 import 속성 없이 불러오는 Vite 전용 코드라
 // 순수 Node ESM에서는 못 돌림 - 이 체크에 필요한 세 함수만 그대로 옮겨옴
@@ -92,9 +97,9 @@ itemsData.forEach((it, idx) => {
     }
   })
 
-  // 아이콘 키가 있는데 실제 icons.json에 없으면 화면에 빈 아이콘으로 뜸
+  // 아이콘 키가 있는데 실제 그림 파일이 없으면 화면에 빈 아이콘으로 뜸
   if (it.icon_key && !iconsData[it.icon_key]) {
-    err(`${where}: icon_key "${it.icon_key}"가 icons.json에 없음`)
+    err(`${where}: icon_key "${it.icon_key}" 그림(src/assets/itemicons)이 없음`)
   }
   if (!it.icon_key) warn(`${where}: icon_key가 비어있음`)
 
@@ -178,6 +183,14 @@ itemsData.forEach((it) => {
     if (has2h && Number(b['2handmindam']) > Number(b['2handmaxdam'])) err(`${where}: base_stats.2handmindam > 2handmaxdam`)
   }
 })
+
+// ---------- 아이콘 목록 ↔ 그림 파일 일치 체크 ----------
+// scripts/icon-keys.json(빌드 스크립트가 쓰는 순서 고정 목록)과 실제 PNG 파일이 어긋나면 안 됨
+{
+  const listed = new Set(iconKeyList)
+  for (const k of Object.keys(iconsData)) if (!listed.has(k)) err(`아이콘 그림 ${k}.png가 scripts/icon-keys.json 목록에 없음`)
+  for (const k of iconKeyList) if (!iconsData[k]) err(`scripts/icon-keys.json의 ${k} 그림 파일이 없음`)
+}
 
 // ---------- 4. 보석 카테고리 개수·아이콘 중복 체크 ----------
 const gems = itemsData.filter((it) => it.category === 'gem')

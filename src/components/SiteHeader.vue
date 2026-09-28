@@ -3,12 +3,11 @@
 // - 메뉴: 빌드 가이드 / 아이템 사전 / 도구 / 거래 / 커뮤니티 / 정보 (현재 페이지가 속한 메뉴 강조)
 // - 통합 검색: 아이템 사전 + 사이트 페이지(도구 등)를 한 번에
 // - 좁은 화면: 햄버거 버튼으로 전체 메뉴 펼침
-import { ref, computed, watch } from 'vue'
+import { ref, shallowRef, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LogoMark from './LogoMark.vue'
 import HeaderNotifications from './HeaderNotifications.vue'
-import iconsData from '../data/icons.json'
-import { searchAllItems } from '../tradeStore.js'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,13 +72,19 @@ const activeKey = computed(() => {
 const PAGES = MENUS.flatMap((m) => m.links.filter((l) => l.to).map((l) => ({ ...l, section: m.label })))
 const query = ref('')
 const searchOpen = ref(false)
-const itemHits = computed(() => (query.value.trim() ? searchAllItems(query.value).slice(0, 6) : []))
+// 아이템 데이터(수 MB)는 검색을 처음 쓸 때 받음 - 모든 페이지 첫 로딩에 끼지 않게
+const searchAllItems = shallowRef(null)
+function loadItemSearch() {
+  if (!searchAllItems.value) import('../tradeStore.js').then((m) => (searchAllItems.value = m.searchAllItems))
+}
+watch(query, (q) => q && loadItemSearch())
+const itemHits = computed(() => (query.value.trim() && searchAllItems.value ? searchAllItems.value(query.value).slice(0, 6) : []))
 const pageHits = computed(() => {
   const q = query.value.trim().replace(/\s/g, '')
   if (!q) return []
   return PAGES.filter((p) => (p.label + (p.desc || '') + p.section).replace(/\s/g, '').includes(q)).slice(0, 4)
 })
-const iconUrl = (it) => (it?.icon_key && iconsData[it.icon_key] ? 'data:image/png;base64,' + iconsData[it.icon_key] : null)
+const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 function goItem(it) {
   searchOpen.value = false
   query.value = ''
@@ -127,7 +132,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
         <svg viewBox="0 0 24 24" class="site-search-icon" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
         <input
           v-model="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색"
-          @focus="searchOpen = true" @input="searchOpen = true" @blur="hideSearchSoon" @keydown.enter.prevent="submitSearch"
+          @focus="searchOpen = true; loadItemSearch()" @input="searchOpen = true" @blur="hideSearchSoon" @keydown.enter.prevent="submitSearch"
         />
         <div class="site-search-results" v-if="searchOpen && (itemHits.length || pageHits.length)">
           <button type="button" class="site-search-row" v-for="p in pageHits" :key="p.to" @mousedown.prevent="goPage(p)">

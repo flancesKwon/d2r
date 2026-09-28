@@ -4,7 +4,7 @@ import { ref, computed, watch } from 'vue'
 import magicAffixData from '../data/magicAffixes.json'
 import baseItemsData from '../data/baseItems.json'
 import itemsData from '../data/items.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { buildTooltip } from '../itemTooltip.js'
 import {
   craftRecipesFor, craftItemLevel, craftAffixCountOdds, craftPools, craftPoolFamilies, rollCraft, simulateCraft, familyLines, familyText,
@@ -45,7 +45,7 @@ const famByKey = computed(() => new Map(families.value.map((f) => [f.key, f])))
 
 // 재료 (한글 이름·아이콘은 아이템 사전에서)
 const byEn = new Map(itemsData.filter((it) => it.name_en).map((it) => [it.name_en, it]))
-const iconUrl = (it) => (it?.icon_key && iconsData[it.icon_key] ? 'data:image/png;base64,' + iconsData[it.icon_key] : null)
+const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 const materials = computed(() => {
   if (!craft.value || !base.value) return []
   return [

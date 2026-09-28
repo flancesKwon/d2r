@@ -2,13 +2,13 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
 
 const items = itemsData
-const icons = iconsData
+const icons = ITEM_ICONS
 const route = useRoute()
 const runeLookup = buildRuneLookup(itemsData)
 
@@ -16,7 +16,7 @@ const runeLookup = buildRuneLookup(itemsData)
 // 소켓에 박힌 룬이 화면에 줄지어 보임 - 그 느낌을 살리려고 대표 베이스의 실제 그림
 // (icon_key, 예: 수수께끼 = 아칸 플레이트) 위에 룬 아이콘을 소켓 개수만큼 겹쳐서 보여줌
 function iconUrl(item) {
-  return item.icon_key && icons[item.icon_key] ? 'data:image/png;base64,' + icons[item.icon_key] : null
+  return item.icon_key && icons[item.icon_key] || null
 }
 // 룬워드 화면에 보여줄 전체 옵션 = 룬워드 고유 옵션(affixes, 최대 7개) + 박힌 룬들 자체 효과.
 // 실제 게임 내부에서도 항상 이렇게 합쳐져서 나옴
@@ -28,8 +28,8 @@ function isVariable(a) {
   return a.min !== undefined && a.max !== undefined && a.min !== '' && a.max !== '' && String(a.min) !== String(a.max)
 }
 function runeIconUrl(runeName) {
-  const b64 = icons['invr' + runeName.toLowerCase() + '__rune']
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = icons['invr' + runeName.toLowerCase() + '__rune']
+  return url || null
 }
 
 const activeCat = ref('all')
@@ -165,15 +165,16 @@ const filteredItems = computed(() => {
           <span class="rw-icon">
             <img class="rw-base" :src="iconUrl(it)" alt="" />
             <span class="rw-runes">
-              <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" />
+              <img v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="rw-rune" :src="runeIconUrl(r)" :alt="r" loading="lazy" />
             </span>
           </span>
         </span>
         <span class="card-icon" :class="[it.category]" v-else>
           <img
             v-if="it.icon_key && icons[it.icon_key]"
-            :src="'data:image/png;base64,' + icons[it.icon_key]"
+            :src="icons[it.icon_key]"
             alt=""
+            loading="lazy"
           />
           <svg v-else viewBox="0 0 24 24" v-html="ICONS[it.icon_type_key] || ICONS.unknown"></svg>
         </span>
@@ -195,7 +196,7 @@ const filteredItems = computed(() => {
           <span class="icon-box" :class="selected.category">
             <img
               v-if="selected.icon_key && icons[selected.icon_key]"
-              :src="'data:image/png;base64,' + icons[selected.icon_key]"
+              :src="icons[selected.icon_key]"
               alt=""
             />
             <svg v-else viewBox="0 0 24 24" v-html="ICONS[selected.icon_type_key] || ICONS.unknown"></svg>
@@ -271,7 +272,7 @@ const filteredItems = computed(() => {
           <p class="note-box" style="margin-bottom:10px">게임에서는 아래 3가지 그림 중 하나로 무작위로 나와요. 옵션과는 상관없어요.</p>
           <div class="icon-variant-row">
             <div class="icon-variant" v-for="v in selected.extra.icon_variants" :key="v.key">
-              <img v-if="icons[v.key]" :src="'data:image/png;base64,' + icons[v.key]" alt="" />
+              <img v-if="icons[v.key]" :src="icons[v.key]" alt="" />
               <span>{{ v.label }}</span>
             </div>
           </div>
@@ -309,7 +310,7 @@ const filteredItems = computed(() => {
           <span class="icon-box" :class="selected.category" v-else>
             <img
               v-if="selected.icon_key && icons[selected.icon_key]"
-              :src="'data:image/png;base64,' + icons[selected.icon_key]"
+              :src="icons[selected.icon_key]"
               alt=""
             />
             <svg v-else viewBox="0 0 24 24" v-html="ICONS.runeword"></svg>
@@ -352,7 +353,7 @@ const filteredItems = computed(() => {
           <span class="icon-box" :class="selected.category">
             <img
               v-if="selected.icon_key && icons[selected.icon_key]"
-              :src="'data:image/png;base64,' + icons[selected.icon_key]"
+              :src="icons[selected.icon_key]"
               alt=""
             />
             <svg v-else viewBox="0 0 24 24" v-html="ICONS[selected.icon_type_key] || ICONS.unknown"></svg>

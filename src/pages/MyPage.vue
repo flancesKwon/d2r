@@ -4,7 +4,7 @@ import { profileState, saveProfile } from '../profileStore.js'
 import { tradePostsByAuthor, tradePostsWithMyRequests, getTradeItem } from '../tradeStore.js'
 import { communityPostsByAuthor } from '../communityStore.js'
 import { reviewsForUser } from '../dealsStore.js'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '회원정보수정']
 const activeTab = ref(TABS[0])
@@ -22,8 +22,8 @@ const myPostsCombined = computed(() => {
 })
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 function tradeIconUrl(post) {
   const item = getTradeItem(post.itemId)

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { dealsState, DEAL_STATUSES, sendDealMessage, updateDealStatus, addReview } from '../dealsStore.js'
 import { getTradeItem } from '../tradeStore.js'
 import { profileState } from '../profileStore.js'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 const activeId = ref(dealsState.deals[0]?.id || null)
 const activeDeal = computed(() => dealsState.deals.find((d) => d.id === activeId.value))
@@ -14,8 +14,8 @@ function openDeal(id) {
 }
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 function dealIconUrl(deal) {
   const item = getTradeItem(deal.itemId)

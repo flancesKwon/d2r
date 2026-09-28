@@ -89,9 +89,9 @@ const classOf = (typeList) => typeList.map((t) => types.get(t)?.Class).find(Bool
 // 레어 가능 여부는 베이스 자기 종류의 Rare 칸 (상위 분류까지 보면 부적도 misc 때문에 레어로 잡힘)
 const canRare = (type) => (Number(types.get(type)?.Rare) === 1 ? 1 : 0)
 
-// 아이콘: 게임 원본 invfile 칸(파일 이름)으로 src/data/icons.json 키를 찾음 ("invfile__종류" 모양, 코드로 추측하지 않음)
-const icons = JSON.parse(fs.readFileSync(new URL('../src/data/icons.json', import.meta.url), 'utf8'))
-const iconKeys = Object.keys(icons)
+// 아이콘: 게임 원본 invfile 칸(파일 이름)으로 아이콘 키(src/assets/itemicons/<키>.png)를 찾음 ("invfile__종류" 모양, 코드로 추측하지 않음)
+// 같은 invfile에 종류가 여럿이면 앞쪽 키를 쓰므로 순서가 고정된 목록(icon-keys.json)을 씀
+const iconKeys = JSON.parse(fs.readFileSync(new URL('./icon-keys.json', import.meta.url), 'utf8'))
 const iconFor = (invfile, prefer) => {
   if (!invfile) return null
   const keys = iconKeys.filter((k) => k.startsWith(invfile + '__'))
@@ -99,7 +99,7 @@ const iconFor = (invfile, prefer) => {
 }
 
 const bases = {}
-// icons.json 에 그림이 없는 베이스는 같은 계열(일반·익셉셔널·엘리트)의 그림을 대신 씀 (iconApprox 표시)
+// 아이콘 그림이 없는 베이스는 같은 계열(일반·익셉셔널·엘리트)의 그림을 대신 씀 (iconApprox 표시)
 const familyOf = {}
 for (const b of [...load('armor.json'), ...load('weapons.json')]) {
   if (!b.code || !b.name || Number(b.spawnable) !== 1) continue

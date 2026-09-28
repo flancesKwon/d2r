@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import guideData from '../data/guides.json'
 import { CLASS_ICONS } from '../icons.js'
 import itemsData from '../data/items.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 // 추천 장비 문장 안의 아이템 이름(유니크·세트·룬워드)을 아이템 사전 링크로 - 긴 이름부터 찾아서 겹침 방지
 const LINKABLE = itemsData.filter((it) => ['unique', 'set', 'runeword'].includes(it.category) && it.name_ko.length >= 2)
@@ -25,7 +25,7 @@ function linkSegments(text) {
   }
   return out
 }
-const iconUrl = (it) => (it.icon_key && iconsData[it.icon_key] ? 'data:image/png;base64,' + iconsData[it.icon_key] : null)
+const iconUrl = (it) => (it.icon_key && ITEM_ICONS[it.icon_key] || null)
 
 const route = useRoute()
 const guide = computed(() => guideData.find((g) => g.id === route.params.id))

@@ -32,7 +32,7 @@ import {
   isAllowedValue,
 } from '../tradeStore.js'
 import { runewordBaseTypesKo } from '../itemStats.js'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
@@ -455,8 +455,8 @@ watch(availableOptionPresets, (list) => {
 })
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 
 // 양손 무기(폴암 등)는 mindam/maxdam이 비어있고 2handmindam/2handmaxdam에 데미지가

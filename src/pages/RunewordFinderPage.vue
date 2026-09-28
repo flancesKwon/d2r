@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import itemsData from '../data/items.json'
 import runeChain from '../data/runeUpgradeChain.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { runewordBaseTypesKo, runewordSlots } from '../itemStats.js'
 import { itemLevelReq } from '../tradeStore.js'
 import { buildRuneTable, buildRunewordList, evaluateRuneword } from '../runewordFinder.js'
@@ -14,8 +14,8 @@ const runewords = buildRunewordList(itemsData, table)
 const R = table.runes
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 
 // 가진 룬 개수 (룬 index -> 개수). 이 브라우저에만 저장 - 다음에 와도 그대로
