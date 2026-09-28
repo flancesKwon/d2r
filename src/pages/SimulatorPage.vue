@@ -12,7 +12,7 @@ import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildRuneLookup, DOLL_ICON_ASPECT } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 
 // 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
@@ -34,8 +34,8 @@ function equipSilhouetteUrl(slotKey) {
 
 // 실제 아이템 인벤토리 아이콘 (유니크·세트·룬워드 데이터에 붙어있는 base64 PNG)
 function itemIconUrl(item) {
-  const b64 = item && iconsData[item.icon_key]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = item && ITEM_ICONS[item.icon_key]
+  return url || null
 }
 
 // 8개 직업 모두 D2R HD 스프라이트(*skillicon.sprite) 프레임 webp로 통일 (skilldesc.txt IconCel로 매칭).

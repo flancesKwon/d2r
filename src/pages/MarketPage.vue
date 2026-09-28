@@ -2,13 +2,13 @@
 import { computed } from 'vue'
 import marketTiers from '../data/marketTiers.json'
 import itemsData from '../data/items.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { tradeState } from '../tradeStore.js'
 
 // 체감 가치 등급표 - 아이템은 사전의 영문 이름으로 참조해서 한글 이름·아이콘이 사전과 항상 같음
 // (예전엔 이름을 직접 적어서 "조던 룬(Jah)"처럼 틀린 이름이 들어갔었음 - scripts/check-item-data.js 가 검사)
 const BY_EN = new Map(itemsData.map((it) => [it.name_en, it]))
-const iconUrl = (it) => (it?.icon_key && iconsData[it.icon_key] ? 'data:image/png;base64,' + iconsData[it.icon_key] : null)
+const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 
 // 거래게시판에서 지금 팔리고 있는 매물 수 (판매중·흥정중)
 const activeCount = computed(() => {

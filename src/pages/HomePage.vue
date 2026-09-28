@@ -1,12 +1,10 @@
 <script setup>
 // 메인 - 목록(가이드·커뮤니티·패치노트·거래)은 데이터에서 최신순으로 뽑음 (예전엔 HTML에 직접 적혀 있어서 새 글이 안 보였음)
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import guidesData from '../data/guides.json'
 import patchNotes from '../data/patchNotes.json'
-import itemsData from '../data/items.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { communityState } from '../communityStore.js'
-import { tradeState, postIconKey, postRarity } from '../tradeStore.js'
 
 const CLASSES = [
   { key: 'amazon', name: '아마존', icon: '<path d="M7 4a12 12 0 000 16M7 4l10 8-10 8"/>' },
@@ -25,9 +23,14 @@ const byDate = (a, b) => (b.date || '').localeCompare(a.date || '')
 const latestGuides = computed(() => [...guidesData].sort(byDate).slice(0, 4))
 const latestCommunity = computed(() => [...communityState.posts].sort(byDate).slice(0, 5))
 const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
-const latestTrades = computed(() => [...tradeState.posts].sort(byDate).slice(0, 4))
+// 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
+const trade = shallowRef(null)
+import('../tradeStore.js').then((m) => (trade.value = m))
+const latestTrades = computed(() => (trade.value ? [...trade.value.tradeState.posts].sort(byDate).slice(0, 4) : []))
+const postIconKey = (p) => trade.value.postIconKey(p)
+const postRarity = (p) => trade.value.postRarity(p)
 const shortDate = (d) => (d || '').slice(5).replace('-', '.')
-const iconUrl = (key) => (key && iconsData[key] ? 'data:image/png;base64,' + iconsData[key] : null)
+const iconUrl = (key) => (key && ITEM_ICONS[key] || null)
 
 // 도구 모음 (Maxroll 처럼 메인에서 바로 들어가게)
 const TOOLS = [
@@ -38,8 +41,8 @@ const TOOLS = [
   { to: '/craft-sim', title: '크래프트 시뮬레이터', desc: '크래프트 결과를 게임 확률대로 굴려보기', icon: 'invsst__charm' },
   { to: '/cube', title: '큐브 레시피', desc: '룬·보석 업그레이드, 수리, 크래프트 조합', icon: 'invrin__ring' },
 ]
-const toolIcon = (t) => iconUrl(t.icon) || iconUrl(Object.keys(iconsData).find((k) => k.startsWith(t.icon)))
-const itemCount = itemsData.length
+const toolIcon = (t) => iconUrl(t.icon) || iconUrl(Object.keys(ITEM_ICONS).find((k) => k.startsWith(t.icon)))
+const itemCount = computed(() => trade.value?.itemsData.length)
 </script>
 
 <template>
@@ -81,7 +84,7 @@ const itemCount = itemsData.length
     <div class="banner-strip">
       <div class="banner-strip-inner">
         <router-link to="/craft-sim"><span class="tag">신규</span>크래프트 시뮬레이터 · 옵션별 확률표</router-link>
-        <router-link to="/items"><span class="tag">사전</span>아이템 사전 {{ itemCount }}종 · 게임 원본 데이터 기준</router-link>
+        <router-link to="/items"><span class="tag">사전</span>아이템 사전{{ itemCount ? ` ${itemCount}종` : '' }} · 게임 원본 데이터 기준</router-link>
       </div>
     </div>
   </section>

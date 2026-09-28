@@ -15,7 +15,7 @@ import {
   postIconKey,
   postRarity,
 } from '../tradeStore.js'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
@@ -51,8 +51,8 @@ function setViewMode(mode) {
 }
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 
 // 유니크(gold)·세트(green)·룬워드(blood)·룬·보석(teal) - 아이템 사전 페이지와

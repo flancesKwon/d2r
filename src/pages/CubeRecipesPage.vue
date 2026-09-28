@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import recipesData from '../data/cubeRecipes.json'
 import runeChain from '../data/runeUpgradeChain.json'
 import itemsData from '../data/items.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 const CATEGORIES = ['크래프트', '수리', '업그레이드', '기타']
 const activeCat = ref(null)
@@ -20,8 +20,8 @@ function findIconItem(text) {
 }
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 
 const filteredRecipes = computed(() => {

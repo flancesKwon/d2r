@@ -5,7 +5,7 @@
 // 큐브: cubemain.txt 소켓 레시피 = "sock 1~6" 무작위 후 그 장비 최대치로 잘림 -> 최대치가 나올 확률이 더 높음
 import { ref, computed } from 'vue'
 import magicAffixData from '../data/magicAffixes.json'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { searchBaseItems, baseItemLabel, BASE_ITEMS } from '../tradeStore.js'
 
 const POPULAR = ['uit', 'utp', 'xtp', 'uui', '7cr', 'crs', '7wa', '7s8', '7wc', '7vo', '7pa', 'bsd', 'fla', 'uap', 'ci3', 'paf']
@@ -24,7 +24,7 @@ function pick(b) {
 const info = computed(() => magicAffixData.bases[base.value?.code] || null)
 const iconUrl = (code) => {
   const key = magicAffixData.bases[code]?.icon
-  return key && iconsData[key] ? 'data:image/png;base64,' + iconsData[key] : null
+  return key && ITEM_ICONS[key] || null
 }
 
 const ilvl = ref(85)
@@ -61,7 +61,7 @@ const minIlvlForMax = computed(() => {
   const top = info.value ? Math.max(...info.value.sock) : 0
   return brackets.value.find((b) => b.max === top)?.from || null
 })
-// icons.json 에 그림이 없는 베이스(약 170종)는 종류별 윤곽선으로 대신 보여줌
+// 아이콘 그림이 없는 베이스(약 170종)는 종류별 윤곽선으로 대신 보여줌
 const GLYPHS = {
   shield: '<path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6l7-3z"/>',
   helm: '<path d="M5 15a7 7 0 0114 0v3H5z"/><path d="M9 15v3M15 15v3"/>',

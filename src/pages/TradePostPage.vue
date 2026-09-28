@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { profileState } from '../profileStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
@@ -30,8 +30,8 @@ const tooltip = computed(() =>
 )
 
 function iconUrlFor(iconKey) {
-  const b64 = iconKey && iconsData[iconKey]
-  return b64 ? 'data:image/png;base64,' + b64 : null
+  const url = iconKey && ITEM_ICONS[iconKey]
+  return url || null
 }
 
 function rarityClass(item) {

@@ -2,7 +2,7 @@
 // 게임 아이템 툴팁 모양 카드를 캔버스로 그림 - 화면에 보이는 것과 "이미지로 저장"한 PNG가 똑같은 그림
 // 줄 목록은 itemTooltip.js의 buildTooltip이 만듦
 import { ref, watch, onMounted } from 'vue'
-import iconsData from '../data/icons.json'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 const props = defineProps({
   tooltip: { type: Object, required: true },
@@ -17,13 +17,13 @@ const MAX_W = 440
 const FONT = '"Noto Sans KR", sans-serif'
 
 function loadIcon(key) {
-  const b64 = key && iconsData[key]
-  if (!b64) return Promise.resolve(null)
+  const url = key && ITEM_ICONS[key]
+  if (!url) return Promise.resolve(null)
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => resolve(img)
     img.onerror = () => resolve(null)
-    img.src = 'data:image/png;base64,' + b64
+    img.src = url
   })
 }
 
