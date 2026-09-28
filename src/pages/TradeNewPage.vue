@@ -32,7 +32,7 @@ import {
   isAllowedValue,
   isCurrencyItem,
   CURRENCY_ITEMS,
-  UBER_MATERIALS,
+  EXTRA_MATERIALS,
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
@@ -541,7 +541,7 @@ const PRICE_CURRENCIES = CURRENCY_ITEMS
 const RUNES_HIGH_FIRST = PRICE_CURRENCIES
   .filter((it) => it.type_sub === '룬')
   .sort((a, b) => (itemLevelReq(b) ?? 0) - (itemLevelReq(a) ?? 0))
-const DEFAULT_PRICE_LIST = [...RUNES_HIGH_FIRST, ...UBER_MATERIALS]
+const DEFAULT_PRICE_LIST = [...RUNES_HIGH_FIRST, ...EXTRA_MATERIALS]
 const priceCandidates = computed(() => {
   if (!priceQuery.value.trim()) return DEFAULT_PRICE_LIST
   return PRICE_CURRENCIES.filter((it) => itemMatchesQuery(it, priceQuery.value))
