@@ -94,8 +94,7 @@ export const ITEM_ALIASES = {
   Wisdom: ['위즈덤'],
   Wrath: ['래스'],
   Zephyr: ['제퍼'],
-  Hysteria: ['히스테리아'],
-  Mania: ['매니아'],
+  Hustle: ['허슬'], // 무기·갑옷 두 가지 (게임 내부 이름 Hysteria·Mania)
   Metamorphosis: ['메타모포시스', '메타'],
   Ground: ['그라운드'],
   Temper: ['템퍼'],
