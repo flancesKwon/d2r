@@ -35,7 +35,9 @@ const ALL_TRADE_ITEMS = [...itemsData, ...UBER_MATERIALS]
 // 뭔지 한눈에 안 들어옴 - 가격 문자열에서 룬·보석 이름을 찾아서 아이콘을 붙여주려고
 // 이름별로 찾아볼 수 있게 정리해둠. 긴 이름부터 매칭해야 "최상급 다이아몬드"가
 // "다이아몬드"보다 먼저 잡힘
-const CURRENCY_ITEMS = itemsData.filter((it) => it.category === 'gem')
+// 룬·보석·우버 재료는 거래에서 화폐처럼 쓰여서(희망 가격, 묶음 판매, 흥정 제안) 같은 목록으로 다룸
+export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber'
+export const CURRENCY_ITEMS = [...itemsData.filter(isCurrencyItem), ...UBER_MATERIALS]
 const CURRENCY_BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
 const CURRENCY_PATTERN = new RegExp(
   '(' + [...CURRENCY_BY_NAME.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|') + ')',

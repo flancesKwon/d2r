@@ -30,6 +30,9 @@ import {
   superiorCombosFor,
   SUPERIOR_MODS,
   isAllowedValue,
+  isCurrencyItem,
+  CURRENCY_ITEMS,
+  UBER_MATERIALS,
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
@@ -75,7 +78,7 @@ const showBundleDropdown = ref(false)
 const bundleCandidates = computed(() => {
   const q = bundleQuery.value.trim().toLowerCase()
   if (!q) return []
-  return searchAllItems(bundleQuery.value).filter((it) => it.category === 'gem')
+  return searchAllItems(bundleQuery.value).filter(isCurrencyItem)
 })
 function setBundleMode(on) {
   bundleMode.value = on
@@ -534,12 +537,13 @@ function removeCustomOption(i) {
 const priceItems = ref([])
 const priceQuery = ref('')
 const showPriceModal = ref(false)
-const PRICE_CURRENCIES = itemsData.filter((it) => it.category === 'gem')
+const PRICE_CURRENCIES = CURRENCY_ITEMS
 const RUNES_HIGH_FIRST = PRICE_CURRENCIES
   .filter((it) => it.type_sub === '룬')
   .sort((a, b) => (itemLevelReq(b) ?? 0) - (itemLevelReq(a) ?? 0))
+const DEFAULT_PRICE_LIST = [...RUNES_HIGH_FIRST, ...UBER_MATERIALS]
 const priceCandidates = computed(() => {
-  if (!priceQuery.value.trim()) return RUNES_HIGH_FIRST
+  if (!priceQuery.value.trim()) return DEFAULT_PRICE_LIST
   return PRICE_CURRENCIES.filter((it) => itemMatchesQuery(it, priceQuery.value))
 })
 function openPriceModal() {
@@ -568,8 +572,8 @@ function buildPriceString() {
 const formError = ref('')
 
 function submitBundle() {
-  if (!bundleItems.value.length) { formError.value = '팔 룬·보석을 하나 이상 담아주세요.'; return }
-  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
+  if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담아주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -624,7 +628,7 @@ function submitPost() {
     formError.value = '룬워드는 베이스 아이템을 검색해서 선택해야 등록할 수 있어요.'
     return
   }
-  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
   if (invalidInputs.value.length) {
     formError.value = `게임에서 나올 수 없는 수치가 있어요: ${invalidInputs.value[0]}`
     return
@@ -659,7 +663,7 @@ function submitPost() {
     <div class="write-form trade-write-form">
       <div class="form-mode-toggle">
         <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">단일 아이템 등록</button>
-        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">룬·보석 묶음 판매</button>
+        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">룬·보석·재료 묶음 판매</button>
       </div>
 
       <template v-if="!bundleMode">
@@ -1003,7 +1007,7 @@ function submitPost() {
 
       <template v-else>
       <div class="bundle-box">
-        <div class="option-editor-title">묶어서 팔 룬·보석 추가</div>
+        <div class="option-editor-title">묶어서 팔 룬·보석·재료 추가</div>
         <div class="bundle-chip-row" v-if="bundleItems.length">
           <div class="bundle-chip" v-for="(b, i) in bundleItems" :key="b.item.id">
             <span class="item-picker-icon" :class="rarityClass(b.item)"><img v-if="iconUrlFor(b.item.icon_key)" :src="iconUrlFor(b.item.icon_key)" alt="" /></span>
@@ -1016,7 +1020,7 @@ function submitPost() {
         <div class="item-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" v-model="bundleQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
+              type="text" v-model="bundleQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
               class="write-input" @focus="showBundleDropdown = true"
               @input="showBundleDropdown = true"
               @blur="hideBundleDropdownSoon"
@@ -1029,7 +1033,7 @@ function submitPost() {
                 <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석이 없어요.</div>
+              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
             </div>
           </div>
         </div>
@@ -1042,7 +1046,7 @@ function submitPost() {
       </label>
 
       <div class="price-picker">
-        <div class="option-editor-title">희망 가격 (룬·보석으로 받을 개수)</div>
+        <div class="option-editor-title">희망 가격</div>
         <div class="bundle-chip-row" v-if="priceItems.length">
           <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
             <span class="item-picker-icon gem"><img v-if="iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
@@ -1053,17 +1057,17 @@ function submitPost() {
           </div>
         </div>
         <button type="button" class="item-picker-trigger" @click="openPriceModal">
-          {{ priceItems.length ? '+ 룬·보석 더 추가하기' : '받고 싶은 룬·보석을 검색해서 선택하세요 (예: 이스트 룬, 최상급 자수정)' }}
+          {{ priceItems.length ? '+ 더 추가하기' : '받고 싶은 룬·보석·재료를 검색해서 선택하세요 (예: 이스트 룬, 파괴의 열쇠)' }}
         </button>
       </div>
 
       <div class="modal-overlay" v-if="showPriceModal" @click.self="showPriceModal = false">
         <div class="modal-panel item-modal-panel">
           <button type="button" class="modal-close" @click="showPriceModal = false">✕</button>
-          <div class="d-section-title">희망 가격 룬·보석 선택</div>
+          <div class="d-section-title">희망 가격 선택</div>
           <input
-            type="text" v-model="priceQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
-            class="write-input" v-focus aria-label="룬·보석 검색"
+            type="text" v-model="priceQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
+            class="write-input" v-focus aria-label="룬·보석·재료 검색"
           />
           <div class="item-modal-list">
             <button
@@ -1074,7 +1078,7 @@ function submitPost() {
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               <span class="item-picker-row-cat price-picked" v-if="priceQtyOf(it)">담김 {{ priceQtyOf(it) }}개</span>
             </button>
-            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석이 없어요.</div>
+            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
           </div>
         </div>
       </div>
