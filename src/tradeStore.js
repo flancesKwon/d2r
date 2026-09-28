@@ -513,6 +513,44 @@ export function updateTradeStatus(postId, status) {
   const post = tradeState.posts.find((p) => p.id === postId)
   if (!post) return
   post.status = status
+  // 아이템별 거래내역에서 "언제 팔렸는지"를 보여주려고 거래완료로 바뀐 날을 남김
+  if (status === '거래완료') post.completedAt = post.completedAt || today()
+  else delete post.completedAt
+}
+
+// ---- 아이템별 거래내역 ----
+// 사전 아이템은 itemId로, 사전에 없는 아이템(매직/레어 등)은 판매글 제목 그대로 묶음.
+// 룬·보석 묶음 판매("베르 룬 1개 + 이스트 룬 2개")는 itemId가 첫 아이템이라, 이름으로도 찾아서 포함함
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function bundleIncludes(post, name) {
+  return !!name && new RegExp(`(?:^| \\+ )${escapeRe(name)} \\d+개`).test(post.itemName || '')
+}
+export function tradePostsForItem({ itemId, name }) {
+  const item = itemId ? getTradeItem(itemId) : null
+  const key = item ? item.name_ko : name
+  return tradeState.posts
+    .filter((p) => (item ? p.itemId === item.id || bundleIncludes(p, key) : !p.itemId && p.itemName === key))
+    .sort((a, b) => (b.completedAt || b.date || '').localeCompare(a.completedAt || a.date || ''))
+}
+// 거래내역이 있는 아이템 목록 (판매글 수 많은 순) - 묶음 판매는 담긴 아이템마다 따로 셈
+export function tradedItemSummaries() {
+  const byKey = new Map()
+  const add = (key, entry, post) => {
+    const row = byKey.get(key) || { ...entry, iconKey: entry.itemId ? getTradeItem(entry.itemId)?.icon_key : postIconKey(post), total: 0, done: 0, lastDate: '' }
+    row.total++
+    if (post.status === '거래완료') row.done++
+    const d = post.completedAt || post.date || ''
+    if (d > row.lastDate) row.lastDate = d
+    byKey.set(key, row)
+  }
+  for (const post of tradeState.posts) {
+    const names = (post.itemName || '').split(' + ').map((part) => part.match(/^(.+) \d+개$/)?.[1]).filter(Boolean)
+    const bundleItems = names.length > 1 ? names.map((n) => ALL_TRADE_ITEMS.find((it) => it.name_ko === n)).filter(Boolean) : []
+    if (bundleItems.length) bundleItems.forEach((it) => add('id:' + it.id, { itemId: it.id, name: it.name_ko }, post))
+    else if (post.itemId && getTradeItem(post.itemId)) add('id:' + post.itemId, { itemId: post.itemId, name: getTradeItem(post.itemId).name_ko }, post)
+    else add('name:' + post.itemName, { itemId: null, name: post.itemName }, post)
+  }
+  return [...byKey.values()].sort((a, b) => b.total - a.total || b.lastDate.localeCompare(a.lastDate))
 }
 
 export function getTradePost(postId) {

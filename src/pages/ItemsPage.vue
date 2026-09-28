@@ -406,6 +406,7 @@ const filteredItems = computed(() => {
           </div>
         </div>
       </template>
+      <router-link class="d-history-link" :to="{ path: '/trade/history', query: { item: selected.id } }">이 아이템 거래내역 보기 →</router-link>
     </div>
   </div>
   </div>

@@ -22,6 +22,7 @@ const BreakpointsPage = () => import('./pages/BreakpointsPage.vue')
 const MessagesPage = () => import('./pages/MessagesPage.vue')
 const MyPage = () => import('./pages/MyPage.vue')
 const DealsPage = () => import('./pages/DealsPage.vue')
+const TradeHistoryPage = () => import('./pages/TradeHistoryPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
 
 const router = createRouter({
@@ -38,6 +39,7 @@ const router = createRouter({
     { path: '/ladder', name: 'ladder', component: LadderPage, meta: { title: '레더 시즌 정보' } },
     { path: '/market', name: 'market', component: MarketPage, meta: { title: '시세 게시판' } },
     { path: '/trade', name: 'trade', component: TradePage, meta: { title: '거래게시판' } },
+    { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
     { path: '/trade/:id', name: 'trade-post', component: TradePostPage, meta: { title: '거래게시판' } },
     { path: '/signup', name: 'signup', component: SignupPage, meta: { title: '회원가입' } },
