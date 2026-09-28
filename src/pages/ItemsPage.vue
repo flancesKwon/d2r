@@ -43,18 +43,16 @@ const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const selected = ref(null)
 // 상단 통합 검색에서 아이템을 고르면 ?q=이름&id=아이템 으로 들어옴 -> 그 아이템 상세를 바로 열기
 // (이미 사전 페이지에 있을 때도 주소만 바뀌니 watch 로 따라감)
+// 상단 메뉴의 유니크·세트·룬워드 등(?cat=)도 이미 사전 페이지에 있을 때 주소만 바뀌어서, 탭도 주소를 따라가게 함
+// (예전엔 처음 들어올 때만 읽어서 유니크 -> 세트로 메뉴를 옮겨도 탭이 안 바뀌었음)
+const URL_CATS = ['unique', 'set', 'runeword', 'gem']
 function applyRouteQuery(q) {
   if (typeof q.q === 'string') searchQuery.value = q.q
   selected.value = (q.id && items.find((it) => it.id === q.id)) || null
+  const cat = URL_CATS.includes(q.cat) ? q.cat : 'all'
+  if (cat !== activeCat.value && !q.id) setCat(cat)
 }
-applyRouteQuery(route.query)
-watch(() => route.query, applyRouteQuery)
 const showQualityInfo = ref(false)
-
-const urlCat = route.query.cat
-if (urlCat && ['unique', 'set', 'runeword', 'gem'].includes(urlCat)) {
-  activeCat.value = urlCat
-}
 
 function setCat(cat) {
   activeCat.value = cat
@@ -71,6 +69,9 @@ const groupOptions = computed(() => {
   const pool = items.filter((it) => it.category === activeCat.value)
   return [...new Set(pool.map((it) => it.type_group))]
 })
+applyRouteQuery(route.query)
+watch(() => route.query, applyRouteQuery)
+
 const subOptions = computed(() => {
   if (!activeGroup.value) return []
   const pool = items.filter(
