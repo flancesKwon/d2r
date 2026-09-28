@@ -213,4 +213,5 @@ export const RUNE_ALIASES = {
   'Um Rune': ['움'],
   'Thul Rune': ['툴', '썰'],
   'Amn Rune': ['암'],
+  'Pul Rune': ['펄', '펄 룬'],
 }
