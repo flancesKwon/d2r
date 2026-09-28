@@ -258,7 +258,8 @@ const needsManualBaseStats = computed(() => {
   // 베이스를 고른 매직/레어/일반 장비: 품질을 고른 뒤에, 적을 게 있을 때만 (방어구 기본 방어력, 일반이면 상급 옵션, 직업 베이스 옵션)
   if (lockedEquipBase.value) {
     if (!itemQuality.value) return false
-    return effectiveBaseKind.value === 'armor' || superiorCombos.value.length > 0 || !!baseClassSkills.value || baseAutoMods.value.length > 0
+    return effectiveBaseKind.value === 'armor' || superiorCombos.value.length > 0 || uniqueMaxSockets.value > 0 ||
+      !!baseClassSkills.value || baseAutoMods.value.length > 0
   }
   if (!effectiveBaseKind.value || effectiveBaseKind.value === 'misc') return false
   if (selectedItem.value && (selectedItem.value.category === 'unique' || selectedItem.value.category === 'set')) return false
@@ -373,7 +374,7 @@ function classSkillOptionsFor(i) {
 }
 const autoModPick = ref({ key: '', value: '' })
 const pickedAutoMod = computed(() => baseAutoMods.value.find((m) => m.key === autoModPick.value.key) || null)
-const skillLabel = (s) => (s.ko ? `${s.ko} (${s.en})` : s.en)
+const skillLabel = (s) => `${s.ko} (${s.enDisplay || s.en})`
 // "모든 저항 +{v}%" -> "모든 저항" 처럼 수치 자리를 뺀 이름들 (자동 옵션 선택칸 안내용)
 const autoModNames = computed(() => baseAutoMods.value.map((m) => m.text.replace(/ \+\{v\}%?/, '')).join(' 또는 '))
 // 반지·목걸이 등 고른 모양 (빈 값이면 기본 그림) - 베이스가 바뀌면 초기화
@@ -976,6 +977,16 @@ function submitPost() {
           </div>
         </template>
 
+        <div class="base-mods" v-if="lockedEquipBase && uniqueMaxSockets">
+          <div class="option-editor-title">소켓 <span class="craft-sub-note">0~{{ uniqueMaxSockets }}개 (이 베이스 최대 {{ uniqueMaxSockets }}소켓)</span></div>
+          <div class="socket-pick-row">
+            <button
+              type="button" v-for="n in uniqueMaxSockets + 1" :key="n" class="socket-pick"
+              :class="{ active: Number(uniqueSockets || 0) === n - 1 }" @click="uniqueSockets = n - 1 ? n - 1 : ''"
+            >{{ n - 1 }}개</button>
+          </div>
+        </div>
+
         <div class="base-mods" v-if="superiorCombos.length">
           <div class="option-editor-title">상급(Superior) 베이스 옵션</div>
           <div class="option-row">
@@ -1013,6 +1024,7 @@ function submitPost() {
             />
           </div>
           <template v-if="baseClassSkills">
+            <div class="option-editor-hint">{{ baseClassSkills.name }} 스킬은 최대 3개까지, 각각 +1~3으로 붙어요. 붙은 만큼 추가하세요.</div>
             <div class="option-row" v-for="(p, i) in classSkillPicks" :key="i">
               <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${baseClassSkills.name} 스킬 ${i + 1}`">
                 <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
@@ -1095,7 +1107,7 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="option-editor" v-if="uniqueMaxSockets">
+      <div class="option-editor" v-if="uniqueMaxSockets && !lockedEquipBase">
         <div class="option-editor-title">소켓</div>
         <div class="option-editor-hint">소켓을 뚫었다면 개수를 고르세요 (최대 {{ uniqueMaxSockets }}개).</div>
         <div class="option-row">
@@ -1322,6 +1334,10 @@ function submitPost() {
 .craft-fixed-row{padding:6px 10px; background:var(--panel-2); border-radius:8px;}
 .craft-fixed-row .option-text.fixed{color:#8c8cff;}
 .craft-sub-note{font-size:11px; font-weight:400; color:var(--text-dim); margin-left:6px;}
+.socket-pick-row{display:flex; flex-wrap:wrap; gap:6px;}
+.socket-pick{min-width:48px; padding:7px 12px; font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px;}
+.socket-pick:hover{color:var(--text); border-color:var(--gold-dim);}
+.socket-pick.active{color:var(--gold); border-color:var(--gold-dim); background:rgba(200,163,77,0.1);}
 .base-sub{font-size:11.5px; font-weight:400; color:var(--text-dim); margin-left:6px;}
 .base-change-btn{font-size:11px; font-weight:400; color:var(--gold-dim); margin-left:10px; text-decoration:underline; text-underline-offset:3px;}
 .shape-title{margin-top:10px;}
