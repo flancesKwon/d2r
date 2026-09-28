@@ -5,6 +5,8 @@ import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 import baseItemsData from './data/baseItems.json'
 import classSkillsData from './data/classSkills.json'
+import skillTextData from './data/skill_text.json'
+import { buildSkillNameLookup } from './skillNames.js'
 import { pushNotification } from './notificationsStore.js'
 import { SKILL_TAB_NAMES } from './magicAffixes.js'
 import magicAffixData from './data/magicAffixes.json'
@@ -212,12 +214,19 @@ export function searchBaseItems(query, kind, runeword = null) {
 //   37 이상이면 1~2단계(요구 레벨 1·6) 제외. 베이스 레벨보다 낮은 아이템 레벨로는 안 떨어져서
 //   베이스 레벨로 판단 (예: 엘리트 오브엔 파이어 볼트·웜쓰 등이 안 붙음)
 // - 특정 무기가 필요한 스킬은 그 종류 베이스에만 (홀엔 스마이트·홀리 실드 X, 바바리안 투구엔 근접 스킬 X)
+const officialSkillName = buildSkillNameLookup(skillTextData)
 export function classSkillsForBase(base) {
   const cls = base?.class_skills && classSkillsData[base.class_skills]
   if (!cls) return null
   const minReq = base.qlvl >= 37 ? 12 : base.qlvl >= 25 ? 6 : 1
-  const skills = cls.skills.filter((s) => s.req >= minReq && (!s.itype || base.types.includes(s.itype)))
-  return { name: cls.name, skills, minReq }
+  // 이름은 게임 공식 한글·영문 (예: 화염탄 (Fire Bolt)) - classSkills.json 의 ko 는 예전 음역이라 안 씀. en 은 내부 이름 그대로 값으로 씀
+  const skills = cls.skills
+    .filter((s) => s.req >= minReq && (!s.itype || base.types.includes(s.itype)))
+    .map((s) => {
+      const o = officialSkillName(s.en)
+      return { ...s, ko: o?.ko || s.ko, enDisplay: o?.en || s.en }
+    })
+  return { name: cls.name === '워록' ? '악마술사' : cls.name, skills, minReq }
 }
 
 // 유니크·세트의 베이스 (아이템 사전 subtitle -> 베이스 목록, 철자가 다른 건 aliases로)

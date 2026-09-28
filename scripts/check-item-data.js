@@ -463,6 +463,21 @@ for (const [, names] of iconByKey) {
   }))
 }
 
+// ---------- 11. 직업 베이스 스킬 이름 연결 (판매글 등록에서 "화염탄 (Fire Bolt)"처럼 공식 이름으로 보여줌) ----------
+{
+  const { buildSkillNameLookup } = await import('../src/skillNames.js')
+  const lookup = buildSkillNameLookup(JSON.parse(readFileSync(join(__dirname, '../src/data/skill_text.json'), 'utf8')))
+  const cls = JSON.parse(readFileSync(join(__dirname, '../src/data/classSkills.json'), 'utf8'))
+  let n = 0
+  for (const [k, v] of Object.entries(cls)) {
+    for (const sk of v.skills) {
+      n++
+      if (!lookup(sk.en)) err(`직업 베이스 스킬 ${k}:${sk.en} - 공식 이름(skill_text.json)을 못 찾음 (src/skillNames.js)`)
+    }
+  }
+  console.log(`직업 베이스 스킬 이름 검사: ${n}개`)
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)
