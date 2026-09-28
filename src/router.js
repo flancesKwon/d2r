@@ -6,6 +6,7 @@ const GuideDetailPage = () => import('./pages/GuideDetailPage.vue')
 const PatchNotesPage = () => import('./pages/PatchNotesPage.vue')
 const CommunityPage = () => import('./pages/CommunityPage.vue')
 const CommunityPostPage = () => import('./pages/CommunityPostPage.vue')
+const CommunityWritePage = () => import('./pages/CommunityWritePage.vue')
 const SimulatorPage = () => import('./pages/SimulatorPage.vue')
 const LadderPage = () => import('./pages/LadderPage.vue')
 const MarketPage = () => import('./pages/MarketPage.vue')
@@ -34,6 +35,8 @@ const router = createRouter({
     { path: '/guides/:id', name: 'guide-detail', component: GuideDetailPage, meta: { title: '빌드 가이드' } },
     { path: '/patch', name: 'patch', component: PatchNotesPage, meta: { title: '패치노트' } },
     { path: '/community', name: 'community', component: CommunityPage, meta: { title: '커뮤니티' } },
+    // /community/:id 보다 먼저 - 안 그러면 'write'가 글 id로 잡힘
+    { path: '/community/write', name: 'community-write', component: CommunityWritePage, meta: { title: '글쓰기' } },
     { path: '/community/:id', name: 'community-post', component: CommunityPostPage, meta: { title: '커뮤니티' } },
     { path: '/simulator', name: 'simulator', component: SimulatorPage, meta: { title: '스킬·스탯 시뮬레이터' } },
     { path: '/ladder', name: 'ladder', component: LadderPage, meta: { title: '레더 시즌 정보' } },
