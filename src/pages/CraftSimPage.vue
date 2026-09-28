@@ -217,8 +217,8 @@ const tableRows = computed(() => {
     <section class="cs-panel" v-if="tab === 'table'">
       <div class="cs-title">옵션별 가중치 표</div>
       <div class="cs-hint">
-        게임 데이터(magicprefix·magicsuffix)의 가중치(frequency) 그대로예요. 이 베이스·옵션 레벨 {{ pools?.alvl }}에서 레어 옵션으로 뽑힐 수 있는 것만 보여줘요.
-        <b>한 번 뽑을 때</b> = 가중치 ÷ 같은 쪽 가중치 합(접두사 {{ slotTotals.p }}, 접미사 {{ slotTotals.s }})으로 데이터만으로 정확한 값이고,
+        옵션 레벨 {{ pools?.alvl }}에서 붙을 수 있는 레어 옵션이에요.
+        <b>한 번 뽑을 때</b> = 가중치 ÷ 같은 쪽 가중치 합(접두사 {{ slotTotals.p }}, 접미사 {{ slotTotals.s }})이고,
         <b>아이템에 붙을 확률</b>은 옵션 개수·접두/접미 50:50·같은 종류 제외를 반영해 {{ TABLE_RUNS.toLocaleString() }}번 굴린 값이에요.
         제작법 고정 옵션은 항상 붙어서 빠져 있어요. 줄을 누르면 단계별 가중치가 보여요.
       </div>
@@ -326,9 +326,6 @@ const tableRows = computed(() => {
         </template>
       </section>
     </div>
-    <div class="cs-hint cs-foot">
-      게임 데이터(옵션별 가중치·레벨 조건)로 게임과 같은 방식으로 굴린 추정치라, 실제 결과와는 조금 다를 수 있어요.
-    </div>
   </div>
   </div>
 </template>
@@ -355,7 +352,6 @@ const tableRows = computed(() => {
 .cs-levels{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:12.5px; color:var(--text-muted);}
 .cs-levels b{color:var(--gold); font-weight:600;}
 .cs-hint{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
-.cs-foot{text-align:center;}
 .cs-cols{display:grid; grid-template-columns:minmax(0, 360px) minmax(0, 1fr); gap:16px; align-items:start;}
 .cs-btn{align-self:flex-start; padding:9px 18px; font-size:13px; border-radius:10px;}
 .cs-btn:disabled{opacity:.5; cursor:not-allowed;}

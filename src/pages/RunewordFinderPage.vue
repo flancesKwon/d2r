@@ -110,7 +110,7 @@ function runeSlots(rw) {
       <div class="rw-panel-head">
         <div>
           <div class="rw-panel-title">내 룬 <span class="rw-count" v-if="totalRunes">{{ totalRunes }}개</span></div>
-          <div class="rw-hint">룬을 누르면 1개씩 담기고, − 로 뺄 수 있어요. 이 브라우저에 저장돼요.</div>
+          <div class="rw-hint">룬을 누르면 1개씩 담기고, − 로 뺄 수 있어요.</div>
         </div>
         <button type="button" class="rw-clear" v-if="totalRunes" @click="clearRunes">전부 비우기</button>
       </div>

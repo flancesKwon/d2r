@@ -49,7 +49,7 @@ function saveProfileForm() {
     <div class="patch-hero-inner">
       <div class="eyebrow">내 정보</div>
       <h1>마이페이지</h1>
-      <p>내가 쓴 글, 거래내역, 회원정보를 한곳에서 관리하세요. 서버 로그인 없이 브라우저에 저장돼요.</p>
+      <p>내가 쓴 글, 거래내역, 회원정보를 한곳에서 관리하세요.</p>
     </div>
   </div>
 

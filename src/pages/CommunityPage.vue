@@ -152,7 +152,7 @@ function submitPost() {
       <div class="attach-row">
         <button type="button" class="attach-trigger" @click="fileInputRef.click()">📎 파일 첨부</button>
         <input ref="fileInputRef" type="file" multiple class="attach-input-hidden" @change="onFilesSelected" />
-        <span class="attach-hint">이미지·파일 최대 5MB, 브라우저 세션에서만 유지돼요</span>
+        <span class="attach-hint">이미지·파일 최대 5MB</span>
       </div>
       <div class="attach-preview-row" v-if="attachments.length">
         <div class="attach-chip" v-for="(a, i) in attachments" :key="i">

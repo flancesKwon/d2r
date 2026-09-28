@@ -148,7 +148,6 @@ const filteredItems = computed(() => {
         <b>우수한 (Superior)</b>
         <span>무기: 인핸스드 데미지 +5~15% (또는 최대데미지 +1) · 방어구: 인핸스드 방어력 +15% · 공격력/내구도 추가 보너스 가능</span>
       </div>
-      <div class="quality-note">※ 개별 아이템 데이터가 아니라 일반템 전체에 적용되는 공통 규칙이에요. 정확한 원본 수치 파일(automagic.txt)은 아직 확보 전이라, 커뮤니티에 공개된 공식 수치를 교차 검증해서 표시했어요.</div>
     </div>
   </div>
 

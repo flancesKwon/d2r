@@ -30,8 +30,10 @@ import {
   superiorCombosFor,
   SUPERIOR_MODS,
   isAllowedValue,
+  isCurrencyItem,
+  CURRENCY_ITEMS,
+  UBER_MATERIALS,
 } from '../tradeStore.js'
-import { runewordBaseTypesKo } from '../itemStats.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
@@ -76,7 +78,7 @@ const showBundleDropdown = ref(false)
 const bundleCandidates = computed(() => {
   const q = bundleQuery.value.trim().toLowerCase()
   if (!q) return []
-  return searchAllItems(bundleQuery.value).filter((it) => it.category === 'gem')
+  return searchAllItems(bundleQuery.value).filter(isCurrencyItem)
 })
 function setBundleMode(on) {
   bundleMode.value = on
@@ -247,10 +249,14 @@ const isUniqueOrSet = computed(() => ['unique', 'set'].includes(selectedItem.val
 // 이 아이템의 실제 베이스 - 룬워드·매직/레어는 판매자가 고른 베이스, 유니크·세트는 고정 베이스
 const itemBase = computed(() => selectedBaseItem.value || baseForItem(selectedItem.value))
 
-// 에테리얼은 베이스가 에테리얼로 나올 수 있을 때만 (활·석궁·페이즈 블레이드처럼 내구도 없는 건 불가)
-const hasEthereal = computed(
-  () => categorySupportsEthereal(form.value.category) && (itemBase.value ? itemBase.value.can_eth : true)
-)
+// 에테리얼은 베이스가 에테리얼로 나올 수 있을 때만 (활·석궁·페이즈 블레이드처럼 내구도 없는 건 불가,
+// 베이스 목록에 없는 유니크·세트 = 부적·주얼·반지·목걸이·퀘스트 아이템도 불가)
+const hasEthereal = computed(() => {
+  if (!categorySupportsEthereal(form.value.category)) return false
+  if (itemBase.value) return !!itemBase.value.can_eth
+  const cat = selectedItem.value?.category
+  return cat !== 'unique' && cat !== 'set'
+})
 watch(hasEthereal, (ok) => {
   if (!ok) form.value.ethereal = false
 })
@@ -286,12 +292,6 @@ const baseItemCandidates = computed(() =>
     ? []
     : searchBaseItems(baseItemQuery.value, effectiveBaseKind.value, isRuneword.value ? selectedItem.value : null)
 )
-const runewordBaseRule = computed(() => {
-  const it = selectedItem.value
-  if (!isRuneword.value) return ''
-  const sockets = it.extra?.socket_count
-  return `${runewordBaseTypesKo(it.subtitle)}${sockets ? ` · ${sockets}소켓` : ''}`
-})
 const basePickerPlaceholder = computed(() => {
   if (isRuneword.value) return '베이스 검색 또는 목록에서 선택 (예: 아칸 플레이트, 엘리트)'
   return effectiveBaseKind.value === 'weapon'
@@ -537,12 +537,13 @@ function removeCustomOption(i) {
 const priceItems = ref([])
 const priceQuery = ref('')
 const showPriceModal = ref(false)
-const PRICE_CURRENCIES = itemsData.filter((it) => it.category === 'gem')
+const PRICE_CURRENCIES = CURRENCY_ITEMS
 const RUNES_HIGH_FIRST = PRICE_CURRENCIES
   .filter((it) => it.type_sub === '룬')
   .sort((a, b) => (itemLevelReq(b) ?? 0) - (itemLevelReq(a) ?? 0))
+const DEFAULT_PRICE_LIST = [...RUNES_HIGH_FIRST, ...UBER_MATERIALS]
 const priceCandidates = computed(() => {
-  if (!priceQuery.value.trim()) return RUNES_HIGH_FIRST
+  if (!priceQuery.value.trim()) return DEFAULT_PRICE_LIST
   return PRICE_CURRENCIES.filter((it) => itemMatchesQuery(it, priceQuery.value))
 })
 function openPriceModal() {
@@ -571,8 +572,8 @@ function buildPriceString() {
 const formError = ref('')
 
 function submitBundle() {
-  if (!bundleItems.value.length) { formError.value = '팔 룬·보석을 하나 이상 담아주세요.'; return }
-  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
+  if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담아주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -627,7 +628,7 @@ function submitPost() {
     formError.value = '룬워드는 베이스 아이템을 검색해서 선택해야 등록할 수 있어요.'
     return
   }
-  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석을 하나 이상 골라주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
   if (invalidInputs.value.length) {
     formError.value = `게임에서 나올 수 없는 수치가 있어요: ${invalidInputs.value[0]}`
     return
@@ -654,7 +655,7 @@ function submitPost() {
     <div class="patch-hero-inner">
       <div class="eyebrow">판매글 등록</div>
       <h1>아이템 등록하기</h1>
-      <p>아이템을 검색해서 고르면 카테고리와 옵션이 자동으로 맞춰져요. 룬워드·매직/레어/일반은 베이스 아이템 정보도 같이 입력할 수 있어요.</p>
+      <p>아이템을 검색해서 고르면 옵션 입력 칸이 자동으로 맞춰져요.</p>
     </div>
   </div>
 
@@ -662,7 +663,7 @@ function submitPost() {
     <div class="write-form trade-write-form">
       <div class="form-mode-toggle">
         <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">단일 아이템 등록</button>
-        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">룬·보석 묶음 판매</button>
+        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">룬·보석·재료 묶음 판매</button>
       </div>
 
       <template v-if="!bundleMode">
@@ -693,7 +694,6 @@ function submitPost() {
             type="text" v-model="form.itemName" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
             class="write-input" v-focus
           />
-          <div class="item-picker-hint">룬·보석·유니크·세트·룬워드·우버보스 재료를 모두 검색할 수 있어요. 룬워드는 "룬워드"가 아니라 무한·인챈트처럼 완성된 룬워드 이름으로 검색하세요.</div>
           <div class="item-modal-list">
             <button
               type="button" class="item-picker-row" v-for="it in itemCandidates" :key="it.id"
@@ -727,7 +727,7 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="base-stats-ref" v-if="baseStatsRef">
+      <div class="base-stats-ref" v-if="baseStatsRef && baseStatsRef.category !== 'misc'">
         <div class="option-editor-title">베이스 아이템 기본 정보</div>
         <div class="base-stats-ref-row" v-if="baseStatsRef.category === 'armor'">
           <span>기본 방어력 {{ baseStatsRef.minac }}~{{ baseStatsRef.maxac }}</span>
@@ -759,12 +759,6 @@ function submitPost() {
         <div class="option-editor-title">
           베이스 {{ effectiveBaseKind === 'armor' ? '방어구' : effectiveBaseKind === 'weapon' ? '무기' : '아이템' }} 정보
           <span class="required-mark" v-if="isRuneword">필수</span>
-        </div>
-        <div class="option-editor-hint" v-if="isRuneword">
-          이 룬워드를 만들 수 있는 베이스만 보여줘요 ({{ runewordBaseRule }}). 실제로 쓴 베이스를 고르세요.
-        </div>
-        <div class="option-editor-hint" v-else>
-          실제 아이템의 베이스를 검색해서 고르세요. 기본 {{ effectiveBaseKind === 'weapon' ? '데미지' : '방어력' }}이 표시되고, 그 베이스에 붙을 수 있는 옵션만 고를 수 있어요.
         </div>
 
         <div class="base-item-picker">
@@ -824,9 +818,6 @@ function submitPost() {
 
         <div class="base-mods" v-if="superiorCombos.length">
           <div class="option-editor-title">상급(Superior) 베이스 옵션</div>
-          <div class="option-editor-hint">
-            상급 흰 베이스로 만들었다면 아래 조합 중 하나가 붙어 있어요. 일반 베이스면 비워두세요.
-          </div>
           <div class="option-row">
             <select v-model="superiorPick.combo" class="write-select random-group-select" aria-label="상급 옵션 조합">
               <option value="">상급 아님 (일반 베이스)</option>
@@ -846,9 +837,6 @@ function submitPost() {
 
         <div class="base-mods" v-if="baseClassSkills || baseAutoMods.length">
           <div class="option-editor-title">베이스 자체 옵션</div>
-          <div class="option-editor-hint">
-            직업 전용 베이스라서 게임에서 정해진 옵션이 붙어 있을 수 있어요. 실제로 붙은 것만 고르세요.
-          </div>
           <div class="option-row" v-if="baseAutoMods.length">
             <select v-model="autoModPick.key" class="write-select random-group-select" aria-label="자동 옵션">
               <option value="">자동 옵션 선택 ({{ autoModNames }})</option>
@@ -865,11 +853,6 @@ function submitPost() {
             />
           </div>
           <template v-if="baseClassSkills">
-            <div class="option-editor-hint class-skill-rule">
-              {{ baseClassSkills.name }} 스킬은 <b>0~3개</b>가 무작위로 붙고, 각각 <b>+1~3</b>이에요.
-              이 베이스에 붙을 수 있는 {{ baseClassSkills.skills.length }}종만 보여줘요
-              <template v-if="baseClassSkills.minReq > 1">(베이스 레벨 {{ selectedBaseItem.qlvl }}: 요구 레벨 {{ baseClassSkills.minReq }} 미만 스킬은 안 붙어요)</template>.
-            </div>
             <div class="option-row" v-for="(p, i) in classSkillPicks" :key="i">
               <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${baseClassSkills.name} 스킬 ${i + 1}`">
                 <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
@@ -902,9 +885,6 @@ function submitPost() {
         </div>
         <template v-if="isCrafted">
           <div class="option-editor-title">크래프트 제작법</div>
-          <div class="option-editor-hint">
-            {{ baseItemLabel(selectedBaseItem) }}로 만들 수 있는 제작법이에요. 제작법 고정 옵션은 항상 붙고, 수치만 골라주세요.
-          </div>
           <div class="fallback-cat-row">
             <button
               type="button" v-for="r in craftRecipes" :key="r.id" :class="{ active: craftPick.id === r.id }"
@@ -927,15 +907,6 @@ function submitPost() {
           <div class="option-editor-title">무작위 옵션</div>
         </template>
         <template v-if="isAffixQuality">
-          <div class="option-editor-hint" v-if="isCrafted">
-            크래프트는 레어 옵션 중에서 1~4개(접두사·접미사 각각 3개까지)가 무작위로 붙고, 같은 종류 옵션은 겹쳐 붙지 않아요.
-            수치는 게임에서 나오는 범위 안에서만 고를 수 있어요.
-          </div>
-          <div class="option-editor-hint" v-else>
-            {{ baseItemLabel(selectedBaseItem) }}에 {{ QUALITY_KO[itemQuality] }}로 붙을 수 있는 옵션만 보여줘요.
-            {{ itemQuality === 'magic' ? '매직은 접두사·접미사 각각 1개까지' : affixLimitsNow.total === 4 ? '레어 주얼은 합쳐서 4개까지' : '레어는 접두사·접미사 각각 3개까지' }}고,
-            같은 종류 옵션은 겹쳐 붙지 않아요. 수치도 게임에서 나오는 범위 안에서만 고를 수 있어요.
-          </div>
           <AffixPicker :families="affixFamilies" :limits="affixLimitsNow" v-model="affixPicks" />
           <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
         </template>
@@ -952,17 +923,15 @@ function submitPost() {
             type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
             class="write-input trade-quantity-input"
           />
-          <div class="unit-hint">개수만 입력하면 "N개"로 등록돼요.</div>
         </template>
-        <div class="unit-hint" v-else>장비·재료는 낱개(1개) 단위로 등록돼요.</div>
       </template>
 
       <div class="option-editor" v-if="itemAffixes.length">
         <div class="option-editor-title">실제 옵션 값 입력</div>
-        <div class="option-editor-hint">범위로 나오는 옵션은 이 아이템에 실제로 뜬 값을 직접 입력해주세요. 비워두면 범위 그대로 표시돼요.</div>
+        <div class="option-editor-hint">실제로 뜬 수치를 입력하세요. 비워두면 범위로 표시돼요.</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
-            <span class="option-text">직업 기술 레벨 (아이템마다 직업 하나로 고정돼서 나와요)</span>
+            <span class="option-text">직업 기술 레벨</span>
             <select v-model="randClassChoice[i]" class="write-select option-value-select">
               <option value="">직업 선택</option>
               <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
@@ -987,7 +956,7 @@ function submitPost() {
 
       <div class="option-editor" v-if="randomGroups.length">
         <div class="option-editor-title">제작 시 붙은 무작위 옵션</div>
-        <div class="option-editor-hint">그룹마다 하나씩 붙어 있어요. 실제로 붙은 옵션을 고르고 수치를 입력하세요. 모르는 그룹은 비워둬도 돼요.</div>
+        <div class="option-editor-hint">실제로 붙은 옵션을 고르고 수치를 입력하세요.</div>
         <div class="option-row" v-for="(g, gi) in randomGroups" :key="gi">
           <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="`${gi + 1}그룹 옵션`">
             <option :value="undefined">{{ gi + 1 }}그룹 옵션 선택</option>
@@ -1004,7 +973,7 @@ function submitPost() {
 
       <div class="option-editor" v-if="uniqueMaxSockets">
         <div class="option-editor-title">소켓</div>
-        <div class="option-editor-hint">라르주크 퀘스트·큐브로 소켓을 뚫었다면 개수를 고르세요 (이 베이스는 최대 {{ uniqueMaxSockets }}개).</div>
+        <div class="option-editor-hint">소켓을 뚫었다면 개수를 고르세요 (최대 {{ uniqueMaxSockets }}개).</div>
         <div class="option-row">
           <select v-model="uniqueSockets" class="write-select random-group-select" aria-label="소켓 개수">
             <option value="">소켓 없음</option>
@@ -1015,7 +984,7 @@ function submitPost() {
 
       <div class="option-editor" v-if="allowsCustomOptions">
         <div class="option-editor-title">기타 옵션 직접 추가</div>
-        <div class="option-editor-hint">위에 없는 스탯(생명력, 저항, 소켓 개수 등)은 종류를 고르고 값을 입력해서 추가하세요.</div>
+        <div class="option-editor-hint">목록에 없는 옵션은 직접 추가하세요.</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
           <span>{{ o }}</span>
           <button type="button" @click="removeCustomOption(i)">✕</button>
@@ -1038,8 +1007,7 @@ function submitPost() {
 
       <template v-else>
       <div class="bundle-box">
-        <div class="option-editor-title">묶어서 팔 룬·보석 추가</div>
-        <div class="option-editor-hint">서로 다른 룬·보석을 여러 개 골라서 한 번에 팔 수 있어요 (예: 베르 룬 1개 + 퍼펙트 자수정 5개).</div>
+        <div class="option-editor-title">묶어서 팔 룬·보석·재료 추가</div>
         <div class="bundle-chip-row" v-if="bundleItems.length">
           <div class="bundle-chip" v-for="(b, i) in bundleItems" :key="b.item.id">
             <span class="item-picker-icon" :class="rarityClass(b.item)"><img v-if="iconUrlFor(b.item.icon_key)" :src="iconUrlFor(b.item.icon_key)" alt="" /></span>
@@ -1052,7 +1020,7 @@ function submitPost() {
         <div class="item-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" v-model="bundleQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
+              type="text" v-model="bundleQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
               class="write-input" @focus="showBundleDropdown = true"
               @input="showBundleDropdown = true"
               @blur="hideBundleDropdownSoon"
@@ -1065,7 +1033,7 @@ function submitPost() {
                 <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석이 없어요.</div>
+              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
             </div>
           </div>
         </div>
@@ -1074,12 +1042,11 @@ function submitPost() {
 
       <label class="negotiable-check">
         <input type="checkbox" v-model="form.negotiable" />
-        흥정 가능 (체크하면 구매자가 "구매하기"를 누를 때 룬·보석으로 교환 제안을 할 수 있어요)
+        흥정 가능
       </label>
 
       <div class="price-picker">
-        <div class="option-editor-title">희망 가격 (룬·보석으로 받을 개수)</div>
-        <div class="option-editor-hint">받고 싶은 룬·보석을 검색해서 고르고 개수를 입력하세요. 여러 종류를 섞어서 받을 수도 있어요 (예: 이스트 룬 2개 + 최상급 다이아몬드 5개).</div>
+        <div class="option-editor-title">희망 가격</div>
         <div class="bundle-chip-row" v-if="priceItems.length">
           <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
             <span class="item-picker-icon gem"><img v-if="iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
@@ -1090,21 +1057,18 @@ function submitPost() {
           </div>
         </div>
         <button type="button" class="item-picker-trigger" @click="openPriceModal">
-          {{ priceItems.length ? '+ 룬·보석 더 추가하기' : '받고 싶은 룬·보석을 검색해서 선택하세요 (예: 이스트 룬, 최상급 자수정)' }}
+          {{ priceItems.length ? '+ 더 추가하기' : '받고 싶은 룬·보석·재료를 검색해서 선택하세요 (예: 이스트 룬, 파괴의 열쇠)' }}
         </button>
       </div>
 
       <div class="modal-overlay" v-if="showPriceModal" @click.self="showPriceModal = false">
         <div class="modal-panel item-modal-panel">
           <button type="button" class="modal-close" @click="showPriceModal = false">✕</button>
-          <div class="d-section-title">희망 가격 룬·보석 선택</div>
+          <div class="d-section-title">희망 가격 선택</div>
           <input
-            type="text" v-model="priceQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
-            class="write-input" v-focus aria-label="룬·보석 검색"
+            type="text" v-model="priceQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
+            class="write-input" v-focus aria-label="룬·보석·재료 검색"
           />
-          <div class="item-picker-hint">
-            {{ priceQuery.trim() ? '고르면 1개가 담기고, 개수는 담은 뒤에 바꿀 수 있어요. 같은 걸 또 고르면 1개씩 늘어나요.' : '검색어가 없을 땐 룬을 높은 등급부터 보여줘요. 보석은 이름으로 검색하세요.' }}
-          </div>
           <div class="item-modal-list">
             <button
               type="button" class="item-picker-row" v-for="it in priceCandidates" :key="it.id"
@@ -1114,7 +1078,7 @@ function submitPost() {
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               <span class="item-picker-row-cat price-picked" v-if="priceQtyOf(it)">담김 {{ priceQtyOf(it) }}개</span>
             </button>
-            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석이 없어요.</div>
+            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
           </div>
         </div>
       </div>
@@ -1132,7 +1096,6 @@ function submitPost() {
 
       <div class="tooltip-preview" v-if="previewTooltip">
         <div class="option-editor-title">미리보기</div>
-        <div class="option-editor-hint">판매글에 이 모양으로 보이고, 이미지로도 저장할 수 있어요.</div>
         <ItemTooltipCanvas :tooltip="previewTooltip" :file-name="form.itemName" />
       </div>
 
@@ -1165,7 +1128,6 @@ function submitPost() {
 
 .item-picker{position:relative;}
 .item-picker-search-wrap{position:relative;}
-.item-picker-hint{font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.5;}
 .item-picker-selected{
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);
   padding:6px 10px; height:41px; box-sizing:border-box; border-radius:10px;
@@ -1262,7 +1224,6 @@ function submitPost() {
 .tooltip-preview{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:8px; align-items:center;}
 .tooltip-preview .option-editor-title, .tooltip-preview .option-editor-hint{align-self:stretch;}
 .base-mods{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--border); padding-top:12px; margin-top:2px;}
-.class-skill-rule b{color:var(--gold);}
 .class-skill-remove{flex:none; color:var(--text-dim); font-size:12px; padding:4px 6px;}
 .class-skill-remove:hover{color:var(--text);}
 .class-skill-add{align-self:flex-start; font-size:12.5px; color:var(--gold); border:1px dashed var(--gold-dim); padding:7px 14px; border-radius:10px; background:transparent;}

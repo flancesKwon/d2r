@@ -160,7 +160,7 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
               <span>{{ pct(o.p) }}</span>
             </div>
           </div>
-          <div class="sk-note">게임 데이터상 1~6개를 고른 뒤 최대치로 잘려서, 최대 소켓이 나올 확률이 가장 높아요.</div>
+          <div class="sk-note">최대 소켓이 나올 확률이 가장 높아요.</div>
         </div>
         <div class="sk-method" v-if="isWeapon">
           <div class="sk-method-title">매직 무기 + 보석 3개</div>

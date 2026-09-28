@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity } from '../tradeStore.js'
+import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -102,7 +102,7 @@ const showOfferDropdown = ref(false)
 const showBuySentToast = ref(false)
 const offerCandidates = computed(() => {
   if (!offerQuery.value.trim()) return []
-  return searchAllItems(offerQuery.value).filter((it) => it.category === 'gem')
+  return searchAllItems(offerQuery.value).filter(isCurrencyItem)
 })
 
 function openBuyModal() {
@@ -190,7 +190,6 @@ function confirmBuy() {
         <section class="item-panel">
           <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
           <div class="item-panel-foot">
-            <p class="tooltip-note">판매자가 입력한 아이템 정보·옵션으로 그린 이미지예요. 실제 아이템과 다를 수 있으니 거래 전에 꼭 확인하세요.</p>
             <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
           </div>
         </section>
@@ -214,13 +213,13 @@ function confirmBuy() {
           </div>
           <div class="price-meta">
             <span>수량 <b>{{ post.amountLabel }}</b></span>
-            <span v-if="post.negotiable" class="nego">룬·보석으로 흥정 제안 가능</span>
+            <span v-if="post.negotiable" class="nego">흥정 가능</span>
           </div>
           <button
             type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료'"
             @click="openBuyModal"
           >{{ post.status === '거래완료' ? '거래가 완료된 글이에요' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
-          <p class="buy-now-hint">{{ post.negotiable ? '원하는 룬·보석을 골라 판매자에게 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</p>
+          <p class="buy-now-hint">{{ post.negotiable ? '원하는 룬·보석·재료로 가격을 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</p>
         </section>
 
         <section class="side-card seller-card">
@@ -309,13 +308,12 @@ function confirmBuy() {
       <button type="button" class="modal-close" @click="closeBuyModal">✕</button>
 
       <template v-if="buyStep === 'offer'">
-        <div class="d-section-title">제안할 룬·보석 선택</div>
-        <p class="buy-modal-hint">이 판매글은 흥정 가능이에요. 판매자에게 제안할 룬·보석을 검색해서 고르고 개수를 입력하세요 (여러 개 선택 가능).</p>
+        <div class="d-section-title">제안할 룬·보석·재료 선택</div>
 
         <div class="item-picker offer-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" v-model="offerQuery" placeholder="룬·보석 이름 검색 (예: 이스트 룬, 최상급 자수정)"
+              type="text" v-model="offerQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
               class="write-input" @focus="showOfferDropdown = true"
               @input="showOfferDropdown = true" @blur="hideOfferDropdownSoon"
             />
@@ -327,7 +325,7 @@ function confirmBuy() {
                 <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!offerCandidates.length">일치하는 룬·보석이 없어요.</div>
+              <div class="item-picker-empty" v-if="!offerCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
             </div>
           </div>
         </div>
@@ -341,7 +339,7 @@ function confirmBuy() {
             <button type="button" @click="removeOfferItem(i)">✕</button>
           </div>
         </div>
-        <div class="empty-state offer-empty" v-else>아직 고른 룬·보석이 없어요</div>
+        <div class="empty-state offer-empty" v-else>아직 고른 게 없어요</div>
 
         <div class="modal-actions">
           <button type="button" class="btn-primary" :disabled="!offerItems.length" @click="goToConfirm">다음</button>
@@ -368,7 +366,7 @@ function confirmBuy() {
           </span>
         </div>
         <div class="confirm-row" v-if="post.negotiable">
-          <span class="k">제안하는 룬·보석</span>
+          <span class="k">제안 내용</span>
           <span class="v offer-chip-row confirm-offer-row">
             <span class="offer-chip static" v-for="o in offerItems" :key="o.item.id">
               <span class="item-picker-icon gem"><img v-if="iconUrlFor(o.item.icon_key)" :src="iconUrlFor(o.item.icon_key)" alt="" /></span>
@@ -450,7 +448,6 @@ function confirmBuy() {
   display:flex; flex-direction:column; align-items:center; gap:18px;
 }
 .item-panel-foot{display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; border-top:1px solid var(--border-soft); padding-top:14px;}
-.tooltip-note{font-size:11.5px; color:var(--text-dim); line-height:1.6; margin:0;}
 .tooltip-save-btn{
   flex:none; font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:7px 13px; border-radius:9px;
 }

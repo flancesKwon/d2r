@@ -12,17 +12,22 @@ import { createDeal } from './dealsStore.js'
 
 export { itemsData }
 
-// 아이템 사전엔 룬·보석·유니크·세트·룬워드(730종)만 있고 우버보스 열쇠 재료(다이아블로
-// 뿔 등 퀘스트용 소환 재료)는 장비가 아니라서 원래 사전에 없음 - 그래도 검색으로
-// 팔 수 있어야 해서 자주 거래되는 재료를 별도 목록으로 만들어 검색 대상에 포함시킴
+// 아이템 사전엔 룬·보석·유니크·세트·룬워드(730종)만 있고 우버보스 소환 재료(열쇠·장기·정수)는
+// 장비가 아니라서 원래 사전에 없음 - 그래도 검색으로 팔 수 있어야 해서 별도 목록으로 검색 대상에 포함시킴
+const uber = (id, name_ko, name_en, icon_key, aliases = []) =>
+  ({ id: 'uber-' + id, category: 'uber', category_label: '우버 재료', name_ko, name_en, icon_key, aliases })
 export const UBER_MATERIALS = [
-  { id: 'uber-diablo-horn', category: 'uber', name_ko: '다이아블로의 뿔', name_en: "Diablo's Horn" },
-  { id: 'uber-baal-eye', category: 'uber', name_ko: '바알의 눈', name_en: "Baal's Eye" },
-  { id: 'uber-meph-brain', category: 'uber', name_ko: '메피스토의 뇌', name_en: 'Mephisto Brain' },
-  { id: 'uber-essence-suffering', category: 'uber', name_ko: '고통의 뒤틀린 정수', name_en: 'Twisted Essence of Suffering' },
-  { id: 'uber-essence-hatred', category: 'uber', name_ko: '증오의 충전된 정수', name_en: 'Charged Essence of Hatred' },
-  { id: 'uber-essence-terror', category: 'uber', name_ko: '공포의 불타는 정수', name_en: 'Burning Essence of Terror' },
-  { id: 'uber-token', category: 'uber', name_ko: '용서의 증표', name_en: 'Token of Absolution' },
+  uber('key-terror', '공포의 열쇠', 'Key of Terror', 'invmph__key', ['공포키', '공포 열쇠']),
+  uber('key-hate', '증오의 열쇠', 'Key of Hate', 'invmph__key', ['증오키', '증오 열쇠']),
+  uber('key-destruction', '파괴의 열쇠', 'Key of Destruction', 'invmph__key', ['파괴키', '파괴 열쇠']),
+  uber('diablo-horn', '다이아블로의 뿔', "Diablo's Horn", 'invfang__uber', ['디아뿔']),
+  uber('baal-eye', '바알의 눈', "Baal's Eye", 'inveye__uber', ['바알눈']),
+  uber('meph-brain', '메피스토의 뇌', "Mephisto's Brain", 'invbrnz__uber', ['메피뇌']),
+  uber('essence-suffering', '고통의 뒤틀린 정수', 'Twisted Essence of Suffering', 'invtes__uber'),
+  uber('essence-hatred', '증오의 충전된 정수', 'Charged Essence of Hatred', 'invceh__uber'),
+  uber('essence-terror', '공포의 불타는 정수', 'Burning Essence of Terror', 'invbet__uber'),
+  uber('essence-destruction', '파괴의 곪은 정수', 'Festering Essence of Destruction', 'invfed__uber'),
+  uber('token', '용서의 증표', 'Token of Absolution', 'invtoa__uber', ['토큰']),
 ]
 const ALL_TRADE_ITEMS = [...itemsData, ...UBER_MATERIALS]
 
@@ -30,7 +35,9 @@ const ALL_TRADE_ITEMS = [...itemsData, ...UBER_MATERIALS]
 // 뭔지 한눈에 안 들어옴 - 가격 문자열에서 룬·보석 이름을 찾아서 아이콘을 붙여주려고
 // 이름별로 찾아볼 수 있게 정리해둠. 긴 이름부터 매칭해야 "최상급 다이아몬드"가
 // "다이아몬드"보다 먼저 잡힘
-const CURRENCY_ITEMS = itemsData.filter((it) => it.category === 'gem')
+// 룬·보석·우버 재료는 거래에서 화폐처럼 쓰여서(희망 가격, 묶음 판매, 흥정 제안) 같은 목록으로 다룸
+export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber'
+export const CURRENCY_ITEMS = [...itemsData.filter(isCurrencyItem), ...UBER_MATERIALS]
 const CURRENCY_BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
 const CURRENCY_PATTERN = new RegExp(
   '(' + [...CURRENCY_BY_NAME.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|') + ')',

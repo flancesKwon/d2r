@@ -98,12 +98,14 @@ const slotPickerItems = computed(() => {
 
 // ---- 인벤토리 참(charm) ----
 // 참은 장비 슬롯 없이 인벤토리 칸(10x4=40)만 차지함. 실제 아이콘 세로 길이가
-// 곧 칸 수(스몰 1/그랜드 2/라지 3칸)라 아이콘 종류별로 고정 매핑해두면 충분함
+// 곧 칸 수(스몰 1/라지 2/그랜드 3칸)라 아이콘 종류별로 고정 매핑해두면 충분함
 const CHARM_COLS = 10
 const CHARM_ROWS = 4
-const CHARM_ICON_CELLS = { invchm__charm: 1, invgswe__charm: 1, invwnd__charm: 2, invsst__charm: 3 }
+const CHARM_ICON_CELLS = { invmss__charm: 1, invch1__charm: 1, invtrch__charm: 2, invch2__charm: 2 }
 function charmCellHeight(item) {
-  return CHARM_ICON_CELLS[item?.icon_key] || 1
+  const key = item?.icon_key || ''
+  if (key.startsWith('invgc')) return 3 // 그랜드 참 (기드의 행운·파괴참 등)
+  return CHARM_ICON_CELLS[key] || 1
 }
 
 const charmCatalog = computed(() =>
@@ -629,7 +631,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     <div class="patch-hero-inner">
       <div class="eyebrow">빌드 계획 도구</div>
       <h1>스킬·스탯 시뮬레이터</h1>
-      <p>레벨·스탯·스킬 포인트에 장비까지 껴서 데미지·생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요. 스킬 데미지·시너지는 실제 게임 데이터 기준이에요 (오라/마스터리 효과, 근접 스킬의 무기-스킬 결합 계산은 아직 단순화된 상태예요).</p>
+      <p>레벨·스탯·스킬 포인트에 장비까지 껴서 데미지·생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요.</p>
     </div>
   </div>
 
@@ -720,7 +722,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           </button>
         </div>
 
-        <p class="sim-zone-note">유니크·세트·룬워드 데이터 기준으로 스탯·저항·방어력·+스킬을 합산해요. 소켓은 아직 없어요.</p>
+        <p class="sim-zone-note">장착한 장비의 스탯·저항·방어력·+스킬을 합산해요.</p>
       </section>
 
       <div class="sim-zone-divider"></div>
@@ -903,7 +905,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <span>저항 화/냉/전/독</span>
           <b>{{ derivedStats.resist.fire }}/{{ derivedStats.resist.cold }}/{{ derivedStats.resist.ltng }}/{{ derivedStats.resist.pois }}%</b>
         </div>
-        <p class="sim-zone-note">스탯 성장은 커뮤니티 자료 기준 근사치, 저항 75% 상한 적용.</p>
       </section>
     </div>
   </div>

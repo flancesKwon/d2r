@@ -88,7 +88,6 @@ const perSec = (frames) => (25 / frames).toFixed(2)
     </div>
     <div class="bp-foot">
       줄을 누르면 그 수치로 맞춰져요. 표: Maxroll·Arreat Summit 기준, 악마술사는 네크로맨서와 같은 프레임이에요.
-      공격 속도(IAS)는 무기·스킬마다 계산이 달라서 아직 넣지 않았어요.
     </div>
   </div>
   </div>
