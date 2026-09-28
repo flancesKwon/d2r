@@ -3,7 +3,15 @@
 // 정해진 % 를 넘을 때만 실제로 빨라짐. 지금 수치로 몇 프레임인지, 다음 단계까지 몇 % 더 필요한지 보여줌
 // 표: src/data/breakpoints.json (Maxroll·Arreat Summit, 악마술사는 네크로맨서와 같은 프레임)
 import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import bp from '../data/breakpoints.json'
+import IasCalculator from '../components/IasCalculator.vue'
+
+// 탭: 시전·타격 회복·막기 / 공격 속도 (주소 ?tab=ias)
+const route = useRoute()
+const router = useRouter()
+const tab = computed(() => (route.query.tab === 'ias' ? 'ias' : 'fcr'))
+const setTab = (t) => router.replace({ query: t === 'ias' ? { tab: 'ias' } : {} })
 
 const STATS = [
   { key: 'fcr', label: '시전 속도', short: 'FCR' },
@@ -38,11 +46,18 @@ const perSec = (frames) => (25 / frames).toFixed(2)
     <div class="patch-hero-inner">
       <div class="eyebrow">장비 맞추기</div>
       <h1>브레이크포인트 계산기</h1>
-      <p>시전·타격 회복·막기 속도는 정해진 %를 넘어야만 실제로 빨라져요. 지금 수치로 몇 프레임인지, 다음 단계까지 얼마나 더 필요한지 알려드려요.</p>
+      <p>공격·시전·타격 회복·막기 속도는 정해진 %를 넘어야만 실제로 빨라져요. 지금 수치로 몇 프레임인지, 다음 단계까지 얼마나 더 필요한지 알려드려요.</p>
     </div>
   </div>
 
   <div class="grid-wrap bp-wrap">
+    <div class="bp-tabs" role="tablist">
+      <button type="button" role="tab" :aria-selected="tab === 'ias'" :class="{ active: tab === 'ias' }" @click="setTab('ias')">공격 속도 (IAS)</button>
+      <button type="button" role="tab" :aria-selected="tab === 'fcr'" :class="{ active: tab === 'fcr' }" @click="setTab('fcr')">시전 · 타격 회복 · 막기</button>
+    </div>
+
+    <IasCalculator v-if="tab === 'ias'" />
+    <template v-else>
     <div class="cat-tabs bp-classes">
       <button v-for="c in bp.classes" :key="c.key" :class="{ active: clsKey === c.key }" @click="clsKey = c.key">{{ c.name }}</button>
     </div>
@@ -89,6 +104,10 @@ const perSec = (frames) => (25 / frames).toFixed(2)
     <div class="bp-foot">
       줄을 누르면 그 수치로 맞춰져요. 표: Maxroll·Arreat Summit 기준, 악마술사는 네크로맨서와 같은 프레임이에요.
     </div>
+    </template>
+    <div class="bp-foot" v-if="tab === 'ias'">
+      무기 속도는 게임 데이터(weapons.txt), 동작 프레임은 D2R 3.3 기준(Warren1001 IAS Calculator 정리값)이에요.
+    </div>
   </div>
   </div>
 </template>
@@ -96,6 +115,9 @@ const perSec = (frames) => (25 / frames).toFixed(2)
 <style scoped>
 .bp-wrap{max-width:1180px; display:flex; flex-direction:column; gap:16px;}
 .bp-classes button{border-radius:999px;}
+.bp-tabs{display:flex; gap:4px; border-bottom:1px solid var(--border-soft);}
+.bp-tabs button{padding:10px 16px; font-size:14px; color:var(--text-muted); border-bottom:2px solid transparent; margin-bottom:-1px; font-weight:600;}
+.bp-tabs button.active{color:var(--gold); border-bottom-color:var(--gold);}
 .bp-grid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; align-items:start;}
 .bp-card{border:1px solid var(--border-soft); background:var(--panel); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px;}
 .bp-card-head{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
