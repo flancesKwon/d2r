@@ -10,7 +10,7 @@
 //   요구 레벨(충전 스킬 레벨 계산용)을 같이 넣음
 //
 // 원본: https://github.com/blizzhackers/d2data (D2R 3.0 JSON) 의 json/magicprefix.json,
-// magicsuffix.json, armor.json, weapons.json, misc.json, itemtypes.json, skills.json, cubemain.json 을 받은 폴더를 넘겨서 실행
+// magicsuffix.json, automagic.json, armor.json, weapons.json, misc.json, itemtypes.json, skills.json, cubemain.json 을 받은 폴더를 넘겨서 실행
 //   node scripts/build-magic-affixes.js <d2data json 폴더>
 import fs from 'fs'
 import path from 'path'
@@ -98,6 +98,23 @@ const iconFor = (invfile, prefer) => {
   return keys.find((k) => k.endsWith('__' + prefer)) || keys[0] || null
 }
 
+const automagic = load('automagic.json')
+function autoRareOf(group) {
+  const out = {}
+  for (const a of automagic.filter((x) => String(x.group) === String(group) && Number(x.spawnable) === 1 && Number(x.rare) === 1)) {
+    const key = a.mod1code === 'skilltab' ? `skilltab:${a.mod1param}` : a.mod1code
+    const m = out[key] || (out[key] = { min: Infinity, max: -Infinity, set: new Set() })
+    m.min = Math.min(m.min, Number(a.mod1min))
+    m.max = Math.max(m.max, Number(a.mod1max))
+    for (let v = Number(a.mod1min); v <= Number(a.mod1max); v++) m.set.add(v)
+  }
+  // 단계 사이에 빈 값이 있으면 가능한 값 목록을 values 로 (scripts/build-base-items.js 의 auto_mods 와 같은 모양)
+  for (const [k, { set, ...m }] of Object.entries(out)) {
+    out[k] = set.size === m.max - m.min + 1 ? m : { ...m, values: [...set].sort((x, y) => x - y) }
+  }
+  return out
+}
+
 const bases = {}
 // 아이콘 그림이 없는 베이스는 같은 계열(일반·익셉셔널·엘리트)의 그림을 대신 씀 (iconApprox 표시)
 const familyOf = {}
@@ -114,6 +131,9 @@ for (const b of [...load('armor.json'), ...load('weapons.json')]) {
   const cap = Number(b.gemsockets) || 0
   bases[b.code].sock = [1, 2, 3].map((n) => Math.min(cap, Number(t?.['MaxSockets' + n]) || 0))
   bases[b.code].sockLv = [Number(t?.MaxSocketsLevelThreshold1) || 25, Number(t?.MaxSocketsLevelThreshold2) || 40]
+  // 베이스 자체 옵션(auto prefix -> automagic) 중 레어·크래프트에 붙을 수 있는 단계만의 범위 (rare=1).
+  // 가장 높은 단계는 보통 레어 불가 (예: 팔라딘 방패 모든 저항 35~45, 오브 생명력 41~60)
+  if (b['auto prefix']) bases[b.code].autoRare = autoRareOf(b['auto prefix'])
 }
 
 for (const [code, fam] of Object.entries(familyOf)) {

@@ -478,6 +478,25 @@ for (const [, names] of iconByKey) {
   console.log(`직업 베이스 스킬 이름 검사: ${n}개`)
 }
 
+// ---------- 12. 베이스 자체 옵션 레어 범위 (가장 높은 단계는 레어·크래프트에 안 붙음 - automagic rare 칸) ----------
+{
+  const data = JSON.parse(readFileSync(join(__dirname, '../src/data/magicAffixes.json'), 'utf8'))
+  const bases = JSON.parse(readFileSync(join(__dirname, '../src/data/baseItems.json'), 'utf8'))
+  const code = (sub) => bases.find((b) => b.subtitle === sub)?.code
+  const rare = (sub, key) => data.bases[code(sub)]?.autoRare?.[key]
+  const expect = (cond, msg) => cond || err(`베이스 자체 옵션 레어 범위: ${msg}`)
+  expect(rare('Sacred Targe', 'res-all')?.max === 35, '팔라딘 방패 모든 저항 레어 최대 35 (Chromatic 35~45는 레어 불가)')
+  expect(rare('Eagle Orb', 'hp')?.max === 40, '오브 생명력 레어 최대 40')
+  expect(rare('Stag Bow', 'skilltab:0')?.max === 2, '아마존 활 스킬 트리 레어 최대 +2')
+  // 자동 옵션이 있는 베이스는 모두 레어 범위 정보가 있어야 함
+  for (const b of bases) {
+    for (const m of b.auto_mods || []) {
+      const r = data.bases[b.code]?.autoRare?.[m.key]
+      if (r && (r.min < m.min || r.max > m.max)) err(`베이스 자체 옵션 레어 범위: ${b.code} ${m.key} 레어 범위가 전체 범위를 벗어남`)
+    }
+  }
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)
