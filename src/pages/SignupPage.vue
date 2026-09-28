@@ -64,7 +64,6 @@ function onGoogleClick() {
         <p>디아허브에 가입하고 빌드·공략을 저장해보세요</p>
       </div>
 
-      <div class="note-box signup-preview-note" v-if="!submitted">디자인 미리보기예요 — 실제 가입 처리는 아직 준비 중이에요.</div>
 
       <form class="signup-form" @submit.prevent="onSubmit" v-if="!submitted">
         <div class="signup-avatar-row">
@@ -146,7 +145,6 @@ function onGoogleClick() {
 .signup-head h1{font-size:22px; margin-bottom:8px;}
 .signup-head p{font-size:12.5px; color:var(--text-muted);}
 
-.signup-preview-note{margin-bottom:20px; text-align:center; color:var(--gold-dim); border-color:var(--gold-dim);}
 
 .signup-form{display:flex; flex-direction:column; gap:14px;}
 

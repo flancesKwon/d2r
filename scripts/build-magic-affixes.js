@@ -131,12 +131,15 @@ const MISC_BASES = [
   { code: 'cm3', name_ko: '거대 부적' },
 ]
 const misc = new Map(load('misc.json').map((m) => [m.code, m]))
+const MISC_ICON_OVERRIDE = { jew: 'invjw1__jewel', cm1: 'invch1__charm', cm2: 'invch2__charm', cm3: 'invgceye__charm' }
 const miscBases = MISC_BASES.map(({ code, name_ko }) => {
   const m = misc.get(code)
   if (!m) throw new Error(`no misc ${code}`)
   const tl = ancestors(m.type)
   bases[code] = { qlvl: Number(m.level) || 0, types: tl, cls: classOf(tl), rare: canRare(m.type) }
-  const icon = iconFor(m.invfile, { rin: 'ring', amu: 'amulet' }[code] || 'charm')
+  // 부적·주얼은 misc.txt invfile(invchm/invwnd/invsst/invgswe)이 완드·지팡이·다이아몬드 그림 파일과 이름이 같아서
+  // 실제 인벤토리 그림(invch1·invch2·그랜드 참 눈 문양·주얼)을 직접 지정함
+  const icon = MISC_ICON_OVERRIDE[code] || iconFor(m.invfile, { rin: 'ring', amu: 'amulet' }[code] || 'charm')
   if (!icon) throw new Error(`no icon for ${code} (${m.invfile})`)
   return { id: 'misc-' + code, code, name_ko, subtitle: m.name, icon_key: icon }
 })

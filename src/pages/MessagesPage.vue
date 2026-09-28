@@ -32,7 +32,7 @@ function submitMessage() {
     <div class="patch-hero-inner">
       <div class="eyebrow">1:1 대화</div>
       <h1>쪽지함</h1>
-      <p>거래·문의 상대와 주고받은 쪽지를 한 곳에서 확인하세요. (미리보기 - 이 브라우저에서만 저장돼요)</p>
+      <p>거래·문의 상대와 주고받은 쪽지를 한 곳에서 확인하세요.</p>
     </div>
   </div>
 

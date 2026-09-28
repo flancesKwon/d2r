@@ -190,7 +190,6 @@ function confirmBuy() {
         <section class="item-panel">
           <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
           <div class="item-panel-foot">
-            <p class="tooltip-note">판매자가 입력한 아이템 정보·옵션으로 그린 이미지예요. 실제 아이템과 다를 수 있으니 거래 전에 꼭 확인하세요.</p>
             <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
           </div>
         </section>
@@ -450,7 +449,6 @@ function confirmBuy() {
   display:flex; flex-direction:column; align-items:center; gap:18px;
 }
 .item-panel-foot{display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; border-top:1px solid var(--border-soft); padding-top:14px;}
-.tooltip-note{font-size:11.5px; color:var(--text-dim); line-height:1.6; margin:0;}
 .tooltip-save-btn{
   flex:none; font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:7px 13px; border-radius:9px;
 }

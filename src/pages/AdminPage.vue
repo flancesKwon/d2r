@@ -35,10 +35,6 @@ function resolveReport(id) {
   </div>
 
   <div class="grid-wrap admin-wrap">
-    <div class="note-box admin-preview-note">
-      디자인 미리보기예요 — 실제 권한 검사(로그인한 사람이 진짜 관리자인지)와 서버 연동은 아직 없고, 여기서 바꾼 값도 새로고침하면 원래대로 돌아가요.
-    </div>
-
     <div class="admin-stat-row">
       <div class="admin-stat-card">
         <div class="label">총 회원</div>
@@ -112,7 +108,6 @@ function resolveReport(id) {
 
 <style scoped>
 .admin-wrap{max-width:1000px;}
-.admin-preview-note{margin-bottom:24px; color:var(--gold-dim); border-color:var(--gold-dim);}
 
 .admin-stat-row{display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); margin-bottom:32px;}
 .admin-stat-card{background:var(--panel); padding:18px 16px;}

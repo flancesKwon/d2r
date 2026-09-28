@@ -4,6 +4,9 @@
 import { itemLevelReq, baseForItem, getItemAffixes } from './tradeStore.js'
 import { runePips } from './itemStats.js'
 
+// 베이스 목록(baseItems)에 없는 장신구 베이스의 한글 이름 - 게임 툴팁처럼 이름 아래에 베이스를 보여줌
+const MISC_BASE_KO = { Amulet: '목걸이', Ring: '반지', Jewel: '주얼', 'Small Charm': '작은 부적', 'Large Charm': '큰 부적', 'Grand Charm': '거대 부적' }
+
 export const TOOLTIP_COLORS = {
   white: '#FFFFFF',
   gray: '#8C8C8C',
@@ -61,8 +64,8 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
     if (runes.length) push(`'${runes.join('')}'`, TOOLTIP_COLORS.unique)
   } else if (item?.category === 'unique' || item?.category === 'set') {
     const base = baseForItem(item)
-    if (base || (item.subtitle && item.subtitle !== 'charm')) {
-      push(base?.name_ko || item.subtitle, nameColor(item, category, displayName))
+    if (base || item.subtitle) {
+      push(base?.name_ko || MISC_BASE_KO[item.subtitle] || item.subtitle, nameColor(item, category, displayName))
     }
   } else if (meta.base) {
     push(meta.base, TOOLTIP_COLORS.white)
