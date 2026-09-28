@@ -440,6 +440,27 @@ for (const [, names] of iconByKey) {
   }
 }
 
+// ---------- 11. 옵션 문구 형식 체크 (예전에 잘못 생성됐던 모양이 다시 들어오지 않게) ----------
+// - 직업 스킬: "공포 +3 (네크로맨서 전용)" / 아무 직업 스킬: "히드라 +10" (예전: "+3 공포 공포")
+// - 추가 피해: "화염 피해 15-35 추가" (예전: "최소 화염 피해 15~35"), 적 저항 감소: "적의 화염 저항 7% 감소"
+{
+  const walkAffixes = (o, where, fn) => {
+    if (Array.isArray(o)) o.forEach((v) => walkAffixes(v, where, fn))
+    else if (o && typeof o === 'object') {
+      if (typeof o.text === 'string' && (o.prop || o.raw)) fn(o, where)
+      Object.values(o).forEach((v) => walkAffixes(v, where, fn))
+    }
+  }
+  const DMG = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg-pois'])
+  itemsData.forEach((it) => walkAffixes(it, `${it.id} ${it.name_ko}`, (a, where) => {
+    if (a.prop === 'skill' && !/ \+\d+(?:~\d+)? \(.+ 전용\)$/.test(a.text)) err(`${where}: 직업 스킬 옵션 문구 형식이 이상함 "${a.text}"`)
+    if (a.prop === 'oskill' && !/ \+\d+(?:~\d+)?$/.test(a.text)) err(`${where}: 스킬 옵션 문구 형식이 이상함 "${a.text}"`)
+    if (DMG.has(a.prop) && !/ 추가$/.test(a.text)) err(`${where}: 추가 피해 옵션 문구 형식이 이상함 "${a.text}"`)
+    if ((a.prop || '').startsWith('pierce-') && !(a.prop || '').startsWith('pierce-immunity') && !/ 감소$/.test(a.text)) err(`${where}: 적 저항 감소 옵션 문구 형식이 이상함 "${a.text}"`)
+    if ((a.raw || '').startsWith('*')) err(`${where}: 게임에서 꺼진(*) 옵션 "${a.raw}"이 들어 있음`)
+  }))
+}
+
 // ---------- 결과 출력 ----------
 console.log(`검사 대상: 아이템 ${itemsData.length}개`)
 console.log(`에러 ${errors.length}건, 경고 ${warnings.length}건\n`)

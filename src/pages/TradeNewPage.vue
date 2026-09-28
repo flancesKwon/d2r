@@ -937,10 +937,12 @@ function submitPost() {
               <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
             </select>
             <input
+              v-if="a.min !== a.max"
               type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
               :min="Math.min(a.min, a.max)" :max="Math.max(a.min, a.max)" :class="{ invalid: outOfRange(rolledValues[i], a) }"
               class="write-input option-value-input"
             />
+            <span v-else class="option-text">+{{ a.min }}</span>
           </template>
           <template v-else-if="isRollRangeAffix(a)">
             <span class="option-text">{{ a.text }}</span>
