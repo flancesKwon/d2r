@@ -418,7 +418,19 @@ export function getTradeItem(itemId) {
 const MISC_BASE_BY_CODE = new Map(magicAffixData.miscBases.map((b) => [b.code, b]))
 const BASE_BY_LABEL = new Map([...BASE_ITEMS, ...magicAffixData.miscBases].map((b) => [baseItemLabel(b), b]))
 const MISC_WORDS = [['거대 부적', 'cm3'], ['큰 부적', 'cm2'], ['작은 부적', 'cm1'], ['주얼', 'jew'], ['목걸이', 'amu'], ['반지', 'rin']]
+// 반지·목걸이·주얼·부적은 게임에서 같은 베이스라도 그림(모양)이 여러 가지 - 판매자가 실제 모양을 고를 수 있게 함
+// (첫 번째가 기본 그림)
+export const ICON_VARIANTS = {
+  rin: ['invrin__ring', 'invrin1__ring', 'invrin2__ring', 'invrin3__ring', 'invrin4__ring', 'invrin5__ring'],
+  amu: ['invamu__amulet', 'invamu1__amulet', 'invamu2__amulet', 'invamu3__amulet'],
+  jew: ['invjw1__jewel', 'invjw2__jewel', 'invjw3__jewel', 'invjw4__jewel', 'invjw5__jewel', 'invjw6__jewel'],
+  cm1: ['invch1__charm', 'invch4__charm', 'invch7__charm'],
+  cm2: ['invch2__charm', 'invch5__charm', 'invch8__charm'],
+  cm3: ['invgceye__charm', 'invgcknot__charm', 'invgcmonster__charm'],
+}
+
 export function postIconKey(post) {
+  if (post?.iconKey) return post.iconKey
   const item = getTradeItem(post?.itemId)
   if (item?.icon_key) return item.icon_key
   const baseLine = (post?.options || []).find((l) => l.startsWith('베이스: '))
@@ -453,6 +465,7 @@ export function addTradePost({
   quality,
   ethereal,
   negotiable,
+  iconKey,
 }) {
   const post = {
     id: 't-new-' + nextPostId++,
@@ -465,6 +478,8 @@ export function addTradePost({
     // 사전에 없는 장비의 품질(magic|rare|crafted|normal) - 툴팁 이름 색
     quality: quality || '',
     ethereal: !!ethereal,
+    // 판매자가 고른 반지·목걸이 등의 모양 (없으면 베이스 기본 그림)
+    iconKey: iconKey || null,
     negotiable: !!negotiable,
     price,
     realm,

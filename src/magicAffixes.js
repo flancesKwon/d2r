@@ -229,6 +229,19 @@ export function familyLines(fam, values) {
   })
 }
 
+// 옵션 종류의 옵션 줄마다 문구와 그 줄이 쓰는 수치 칸 번호 (크래프트 고정 옵션을 한 줄씩 나눠 보여줄 때 씀)
+// 수치를 안 고른 칸은 범위("5~10")로 채움
+export function familyLineSlots(fam, values = []) {
+  const shown = filledValues(fam, values).map((v, i) => v ?? fam.slotRanges[i].join('~'))
+  let i = 0
+  return fam.mods.map((m) => {
+    const n = MODS[m.code].slots(m, {}, { maxSockets: 6, ilvlMin: 1, ilvlMax: 99 }).length
+    const slots = Array.from({ length: n }, (_, k) => i + k)
+    i += n
+    return { text: MODS[m.code].text(slots.map((j) => shown[j]), m), slots }
+  })
+}
+
 export const affixLimits = (base, quality) => {
   if (quality === 'magic') return { p: 1, s: 1, total: 2 }
   if (quality === 'crafted' || base?.code === 'jew') return { p: 3, s: 3, total: 4 }

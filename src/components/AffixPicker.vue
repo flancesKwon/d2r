@@ -2,8 +2,9 @@
 // 매직/레어 옵션(접두사·접미사) 입력 - 이 베이스·품질에 붙을 수 있는 옵션 종류만 고르고,
 // 수치도 게임 범위 안에서만 넣게 함. 규칙은 src/magicAffixes.js
 // modelValue: { p: [{ key, values }], s: [{ key, values }] }
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { familyText, filledValues } from '../magicAffixes.js'
+import { squashText } from '../itemSearch.js'
 
 const props = defineProps({
   families: { type: Array, required: true },
@@ -18,16 +19,22 @@ const rows = (slot) => props.modelValue[slot]
 const total = computed(() => rows('p').length + rows('s').length)
 const canAdd = (slot) => rows(slot).length < props.limits[slot] && total.value < props.limits.total
 
-// 다른 줄에서 이미 고른 옵션 종류는 빼고 보여줌
+// 줄마다 옵션 검색어 ("시전", "저항", "소서리스" 등) - 목록이 50종 가까이라 골라내기 쉽게
+const searches = reactive({})
+const searchOf = (slot, i) => searches[slot + i] || ''
+// 다른 줄에서 이미 고른 옵션 종류는 빼고, 검색어가 있으면 그게 들어간 것만 보여줌 (지금 고른 건 항상 남김)
 function optionsFor(slot, i) {
   const taken = new Set(rows(slot).filter((_, j) => j !== i).map((r) => r.key))
-  return famsOf(slot).filter((f) => !taken.has(f.key))
+  const q = squashText(searchOf(slot, i))
+  const current = rows(slot)[i]?.key
+  return famsOf(slot).filter((f) => !taken.has(f.key) && (!q || f.key === current || squashText(f.label).includes(q)))
 }
 function addRow(slot) {
   if (canAdd(slot)) rows(slot).push({ key: '', values: [] })
 }
 function removeRow(slot, i) {
   rows(slot).splice(i, 1)
+  Object.keys(searches).forEach((k) => delete searches[k])
 }
 function onPick(row) {
   row.values = []
@@ -52,12 +59,17 @@ function previewOf(row) {
         {{ SLOT_KO[slot] }} <span class="affix-slot-count">{{ rows(slot).length }}/{{ limits[slot] }}</span>
       </div>
       <div class="affix-row" v-for="(row, i) in rows(slot)" :key="i">
+        <input
+          class="write-input affix-search" type="search" :value="searchOf(slot, i)"
+          @input="searches[slot + i] = $event.target.value"
+          :placeholder="`${SLOT_KO[slot]} 검색 (예: 시전, 저항, 소서리스)`" :aria-label="`${SLOT_KO[slot]} ${i + 1} 검색`"
+        />
         <div class="option-row">
           <select
             v-model="row.key" class="write-select random-group-select" :aria-label="`${SLOT_KO[slot]} ${i + 1}`"
             @change="onPick(row)"
           >
-            <option value="">{{ SLOT_KO[slot] }} 옵션 선택 ({{ famsOf(slot).length }}종)</option>
+            <option value="">{{ SLOT_KO[slot] }} 옵션 선택 ({{ optionsFor(slot, i).length }}종{{ searchOf(slot, i) ? ' 검색됨' : '' }})</option>
             <option v-for="f in optionsFor(slot, i)" :key="f.key" :value="f.key">{{ f.label }}</option>
           </select>
           <button type="button" class="class-skill-remove" :aria-label="`${SLOT_KO[slot]} ${i + 1} 삭제`" @click="removeRow(slot, i)">✕</button>
@@ -102,6 +114,7 @@ function previewOf(row) {
   font-family:'Noto Sans KR', sans-serif; padding:6px 8px; font-size:12.5px; border-radius:8px;
 }
 .random-group-select{flex:1; min-width:0;}
+.affix-search{width:100%; box-sizing:border-box;}
 .option-value-select{width:110px; flex:none;}
 .option-value-input{width:100px; flex:none;}
 .write-select.invalid, .write-input.invalid{border-color:var(--blood); box-shadow:0 0 0 1px var(--blood);}
