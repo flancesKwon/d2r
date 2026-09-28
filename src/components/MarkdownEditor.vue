@@ -6,6 +6,8 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '' },
   minHeight: { type: String, default: '120px' },
+  size: { type: String, default: 'md' }, // 'md' | 'lg'
+  variant: { type: String, default: 'boxed' }, // 'boxed' | 'plain'
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -61,7 +63,7 @@ function insertLink() {
 </script>
 
 <template>
-  <div class="md-editor">
+  <div class="md-editor" :class="[`md-editor--${size}`, `md-editor--${variant}`]">
     <div class="md-toolbar">
       <button type="button" title="굵게" @click="wrap('**')"><b>B</b></button>
       <button type="button" title="기울임" @click="wrap('*')"><i>I</i></button>
@@ -114,4 +116,27 @@ function insertLink() {
 .md-preview :deep(code){background:var(--panel-2); padding:1px 5px; font-size:12px; color:var(--gold);}
 .md-preview :deep(a){color:var(--gold-dim); text-decoration:underline;}
 .md-empty{color:var(--text-dim); font-size:12.5px; font-style:italic;}
+
+.md-editor--lg .md-toolbar{padding:10px 12px; gap:4px;}
+.md-editor--lg .md-toolbar button{min-width:34px; height:34px; font-size:14px;}
+.md-editor--lg .md-preview-toggle{font-size:13px !important; padding:0 16px !important; height:34px;}
+.md-editor--lg .md-textarea{font-size:15px; padding:16px 18px; line-height:1.7;}
+.md-editor--lg .md-preview{font-size:15px; padding:16px 18px; line-height:1.8;}
+
+/* plain: velog 스타일 — 박스/배경 없이 여백만으로 구분 */
+.md-editor--plain{border:none; background:transparent;}
+.md-editor--plain .md-toolbar{
+  padding:0 0 14px; border-bottom:1px solid var(--border-soft); margin-bottom:18px; gap:14px;
+}
+.md-editor--plain .md-toolbar button{
+  min-width:auto; height:auto; padding:0; color:var(--text-dim); border:none; font-size:15px;
+}
+.md-editor--plain .md-toolbar button:hover{color:var(--gold);}
+.md-editor--plain .md-preview-toggle{
+  border:1px solid var(--border) !important; color:var(--text-muted) !important; padding:5px 14px !important; font-size:12px !important;
+}
+.md-editor--plain .md-preview-toggle:hover{color:var(--gold) !important; border-color:var(--gold-dim) !important;}
+.md-editor--plain .md-textarea{padding:0; font-size:17px; line-height:1.9;}
+.md-editor--plain .md-preview{padding:0; font-size:17px; line-height:1.95;}
+.md-editor--plain.md-editor--lg .md-toolbar button{font-size:16px;}
 </style>

@@ -18,6 +18,12 @@ const formTags = ref([])
 const attachments = ref([])
 const fileInputRef = ref(null)
 
+// 글쓰기 카테고리 버튼 색 (질문 청록 / 거래 금색 / 잡담 초록 / 공략 적갈색)
+const CAT_CLASS = { 질문: 'cat-question', 거래: 'cat-trade', 잡담: 'cat-chat', 공략: 'cat-guide' }
+function catClass(cat) {
+  return CAT_CLASS[cat] || ''
+}
+
 function addTagFromInput() {
   const t = tagInput.value.trim().replace(/^#/, '')
   if (t && !formTags.value.includes(t) && formTags.value.length < 5) formTags.value.push(t)
@@ -123,36 +129,49 @@ function submitPost() {
     </div>
   </div>
 
-  <div class="quality-info" v-if="showForm">
-    <div class="quality-info-inner write-form">
-      <select v-model="form.category" class="write-select">
-        <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
-      </select>
-      <input type="text" v-model="form.title" placeholder="제목" class="write-input" />
-      <input type="text" v-model="form.author" placeholder="닉네임 (비우면 익명)" class="write-input" />
-
-      <MarkdownEditor v-model="form.content" placeholder="내용을 입력하세요 (**굵게**, *기울임*, - 목록, > 인용 지원)" min-height="180px" />
-
-      <div class="tag-input-row">
-        <div class="tag-input-inline">
-          <input
-            type="text"
-            v-model="tagInput"
-            placeholder="태그 입력 후 Enter (최대 5개)"
-            class="write-input tag-text-input"
-            @keydown.enter.prevent="addTagFromInput"
-          />
-          <button type="button" class="tag-add-btn" @click="addTagFromInput">추가</button>
-        </div>
-        <div class="tag-chip-row">
-          <button v-for="(t, i) in formTags" :key="t" class="tag-chip" @click="removeFormTag(i)">#{{ t }} ✕</button>
-        </div>
+  <div class="write-section" v-if="showForm">
+    <div class="write-form-wrap">
+    <div class="write-form">
+      <div class="write-cat-pills">
+        <button
+          v-for="c in CATEGORIES"
+          :key="c"
+          type="button"
+          class="write-cat-pill"
+          :class="[catClass(c), { active: form.category === c }]"
+          @click="form.category = c"
+        >{{ c }}</button>
       </div>
+
+      <input type="text" v-model="form.title" placeholder="제목을 입력하세요" class="write-title-input" />
+
+      <div class="write-meta-row">
+        <input type="text" v-model="form.author" placeholder="닉네임 (비우면 익명)" class="write-meta-input" />
+        <span class="write-meta-divider">·</span>
+        <input
+          type="text"
+          v-model="tagInput"
+          placeholder="태그 입력 후 Enter (최대 5개)"
+          class="write-meta-input"
+          @keydown.enter.prevent="addTagFromInput"
+        />
+      </div>
+      <div class="tag-chip-row" v-if="formTags.length">
+        <button v-for="(t, i) in formTags" :key="t" class="tag-chip" @click="removeFormTag(i)">#{{ t }} ✕</button>
+      </div>
+
+      <MarkdownEditor
+        v-model="form.content"
+        placeholder="당신의 이야기를 적어보세요..."
+        size="lg"
+        variant="plain"
+        min-height="400px"
+      />
 
       <div class="attach-row">
         <button type="button" class="attach-trigger" @click="fileInputRef.click()">📎 파일 첨부</button>
         <input ref="fileInputRef" type="file" multiple class="attach-input-hidden" @change="onFilesSelected" />
-        <span class="attach-hint">이미지·파일 최대 5MB</span>
+        <span class="attach-hint">이미지·파일 최대 5MB, 브라우저 세션에서만 유지돼요</span>
       </div>
       <div class="attach-preview-row" v-if="attachments.length">
         <div class="attach-chip" v-for="(a, i) in attachments" :key="i">
@@ -164,7 +183,11 @@ function submitPost() {
         </div>
       </div>
 
-      <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
+      <div class="write-action-bar">
+        <button type="button" class="write-cancel" @click="showForm = false">취소</button>
+        <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -212,21 +235,41 @@ function submitPost() {
 .active-tag-row{display:flex; align-items:center; gap:8px; margin-top:10px; max-width:1180px; margin-left:auto; margin-right:auto;}
 .active-tag-label{font-size:12px; color:var(--text-dim);}
 
-.write-form{display:flex; flex-direction:column; gap:12px; max-width:1180px;}
-.write-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
-.write-select, .write-input{
-  background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
-  padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
-}
-.write-select{width:120px;}
-.write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
+/* velog 스타일 — 박스 없이 여백/타이포로만 구분하는 미니멀 글쓰기 화면.
+   다른 섹션과 동일하게 1180px 기준으로 정렬해서 넓은 화면에서도 축이 어긋나지 않게 한다. */
+.write-section{background:var(--bg-raise); border-top:1px solid var(--border-soft); border-bottom:1px solid var(--border-soft); padding:56px 24px;}
+.write-form-wrap{max-width:1180px; margin:0 auto;}
+.write-form{display:flex; flex-direction:column; gap:26px; width:100%; max-width:960px; margin:0 auto;}
 
-.tag-input-row{display:flex; flex-direction:column; gap:8px;}
-.tag-input-inline{display:flex; gap:8px;}
-.tag-input-inline .tag-text-input{flex:1;}
-.tag-add-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:0 14px; border-radius:10px;}
-.tag-add-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
-.tag-chip-row{display:flex; flex-wrap:wrap; gap:6px;}
+.write-cat-pills{display:flex; gap:10px;}
+.write-cat-pill{
+  font-size:13.5px; font-weight:600; color:var(--text-dim); border:1px solid var(--border);
+  padding:9px 20px; background:transparent; transition:all .12s; border-radius:999px;
+}
+.write-cat-pill:hover{color:var(--text-muted); border-color:var(--text-dim);}
+.write-cat-pill.active.cat-question{color:var(--teal); border-color:var(--teal); background:rgba(78,138,138,0.1);}
+.write-cat-pill.active.cat-trade{color:var(--gold); border-color:var(--gold-dim); background:rgba(200,163,77,0.1);}
+.write-cat-pill.active.cat-chat{color:var(--green); border-color:var(--green); background:rgba(92,138,91,0.1);}
+.write-cat-pill.active.cat-guide{color:var(--blood); border-color:var(--blood); background:rgba(162,81,63,0.1);}
+
+.write-title-input{
+  background:transparent; border:none; border-bottom:2px solid var(--border-soft); color:var(--text);
+  font-family:'Noto Serif KR', serif; font-weight:800; font-size:38px; padding:8px 0 20px;
+  transition:border-color .15s; width:100%;
+}
+.write-title-input::placeholder{color:var(--text-dim);}
+.write-title-input:focus{outline:none; border-color:var(--gold-dim);}
+
+.write-meta-row{display:flex; align-items:center; gap:14px;}
+.write-meta-input{
+  background:transparent; border:none; color:var(--text-muted); font-size:14.5px; padding:4px 0;
+  font-family:'Noto Sans KR', sans-serif; flex:1;
+}
+.write-meta-input:focus{outline:none; color:var(--text);}
+.write-meta-input::placeholder{color:var(--text-dim);}
+.write-meta-divider{color:var(--border); flex:none;}
+
+.tag-chip-row{display:flex; flex-wrap:wrap; gap:6px; margin-top:-8px;}
 .tag-chip{
   font-size:11.5px; color:var(--gold-dim); border:1px solid var(--border); background:var(--panel-2);
   padding:4px 12px; cursor:pointer; border-radius:999px;
@@ -235,11 +278,19 @@ function submitPost() {
 .tag-chip.active{color:var(--gold); border-color:var(--gold-dim);}
 .tag-chip.small{font-size:10.5px; padding:3px 10px;}
 
-.attach-row{display:flex; align-items:center; gap:10px;}
-.attach-trigger{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); padding:8px 14px; border-radius:10px;}
+.attach-row{display:flex; align-items:center; gap:12px;}
+.attach-trigger{font-size:13px; color:var(--text-muted); border:1px solid var(--border); padding:10px 18px; border-radius:10px;}
 .attach-trigger:hover{border-color:var(--gold-dim); color:var(--gold);}
 .attach-input-hidden{display:none;}
 .attach-hint{font-size:11px; color:var(--text-dim);}
+
+.write-action-bar{
+  display:flex; justify-content:flex-end; align-items:center; gap:14px;
+  padding-top:20px; border-top:1px solid var(--border-soft);
+}
+.write-cancel{font-size:13px; color:var(--text-dim);}
+.write-cancel:hover{color:var(--text-muted);}
+.write-submit{padding:12px 30px; font-size:14px; font-weight:700; letter-spacing:0.02em; border-radius:10px;}
 .attach-preview-row{display:flex; flex-wrap:wrap; gap:8px;}
 .attach-chip{
   display:flex; align-items:center; gap:6px; border:1px solid var(--border-soft); background:var(--panel-2);
@@ -251,6 +302,14 @@ function submitPost() {
 .attach-size{color:var(--text-dim); flex:none;}
 .attach-remove{color:var(--text-dim); flex:none;}
 .attach-remove:hover{color:var(--blood);}
+
+@media (max-width:640px){
+  .write-section{padding:32px 16px;}
+  .write-title-input{font-size:26px;}
+  .write-cat-pills{flex-wrap:wrap;}
+  .write-meta-row{flex-direction:column; align-items:stretch; gap:8px;}
+  .write-meta-divider{display:none;}
+}
 
 .community-list-wrap{max-width:1180px;}
 .community-list{display:flex; flex-direction:column; gap:14px;}
