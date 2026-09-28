@@ -1077,11 +1077,12 @@ function submitPost() {
             <select v-model="socketSource" class="write-select random-group-select" aria-label="소켓 여부" @change="onSocketSource">
               <option value="">소켓 없음</option>
               <option value="affix" v-if="socketAffixFam">
-                소켓 있음 · 옵션(접두사)으로 붙음 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }}개, 접두사 1칸 차지)
+                소켓 있음 · 옵션(접두사)으로 붙음 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }}개)
               </option>
               <option value="larzuk" v-if="larzukMax">소켓 있음 · 라르주크 퀘스트로 뚫음 ({{ larzukMax > 1 ? `1~${larzukMax}` : '1' }}개)</option>
             </select>
           </div>
+          <div class="option-editor-hint" v-if="socketSource === 'affix'">소켓 옵션이 접두사 한 칸을 차지해요.</div>
           <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
             <span class="option-text">소켓 개수 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
             <select v-model.number="socketAffixCount" class="write-select option-value-select" aria-label="소켓 개수">
@@ -1407,9 +1408,9 @@ function submitPost() {
 .equip-quality-chips .q-crafted{color:#e0913a; border-color:#8a5a26;}
 .equip-quality-chips button:hover{background:rgba(255,255,255,0.06);}
 .item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
-.fallback-cat-row{display:flex; justify-content:center; gap:8px;}
+.fallback-cat-row{display:flex; justify-content:center; gap:8px; flex-wrap:wrap;}
 .fallback-cat-row button{
-  font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:7px 16px; border-radius:999px;
+  white-space:nowrap; font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:7px 16px; border-radius:999px;
 }
 .fallback-cat-row button:hover{border-color:var(--gold-dim); color:var(--gold);}
 .fallback-cat-row button.active{color:var(--gold); border-color:var(--gold-dim); background:var(--panel);}
@@ -1519,4 +1520,8 @@ function submitPost() {
 .item-modal-panel{max-width:560px; display:flex; flex-direction:column; gap:12px;}
 .item-modal-list{display:flex; flex-direction:column; gap:4px; max-height:420px; overflow-y:auto; margin-top:4px;}
 .item-modal-empty{text-align:center; color:var(--text-dim); font-size:12px; padding:24px 0;}
+@media (max-width:560px){
+  .option-value-select{width:76px;}
+  .option-row{gap:6px;}
+}
 </style>
