@@ -24,7 +24,10 @@ function runewordFullAffixes(item) {
   return [...item.affixes, ...runewordRuneAffixes(item, runeLookup)]
 }
 // min~max 범위로 굴러가는(주사위 판정) 옵션인지 - 고정값 옵션과 구분해서 색으로 표시하려고 씀
+// 원소·물리 추가 피해(예: 화염 피해 15-35 추가)는 min~max가 굴림 범위가 아니라 고정된 피해 범위
+const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg-pois'])
 function isVariable(a) {
+  if (FIXED_RANGE_PROPS.has(a.prop)) return false
   return a.min !== undefined && a.max !== undefined && a.min !== '' && a.max !== '' && String(a.min) !== String(a.max)
 }
 function runeIconUrl(runeName) {
