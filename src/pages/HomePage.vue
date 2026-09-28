@@ -36,7 +36,7 @@ const iconUrl = (key) => (key && ITEM_ICONS[key] || null)
 const TOOLS = [
   { to: '/runewords', title: '룬워드 찾기', desc: '가진 룬으로 만들 수 있는 룬워드와 큐브 업그레이드 경로', icon: 'invrjah__rune' },
   { to: '/simulator', title: '스킬·스탯 시뮬레이터', desc: '스킬 트리·시너지·장비까지 미리 찍어보기', icon: 'invob2__sword' },
-  { to: '/breakpoints', title: '브레이크포인트 계산기', desc: '시전·타격 회복·막기 속도 다음 단계까지 필요한 수치', icon: 'invamu__amulet' },
+  { to: '/breakpoints', title: '브레이크포인트 계산기', desc: '공격·시전·타격 회복·막기 속도 다음 단계까지 필요한 수치', icon: 'invamu__amulet' },
   { to: '/sockets', title: '소켓 계산기', desc: '베이스·아이템 레벨별 최대 소켓, 라르주크·큐브 소켓', icon: 'invjw1__jewel' },
   { to: '/craft-sim', title: '크래프트 시뮬레이터', desc: '크래프트 결과를 게임 확률대로 굴려보기', icon: 'invgceye__charm' },
   { to: '/cube', title: '큐브 레시피', desc: '룬·보석 업그레이드, 수리, 크래프트 조합', icon: 'invrin__ring' },
