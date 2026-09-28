@@ -183,10 +183,14 @@ function pickCraft(id) {
 const craftInputSlots = computed(() =>
   pickedCraft.value ? pickedCraft.value.fam.slotRanges.map(([lo, hi], i) => ({ i, lo, hi })).filter((s) => s.lo !== s.hi) : []
 )
+// 수치를 아직 안 넣은 칸은 범위("1~2")로 채워서 문구를 만듦 - 옵션을 고르자마자 미리보기에 보이게
+// (옵션 고르는 칸의 표시 방식과 같음, 크래프트는 수치를 다 넣어야 등록되니 저장엔 영향 없음)
+function familyLinesOrRange(fam, values) {
+  return familyLines(fam, filledValues(fam, values).map((v, i) => v ?? fam.slotRanges[i].join('~')))
+}
 function buildCraftOptions() {
   if (!pickedCraft.value) return []
-  const vals = filledValues(pickedCraft.value.fam, craftPick.value.values)
-  return vals.some((v) => v === null) ? [] : familyLines(pickedCraft.value.fam, vals)
+  return familyLinesOrRange(pickedCraft.value.fam, craftPick.value.values)
 }
 const craftErrors = computed(() => {
   if (!isCrafted.value) return []
@@ -214,10 +218,7 @@ const affixErrors = computed(() =>
   isAffixQuality.value ? validateAffixPicks(magicAffixData, selectedBaseItem.value, itemQuality.value, pickedAffixes.value) : []
 )
 function buildAffixOptions() {
-  return pickedAffixes.value.flatMap(({ fam, values }) => {
-    const vals = filledValues(fam, values)
-    return vals.some((v) => v === null) ? [] : familyLines(fam, vals)
-  })
+  return pickedAffixes.value.flatMap(({ fam, values }) => familyLinesOrRange(fam, values))
 }
 
 // 영혼(검·방패)·인내(무기·갑옷)처럼 무기와 방어구 둘 다에 만들 수 있는 룬워드는 아이템만
