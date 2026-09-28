@@ -131,8 +131,8 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
       <div class="site-search" role="search">
         <svg viewBox="0 0 24 24" class="site-search-icon" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
         <input
-          v-model="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색"
-          @focus="searchOpen = true; loadItemSearch()" @input="searchOpen = true" @blur="hideSearchSoon" @keydown.enter.prevent="submitSearch"
+          :value="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색"
+          @focus="searchOpen = true; loadItemSearch()" @input="query = $event.target.value; searchOpen = true" @blur="hideSearchSoon" @keydown.enter.prevent="submitSearch"
         />
         <div class="site-search-results" v-if="searchOpen && (itemHits.length || pageHits.length)">
           <button type="button" class="site-search-row" v-for="p in pageHits" :key="p.to" @mousedown.prevent="goPage(p)">
@@ -154,7 +154,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 
     <div class="site-mobile" v-if="mobileOpen">
       <div class="site-mobile-search">
-        <input v-model="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색" @keydown.enter.prevent="submitSearch" />
+        <input :value="query" @input="query = $event.target.value" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색" @keydown.enter.prevent="submitSearch" />
         <div class="site-mobile-hits" v-if="itemHits.length || pageHits.length">
           <button type="button" v-for="p in pageHits" :key="p.to" @click="goPage(p)">{{ p.section }} · {{ p.label }}</button>
           <button type="button" v-for="it in itemHits" :key="it.id" @click="goItem(it)">{{ it.name_ko }}</button>

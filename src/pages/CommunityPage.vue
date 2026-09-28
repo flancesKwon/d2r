@@ -105,7 +105,7 @@ function submitPost() {
       </div>
       <div class="search-row">
         <div class="search-input-wrap">
-          <input type="text" v-model="searchQuery" placeholder="제목·내용·태그 검색" aria-label="게시글 검색" />
+          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="제목·내용·태그 검색" aria-label="게시글 검색" />
         </div>
         <select v-model="sortBy" class="sort-select">
           <option value="latest">최신순</option>

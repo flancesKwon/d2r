@@ -691,7 +691,7 @@ function submitPost() {
           <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
           <div class="d-section-title">아이템 선택</div>
           <input
-            type="text" v-model="form.itemName" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
+            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
             class="write-input" v-focus
           />
           <div class="item-modal-list">
@@ -769,8 +769,8 @@ function submitPost() {
           </div>
           <div v-else class="item-picker-search-wrap">
             <input
-              type="text" v-model="baseItemQuery" :placeholder="basePickerPlaceholder"
-              class="write-input" @focus="showBaseItemDropdown = true" @input="showBaseItemDropdown = true"
+              type="text" :value="baseItemQuery" :placeholder="basePickerPlaceholder"
+              class="write-input" @focus="showBaseItemDropdown = true" @input="baseItemQuery = $event.target.value; showBaseItemDropdown = true"
               @blur="hideBaseItemDropdownSoon"
             />
             <div class="item-picker-dropdown" v-if="showBaseItemDropdown && (baseItemQuery.trim() || isRuneword)">
@@ -931,9 +931,9 @@ function submitPost() {
         <div class="option-editor-hint">실제로 뜬 수치를 입력하세요. 비워두면 범위로 표시돼요.</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
-            <span class="option-text">직업 기술 레벨</span>
+            <span class="option-text">직업 기술 레벨<template v-if="a.min === a.max"> +{{ a.min }}</template></span>
             <select v-model="randClassChoice[i]" class="write-select option-value-select">
-              <option value="">직업 선택</option>
+              <option :value="undefined">직업 선택</option>
               <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
             </select>
             <input
@@ -942,7 +942,6 @@ function submitPost() {
               :min="Math.min(a.min, a.max)" :max="Math.max(a.min, a.max)" :class="{ invalid: outOfRange(rolledValues[i], a) }"
               class="write-input option-value-input"
             />
-            <span v-else class="option-text">+{{ a.min }}</span>
           </template>
           <template v-else-if="isRollRangeAffix(a)">
             <span class="option-text">{{ a.text }}</span>
@@ -1022,9 +1021,9 @@ function submitPost() {
         <div class="item-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" v-model="bundleQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
+              type="text" :value="bundleQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
               class="write-input" @focus="showBundleDropdown = true"
-              @input="showBundleDropdown = true"
+              @input="bundleQuery = $event.target.value; showBundleDropdown = true"
               @blur="hideBundleDropdownSoon"
             />
             <div class="item-picker-dropdown" v-if="showBundleDropdown && bundleQuery.trim()">
@@ -1068,7 +1067,7 @@ function submitPost() {
           <button type="button" class="modal-close" @click="showPriceModal = false">✕</button>
           <div class="d-section-title">희망 가격 선택</div>
           <input
-            type="text" v-model="priceQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
+            type="text" :value="priceQuery" @input="priceQuery = $event.target.value" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
             class="write-input" v-focus aria-label="룬·보석·재료 검색"
           />
           <div class="item-modal-list">

@@ -73,7 +73,7 @@ const filteredRuneChain = computed(() => {
       </div>
       <div class="search-row">
         <div class="search-input-wrap">
-          <input type="text" v-model="searchQuery" placeholder="레시피·재료 검색 (예: 조드, 소켓, 크래프트)" aria-label="큐브 레시피 검색" />
+          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="레시피·재료 검색 (예: 조드, 소켓, 크래프트)" aria-label="큐브 레시피 검색" />
         </div>
       </div>
     </div>

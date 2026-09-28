@@ -165,7 +165,7 @@ const filteredPosts = computed(() => {
       </div>
       <div class="search-row">
         <div class="search-input-wrap">
-          <input type="text" v-model="searchQuery" placeholder="아이템명·옵션·내용 검색" aria-label="거래글 검색" />
+          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="아이템명·옵션·내용 검색" aria-label="거래글 검색" />
         </div>
         <select v-model="activeStatus" class="sort-select">
           <option :value="null">전체 상태</option>

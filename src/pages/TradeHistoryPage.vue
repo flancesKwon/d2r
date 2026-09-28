@@ -144,7 +144,7 @@ const summaryIcon = (s) => iconUrl(s.iconKey)
 
       <template v-else>
         <div class="th-search">
-          <input v-model="query" type="search" class="write-input" placeholder="아이템 검색 (예: 베르 룬, 할리퀸 관모, 파괴의 열쇠)" aria-label="아이템 검색" />
+          <input :value="query" @input="query = $event.target.value" type="search" class="write-input" placeholder="아이템 검색 (예: 베르 룬, 할리퀸 관모, 파괴의 열쇠)" aria-label="아이템 검색" />
           <div class="th-search-hits" v-if="searchHits.length">
             <button type="button" class="th-hit" v-for="it in searchHits" :key="it.id" @click="openItem(it)">
               <span class="th-hit-icon" :class="it.category"><img v-if="iconUrl(it.icon_key)" :src="iconUrl(it.icon_key)" alt="" /></span>
