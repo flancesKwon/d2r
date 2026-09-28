@@ -173,6 +173,8 @@ function pickQuality(q) {
   superiorPick.value = { combo: '', values: {} }
   uniqueSockets.value = ''
   socketOn.value = false
+  socketSource.value = ''
+  socketAffixCount.value = ''
   // 제작법이 하나뿐이면 바로 고름
   craftPick.value = { id: craftRecipes.value.length === 1 ? craftRecipes.value[0].id : '', values: [] }
 }
@@ -221,10 +223,35 @@ const craftErrors = computed(() => {
   if (!pickedCraft.value) return ['크래프트 제작법을 골라주세요']
   return validateCraftValues(pickedCraft.value, craftPick.value.values)
 })
-const affixFamilies = computed(() =>
+const allAffixFamilies = computed(() =>
   isAffixQuality.value ? affixFamiliesFor(magicAffixData, selectedBaseItem.value, itemQuality.value) : []
 )
+// 매직·레어·크래프트 소켓은 옵션 목록에 섞어두지 않고 "기본 정보" 칸의 소켓에서 따로 고름.
+// 소켓이 붙는 길은 둘: 소켓 접두사(Mechanist's 1~2 / Artificer's 3 / Jeweler's 4 - 접두사 1칸 차지)
+// 또는 라르주크 퀘스트(소켓 없는 매직 1~2개, 레어·크래프트 1개)
+const socketAffixFam = computed(() => allAffixFamilies.value.find((f) => f.mods.some((m) => m.code === 'sock')) || null)
+const affixFamilies = computed(() => allAffixFamilies.value.filter((f) => f !== socketAffixFam.value))
+const socketSource = ref('') // '' | 'affix' | 'larzuk'
+const socketAffixCount = ref('')
+const larzukMax = computed(() => {
+  const max = selectedBaseItem.value?.sockets || 0
+  if (!isAffixQuality.value || !max) return 0
+  return itemQuality.value === 'magic' ? Math.min(2, max) : 1
+})
+const socketAffixRange = computed(() => socketAffixFam.value?.slotRanges[0] || null)
+function onSocketSource() {
+  socketAffixCount.value = ''
+  uniqueSockets.value = ''
+  // 소켓 접두사가 접두사 한 칸을 차지하니, 넘치는 빈 접두사 줄은 치움 (매직은 접두사 1개뿐)
+  const rows = affixPicks.value.p
+  while (rows.length > pickerLimits.value.p && rows.some((r) => !r.key)) rows.splice(rows.findIndex((r) => !r.key), 1)
+}
 const affixLimitsNow = computed(() => affixLimits(selectedBaseItem.value, itemQuality.value))
+// 옵션 입력칸에 보여줄 개수 제한 - 소켓 접두사를 고르면 접두사 한 칸을 그게 차지
+const pickerLimits = computed(() => {
+  const lim = affixLimitsNow.value
+  return socketSource.value === 'affix' ? { ...lim, p: lim.p - 1, total: lim.total - 1 } : lim
+})
 const emptyAffixPicks = () => ({ p: [{ key: '', values: [] }], s: [{ key: '', values: [] }] })
 const affixPicks = ref(emptyAffixPicks())
 function resetAffixPicks() {
@@ -233,9 +260,12 @@ function resetAffixPicks() {
 // 고른 옵션 (종류 + 수치) 목록 - 종류를 안 고른 빈 줄은 뺌
 const pickedAffixes = computed(() => {
   const byKey = new Map(affixFamilies.value.map((f) => [f.key, f]))
-  return ['p', 's'].flatMap((slot) =>
+  const picks = ['p', 's'].flatMap((slot) =>
     affixPicks.value[slot].filter((r) => byKey.has(r.key)).map((r) => ({ fam: byKey.get(r.key), values: r.values }))
   )
+  // 소켓 접두사도 옵션 하나로 같이 검사 (접두사 개수·같은 그룹·아이템 레벨 조건)
+  if (socketSource.value === 'affix' && socketAffixFam.value) picks.push({ fam: socketAffixFam.value, values: [socketAffixCount.value] })
+  return picks
 })
 // 같은 종류(그룹) 겹침·수치 단계·아이템 레벨 조건 검사 - 입력하는 동안 바로 보여주고 등록도 막음
 const affixErrors = computed(() =>
@@ -260,6 +290,7 @@ const needsManualBaseStats = computed(() => {
   if (lockedEquipBase.value) {
     if (!itemQuality.value) return false
     return effectiveBaseKind.value === 'armor' || superiorCombos.value.length > 0 || uniqueMaxSockets.value > 0 ||
+      !!socketAffixFam.value || larzukMax.value > 0 ||
       !!baseClassSkills.value || baseAutoMods.value.length > 0
   }
   if (!effectiveBaseKind.value || effectiveBaseKind.value === 'misc') return false
@@ -482,6 +513,7 @@ const invalidInputs = computed(() => {
   }
   bad.push(...craftErrors.value, ...affixErrors.value)
   if (hasSockets.value && !uniqueSockets.value) bad.push('소켓 개수를 골라주세요')
+  if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push('소켓 개수를 골라주세요')
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -920,7 +952,7 @@ function submitPost() {
           <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개</span></div>
         </template>
         <template v-if="isAffixQuality">
-          <AffixPicker :families="affixFamilies" :limits="affixLimitsNow" v-model="affixPicks" />
+          <AffixPicker :families="affixFamilies" :limits="pickerLimits" v-model="affixPicks" />
           <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
         </template>
       </div>
@@ -1019,6 +1051,33 @@ function submitPost() {
             <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
               <option value="">개수</option>
               <option v-for="n in uniqueMaxSockets" :key="n" :value="n">{{ n }}개</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="base-mods" v-if="lockedEquipBase && isAffixQuality && (socketAffixFam || larzukMax)">
+          <div class="option-editor-title">소켓</div>
+          <div class="option-row">
+            <select v-model="socketSource" class="write-select random-group-select" aria-label="소켓 여부" @change="onSocketSource">
+              <option value="">소켓 없음</option>
+              <option value="affix" v-if="socketAffixFam">
+                소켓 있음 · 옵션(접두사)으로 붙음 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }}개, 접두사 1칸 차지)
+              </option>
+              <option value="larzuk" v-if="larzukMax">소켓 있음 · 라르주크 퀘스트로 뚫음 ({{ larzukMax > 1 ? `1~${larzukMax}` : '1' }}개)</option>
+            </select>
+          </div>
+          <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
+            <span class="option-text">소켓 개수 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
+            <select v-model.number="socketAffixCount" class="write-select option-value-select" aria-label="소켓 개수">
+              <option value="">개수</option>
+              <option v-for="n in socketAffixRange[1] - socketAffixRange[0] + 1" :key="n" :value="socketAffixRange[0] + n - 1">{{ socketAffixRange[0] + n - 1 }}개</option>
+            </select>
+          </div>
+          <div class="option-row" v-if="socketSource === 'larzuk'">
+            <span class="option-text">소켓 개수 (1~{{ larzukMax }})</span>
+            <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
+              <option value="">개수</option>
+              <option v-for="n in larzukMax" :key="n" :value="n">{{ n }}개</option>
             </select>
           </div>
         </div>
