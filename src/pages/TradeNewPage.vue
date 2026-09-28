@@ -338,7 +338,8 @@ function buildSuperiorOptions() {
     .map((k) => SUPERIOR_MODS[k].text.replace('{v}', superiorPick.value.values[k]))
 }
 
-// 유니크·세트·일반(흰색) 소켓 - 베이스 최대 소켓까지만
+// 소켓 - 일반(흰색)은 0~베이스 최대. 유니크·세트는 라르주크 퀘스트로 1개만 (큐브 소켓 레시피는 일반 등급 전용),
+// 원래 소켓이 붙어 나오는 유니크·세트(시대의 왕관 1~2 등)는 위 옵션 입력에서 그 수치로 넣고 여기선 안 받음
 const uniqueSockets = ref('')
 const socketOn = ref(false)
 const hasSockets = computed({
@@ -348,9 +349,11 @@ const hasSockets = computed({
     if (!v) uniqueSockets.value = ''
   },
 })
-const uniqueMaxSockets = computed(() =>
-  isUniqueOrSet.value || (isManualEquip.value && itemQuality.value === 'normal') ? itemBase.value?.sockets || 0 : 0
-)
+const hasBuiltinSockets = computed(() => itemAffixes.value.some((a) => a.prop === 'sock'))
+const uniqueMaxSockets = computed(() => {
+  if (isUniqueOrSet.value) return !hasBuiltinSockets.value && (itemBase.value?.sockets || 0) > 0 ? 1 : 0
+  return isManualEquip.value && itemQuality.value === 'normal' ? itemBase.value?.sockets || 0 : 0
+})
 
 // 자유 입력 옵션은 사전에 없는 기타 아이템에만 - 룬워드·유니크·세트는 붙을 수 있는
 // 옵션이 정해져 있어서 위의 전용 칸(베이스 옵션·상급·소켓)으로만 입력받음
@@ -1198,11 +1201,11 @@ function submitPost() {
 
       <div class="option-editor" v-if="uniqueMaxSockets && !lockedEquipBase">
         <div class="option-editor-title">소켓</div>
-        <div class="option-editor-hint">소켓을 뚫었다면 개수를 고르세요 (최대 {{ uniqueMaxSockets }}개).</div>
+        <div class="option-editor-hint">유니크·세트는 라르주크 퀘스트로 소켓 1개만 뚫을 수 있어요.</div>
         <div class="option-row">
           <select v-model="uniqueSockets" class="write-select random-group-select" aria-label="소켓 개수">
             <option value="">소켓 없음</option>
-            <option v-for="n in uniqueMaxSockets" :key="n" :value="n">{{ n }}소켓</option>
+            <option :value="1">소켓 있음 · 라르주크 퀘스트로 뚫음 (1개)</option>
           </select>
         </div>
       </div>
