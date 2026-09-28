@@ -931,9 +931,9 @@ function submitPost() {
         <div class="option-editor-hint">실제로 뜬 수치를 입력하세요. 비워두면 범위로 표시돼요.</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
-            <span class="option-text">직업 기술 레벨</span>
+            <span class="option-text">직업 기술 레벨<template v-if="a.min === a.max"> +{{ a.min }}</template></span>
             <select v-model="randClassChoice[i]" class="write-select option-value-select">
-              <option value="">직업 선택</option>
+              <option :value="undefined">직업 선택</option>
               <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
             </select>
             <input
@@ -942,7 +942,6 @@ function submitPost() {
               :min="Math.min(a.min, a.max)" :max="Math.max(a.min, a.max)" :class="{ invalid: outOfRange(rolledValues[i], a) }"
               class="write-input option-value-input"
             />
-            <span v-else class="option-text">+{{ a.min }}</span>
           </template>
           <template v-else-if="isRollRangeAffix(a)">
             <span class="option-text">{{ a.text }}</span>
