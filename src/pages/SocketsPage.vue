@@ -93,8 +93,8 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
       <div class="sk-row">
         <div class="sk-search">
           <input
-            v-model="query" type="text" class="sk-input" placeholder="베이스 검색 (예: 모너크, 페이즈 블레이드, 폴암)"
-            aria-label="베이스 검색" @focus="showList = true" @input="showList = true" @blur="hideListSoon"
+            :value="query" type="text" class="sk-input" placeholder="베이스 검색 (예: 모너크, 페이즈 블레이드, 폴암)"
+            aria-label="베이스 검색" @focus="showList = true" @input="query = $event.target.value; showList = true" @blur="hideListSoon"
           />
           <div class="sk-list" v-if="showList && query.trim()">
             <button type="button" class="sk-list-row" v-for="b in candidates" :key="b.id" @mousedown.prevent="pick(b)">

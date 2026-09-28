@@ -228,7 +228,7 @@ const tableRows = computed(() => {
           <button :class="{ active: tableSlot === 'p' }" @click="tableSlot = 'p'">접두사</button>
           <button :class="{ active: tableSlot === 's' }" @click="tableSlot = 's'">접미사</button>
         </div>
-        <input type="text" v-model="tableQuery" class="cs-input cs-table-search" placeholder="옵션 검색 (예: 저항, 소서리스)" aria-label="옵션 검색" />
+        <input type="text" :value="tableQuery" @input="tableQuery = $event.target.value" class="cs-input cs-table-search" placeholder="옵션 검색 (예: 저항, 소서리스)" aria-label="옵션 검색" />
       </div>
       <div class="cs-table-wrap">
         <table class="cs-table">

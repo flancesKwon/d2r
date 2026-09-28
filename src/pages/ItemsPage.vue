@@ -130,7 +130,7 @@ const filteredItems = computed(() => {
         <div class="search-input-wrap">
           <input
             type="text"
-            v-model="searchQuery"
+            :value="searchQuery" @input="searchQuery = $event.target.value"
             placeholder="이름 검색 — 예) 갉아먹는 자"
             aria-label="아이템 검색"
           />

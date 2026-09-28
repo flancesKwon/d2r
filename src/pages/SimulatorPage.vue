@@ -914,7 +914,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <button class="modal-close" @click="closeSlotPicker">✕</button>
       <h3 class="sim-picker-title">{{ SLOT_DEFS.find((s) => s.key === slotPicker)?.label }} 선택</h3>
       <input
-        class="sim-picker-search" type="text" v-model="slotPickerSearch"
+        class="sim-picker-search" type="text" :value="slotPickerSearch" @input="slotPickerSearch = $event.target.value"
         placeholder="아이템 이름 검색..." autofocus
       />
       <div class="sim-picker-list">
