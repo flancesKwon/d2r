@@ -443,10 +443,8 @@ const lockedEquipBase = computed(
 function changeEquipBase() {
   showItemModal.value = true
 }
-function changeMiscBase() {
-  clearBaseItem()
-  manualBaseKind.value = 'misc'
-}
+// 반지·목걸이·주얼·부적도 무기·방어구와 같이 검색창을 다시 열어서 고름 (예전엔 베이스를 지우고 종류 선택으로 돌아갔음)
+const changeMiscBase = changeEquipBase
 function resetBaseMods() {
   iconVariant.value = ''
   itemQuality.value = ''
