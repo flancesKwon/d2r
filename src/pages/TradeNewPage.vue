@@ -33,6 +33,7 @@ import {
   isCurrencyItem,
   CURRENCY_ITEMS,
   EXTRA_MATERIALS,
+  ICON_VARIANTS,
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, squashText } from '../itemSearch.js'
@@ -42,7 +43,7 @@ import { buildTooltip } from '../itemTooltip.js'
 import AffixPicker from '../components/AffixPicker.vue'
 import magicAffixData from '../data/magicAffixes.json'
 import {
-  affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, filledValues, validateAffixPicks, validateCraftValues,
+  affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
 } from '../magicAffixes.js'
 import { profileState } from '../profileStore.js'
 
@@ -189,6 +190,26 @@ const craftInputSlots = computed(() =>
 // (옵션 고르는 칸의 표시 방식과 같음, 크래프트는 수치를 다 넣어야 등록되니 저장엔 영향 없음)
 function familyLinesOrRange(fam, values) {
   return familyLines(fam, filledValues(fam, values).map((v, i) => v ?? fam.slotRanges[i].join('~')))
+}
+// 같은 옵션이 크래프트 고정 옵션과 무작위 옵션에 둘 다 붙으면 게임 툴팁처럼 한 줄로 합침
+// (예: 캐스터 목걸이 고정 "시전 속도 +10%" + 접미사 "시전 속도 +10%" = "시전 속도 +20%")
+// 수치가 하나인 줄끼리만 합치고, 범위("5~10")로 남은 줄은 그대로 둠
+function mergeSameStatLines(lines) {
+  const out = []
+  const at = new Map()
+  for (const line of lines) {
+    const m = /^(.*?)(\+?)(\d+)(%?)$/.exec(line)
+    const key = m && !/[~\d]$/.test(m[1]) ? m[1] + '|' + m[2] + '|' + m[4] : null
+    if (key && at.has(key)) {
+      const i = at.get(key)
+      const prev = /^(.*?)(\+?)(\d+)(%?)$/.exec(out[i])
+      out[i] = `${m[1]}${m[2]}${Number(prev[3]) + Number(m[3])}${m[4]}`
+    } else {
+      if (key) at.set(key, out.length)
+      out.push(line)
+    }
+  }
+  return out
 }
 function buildCraftOptions() {
   if (!pickedCraft.value) return []
@@ -350,7 +371,14 @@ const pickedAutoMod = computed(() => baseAutoMods.value.find((m) => m.key === au
 const skillLabel = (s) => (s.ko ? `${s.ko} (${s.en})` : s.en)
 // "모든 저항 +{v}%" -> "모든 저항" 처럼 수치 자리를 뺀 이름들 (자동 옵션 선택칸 안내용)
 const autoModNames = computed(() => baseAutoMods.value.map((m) => m.text.replace(/ \+\{v\}%?/, '')).join(' 또는 '))
+// 반지·목걸이 등 고른 모양 (빈 값이면 기본 그림) - 베이스가 바뀌면 초기화
+const iconVariant = ref('')
+function changeMiscBase() {
+  clearBaseItem()
+  manualBaseKind.value = 'misc'
+}
 function resetBaseMods() {
+  iconVariant.value = ''
   itemQuality.value = ''
   resetAffixPicks()
   classSkillPicks.value = emptyClassSkillPicks()
@@ -402,7 +430,7 @@ function buildBaseStatOptions() {
     const exp = expectedWeaponDamage.value
     if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
   }
-  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...buildCraftOptions(), ...buildAffixOptions())
+  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...mergeSameStatLines([...buildCraftOptions(), ...buildAffixOptions()]))
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
 }
@@ -521,6 +549,7 @@ const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || n
 function baseQualities(b) {
   const out = ['magic']
   if (magicAffixData.bases[b.code]?.rare) out.push('rare')
+  if (craftRecipesFor(magicAffixData, b).length) out.push('crafted')
   if (b.base_stats.category !== 'misc') out.push('normal')
   return out
 }
@@ -647,7 +676,7 @@ const previewTooltip = computed(() =>
         category: form.value.category,
         quality: isManualEquip.value ? itemQuality.value : '',
         // 사전에 없는 장비는 고른 베이스 아이콘 (반지·부적 등은 icon_key, 무기·방어구는 게임 invfile 기준 아이콘)
-        iconKey: selectedBaseItem.value?.icon_key || magicAffixData.bases[selectedBaseItem.value?.code]?.icon || null,
+        iconKey: iconVariant.value || selectedBaseItem.value?.icon_key || magicAffixData.bases[selectedBaseItem.value?.code]?.icon || null,
         options: buildAllOptions(),
         ethereal: form.value.ethereal,
         amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
@@ -676,6 +705,7 @@ function submitPost() {
     amountLabel,
     options,
     quality: isManualEquip.value ? itemQuality.value : '',
+    iconKey: isManualEquip.value ? iconVariant.value : null,
     price: buildPriceString(),
     author: profileState.nickname,
     contact: profileState.contact,
@@ -788,7 +818,7 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반'">
+      <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반' && !selectedBaseItem">
         <div class="option-editor-title">베이스 종류를 골라주세요</div>
         <div class="fallback-cat-row">
           <button type="button" :class="{ active: manualBaseKind === 'weapon' }" @click="pickManualBaseKind('weapon')">무기</button>
@@ -801,6 +831,23 @@ function submitPost() {
             @click="pickMiscBase(b)"
           >{{ b.name_ko }}</button>
         </div>
+      </div>
+
+      <div class="manual-kind-row" v-if="isManualEquip && selectedBaseItem && selectedBaseItem.base_stats.category === 'misc'">
+        <div class="option-editor-title">
+          베이스: {{ selectedBaseItem.name_ko }}
+          <button type="button" class="base-change-btn" @click="changeMiscBase">다른 베이스</button>
+        </div>
+        <template v-if="ICON_VARIANTS[selectedBaseItem.code]">
+          <div class="option-editor-title shape-title">모양</div>
+          <div class="shape-row">
+            <button
+              type="button" v-for="k in ICON_VARIANTS[selectedBaseItem.code]" :key="k" class="shape-btn"
+              :class="{ active: (iconVariant || ICON_VARIANTS[selectedBaseItem.code][0]) === k }" :aria-label="`모양 ${k}`"
+              @click="iconVariant = k"
+            ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
+          </div>
+        </template>
       </div>
 
       <div class="base-stats-input" v-if="needsManualBaseStats">
@@ -940,19 +987,24 @@ function submitPost() {
             >{{ r.name }}</button>
           </div>
           <template v-if="pickedCraft">
-            <div class="option-text fixed">{{ pickedCraft.fam.label }}</div>
-            <div class="option-row craft-values" v-if="craftInputSlots.length">
-              <select
-                v-for="s in craftInputSlots" :key="s.i" v-model.number="craftPick.values[s.i]"
-                class="write-select option-value-select" :aria-label="`고정 옵션 수치 ${s.lo}~${s.hi}`"
-              >
-                <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
-                <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
-              </select>
+            <div class="option-editor-title craft-fixed-title">고정 옵션 <span class="craft-sub-note">항상 붙음</span></div>
+            <div class="craft-fixed-list">
+              <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
+                <span class="option-text fixed">{{ line.text }}</span>
+                <template v-for="s in craftInputSlots.filter((c) => line.slots.includes(c.i))" :key="s.i">
+                  <select
+                    v-model.number="craftPick.values[s.i]"
+                    class="write-select option-value-select" :aria-label="`${line.text} 수치 ${s.lo}~${s.hi}`"
+                  >
+                    <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
+                    <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
+                  </select>
+                </template>
+              </div>
             </div>
           </template>
           <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
-          <div class="option-editor-title">무작위 옵션</div>
+          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개</span></div>
         </template>
         <template v-if="isAffixQuality">
           <AffixPicker :families="affixFamilies" :limits="affixLimitsNow" v-model="affixPicks" />
@@ -1225,6 +1277,7 @@ function submitPost() {
 .equip-quality-chips .q-magic{color:#8c8cff; border-color:#5a5ab0;}
 .equip-quality-chips .q-rare{color:#e8e86a; border-color:#9a9a45;}
 .equip-quality-chips .q-normal{color:var(--text); }
+.equip-quality-chips .q-crafted{color:#e0913a; border-color:#8a5a26;}
 .equip-quality-chips button:hover{background:rgba(255,255,255,0.06);}
 .item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
 .fallback-cat-row{display:flex; justify-content:center; gap:8px;}
@@ -1242,6 +1295,16 @@ function submitPost() {
 .option-row{display:flex; align-items:center; gap:10px;}
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}
+.craft-fixed-list{display:flex; flex-direction:column; gap:6px; margin-bottom:10px;}
+.craft-fixed-row{padding:6px 10px; background:var(--panel-2); border-radius:8px;}
+.craft-fixed-row .option-text.fixed{color:#8c8cff;}
+.craft-sub-note{font-size:11px; font-weight:400; color:var(--text-dim); margin-left:6px;}
+.base-change-btn{font-size:11px; font-weight:400; color:var(--gold-dim); margin-left:10px; text-decoration:underline; text-underline-offset:3px;}
+.shape-title{margin-top:10px;}
+.shape-row{display:flex; flex-wrap:wrap; gap:8px;}
+.shape-btn{width:52px; height:52px; display:flex; align-items:center; justify-content:center; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px; padding:6px;}
+.shape-btn img{max-width:100%; max-height:100%; image-rendering:pixelated;}
+.shape-btn.active{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold);}
 .option-value-input{width:100px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 .random-group-select{flex:1; min-width:0; padding:6px 8px !important; font-size:12.5px !important; border-radius:8px !important;}
 .option-value-select{width:110px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
