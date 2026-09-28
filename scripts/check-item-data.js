@@ -457,6 +457,8 @@ for (const [, names] of iconByKey) {
     if (a.prop === 'oskill' && !/ \+\d+(?:~\d+)?$/.test(a.text)) err(`${where}: 스킬 옵션 문구 형식이 이상함 "${a.text}"`)
     if (DMG.has(a.prop) && !/ 추가$/.test(a.text)) err(`${where}: 추가 피해 옵션 문구 형식이 이상함 "${a.text}"`)
     if ((a.prop || '').startsWith('pierce-') && !(a.prop || '').startsWith('pierce-immunity') && !/ 감소$/.test(a.text)) err(`${where}: 적 저항 감소 옵션 문구 형식이 이상함 "${a.text}"`)
+    if (/\(레벨당 증가\)$/.test(a.text)) err(`${where}: 레벨당 옵션 수치가 빠진 문구 "${a.text}"`)
+    if (a.prop === 'state') err(`${where}: 외형 효과(state)는 옵션 줄로 보여주지 않음 "${a.text}"`)
     if ((a.raw || '').startsWith('*')) err(`${where}: 게임에서 꺼진(*) 옵션 "${a.raw}"이 들어 있음`)
   }))
 }

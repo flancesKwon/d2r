@@ -282,6 +282,26 @@ const filteredItems = computed(() => {
         <div class="note-box warn" v-for="(n, ni) in (selected.extra && selected.extra.notes) || []" :key="'note' + ni">{{ n }}</div>
         <template v-if="selected.category === 'set' && selected.extra">
           <div class="note-box gold">소속 세트: <b>{{ selected.extra.set_name_ko }}</b></div>
+          <template v-if="selected.extra.set_item_bonus && selected.extra.set_item_bonus.length">
+            <div class="d-section-title">세트 아이템 착용 수 보너스</div>
+            <div class="affix-list set-bonus-list">
+              <template v-for="g in selected.extra.set_item_bonus" :key="'ib' + g.count">
+                <div class="affix-line set-bonus" v-for="(a, i) in g.affixes" :key="i">
+                  <span class="a-text">{{ a.text }}</span><span class="set-bonus-count">{{ g.count }}개 착용</span>
+                </div>
+              </template>
+            </div>
+          </template>
+          <template v-if="selected.extra.set_partial_bonus && selected.extra.set_partial_bonus.length">
+            <div class="d-section-title">세트 부분 착용 보너스</div>
+            <div class="affix-list set-bonus-list">
+              <template v-for="g in selected.extra.set_partial_bonus" :key="'pb' + g.count">
+                <div class="affix-line set-bonus" v-for="(a, i) in g.affixes" :key="i">
+                  <span class="a-text">{{ a.text }}</span><span class="set-bonus-count">{{ g.count }}개 착용</span>
+                </div>
+              </template>
+            </div>
+          </template>
           <template v-if="selected.extra.set_full_bonus && selected.extra.set_full_bonus.length">
             <div class="d-section-title">세트 전체 착용 보너스</div>
             <div class="affix-list">
