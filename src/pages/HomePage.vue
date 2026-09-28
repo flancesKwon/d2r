@@ -155,7 +155,7 @@ const itemCount = computed(() => trade.value?.itemsData.length)
       <div class="side-block promo-box">
         <div class="p-tag">공략 제보</div>
         <h3>내 빌드 자랑하고<br />다른 유저 의견도 들어보세요</h3>
-        <router-link to="/community?cat=공략">가이드 제보하러 가기</router-link>
+        <router-link to="/community/write?cat=공략">가이드 제보하러 가기</router-link>
       </div>
     </aside>
   </div>

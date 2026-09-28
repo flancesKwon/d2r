@@ -24,8 +24,8 @@
           <b>커뮤니티</b>
           <router-link to="/trade">거래게시판</router-link>
           <router-link to="/community">커뮤니티</router-link>
-          <router-link to="/community?cat=공략">가이드 제보</router-link>
-          <router-link to="/community?cat=질문">문의</router-link>
+          <router-link to="/community/write?cat=공략">가이드 제보</router-link>
+          <router-link to="/community/write?cat=질문">문의</router-link>
         </div>
       </nav>
     </div>
