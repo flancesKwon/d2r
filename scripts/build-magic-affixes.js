@@ -140,6 +140,22 @@ for (const [code, fam] of Object.entries(familyOf)) {
   const alt = fam.map((c) => bases[c]?.icon).find(Boolean)
   if (alt) Object.assign(bases[code], { icon: alt, iconApprox: true })
 }
+// 계열에도 그림이 없으면 같은 종류 -> 그 상위 분류 순으로 베이스 그림을 대신 (iconApprox)
+// 예: 이글오브 -> 다른 오브, 방패(shie) -> 방패 계열(shld: 팔라딘 방패 등), 석궁 -> 원거리(miss: 활), 곤봉 -> 둔기
+// - 거래게시판 목록에서 아이콘이 비지 않게. 정확한 그림이 아니라서 상세에선 이름으로 구분
+const equipRowsList = [...load('armor.json'), ...load('weapons.json')].filter((b) => bases[b.code])
+const iconByType = {}
+for (const b of equipRowsList) {
+  if (!bases[b.code].icon || bases[b.code].iconApprox) continue
+  for (const t of ancestors(b.type)) if (!iconByType[t]) iconByType[t] = bases[b.code].icon
+}
+// 모양이 비슷한 종류를 먼저 (상위 분류만 보면 방패에 네크로 머리, 곤봉에 지팡이 그림이 들어감)
+const LOOKALIKE_TYPE = { shie: 'ashd', club: 'mace', xbow: 'bow' }
+for (const b of equipRowsList) {
+  if (bases[b.code].icon) continue
+  const t = [LOOKALIKE_TYPE[b.type], ...ancestors(b.type)].find((x) => x && iconByType[x])
+  if (t) Object.assign(bases[b.code], { icon: iconByType[t], iconApprox: true })
+}
 
 // 무기·방어구 외에 매직/레어로 거래되는 베이스 (판매글에서 버튼으로 고름)
 const MISC_BASES = [
