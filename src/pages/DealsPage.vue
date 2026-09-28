@@ -208,4 +208,11 @@ function submitReview() {
 }
 .review-submit-btn{align-self:flex-start; padding:10px 20px; font-size:13px; border-radius:10px;}
 .review-comment-text{font-size:13px; color:var(--text-muted); line-height:1.7;}
+
+@media (max-width:760px){
+  .deals-layout{grid-template-columns:minmax(0,1fr);}
+  .deal-thread{min-height:360px; padding:16px;}
+  .deal-thread-empty{min-height:160px;}
+  .conv-bubble{max-width:85%;}
+}
 </style>

@@ -189,4 +189,13 @@ const filteredRuneChain = computed(() => {
 .gem-chip{border-color:var(--teal);}
 .rune-chip.result{border-color:var(--gold-dim); color:var(--gold); font-weight:600;}
 .cube-plus{color:var(--text-dim); font-size:13px; flex:none;}
+
+@media (max-width:600px){
+  .cube-card{padding:18px 16px;}
+  .cube-formula-row{padding:12px; flex-direction:column; align-items:flex-start; gap:8px;}
+  .cube-chip-group{flex:none; width:100%;}
+  .cube-arrow{transform:rotate(90deg); padding-left:8px;}
+  .cube-chip, .cube-result-chip{white-space:normal; max-width:100%;}
+  .cube-result-chip{flex:0 1 auto; min-width:0;}
+}
 </style>
