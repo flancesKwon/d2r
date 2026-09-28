@@ -172,6 +172,7 @@ function pickQuality(q) {
   resetAffixPicks()
   superiorPick.value = { combo: '', values: {} }
   uniqueSockets.value = ''
+  socketOn.value = false
   // 제작법이 하나뿐이면 바로 고름
   craftPick.value = { id: craftRecipes.value.length === 1 ? craftRecipes.value[0].id : '', values: [] }
 }
@@ -308,6 +309,14 @@ function buildSuperiorOptions() {
 
 // 유니크·세트·일반(흰색) 소켓 - 베이스 최대 소켓까지만
 const uniqueSockets = ref('')
+const socketOn = ref(false)
+const hasSockets = computed({
+  get: () => socketOn.value || !!uniqueSockets.value,
+  set: (v) => {
+    socketOn.value = v
+    if (!v) uniqueSockets.value = ''
+  },
+})
 const uniqueMaxSockets = computed(() =>
   isUniqueOrSet.value || (isManualEquip.value && itemQuality.value === 'normal') ? itemBase.value?.sockets || 0 : 0
 )
@@ -472,6 +481,7 @@ const invalidInputs = computed(() => {
     if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - 수치를 골라주세요`)
   }
   bad.push(...craftErrors.value, ...affixErrors.value)
+  if (hasSockets.value && !uniqueSockets.value) bad.push('소켓 개수를 골라주세요')
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -977,16 +987,6 @@ function submitPost() {
           </div>
         </template>
 
-        <div class="base-mods" v-if="lockedEquipBase && uniqueMaxSockets">
-          <div class="option-editor-title">소켓 <span class="craft-sub-note">0~{{ uniqueMaxSockets }}개 (이 베이스 최대 {{ uniqueMaxSockets }}소켓)</span></div>
-          <div class="socket-pick-row">
-            <button
-              type="button" v-for="n in uniqueMaxSockets + 1" :key="n" class="socket-pick"
-              :class="{ active: Number(uniqueSockets || 0) === n - 1 }" @click="uniqueSockets = n - 1 ? n - 1 : ''"
-            >{{ n - 1 }}개</button>
-          </div>
-        </div>
-
         <div class="base-mods" v-if="superiorCombos.length">
           <div class="option-editor-title">상급(Superior) 베이스 옵션</div>
           <div class="option-row">
@@ -1002,6 +1002,23 @@ function submitPost() {
               <option v-for="n in SUPERIOR_MODS[k].max - SUPERIOR_MODS[k].min + 1" :key="n" :value="SUPERIOR_MODS[k].min + n - 1">
                 {{ SUPERIOR_MODS[k].min + n - 1 }}
               </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="base-mods" v-if="lockedEquipBase && uniqueMaxSockets">
+          <div class="option-editor-title">소켓</div>
+          <div class="option-row">
+            <select v-model="hasSockets" class="write-select random-group-select" aria-label="소켓 여부">
+              <option :value="false">소켓 없음</option>
+              <option :value="true">소켓 있음 (이 베이스 최대 {{ uniqueMaxSockets }}개)</option>
+            </select>
+          </div>
+          <div class="option-row" v-if="hasSockets">
+            <span class="option-text">소켓 개수 (1~{{ uniqueMaxSockets }})</span>
+            <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
+              <option value="">개수</option>
+              <option v-for="n in uniqueMaxSockets" :key="n" :value="n">{{ n }}개</option>
             </select>
           </div>
         </div>
@@ -1334,10 +1351,6 @@ function submitPost() {
 .craft-fixed-row{padding:6px 10px; background:var(--panel-2); border-radius:8px;}
 .craft-fixed-row .option-text.fixed{color:#8c8cff;}
 .craft-sub-note{font-size:11px; font-weight:400; color:var(--text-dim); margin-left:6px;}
-.socket-pick-row{display:flex; flex-wrap:wrap; gap:6px;}
-.socket-pick{min-width:48px; padding:7px 12px; font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px;}
-.socket-pick:hover{color:var(--text); border-color:var(--gold-dim);}
-.socket-pick.active{color:var(--gold); border-color:var(--gold-dim); background:rgba(200,163,77,0.1);}
 .base-sub{font-size:11.5px; font-weight:400; color:var(--text-dim); margin-left:6px;}
 .base-change-btn{font-size:11px; font-weight:400; color:var(--gold-dim); margin-left:10px; text-decoration:underline; text-underline-offset:3px;}
 .shape-title{margin-top:10px;}
