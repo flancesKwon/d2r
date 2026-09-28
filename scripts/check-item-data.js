@@ -305,6 +305,14 @@ for (const [, names] of iconByKey) {
   expect(craftOf('7wa', '블러드 무기'), '버서커 액스로 블러드 무기 가능 (도끼 종류 전체)')
   expect(craftOf('uhl', '히트 파워 투구')?.fam.label.startsWith('피격 시 5% 확률로 4 레벨'), '히트 파워 투구 (엘리트 베이스 포함)')
   expect(R.craftRecipesFor(data, B('amu')).length === 4, '목걸이 크래프트 4종')
+  // 괴물 도주는 128 = 100% 이고 게임은 소수점을 버림 -> 히트 파워 목걸이 5~15 = 3~11% (Maxroll 표기)
+  expect(craftOf('amu', '히트 파워 목걸이')?.fam.label.includes('적중 시 괴물 도주 +3~11%'), '히트 파워 목걸이 괴물 도주 3~11%')
+  // 직업 옵션(+직업 기술·스킬 트리)은 모든 장비에서 한 그룹(125) - 한 아이템에 한 직업 것 하나만
+  {
+    const codes = new Set(['ama', 'sor', 'nec', 'pal', 'bar', 'dru', 'ass', 'war', 'skilltab'])
+    const groups = new Set(data.affixes.filter((a) => a.mods.some((m) => codes.has(m.code))).map((a) => a.group))
+    expect(groups.size === 1, `직업 옵션 그룹이 하나가 아님 (${[...groups].join(',')}) - 서로 다른 직업 옵션이 같이 붙을 수 있게 됨`)
+  }
   // 크래프트 무작위 옵션은 최대 4개 (아이템 레벨이 낮아도 4개는 나올 수 있음 - 개수는 확률)
   const cRing = R.affixFamiliesFor(data, B('rin'), 'crafted')
   const fcr = cRing.find((f) => /^시전 속도/.test(f.label))

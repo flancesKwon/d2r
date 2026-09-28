@@ -79,7 +79,8 @@ const MODS = {
   lifesteal: simple('적중당 생명력 #% 훔침'), manasteal: simple('적중당 마나 #% 훔침'),
   'res-pois-len': simple('독 지속시간 #% 감소'), ease: simple('착용 조건 #%'), stamdrain: simple('지구력 고갈 속도 #% 감소'),
   // 적중 시 괴물 도주: 128 = 100%
-  howl: { slots: (m) => [range(Math.round((m.min * 100) / 128), Math.round((m.max * 100) / 128))], text: ([v]) => `적중 시 괴물 도주 +${v}%` },
+  // 게임은 소수점을 버림 (히트 파워 목걸이 5~15 -> 3~11%, Maxroll 표기와 같음)
+  howl: { slots: (m) => [range(Math.floor((m.min * 100) / 128), Math.floor((m.max * 100) / 128))], text: ([v]) => `적중 시 괴물 도주 +${v}%` },
   'ignore-ac': noValue('대상의 방어력 무시'), 'half-freeze': noValue('빙결 지속시간 절반으로 감소'),
   noheal: noValue('괴물 회복 저지'), knock: noValue('밀쳐내기'), indestruct: noValue('파괴 불가'),
   'rep-dur': { slots: (m) => [fixed(Math.round(100 / m.param))], text: ([v]) => `내구도 1 회복 (매 ${v}초)` },
