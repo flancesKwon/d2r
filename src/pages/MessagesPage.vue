@@ -122,4 +122,10 @@ function submitMessage() {
   padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .conv-send-btn{padding:11px 20px; font-size:13px; border-radius:10px;}
+
+@media (max-width:760px){
+  .messages-layout{grid-template-columns:minmax(0,1fr);}
+  .conv-thread{min-height:360px; padding:16px;}
+  .conv-bubble{max-width:85%;}
+}
 </style>
