@@ -35,7 +35,7 @@ import {
   EXTRA_MATERIALS,
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { itemMatchesQuery } from '../itemSearch.js'
+import { itemMatchesQuery, squashText } from '../itemSearch.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
@@ -166,6 +166,8 @@ const qualityChoices = computed(() => {
 })
 function pickQuality(q) {
   itemQuality.value = itemQuality.value === q ? '' : q
+  // 베이스로 바로 고른 경우 자동으로 붙인 제목("레어 서클릿")은 품질을 바꾸면 같이 바꿈 (직접 고친 제목은 그대로)
+  if (autoTitle.value && form.value.itemName === autoTitle.value) form.value.itemName = autoTitle.value = equipTitle(itemQuality.value, selectedBaseItem.value)
   resetAffixPicks()
   superiorPick.value = { combo: '', values: {} }
   uniqueSockets.value = ''
@@ -510,6 +512,39 @@ function clearPickedItem() {
   resetItemDependentFields()
 }
 
+// 아이템 선택 팝업에서 사전 아이템 외에 매직·레어·일반 장비도 베이스(서클릿, 모너크, 반지 등)로 바로 고름
+// - 줄의 [매직][레어][일반] 버튼을 누르면 베이스와 품질이 한 번에 잡히고 제목도 "레어 서클릿"처럼 채워짐
+const QUALITY_SHORT = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
+const autoTitle = ref('')
+const equipTitle = (q, b) => `${q ? QUALITY_SHORT[q] + ' ' : ''}${b?.name_ko || ''}`
+const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
+function baseQualities(b) {
+  const out = ['magic']
+  if (magicAffixData.bases[b.code]?.rare) out.push('rare')
+  if (b.base_stats.category !== 'misc') out.push('normal')
+  return out
+}
+const equipBaseCandidates = computed(() => {
+  // "레어 서클릿"처럼 품질을 앞에 붙여 검색해도 베이스가 나오게 품질 단어는 빼고 찾음
+  const q = form.value.itemName.trim().replace(/^(매직|레어|일반|크래프트)\s*/, '')
+  if (!q) return []
+  const sq = squashText(q)
+  const misc = MISC_BASES.filter((b) => squashText(b.name_ko).includes(sq) || squashText(b.subtitle).includes(sq))
+  return [...misc, ...searchBaseItems(q, null)].slice(0, 12)
+})
+function pickEquipBase(b, quality = '') {
+  form.value.itemId = null
+  form.value.category = '매직/레어/일반'
+  resetItemDependentFields()
+  manualBaseKind.value = b.base_stats.category
+  selectedBaseItem.value = b
+  resetBaseMods()
+  itemQuality.value = ''
+  if (quality && qualityChoices.value.includes(quality)) pickQuality(quality)
+  form.value.itemName = autoTitle.value = equipTitle(itemQuality.value, b)
+  showItemModal.value = false
+}
+
 function pickFallbackCategory(cat) {
   // 사전 아이템을 골랐다가 "변경"으로 사전에 없는 이름을 등록하는 경우, 이전 아이템 id가 남아서
   // 새 이름으로 예전 아이템(아이콘·옵션)이 저장되지 않게 비움
@@ -704,8 +739,20 @@ function submitPost() {
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               <span class="item-picker-row-cat">{{ it.category_label }}</span>
             </button>
+            <template v-if="equipBaseCandidates.length">
+              <div class="item-picker-section">매직·레어·일반 장비 (베이스)</div>
+              <div class="item-picker-row equip-base-row" v-for="b in equipBaseCandidates" :key="'base-' + b.code">
+                <button type="button" class="equip-base-main" @click="pickEquipBase(b)">
+                  <span class="item-picker-icon"><img v-if="iconUrlFor(baseIconKey(b))" :src="iconUrlFor(baseIconKey(b))" alt="" /></span>
+                  <span class="item-picker-name">{{ b.name_ko }} <small>{{ b.subtitle }}<template v-if="b.tier"> · {{ b.tier }}</template></small></span>
+                </button>
+                <span class="equip-quality-chips">
+                  <button type="button" v-for="q in baseQualities(b)" :key="q" :class="'q-' + q" @click="pickEquipBase(b, q)">{{ QUALITY_SHORT[q] }}</button>
+                </span>
+              </div>
+            </template>
             <div class="item-picker-empty-block" v-if="form.itemName.trim() && !itemCandidates.length">
-              <p class="item-picker-empty">사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.</p>
+              <p class="item-picker-empty">{{ equipBaseCandidates.length ? '찾는 게 없으면 종류를 골라 이 이름 그대로 등록할 수 있어요.' : '사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.' }}</p>
               <div class="fallback-cat-row">
                 <button
                   type="button" v-for="c in FALLBACK_CATEGORIES" :key="c"
@@ -1168,6 +1215,17 @@ function submitPost() {
 .item-picker-row-cat{font-size:10px; color:var(--gold-dim); border:1px solid var(--border); padding:2px 8px; border-radius:999px; flex:none;}
 .item-picker-row-cat.price-picked{color:var(--teal); border-color:var(--teal); margin-left:auto;}
 .item-picker-empty-block{padding:14px;}
+.item-picker-section{font-size:11px; color:var(--text-dim); padding:10px 10px 4px; border-top:1px solid var(--border-soft); margin-top:4px;}
+.equip-base-row{padding:4px 6px 4px 0;}
+.equip-base-row:hover{background:transparent;}
+.equip-base-main{display:flex; align-items:center; gap:8px; flex:1; min-width:0; padding:5px 10px; border-radius:9px; text-align:left;}
+.equip-base-main:hover{background:rgba(255,255,255,0.06);}
+.equip-quality-chips{display:flex; gap:4px; flex:none;}
+.equip-quality-chips button{font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
+.equip-quality-chips .q-magic{color:#8c8cff; border-color:#5a5ab0;}
+.equip-quality-chips .q-rare{color:#e8e86a; border-color:#9a9a45;}
+.equip-quality-chips .q-normal{color:var(--text); }
+.equip-quality-chips button:hover{background:rgba(255,255,255,0.06);}
 .item-picker-empty{text-align:center; color:var(--text-dim); font-size:12px; margin:0 0 10px;}
 .fallback-cat-row{display:flex; justify-content:center; gap:8px;}
 .fallback-cat-row button{
