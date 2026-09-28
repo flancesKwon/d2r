@@ -63,9 +63,9 @@ const REQUIRED_FIELDS = ['category', 'category_label', 'id', 'name_ko', 'name_en
 const categoryLabelSeen = new Map()
 const ids = new Map()
 const nameKoByCategory = new Map() // "category|name_ko" -> [ids]
-// 무지개 자락(Rainbow Facet)처럼 실제 게임에서도 여러 개가 완전히 같은 이름으로
-// 나오는 정상 케이스 - 검증에서 오탐 안 나게 예외 처리
-const KNOWN_DUPLICATE_NAMES = new Set(['무지개 자락'])
+// 실제 게임에서도 여러 개가 완전히 같은 이름으로 나오는 정상 케이스 - 검증에서 오탐 안 나게 예외 처리
+// (무지개 자락 8종은 사전에서 "무지개 자락 (번개, 사망 시)"처럼 원소·발동 조건을 붙여 구분함)
+const KNOWN_DUPLICATE_NAMES = new Set()
 
 itemsData.forEach((it, idx) => {
   const where = `#${idx} (id=${it.id ?? '?'})`
