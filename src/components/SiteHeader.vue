@@ -48,7 +48,7 @@ const MENUS = [
     key: 'trade', label: '거래', to: '/trade', match: ['/trade', '/deals', '/market'],
     links: [
       { label: '거래게시판', to: '/trade' }, { label: '판매글 등록', to: '/trade/new' },
-      { label: '거래중인 품목', to: '/deals' }, { label: '시세 게시판', to: '/market' },
+      { label: '거래중인 품목', to: '/deals' }, { label: '아이템별 거래내역', to: '/trade/history' }, { label: '시세 게시판', to: '/market' },
     ],
   },
   {

@@ -181,7 +181,10 @@ function confirmBuy() {
           @click="toggleFavorite(post.id)"
         >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
-      <div class="trade-post-meta">{{ post.date }} 등록 · 조회 {{ post.views }} · 구매신청 {{ post.requests.length }}건</div>
+      <div class="trade-post-meta">
+        {{ post.date }} 등록 · 조회 {{ post.views }} · 구매신청 {{ post.requests.length }}건 ·
+        <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">이 아이템 거래내역</router-link>
+      </div>
     </div>
 
     <div class="post-layout">
@@ -640,4 +643,6 @@ function confirmBuy() {
   background:var(--panel-2); border:1px solid var(--gold-dim); color:var(--gold); font-size:13px;
   padding:12px 22px; border-radius:999px; box-shadow:0 12px 28px -8px rgba(0,0,0,0.6);
 }
+.history-link{color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
+.history-link:hover{color:var(--gold);}
 </style>
