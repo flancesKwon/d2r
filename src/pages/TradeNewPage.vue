@@ -45,7 +45,7 @@ import magicAffixData from '../data/magicAffixes.json'
 import {
   affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
 } from '../magicAffixes.js'
-import { profileState } from '../profileStore.js'
+import { authState, signIn } from '../profileStore.js'
 
 const router = useRouter()
 
@@ -708,13 +708,27 @@ function buildPriceString() {
 // 선택 - 룬워드는 베이스가 뭐였는지가 실거래가에 큰 영향을 줘서 필수로 둠
 const formError = ref('')
 
+// 등록 중 두 번 누르지 않게
+const saving = ref(false)
+async function savePost(payload) {
+  saving.value = true
+  try {
+    const post = await addTradePost(payload)
+    router.push(`/trade/${post.id}`)
+  } catch (e) {
+    formError.value = e.message || '등록하지 못했어요'
+  } finally {
+    saving.value = false
+  }
+}
+
 function submitBundle() {
   if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담아주세요.'; return }
   if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
-  const post = addTradePost({
+  return savePost({
     ...form.value,
     category,
     itemId: bundleItems.value[0].item.id,
@@ -722,10 +736,7 @@ function submitBundle() {
     amountLabel: `${bundleItems.value.length}종 묶음`,
     options: [],
     price: buildPriceString(),
-    author: profileState.nickname,
-    contact: profileState.contact,
   })
-  router.push(`/trade/${post.id}`)
 }
 
 // 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
@@ -772,17 +783,14 @@ function submitPost() {
   }
   formError.value = ''
   const options = buildAllOptions()
-  const post = addTradePost({
+  return savePost({
     ...form.value,
     amountLabel,
     options,
     quality: isManualEquip.value ? itemQuality.value : '',
     iconKey: isManualEquip.value ? iconVariant.value : null,
     price: buildPriceString(),
-    author: profileState.nickname,
-    contact: profileState.contact,
   })
-  router.push(`/trade/${post.id}`)
 }
 </script>
 
@@ -797,7 +805,11 @@ function submitPost() {
     </div>
   </div>
 
-  <div class="grid-wrap trade-new-wrap">
+  <div class="grid-wrap trade-new-wrap trade-new-login" v-if="!authState.user">
+    <p>판매글은 로그인하면 올릴 수 있어요.</p>
+    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+  </div>
+  <div class="grid-wrap trade-new-wrap" v-else>
     <div class="write-form trade-write-form">
       <div class="form-mode-toggle">
         <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">단일 아이템 등록</button>
@@ -1327,7 +1339,7 @@ function submitPost() {
 
       <div class="trade-new-actions">
         <router-link to="/trade" class="trade-new-cancel">취소</router-link>
-        <button class="btn-primary write-submit" @click="submitPost">등록하기</button>
+        <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">등록하기</button>
         <span class="form-error" v-if="formError">{{ formError }}</span>
       </div>
     </div>
@@ -1521,4 +1533,5 @@ function submitPost() {
   .option-value-select{width:76px;}
   .option-row{gap:6px;}
 }
+.trade-new-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
 </style>

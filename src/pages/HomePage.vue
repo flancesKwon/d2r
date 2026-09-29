@@ -27,7 +27,7 @@ fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch
 const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
 // 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
 const trade = shallowRef(null)
-import('../tradeStore.js').then((m) => (trade.value = m))
+import('../tradeStore.js').then((m) => { trade.value = m; m.loadTradePosts() })
 const latestTrades = computed(() => (trade.value ? [...trade.value.tradeState.posts].sort(byDate).slice(0, 4) : []))
 const postIconKey = (p) => trade.value.postIconKey(p)
 const postRarity = (p) => trade.value.postRarity(p)

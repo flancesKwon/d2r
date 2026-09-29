@@ -1,37 +1,32 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
+import { supabase } from './supabase.js'
+import { authState, signIn } from './profileStore.js'
 
-// 트레더리의 즐겨찾기(watchlist)처럼, 관심 있는 판매글을 별표로 찜해두고 나중에
-// 모아볼 수 있게 함. 백엔드가 없어서 계정 간 공유는 안 되고 이 브라우저에서만
-// 유지되지만(localStorage), 그래도 "다시 보러 오기" 용도로는 충분히 쓸모 있음
-const STORAGE_KEY = 'd2r-trade-favorites'
+// 판매글 찜(별표) - tb_trade_favorite, 내 것만 보이고 내 것만 쓸 수 있음(RLS). 로그인해야 씀
+export const favoritesState = reactive({ ids: new Set() })
 
-function loadFavorites() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+async function loadFavorites(uid) {
+  favoritesState.ids = new Set()
+  if (!supabase || !uid) return
+  const { data } = await supabase.from('tb_trade_favorite').select('post_id')
+  favoritesState.ids = new Set((data || []).map((r) => r.post_id))
 }
-
-export const favoritesState = reactive({
-  ids: new Set(loadFavorites()),
-})
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...favoritesState.ids]))
-  } catch {
-    // 프라이빗 창 등 localStorage를 못 쓰는 환경 - 이번 세션 안에서만 유지됨
-  }
-}
+watch(() => authState.user?.id, loadFavorites, { immediate: true })
 
 export function isFavorite(id) {
-  return favoritesState.ids.has(id)
+  return favoritesState.ids.has(Number(id))
 }
 
-export function toggleFavorite(id) {
-  if (favoritesState.ids.has(id)) favoritesState.ids.delete(id)
-  else favoritesState.ids.add(id)
-  persist()
+export async function toggleFavorite(id) {
+  if (!authState.user) return signIn()
+  const postId = Number(id)
+  const uid = authState.user.id
+  const had = favoritesState.ids.has(postId)
+  // 화면은 바로 바꾸고, 실패하면 되돌림 (돌아온 행이 없으면 실패)
+  had ? favoritesState.ids.delete(postId) : favoritesState.ids.add(postId)
+  const q = had
+    ? supabase.from('tb_trade_favorite').delete().eq('user_id', uid).eq('post_id', postId).select('post_id')
+    : supabase.from('tb_trade_favorite').insert({ user_id: uid, post_id: postId }).select('post_id')
+  const { data, error } = await q
+  if (error || !data?.length) had ? favoritesState.ids.add(postId) : favoritesState.ids.delete(postId)
 }
