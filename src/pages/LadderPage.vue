@@ -54,8 +54,6 @@ import ladder from '../data/ladder.json'
         <div class="ladder-faq-a">A. {{ f.a }}</div>
       </div>
     </div>
-
-    <div class="note-box ladder-note">정확한 종료일과 순위 보상은 블리자드 공식 공지가 우선하며, 이 페이지는 참고용으로만 활용해주세요.</div>
   </div>
   </div>
 </template>
@@ -77,8 +75,6 @@ import ladder from '../data/ladder.json'
 .ladder-faq-q{font-size:13.5px; color:var(--gold); font-weight:600; margin-bottom:6px;}
 .ladder-faq-a{font-size:13px; color:var(--text-muted); line-height:1.6;}
 
-.note-box{border-radius:12px;}
-.ladder-note{margin-top:4px;}
 
 @media (max-width:700px){
   .ladder-status-row{grid-template-columns:1fr 1fr;}

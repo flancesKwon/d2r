@@ -1,22 +1,10 @@
 [
+  { "tier": "최상급", "note": "룬", "items": ["Ber Rune", "Jah Rune", "Sur Rune", "Lo Rune"] },
+  { "tier": "상급", "note": "룬", "items": ["Ohm Rune", "Zod Rune", "Cham Rune", "Vex Rune"] },
+  { "tier": "중급", "note": "룬", "items": ["Gul Rune", "Ist Rune", "Mal Rune", "Um Rune", "Pul Rune", "Lem Rune"] },
+  { "tier": "하급", "note": "룬", "items": ["Ko Rune", "Lum Rune", "Fal Rune"] },
   {
-    "tier": "최상급",
-    "note": "거래 기준이 되는 최고가 룬과 엔드게임 필수 아이템",
-    "items": ["Jah Rune", "Ber Rune", "Griffon's Eye", "Death's Web", "Annihilus", "Hellfire Torch", "Tyrael's Might"]
-  },
-  {
-    "tier": "상급",
-    "note": "고급 룬워드 재료와 핵심 유니크 - 꾸준히 거래됨",
-    "items": ["Sur Rune", "Lo Rune", "Ohm Rune", "Cham Rune", "Zod Rune", "Mara's Kaleidoscope", "Harlequin Crest", "The Stone of Jordan", "Arachnid Mesh", "Crown of Ages", "Andariel's Visage"]
-  },
-  {
-    "tier": "중급",
-    "note": "룬워드 제작용으로 수요가 꾸준한 중간 룬과 인기 장비",
-    "items": ["Vex Rune", "Gul Rune", "Ist Rune", "Mal Rune", "War Traveler", "Skin of the Vipermagi", "Herald of Zakarum", "Nightwing's Veil", "Magefist", "Bul-Kathos' Wedding Band", "Gheed's Fortune"]
-  },
-  {
-    "tier": "입문",
-    "note": "초반 자금 마련과 스타터 룬워드용",
-    "items": ["Um Rune", "Pul Rune", "Lem Rune", "Fal Rune", "Ko Rune", "Chance Guards", "Wizardspike", "Raven Frost", "Verdungo's Hearty Cord", "Thundergod's Vigor", "Titan's Revenge", "Stormshield", "Highlord's Wrath"]
+    "tier": "자주 거래되는 유니크", "note": "",
+    "items": ["Griffon's Eye", "Death's Web", "Annihilus", "Hellfire Torch", "Tyrael's Might", "Mara's Kaleidoscope", "Harlequin Crest", "The Stone of Jordan", "Arachnid Mesh", "Crown of Ages", "Andariel's Visage", "War Traveler", "Skin of the Vipermagi", "Herald of Zakarum", "Nightwing's Veil", "Magefist", "Bul-Kathos' Wedding Band", "Gheed's Fortune", "Chance Guards", "Wizardspike", "Raven Frost", "Verdungo's Hearty Cord", "Thundergod's Vigor", "Titan's Revenge", "Stormshield", "Highlord's Wrath"]
   }
 ]
