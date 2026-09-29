@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { profileState, saveProfile, authState, signIn } from '../profileStore.js'
-import { tradePostsByAuthor, tradePostsWithMyRequests, getTradeItem } from '../tradeStore.js'
+import { fetchMyTradePosts, fetchMyRequests, getTradeItem } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
 import { reviewsForUser } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -11,13 +11,15 @@ const activeTab = ref(TABS[0])
 
 const myReviews = computed(() => reviewsForUser(profileState.nickname))
 
-const myTradePosts = computed(() => tradePostsByAuthor(profileState.nickname))
-// 내가 쓴 커뮤니티 글 (DB, 최근 50개)
+// 내 판매글 / 내가 보낸 구매신청 / 내가 쓴 커뮤니티 글 (DB)
+const myTradePosts = ref([])
+const myRequests = ref([])
 const myCommunityPosts = ref([])
 watch(() => authState.user?.id, async (uid) => {
+  myTradePosts.value = uid ? await fetchMyTradePosts().catch(() => []) : []
+  myRequests.value = uid ? await fetchMyRequests().catch(() => []) : []
   myCommunityPosts.value = uid ? (await fetchPosts({ authorId: uid, pageSize: 50 }).catch(() => ({ posts: [] }))).posts : []
 }, { immediate: true })
-const myPurchasePosts = computed(() => tradePostsWithMyRequests(profileState.nickname))
 
 const myPostsCombined = computed(() => {
   const trade = myTradePosts.value.map((p) => ({ type: 'trade', id: p.id, title: p.itemName, category: p.category, date: p.date, link: `/trade/${p.id}` }))
@@ -34,7 +36,7 @@ function tradeIconUrl(post) {
   return item ? iconUrlFor(item.icon_key) : null
 }
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
 
 const nicknameInput = ref(profileState.nickname)
 const contactInput = ref(profileState.contact)
@@ -98,22 +100,18 @@ async function saveProfileForm() {
         <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
         <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
         <span class="status-badge" :class="'status-' + p.status">{{ p.status }}</span>
-        <span class="my-trade-req-count">구매신청 {{ p.requests.length }}건</span>
         <span class="my-trade-date">{{ p.date }}</span>
       </div>
       <div class="empty-state" v-if="!myTradePosts.length">등록한 판매글이 없어요</div>
 
       <div class="d-section-title" style="margin-top:26px;">내가 구매신청 보낸 거래</div>
-      <div class="my-trade-row" v-for="p in myPurchasePosts" :key="'buy-' + p.id">
-        <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
-        <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
-        <span
-          class="request-status" v-for="r in p.requests.filter((r) => r.buyer === profileState.nickname)" :key="r.id"
-          :class="'status-' + (r.status || 'pending')"
-        >{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
-        <span class="my-trade-date">{{ p.date }}</span>
+      <div class="my-trade-row" v-for="r in myRequests" :key="'buy-' + r.id">
+        <span class="my-trade-icon"><img v-if="tradeIconUrl(r.post)" :src="tradeIconUrl(r.post)" alt="" /></span>
+        <router-link :to="`/trade/${r.post.id}`" class="my-trade-name">{{ r.post.itemName }}</router-link>
+        <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+        <span class="my-trade-date">{{ r.date }}</span>
       </div>
-      <div class="empty-state" v-if="!myPurchasePosts.length">보낸 구매신청이 없어요</div>
+      <div class="empty-state" v-if="!myRequests.length">보낸 구매신청이 없어요</div>
     </div>
 
     <div v-else-if="activeTab === '받은 리뷰'" class="mypage-panel">

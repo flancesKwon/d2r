@@ -1,16 +1,52 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { getTradePost, addTradeRequest, respondToRequest, updateTradeStatus, getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem } from '../tradeStore.js'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  getTradePost, fetchTradePost, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
+  getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+} from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
-import { profileState } from '../profileStore.js'
+import { authState, signIn } from '../profileStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 
 const route = useRoute()
-const post = computed(() => getTradePost(route.params.id))
+const router = useRouter()
+// 판매글 (목록에서 받아둔 게 있으면 바로 보여주고 DB에서 최신으로) + 구매신청(당사자만)
+const post = ref(getTradePost(route.params.id) || null)
+const loading = ref(!post.value)
+const actionError = ref('')
+async function load() {
+  actionError.value = ''
+  try {
+    const fresh = await fetchTradePost(route.params.id)
+    post.value = fresh
+    if (fresh) {
+      if (await countTradeView(fresh.id)) fresh.views++
+      fresh.requests = await fetchTradeRequests(fresh.id).catch(() => [])
+    }
+  } catch (e) {
+    // 네트워크 오류면 받아둔 글을 그대로 둠
+  } finally {
+    loading.value = false
+  }
+}
+watch(() => route.params.id, () => { post.value = getTradePost(route.params.id) || null; loading.value = !post.value; load() }, { immediate: true })
+watch(() => authState.user?.id, () => { if (post.value) load() })
+// 판매자 본인(또는 관리자)만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS
+const isOwner = computed(() => !!authState.user && post.value?.authorId === authState.user.id)
+const canManage = computed(() => isOwner.value || authState.profile?.role === 'admin')
+async function run(fn) {
+  actionError.value = ''
+  if (!authState.user) return signIn()
+  try {
+    await fn()
+  } catch (e) {
+    actionError.value = e.message || '처리하지 못했어요'
+  }
+}
 const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
 const linkedItem = computed(() => (post.value ? getTradeItem(post.value.itemId) : null))
 
@@ -38,30 +74,34 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-const reqBuyer = ref('')
-const reqContact = ref('')
 const reqQty = ref(1)
 const reqMessage = ref('')
 const showRequestSent = ref(false)
 
 function submitRequest() {
   if (!reqMessage.value.trim()) return
-  addTradeRequest(route.params.id, {
-    buyer: reqBuyer.value,
-    contact: reqContact.value,
-    qty: reqQty.value,
-    message: reqMessage.value,
+  return run(async () => {
+    const r = await addTradeRequest(post.value.id, { qty: reqQty.value, message: reqMessage.value.trim() })
+    post.value.requests.push(r)
+    reqQty.value = 1
+    reqMessage.value = ''
+    showRequestSent.value = true
+    setTimeout(() => (showRequestSent.value = false), 2500)
   })
-  reqBuyer.value = ''
-  reqContact.value = ''
-  reqQty.value = 1
-  reqMessage.value = ''
-  showRequestSent.value = true
-  setTimeout(() => (showRequestSent.value = false), 2500)
 }
 
 function setStatus(status) {
-  updateTradeStatus(route.params.id, status)
+  return run(async () => {
+    const p = await updateTradeStatus(post.value.id, status)
+    post.value.status = p.status
+  })
+}
+async function removePost() {
+  if (!confirm('판매글을 삭제할까요? 되돌릴 수 없어요.')) return
+  await run(async () => {
+    await deleteTradePost(post.value.id)
+    router.replace('/trade')
+  })
 }
 
 // 희망 가격 "베르 룬 1개 + 미라의 눈물"을 항목별 칩으로 (룬·보석이면 아이콘과 함께)
@@ -84,11 +124,15 @@ async function copyContact() {
   }
 }
 
-function respond(requestId, decision) {
-  respondToRequest(route.params.id, requestId, decision)
+function respond(r, decision) {
+  return run(async () => {
+    const dealId = await respondToRequest(post.value, r, decision)
+    // 수락하면 거래방이 열림
+    if (dealId) router.push('/deals')
+  })
 }
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
 const REQUEST_KIND_LABEL = { buy_now: '구매하기', inquiry: '문의' }
 
 // "구매하기" 팝업 흐름: 흥정 가능한 글이면 룬/보석 제안 선택 단계(offer)를 거치고,
@@ -106,6 +150,7 @@ const offerCandidates = computed(() => {
 })
 
 function openBuyModal() {
+  if (!authState.user) return signIn()
   offerItems.value = []
   offerQuery.value = ''
   showOfferDropdown.value = false
@@ -132,22 +177,20 @@ function goToConfirm() {
   if (post.value.negotiable && !offerItems.value.length) return
   buyStep.value = 'confirm'
 }
-function confirmBuy() {
-  addTradeRequest(route.params.id, {
-    buyer: profileState.nickname,
-    contact: profileState.contact,
-    qty: 1,
-    message: post.value.negotiable
-      ? `구매하기 - 제안: ${offerItems.value.map((o) => `${o.item.name_ko} ${o.qty}개`).join(' + ')}`
-      : '구매하기 (즉시 구매 신청)',
-    offerItems: post.value.negotiable
-      ? offerItems.value.map((o) => ({ id: o.item.id, name_ko: o.item.name_ko, icon_key: o.item.icon_key, qty: o.qty }))
-      : [],
-    kind: 'buy_now',
+async function confirmBuy() {
+  await run(async () => {
+    const r = await addTradeRequest(post.value.id, {
+      qty: 1,
+      // 제안 내용은 메시지 한 줄로 저장 (보여줄 때 칩으로 다시 만듦)
+      message: post.value.negotiable
+        ? `구매하기 - 제안: ${offerItems.value.map((o) => `${o.item.name_ko} ${o.qty}개`).join(' + ')}`
+        : '구매하기 (즉시 구매 신청)',
+    })
+    post.value.requests.push(r)
+    showBuySentToast.value = true
+    setTimeout(() => (showBuySentToast.value = false), 2500)
   })
   showBuyModal.value = false
-  showBuySentToast.value = true
-  setTimeout(() => (showBuySentToast.value = false), 2500)
 }
 </script>
 
@@ -182,7 +225,7 @@ function confirmBuy() {
         >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">
-        {{ post.date }} 등록 · 조회 {{ post.views }} · 구매신청 {{ post.requests.length }}건 ·
+        {{ post.author }} · {{ post.date }} 등록 · 조회 {{ post.views }} ·
         <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">이 아이템 거래내역</router-link>
       </div>
     </div>
@@ -219,16 +262,16 @@ function confirmBuy() {
             <span v-if="post.negotiable" class="nego">흥정 가능</span>
           </div>
           <button
-            type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료'"
+            type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
             @click="openBuyModal"
-          >{{ post.status === '거래완료' ? '거래가 완료된 글이에요' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
+          >{{ isOwner ? '내 판매글이에요' : post.status === '거래완료' ? '거래가 완료된 글이에요' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
           <p class="buy-now-hint">{{ post.negotiable ? '원하는 룬·보석·재료로 가격을 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</p>
         </section>
 
         <section class="side-card seller-card">
           <div class="card-title">판매자</div>
           <div class="seller-row">
-            <span class="seller-avatar" aria-hidden="true">{{ (post.author || '?').slice(0, 1) }}</span>
+            <span class="seller-avatar" aria-hidden="true"><img v-if="post.avatar" :src="post.avatar" alt="" /><template v-else>{{ (post.author || '?').slice(0, 1) }}</template></span>
             <div class="seller-name-block">
               <div class="seller-name">{{ post.author }}</div>
               <div class="seller-sub">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
@@ -241,7 +284,7 @@ function confirmBuy() {
           </div>
         </section>
 
-        <section class="side-card owner-card">
+        <section class="side-card owner-card" v-if="canManage">
           <div class="card-title">판매 상태 <span class="owner-tag">판매자 전용</span></div>
           <div class="status-segment" role="radiogroup" aria-label="판매 상태">
             <button
@@ -249,14 +292,16 @@ function confirmBuy() {
               :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
             >{{ s }}</button>
           </div>
+          <button type="button" class="owner-delete" @click="removePost">판매글 삭제</button>
         </section>
+        <div class="action-error" v-if="actionError">{{ actionError }}</div>
       </aside>
     </div>
 
     <!-- 구매신청 -->
     <section class="requests-section">
       <div class="section-head">
-        <div class="section-title">구매신청 <span class="count">{{ post.requests.length }}</span></div>
+        <div class="section-title">{{ isOwner ? '받은 구매신청' : '내 구매신청' }} <span class="count" v-if="authState.user">{{ post.requests.length }}</span></div>
       </div>
       <div class="request-list">
         <div class="request-item" v-for="r in post.requests" :key="r.id">
@@ -278,20 +323,27 @@ function confirmBuy() {
           <div class="request-message">{{ r.message }}</div>
           <div class="request-bottom">
             <span class="request-contact" v-if="r.contact">연락처 {{ r.contact }}</span>
-            <div class="request-actions" v-if="(r.status || 'pending') === 'pending'">
-              <button type="button" class="request-action-btn accept" @click="respond(r.id, 'accepted')">수락</button>
-              <button type="button" class="request-action-btn decline" @click="respond(r.id, 'declined')">거절</button>
+            <div class="request-actions" v-if="(r.status || 'pending') === 'pending' && canManage">
+              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락</button>
+              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
+            </div>
+            <div class="request-actions" v-else-if="(r.status || 'pending') === 'pending' && r.buyerId === authState.user?.id">
+              <button type="button" class="request-action-btn decline" @click="respond(r, 'cancelled')">신청 취소</button>
             </div>
           </div>
         </div>
-        <div class="empty-state request-empty" v-if="post.requests.length === 0">아직 구매신청이 없어요. 첫 번째로 문의해 보세요.</div>
+        <div class="empty-state request-empty" v-if="!authState.user">구매신청은 판매자와 신청한 사람만 볼 수 있어요.</div>
+        <div class="empty-state request-empty" v-else-if="post.requests.length === 0">{{ isOwner ? '아직 받은 구매신청이 없어요.' : '보낸 구매신청이 없어요.' }}</div>
       </div>
 
-      <div class="side-card request-form">
+      <div class="side-card request-form" v-if="!authState.user">
+        <div class="card-title">판매자에게 문의·구매신청</div>
+        <p class="request-login">로그인하면 문의·구매신청을 보낼 수 있어요.</p>
+        <button type="button" class="btn-primary write-submit" @click="signIn">디스코드로 로그인</button>
+      </div>
+      <div class="side-card request-form" v-else-if="!isOwner">
         <div class="card-title">판매자에게 문의·구매신청</div>
         <div class="request-form-row">
-          <input type="text" v-model="reqBuyer" placeholder="닉네임 (비우면 익명)" class="write-input" aria-label="닉네임" />
-          <input type="text" v-model="reqContact" placeholder="연락처 (배틀태그, 디스코드 등)" class="write-input" aria-label="연락처" />
           <input type="number" min="1" v-model="reqQty" placeholder="수량" class="write-input request-qty-input" aria-label="신청 수량" />
         </div>
         <textarea
@@ -393,7 +445,8 @@ function confirmBuy() {
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
-      <div class="empty-state">판매글을 찾을 수 없어요. <router-link to="/trade">거래게시판으로</router-link></div>
+      <div class="empty-state" v-if="loading">불러오는 중…</div>
+      <div class="empty-state" v-else>판매글을 찾을 수 없어요. <router-link to="/trade">거래게시판으로</router-link></div>
     </div>
   </div>
 </template>
@@ -645,4 +698,9 @@ function confirmBuy() {
 }
 .history-link{color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
 .history-link:hover{color:var(--gold);}
+.owner-delete{margin-top:12px; font-size:12px; color:var(--text-dim); border:1px solid var(--border-soft); padding:6px 12px; border-radius:999px;}
+.owner-delete:hover{color:#e0775f; border-color:#e0775f;}
+.action-error{font-size:12.5px; color:#e0775f; margin-top:10px;}
+.request-login{font-size:13px; color:var(--text-muted); margin:6px 0 12px;}
+.seller-avatar img{width:100%; height:100%; object-fit:cover; border-radius:inherit;}
 </style>

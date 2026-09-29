@@ -1,16 +1,15 @@
 import { reactive } from 'vue'
 import { itemMatchesQuery } from './itemSearch.js'
-import seedPosts from './data/tradePosts.json'
 import itemsData from './data/items.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 import baseItemsData from './data/baseItems.json'
 import classSkillsData from './data/classSkills.json'
 import skillTextData from './data/skill_text.json'
 import { buildSkillNameLookup } from './skillNames.js'
-import { pushNotification } from './notificationsStore.js'
 import { SKILL_TAB_NAMES } from './magicAffixes.js'
 import magicAffixData from './data/magicAffixes.json'
-import { createDeal } from './dealsStore.js'
+import { supabase, mustReturnRows } from './supabase.js'
+import { authState } from './profileStore.js'
 
 export { itemsData }
 
@@ -404,21 +403,6 @@ export function buildAmountLabel(count) {
   return n > 0 ? `${n}개` : ''
 }
 
-export const tradeState = reactive({
-  posts: seedPosts.map((p) => ({
-    ...p,
-    requests: p.requests ? p.requests.map((r) => ({ ...r })) : [],
-  })),
-})
-
-let nextPostId = seedPosts.length + 1
-let nextRequestId =
-  Math.max(0, ...seedPosts.flatMap((p) => (p.requests || []).map((r) => r.id))) + 1
-
-function today() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 export function getTradeItem(itemId) {
   return itemId ? ALL_TRADE_ITEMS.find((it) => it.id === itemId) : null
 }
@@ -459,97 +443,232 @@ export function postRarity(post) {
   return ''
 }
 
-export function addTradePost({
-  category,
-  itemId,
-  itemName,
-  amountLabel,
-  price,
-  realm,
-  ladder,
-  hardcore,
-  author,
-  contact,
-  content,
-  options,
-  quality,
-  ethereal,
-  negotiable,
-  iconKey,
-}) {
-  const post = {
-    id: 't-new-' + nextPostId++,
-    category,
-    itemId: itemId || null,
-    itemName,
-    amountLabel,
-    // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
-    options: (options || []).filter(Boolean),
-    // 사전에 없는 장비의 품질(magic|rare|crafted|normal) - 툴팁 이름 색
-    quality: quality || '',
-    ethereal: !!ethereal,
-    // 판매자가 고른 반지·목걸이 등의 모양 (없으면 베이스 기본 그림)
-    iconKey: iconKey || null,
-    negotiable: !!negotiable,
-    price,
-    realm,
-    ladder,
-    hardcore,
-    author: author || '익명',
-    contact: contact || '',
-    date: today(),
-    views: 0,
-    status: '판매중',
-    content: content || '',
+// ---- 판매글·구매신청 저장 - Supabase (tb_trade_post / tb_trade_request) ----
+// 아이템·옵션·가격 계산은 위 그대로, 저장만 DB. 주인은 author_id(로그인 uuid), 권한은 RLS가 막음
+// DB에 칸이 없는 값(품질·아이콘 모양·흥정 가능)은 options(jsonb) 안에 옵션 줄과 같이 넣음
+// 구매신청은 당사자(구매자·판매자)만 볼 수 있어서 목록엔 신청 수를 안 보여줌
+const POST_AUTHOR = 'author:tb_profile!tb_trade_post_author_id_fkey(nickname, avatar_url)'
+const REQUEST_BUYER = 'buyer:tb_profile!tb_trade_request_buyer_id_fkey(nickname, contact, avatar_url)'
+const LIST_LIMIT = 300
+
+export const tradeState = reactive({ posts: [], loaded: false, loading: false, error: '' })
+
+function fmtDate(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+function unpackOptions(o) {
+  if (Array.isArray(o)) return { lines: o.filter((x) => typeof x === 'string') }
+  return o && typeof o === 'object' ? o : { lines: [] }
+}
+
+function mapTradePost(r) {
+  const o = unpackOptions(r.options)
+  return {
+    id: r.id,
+    category: r.category,
+    itemId: r.item_id || null,
+    itemName: r.item_name,
+    amountLabel: r.amount_label || '',
+    options: o.lines || [],
+    quality: o.quality || '',
+    iconKey: o.iconKey || null,
+    negotiable: !!o.negotiable,
+    ethereal: !!r.ethereal,
+    price: r.price,
+    realm: r.realm,
+    ladder: r.ladder,
+    hardcore: r.hardcore,
+    contact: r.contact || '',
+    content: r.content || '',
+    views: r.views,
+    status: r.status,
+    authorId: r.author_id,
+    author: r.author?.nickname || '알 수 없음',
+    avatar: r.author?.avatar_url || null,
+    date: fmtDate(r.created_at),
+    createdAt: r.created_at,
+    // 아이템별 거래내역의 "팔린 날" - 거래완료로 바꾼 마지막 수정 시각
+    completedAt: r.status === '거래완료' ? fmtDate(r.updated_at) : null,
     requests: [],
   }
+}
+
+function needUser() {
+  if (!supabase) throw new Error('거래 서버에 연결할 수 없어요')
+  if (!authState.user) throw new Error('로그인이 필요해요')
+  return authState.user.id
+}
+
+// 목록 - 최근 글 LIST_LIMIT 개까지 받아서 화면에서 거름 (옵션 수치 필터가 화면 쪽 계산이라)
+export async function loadTradePosts(force = false) {
+  if (!supabase || tradeState.loading || (tradeState.loaded && !force)) return
+  tradeState.loading = true
+  tradeState.error = ''
+  try {
+    const { data, error } = await supabase
+      .from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
+      .is('deleted_at', null).order('created_at', { ascending: false }).limit(LIST_LIMIT)
+    if (error) throw error
+    tradeState.posts = data.map(mapTradePost)
+    tradeState.loaded = true
+  } catch (e) {
+    tradeState.error = '판매글을 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.'
+  } finally {
+    tradeState.loading = false
+  }
+}
+
+export function getTradePost(postId) {
+  return tradeState.posts.find((p) => String(p.id) === String(postId))
+}
+
+// 판매글 하나 (목록에 없으면 DB에서)
+export async function fetchTradePost(postId) {
+  if (!supabase) return null
+  const { data, error } = await supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`).eq('id', postId).maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const post = mapTradePost(data)
+  const i = tradeState.posts.findIndex((p) => p.id === post.id)
+  if (i >= 0) tradeState.posts[i] = post
+  return post
+}
+
+export async function countTradeView(postId) {
+  if (!supabase) return false
+  const key = 'd2r-viewed-trade-' + postId
+  try {
+    if (sessionStorage.getItem(key)) return false
+    sessionStorage.setItem(key, '1')
+  } catch (e) {}
+  const { error } = await supabase.rpc('increment_trade_view', { p_post_id: Number(postId) })
+  return !error
+}
+
+export async function addTradePost({
+  category, itemId, itemName, amountLabel, price, realm, ladder, hardcore,
+  contact, content, options, quality, ethereal, negotiable, iconKey,
+}) {
+  const uid = needUser()
+  const rows = await mustReturnRows(
+    supabase.from('tb_trade_post').insert({
+      author_id: uid,
+      category,
+      item_id: itemId || null,
+      item_name: itemName,
+      amount_label: amountLabel || null,
+      // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
+      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable },
+      ethereal: !!ethereal,
+      price,
+      realm,
+      ladder,
+      hardcore,
+      contact: (contact ?? authState.profile?.contact) || null,
+      content: content || null,
+    }).select(`*, ${POST_AUTHOR}`),
+    '판매글을 등록하지 못했어요'
+  )
+  const post = mapTradePost(rows[0])
   tradeState.posts.unshift(post)
   return post
 }
 
-// kind: 'inquiry'(기존 구매신청 폼) | 'buy_now'(판매글의 "구매하기" 버튼) - 흥정 가능
-// 판매글이면 buy_now 신청에 offerItems(제안하는 룬/보석 목록)가 같이 담김
-export function addTradeRequest(postId, { buyer, contact, qty, message, offerItems = [], kind = 'inquiry' }) {
-  const post = tradeState.posts.find((p) => p.id === postId)
-  if (!post) return
-  post.requests.push({
-    id: nextRequestId++,
-    buyer: buyer || '익명',
-    contact: contact || '',
-    qty: Number(qty) || 1,
-    message: message || '',
-    offerItems: offerItems || [],
-    kind,
-    date: today(),
-    status: 'pending',
-  })
-  const label = kind === 'buy_now' ? '구매 신청' : '구매신청'
-  pushNotification(`"${post.itemName}" 판매글에 새 ${label}이 도착했어요.`, `/trade/${postId}`)
+export async function updateTradeStatus(postId, status) {
+  needUser()
+  const rows = await mustReturnRows(
+    supabase.from('tb_trade_post').update({ status, updated_at: new Date().toISOString() }).eq('id', postId).select(`*, ${POST_AUTHOR}`),
+    '판매 상태를 바꿀 권한이 없어요'
+  )
+  const post = mapTradePost(rows[0])
+  const cached = getTradePost(postId)
+  if (cached) Object.assign(cached, { status: post.status, completedAt: post.completedAt })
+  return post
 }
 
-// 판매자가 구매신청을 수락/거절 - 트레더리의 "오퍼 수락" 흐름과 비슷하게, 수락하면
-// 판매중이던 글이 자동으로 예약중으로 넘어가서 다른 구매자에게도 진행 상황이 보이고,
-// 이 신청을 위한 거래방(채팅)이 "거래중인 품목"에 새로 열림
-export function respondToRequest(postId, requestId, decision) {
-  const post = tradeState.posts.find((p) => p.id === postId)
-  const req = post && post.requests.find((r) => r.id === requestId)
-  if (!req) return
-  req.status = decision
-  if (decision === 'accepted') {
-    if (post.status === '판매중') post.status = '예약중'
-    createDeal(post, req)
+export async function deleteTradePost(postId) {
+  needUser()
+  await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', postId).select('id'), '판매글을 삭제할 권한이 없어요')
+  tradeState.posts = tradeState.posts.filter((p) => String(p.id) !== String(postId))
+}
+
+// ---- 구매신청 ----
+// DB 상태 rejected 를 화면에선 declined(거절됨)로
+const REQUEST_STATUS_FROM_DB = { rejected: 'declined' }
+// "구매하기 - 제안: 베르 룬 1개 + 이스트 룬 2개" 메시지에서 제안 칩을 다시 만듦 (DB엔 메시지 한 줄만 저장)
+function offerItemsFromMessage(message) {
+  const m = (message || '').match(/제안: (.+)$/)
+  if (!m) return []
+  return m[1].split(' + ').map((part) => {
+    const mm = part.match(/^(.+) (\d+)개$/)
+    const it = mm && CURRENCY_BY_NAME.get(mm[1])
+    return it ? { id: it.id, name_ko: it.name_ko, icon_key: it.icon_key, qty: Number(mm[2]) } : null
+  }).filter(Boolean)
+}
+function mapRequest(r) {
+  return {
+    id: r.id,
+    postId: r.post_id,
+    buyerId: r.buyer_id,
+    buyer: r.buyer?.nickname || '알 수 없음',
+    contact: r.buyer?.contact || '',
+    qty: r.qty,
+    message: r.message || '',
+    kind: (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
+    offerItems: offerItemsFromMessage(r.message),
+    status: REQUEST_STATUS_FROM_DB[r.status] || r.status,
+    date: fmtDate(r.created_at),
   }
-  const decisionLabel = decision === 'accepted' ? '수락' : '거절'
-  pushNotification(`"${post.itemName}" 구매신청이 ${decisionLabel}됐어요.`, `/trade/${postId}`)
 }
 
-export function updateTradeStatus(postId, status) {
-  const post = tradeState.posts.find((p) => p.id === postId)
-  if (!post) return
-  post.status = status
-  // 아이템별 거래내역에서 "언제 팔렸는지"를 보여주려고 거래완료로 바뀐 날을 남김
-  if (status === '거래완료') post.completedAt = post.completedAt || today()
-  else delete post.completedAt
+// 이 글의 구매신청 - 판매자는 전부, 구매자는 자기 것만 내려옴(RLS), 비로그인은 없음
+export async function fetchTradeRequests(postId) {
+  if (!supabase || !authState.user) return []
+  const { data, error } = await supabase
+    .from('tb_trade_request').select(`*, ${REQUEST_BUYER}`)
+    .eq('post_id', postId).order('created_at', { ascending: true })
+  if (error) throw error
+  return data.map(mapRequest)
+}
+
+export async function addTradeRequest(postId, { qty, message }) {
+  const uid = needUser()
+  const { data, error } = await supabase
+    .from('tb_trade_request')
+    .insert({ post_id: Number(postId), buyer_id: uid, qty: Number(qty) || 1, message: message || null })
+    .select(`*, ${REQUEST_BUYER}`)
+  if (error) {
+    if (error.code === '23505') throw new Error('이 글에 아직 답을 기다리는 신청이 있어요')
+    if (error.code === '42501') throw new Error('내 판매글에는 신청할 수 없어요')
+    throw error
+  }
+  if (!data?.length) throw new Error('신청하지 못했어요')
+  return mapRequest(data[0])
+}
+
+// 판매자: 수락 = 신청 수락 + 거래방 개설 + 구매자 알림을 DB 함수가 한 번에 / 거절 = 상태만
+// 구매자: 취소
+export async function respondToRequest(post, request, decision) {
+  needUser()
+  if (decision === 'accepted') {
+    const { data: dealId, error } = await supabase.rpc('accept_trade_request', { p_request_id: request.id })
+    if (error) throw new Error(error.message || '수락하지 못했어요')
+    request.status = 'accepted'
+    // 수락하면 판매중이던 글은 예약중으로
+    if (post.status === '판매중') await updateTradeStatus(post.id, '예약중').then((p) => (post.status = p.status)).catch(() => {})
+    return dealId
+  }
+  const status = decision === 'cancelled' ? 'cancelled' : 'rejected'
+  await mustReturnRows(
+    supabase.from('tb_trade_request').update({ status }).eq('id', request.id).select('id'),
+    '처리할 권한이 없어요'
+  )
+  request.status = REQUEST_STATUS_FROM_DB[status] || status
+  return null
 }
 
 // ---- 아이템별 거래내역 ----
@@ -587,18 +706,20 @@ export function tradedItemSummaries() {
   return [...byKey.values()].sort((a, b) => b.total - a.total || b.lastDate.localeCompare(a.lastDate))
 }
 
-export function getTradePost(postId) {
-  return tradeState.posts.find((p) => p.id === postId)
+// 마이페이지: 내가 쓴 판매글 / 내가 구매신청 보낸 글
+export async function fetchMyTradePosts() {
+  if (!supabase || !authState.user) return []
+  const { data, error } = await supabase
+    .from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
+    .eq('author_id', authState.user.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(100)
+  if (error) throw error
+  return data.map(mapTradePost)
 }
-
-// 로그인이 없어서 "내가 쓴 글"·"거래내역"은 프로필에 저장된 닉네임과 author/buyer
-// 문자열이 일치하는지로 찾음 - 마이페이지에서 사용
-export function tradePostsByAuthor(nickname) {
-  if (!nickname) return []
-  return tradeState.posts.filter((p) => p.author === nickname)
-}
-
-export function tradePostsWithMyRequests(nickname) {
-  if (!nickname) return []
-  return tradeState.posts.filter((p) => p.requests.some((r) => r.buyer === nickname))
+export async function fetchMyRequests() {
+  if (!supabase || !authState.user) return []
+  const { data, error } = await supabase
+    .from('tb_trade_request').select(`*, ${REQUEST_BUYER}, post:tb_trade_post!tb_trade_request_post_id_fkey(*, ${POST_AUTHOR})`)
+    .eq('buyer_id', authState.user.id).order('created_at', { ascending: false }).limit(100)
+  if (error) throw error
+  return data.filter((r) => r.post).map((r) => ({ ...mapRequest(r), post: mapTradePost(r.post) }))
 }

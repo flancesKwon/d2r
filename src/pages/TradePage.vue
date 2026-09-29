@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   tradeState,
+  loadTradePosts,
   TRADE_CATEGORIES,
   TRADE_STATUSES,
   TRADE_LADDERS,
@@ -19,6 +20,8 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
+// 판매글은 DB에서 (최근 글부터)
+onMounted(() => loadTradePosts())
 const activeCat = ref(null)
 const activeStatus = ref(null)
 const activeLadder = ref(null)
@@ -255,9 +258,10 @@ const filteredPosts = computed(() => {
             </span>
           </div>
         </div>
-        <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
       </router-link>
-      <div class="empty-state" v-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
+      <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
+      <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
     </div>
 
     <div class="trade-grid" v-else>
@@ -288,10 +292,11 @@ const filteredPosts = computed(() => {
         </span>
         <span class="trade-card-footer">
           {{ p.author }} · {{ p.date }}
-          <span class="trade-request-count" v-if="p.requests.length">신청 {{ p.requests.length }}</span>
         </span>
       </router-link>
-      <div class="empty-state" v-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
+      <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
+      <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
     </div>
   </div>
   </div>
@@ -354,7 +359,6 @@ const filteredPosts = computed(() => {
   .trade-row-icon{width:40px; height:40px;}
   .trade-title-row{flex-wrap:wrap;}
   .trade-title{white-space:normal; flex-basis:100%;}
-  .trade-request-count{margin-left:auto;}
 }
 
 .favorite-star{
@@ -399,7 +403,6 @@ const filteredPosts = computed(() => {
 .price-icon{display:inline-flex; width:15px; height:15px; vertical-align:-3px; margin:0 2px 0 3px;}
 .price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
-.trade-request-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
 .view-mode-toggle button{

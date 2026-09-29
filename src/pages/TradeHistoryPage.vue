@@ -12,12 +12,14 @@ import {
   searchAllItems,
   tradePostsForItem,
   tradedItemSummaries,
+  loadTradePosts,
   TRADE_LADDERS,
   TRADE_HARDCORE,
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
+loadTradePosts()
 const router = useRouter()
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
 
