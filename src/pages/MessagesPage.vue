@@ -1,27 +1,60 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   messagesState,
+  loadConversations,
+  loadMessages,
   lastMessageOf,
   isConversationRead,
-  markConversationOpened,
+  markConversationRead,
   sendMessage,
 } from '../messagesStore.js'
+import { authState, signIn } from '../profileStore.js'
 
-const activeId = ref(messagesState.conversations[0]?.id || null)
-const activeConversation = computed(() => messagesState.conversations.find((c) => c.id === activeId.value))
+// 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
+const route = useRoute()
+const activeId = ref(route.query.c ? Number(route.query.c) : null)
+const activeConversation = computed(() => messagesState.conversations.find((c) => c.id === activeId.value) || null)
 const draft = ref('')
+const sendError = ref('')
+
+loadConversations().then(() => {
+  if (!activeConversation.value && messagesState.conversations.length) activeId.value = messagesState.conversations[0].id
+}).catch(() => {})
+watch(() => route.query.c, (c) => { if (c) activeId.value = Number(c) })
+
+// 열린 대화는 5초마다 새로 받고 읽음 처리 (창이 보일 때만)
+let timer = 0
+async function refresh() {
+  const conv = activeConversation.value
+  if (!conv || document.hidden) return
+  await loadMessages(conv).catch(() => {})
+  await markConversationRead(conv).catch(() => {})
+}
+watch(activeConversation, (c) => {
+  clearInterval(timer)
+  if (!c) return
+  refresh()
+  timer = setInterval(refresh, 5000)
+}, { immediate: true })
+onUnmounted(() => clearInterval(timer))
 
 function openConversation(id) {
   activeId.value = id
-  markConversationOpened(id)
 }
-if (activeId.value) markConversationOpened(activeId.value)
 
-function submitMessage() {
-  if (!draft.value.trim() || !activeId.value) return
-  sendMessage(activeId.value, draft.value)
+async function submitMessage() {
+  const text = draft.value.trim()
+  if (!text || !activeConversation.value) return
+  sendError.value = ''
   draft.value = ''
+  try {
+    await sendMessage(activeConversation.value, text)
+  } catch (e) {
+    draft.value = text
+    sendError.value = e.message || '보내지 못했어요'
+  }
 }
 </script>
 
@@ -36,7 +69,11 @@ function submitMessage() {
     </div>
   </div>
 
-  <div class="grid-wrap messages-wrap">
+  <div class="grid-wrap messages-wrap messages-login" v-if="!authState.user">
+    <p>로그인하면 쪽지를 주고받을 수 있어요.</p>
+    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+  </div>
+  <div class="grid-wrap messages-wrap" v-else>
     <div class="messages-layout">
       <div class="conv-list">
         <button
@@ -53,14 +90,14 @@ function submitMessage() {
             <div class="conv-preview">{{ lastMessageOf(c)?.text }}</div>
           </div>
         </button>
-        <div class="empty-state" v-if="!messagesState.conversations.length">쪽지함이 비어있어요</div>
+        <div class="empty-state" v-if="!messagesState.conversations.length">쪽지함이 비어있어요. 판매글의 "쪽지 보내기"로 대화를 시작할 수 있어요.</div>
       </div>
 
       <div class="conv-thread" v-if="activeConversation">
         <div class="conv-thread-header">{{ activeConversation.withName }}</div>
         <div class="conv-thread-body">
           <div
-            class="conv-bubble" v-for="(m, i) in activeConversation.messages" :key="i"
+            class="conv-bubble" v-for="m in activeConversation.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
           >
             <div class="conv-bubble-text">{{ m.text }}</div>
@@ -74,6 +111,7 @@ function submitMessage() {
           />
           <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">보내기</button>
         </div>
+        <div class="send-error" v-if="sendError">{{ sendError }}</div>
       </div>
       <div class="conv-thread conv-thread-empty" v-else>대화를 선택해주세요</div>
     </div>
@@ -128,4 +166,6 @@ function submitMessage() {
   .conv-thread{min-height:360px; padding:16px;}
   .conv-bubble{max-width:85%;}
 }
+.messages-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
+.send-error{font-size:12.5px; color:#e0775f; padding:0 16px 12px;}
 </style>
