@@ -24,7 +24,11 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run check:items
+      # Vite 는 빌드 때 값을 박아 넣음 - secrets 가 없으면 배포본에서만 로그인·게시판이 꺼짐
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

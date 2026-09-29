@@ -1,26 +1,76 @@
 import { reactive } from 'vue'
+import { supabase, mustReturnRows } from './supabase.js'
 
-// 로그인 서버가 없어서 닉네임/연락처만 브라우저에 저장해두고, 판매글·게시글 작성 시
-// 자동으로 채워주는 용도로 씀 - "내가 쓴 글"도 이 닉네임과 author가 일치하는 글을 찾는 방식
-const STORAGE_KEY = 'd2r-profile'
+// 로그인(디스코드) 상태. 글의 주인은 로그인 유저의 uuid(author_id)로 판단하고, 닉네임은 보여주기용.
+// profile = tb_profile 한 줄 (가입할 때 DB 트리거가 자동으로 만들어 둠)
+export const authState = reactive({ user: null, profile: null, ready: false })
 
-function loadProfile() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      return { nickname: parsed.nickname || '', contact: parsed.contact || '' }
-    }
-  } catch (e) {}
-  return { nickname: '', contact: '' }
+// 예전 코드 호환: 닉네임·연락처를 바로 꺼내 쓰던 곳들
+export const profileState = reactive({ nickname: '', contact: '' })
+
+async function applySession(session) {
+  authState.user = session?.user ?? null
+  if (!authState.user) {
+    authState.profile = null
+  } else {
+    const { data } = await supabase.from('tb_profile').select('*').eq('id', authState.user.id).single()
+    authState.profile = data
+  }
+  profileState.nickname = authState.profile?.nickname || ''
+  profileState.contact = authState.profile?.contact || ''
 }
 
-export const profileState = reactive(loadProfile())
+// 새로고침 직후 잠깐 로그아웃처럼 보였다가 튀지 않게, 화면을 띄우기 전에 한 번 기다림 (서버가 느리면 3초까지만)
+export async function initAuth() {
+  if (!supabase) {
+    authState.ready = true
+    return
+  }
+  const load = (async () => {
+    const { data } = await supabase.auth.getSession()
+    await applySession(data.session)
+  })()
+  await Promise.race([load.catch((e) => console.warn('로그인 정보를 못 불러왔어요', e)), new Promise((r) => setTimeout(r, 3000))])
+  // onAuthStateChange 콜백 안에서 supabase 를 바로 await 하면 멈출 수 있어서 다음 틱으로 넘김
+  supabase.auth.onAuthStateChange((_e, session) => setTimeout(() => applySession(session), 0))
+  authState.ready = true
+}
 
-export function saveProfile({ nickname, contact }) {
-  profileState.nickname = (nickname || '').trim()
-  profileState.contact = (contact || '').trim()
+const RETURN_KEY = 'd2r-login-return'
+export function signIn() {
+  if (!supabase) return
+  // 로그인 후 원래 보던 화면으로 돌아오게
+  try { sessionStorage.setItem(RETURN_KEY, window.location.hash || '#/') } catch (e) {}
+  return supabase.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: window.location.origin + import.meta.env.BASE_URL },
+  })
+}
+export function takeLoginReturn() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nickname: profileState.nickname, contact: profileState.contact }))
-  } catch (e) {}
+    const v = sessionStorage.getItem(RETURN_KEY)
+    sessionStorage.removeItem(RETURN_KEY)
+    return v
+  } catch (e) {
+    return null
+  }
+}
+export const signOut = () => supabase?.auth.signOut()
+
+export const isAdmin = () => authState.profile?.role === 'admin'
+
+// 마이페이지: 닉네임·연락처 수정
+export async function saveProfile({ nickname, contact }) {
+  if (!authState.user) throw new Error('로그인이 필요해요')
+  const rows = await mustReturnRows(
+    supabase.from('tb_profile')
+      .update({ nickname: (nickname || '').trim(), contact: (contact || '').trim() || null })
+      .eq('id', authState.user.id)
+      .select(),
+    '프로필을 저장하지 못했어요'
+  )
+  authState.profile = rows[0]
+  profileState.nickname = rows[0].nickname
+  profileState.contact = rows[0].contact || ''
+  return rows[0]
 }

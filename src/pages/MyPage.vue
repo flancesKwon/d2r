@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { profileState, saveProfile } from '../profileStore.js'
+import { ref, computed, watch } from 'vue'
+import { profileState, saveProfile, authState, signIn } from '../profileStore.js'
 import { tradePostsByAuthor, tradePostsWithMyRequests, getTradeItem } from '../tradeStore.js'
 import { communityPostsByAuthor } from '../communityStore.js'
 import { reviewsForUser } from '../dealsStore.js'
@@ -34,11 +34,25 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 
 const nicknameInput = ref(profileState.nickname)
 const contactInput = ref(profileState.contact)
+watch(() => [profileState.nickname, profileState.contact], ([n, c]) => { nicknameInput.value = n; contactInput.value = c })
 const savedToast = ref(false)
-function saveProfileForm() {
-  saveProfile({ nickname: nicknameInput.value, contact: contactInput.value })
-  savedToast.value = true
-  setTimeout(() => (savedToast.value = false), 2000)
+const saveError = ref('')
+const saving = ref(false)
+async function saveProfileForm() {
+  saveError.value = ''
+  const nick = nicknameInput.value.trim()
+  if (nick.length < 2 || nick.length > 20) return (saveError.value = '닉네임은 2~20자로 정해주세요')
+  saving.value = true
+  try {
+    await saveProfile({ nickname: nick, contact: contactInput.value })
+    savedToast.value = true
+    setTimeout(() => (savedToast.value = false), 2000)
+  } catch (e) {
+    // 닉네임 중복(unique 제약) 등
+    saveError.value = /duplicate|unique/i.test(e.message || '') ? '이미 쓰는 사람이 있는 닉네임이에요' : e.message || '저장하지 못했어요'
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -53,13 +67,15 @@ function saveProfileForm() {
     </div>
   </div>
 
-  <div class="grid-wrap mypage-wrap">
+  <div class="grid-wrap mypage-wrap" v-if="!authState.user">
+    <div class="mypage-login">
+      <p>로그인하면 내가 쓴 글·거래내역·받은 리뷰를 볼 수 있어요.</p>
+      <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+    </div>
+  </div>
+  <div class="grid-wrap mypage-wrap" v-else>
     <div class="mypage-tabs">
       <button v-for="t in TABS" :key="t" :class="{ active: activeTab === t }" @click="activeTab = t">{{ t }}</button>
-    </div>
-
-    <div class="no-nickname-notice" v-if="!profileState.nickname">
-      아직 닉네임이 설정되지 않았어요. "회원정보수정" 탭에서 닉네임을 등록하면, 그 닉네임으로 쓴 게시글·거래내역이 여기 모여요.
     </div>
 
     <div v-if="activeTab === '내가 쓴 글'" class="mypage-panel">
@@ -112,15 +128,17 @@ function saveProfileForm() {
     <div v-else class="mypage-panel profile-panel">
       <label class="profile-field">
         닉네임
-        <input type="text" v-model="nicknameInput" placeholder="판매글·게시글에 쓸 닉네임" class="write-input" />
+        <input type="text" v-model="nicknameInput" placeholder="판매글·게시글에 보일 닉네임 (2~20자)" maxlength="20" class="write-input" />
       </label>
       <label class="profile-field">
         연락처
         <input type="text" v-model="contactInput" placeholder="배틀태그, 디스코드 등" class="write-input" />
+        <small class="profile-hint-public">거래 상대가 볼 수 있게 공개돼요.</small>
       </label>
       <div class="profile-actions">
-        <button class="btn-primary" @click="saveProfileForm">저장</button>
+        <button class="btn-primary" :disabled="saving" @click="saveProfileForm">저장</button>
         <span class="profile-saved-toast" v-if="savedToast">저장했어요!</span>
+        <span class="profile-save-error" v-if="saveError">{{ saveError }}</span>
       </div>
     </div>
   </div>
@@ -128,16 +146,14 @@ function saveProfileForm() {
 </template>
 
 <style scoped>
+.mypage-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px; text-align:center;}
+.profile-hint-public{font-size:11.5px; color:var(--text-dim); font-weight:400;}
+.profile-save-error{font-size:12.5px; color:#e0775f;}
 .mypage-wrap{max-width:920px;}
 .mypage-tabs{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; width:fit-content; margin-bottom:20px;}
 .mypage-tabs button{font-size:13px; padding:10px 20px; color:var(--text-dim); background:var(--panel);}
 .mypage-tabs button + button{border-left:1px solid var(--border);}
 .mypage-tabs button.active{color:var(--gold); background:var(--panel-2);}
-
-.no-nickname-notice{
-  font-size:12.5px; color:var(--text-dim); background:var(--panel-2); border:1px solid var(--border-soft);
-  padding:14px 18px; border-radius:12px; margin-bottom:20px; line-height:1.7;
-}
 
 .mypage-panel{display:flex; flex-direction:column; gap:10px;}
 

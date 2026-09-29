@@ -13,7 +13,6 @@ const MarketPage = () => import('./pages/MarketPage.vue')
 const TradePage = () => import('./pages/TradePage.vue')
 const TradeNewPage = () => import('./pages/TradeNewPage.vue')
 const TradePostPage = () => import('./pages/TradePostPage.vue')
-const SignupPage = () => import('./pages/SignupPage.vue')
 const AdminPage = () => import('./pages/AdminPage.vue')
 const CubeRecipesPage = () => import('./pages/CubeRecipesPage.vue')
 const RunewordFinderPage = () => import('./pages/RunewordFinderPage.vue')
@@ -45,7 +44,8 @@ const router = createRouter({
     { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
     { path: '/trade/:id', name: 'trade-post', component: TradePostPage, meta: { title: '거래게시판' } },
-    { path: '/signup', name: 'signup', component: SignupPage, meta: { title: '회원가입' } },
+    // 회원가입은 디스코드 로그인으로 대신함 (예전 주소는 마이페이지로)
+    { path: '/signup', redirect: '/mypage' },
     { path: '/admin', name: 'admin', component: AdminPage, meta: { title: '관리자' } },
     { path: '/cube', name: 'cube', component: CubeRecipesPage, meta: { title: '큐브 레시피' } },
     { path: '/runewords', name: 'runewords', component: RunewordFinderPage, meta: { title: '룬워드 찾기' } },
