@@ -43,7 +43,8 @@ export function signIn() {
   try { sessionStorage.setItem(RETURN_KEY, window.location.hash || '#/') } catch (e) {}
   return supabase.auth.signInWithOAuth({
     provider: 'discord',
-    options: { redirectTo: window.location.origin + import.meta.env.BASE_URL },
+    // vite base 가 './' 라서 BASE_URL 을 쓰면 주소가 깨짐 -> 지금 페이지 경로(/d2r/) 그대로. Supabase Redirect URLs 에 등록된 주소와 같아야 함
+    options: { redirectTo: window.location.origin + window.location.pathname },
   })
 }
 export function takeLoginReturn() {
