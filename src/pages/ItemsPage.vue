@@ -21,8 +21,10 @@ function iconUrl(item) {
 // 룬워드 화면에 보여줄 전체 옵션 = 룬워드 고유 옵션(affixes, 최대 7개) + 박힌 룬들 자체 효과.
 // 실제 게임 내부에서도 항상 이렇게 합쳐져서 나옴
 function runewordFullAffixes(item) {
-  return [...item.affixes, ...runewordRuneAffixes(item, runeLookup)]
+  return shown([...item.affixes, ...runewordRuneAffixes(item, runeLookup)])
 }
+// 게임 툴팁에 안 나오는 줄(hidden)은 빼고 보여줌 - scripts/merge-affix-lines.js
+const shown = (list) => (list || []).filter((a) => !a.hidden)
 // min~max 범위로 굴러가는(주사위 판정) 옵션인지 - 고정값 옵션과 구분해서 색으로 표시하려고 씀
 // 원소·물리 추가 피해(예: 화염 피해 15-35 추가)는 min~max가 굴림 범위가 아니라 고정된 피해 범위
 const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg-pois'])
@@ -240,11 +242,11 @@ const filteredItems = computed(() => {
         </div>
         <div class="d-section-title">옵션</div>
         <div class="affix-list">
-          <div v-if="selected.affixes.length === 0" class="affix-line unresolved">
+          <div v-if="shown(selected.affixes).length === 0" class="affix-line unresolved">
             <span class="a-text">옵션 데이터가 없는 아이템이에요</span>
           </div>
           <div
-            v-for="(a, i) in selected.affixes"
+            v-for="(a, i) in shown(selected.affixes)"
             :key="i"
             class="affix-line"
             :class="{ unresolved: !a.text, variable: isVariable(a) }"
@@ -287,7 +289,7 @@ const filteredItems = computed(() => {
             <div class="d-section-title">세트 아이템 착용 수 보너스</div>
             <div class="affix-list set-bonus-list">
               <template v-for="g in selected.extra.set_item_bonus" :key="'ib' + g.count">
-                <div class="affix-line set-bonus" v-for="(a, i) in g.affixes" :key="i">
+                <div class="affix-line set-bonus" v-for="(a, i) in shown(g.affixes)" :key="i">
                   <span class="a-text">{{ a.text }}</span><span class="set-bonus-count">{{ g.count }}개 착용</span>
                 </div>
               </template>
@@ -297,7 +299,7 @@ const filteredItems = computed(() => {
             <div class="d-section-title">세트 부분 착용 보너스</div>
             <div class="affix-list set-bonus-list">
               <template v-for="g in selected.extra.set_partial_bonus" :key="'pb' + g.count">
-                <div class="affix-line set-bonus" v-for="(a, i) in g.affixes" :key="i">
+                <div class="affix-line set-bonus" v-for="(a, i) in shown(g.affixes)" :key="i">
                   <span class="a-text">{{ a.text }}</span><span class="set-bonus-count">{{ g.count }}개 착용</span>
                 </div>
               </template>
@@ -307,7 +309,7 @@ const filteredItems = computed(() => {
             <div class="d-section-title">세트 전체 착용 보너스</div>
             <div class="affix-list">
               <div
-                v-for="(a, i) in selected.extra.set_full_bonus"
+                v-for="(a, i) in shown(selected.extra.set_full_bonus)"
                 :key="i"
                 class="affix-line"
                 :class="{ unresolved: !a.text, variable: isVariable(a) }"

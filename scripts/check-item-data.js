@@ -41,7 +41,7 @@ function buildRuneLookup(items) {
 function runewordSlots(subtitle) {
   const slots = []
   if (!subtitle) return slots
-  if (subtitle.includes('shld')) slots.push('shield')
+  if (/shld|pala|ashd|head|grim/.test(subtitle)) slots.push('shield')
   if (subtitle.includes('tors')) slots.push('armor')
   if (subtitle.includes('helm')) slots.push('helm')
   const weaponHint = /weap|mele|h2h|miss|axe|swor|hamm|mace|club|pole|staf|scep|knif|wand|spea/
@@ -503,6 +503,21 @@ for (const [, names] of iconByKey) {
       if (r && (r.min < m.min || r.max > m.max)) err(`베이스 자체 옵션 레어 범위: ${b.code} ${m.key} 레어 범위가 전체 범위를 벗어남`)
     }
   }
+}
+
+// ---------- 13. 유니크·세트 사전 분류 = 베이스 종류 (예전에 샤코가 "갑옷", 클로가 "검"으로 들어가 사전 필터·시뮬레이터 장착 칸이 틀렸음) ----------
+{
+  const { COARSE_SUB } = await import('./item-type-sub.js')
+  const bases = JSON.parse(readFileSync(join(__dirname, '../src/data/baseItems.json'), 'utf8'))
+  const by = new Map(bases.map((b) => [b.subtitle, b]))
+  for (const it of itemsData.filter((x) => x.category === 'unique' || x.category === 'set')) {
+    const b = by.get(it.subtitle)
+    if (b && (it.type_sub !== COARSE_SUB[b.type_sub] || it.type_group !== b.type_group)) {
+      err(`분류: ${it.name_ko} = ${it.type_group}/${it.type_sub}, 베이스 ${it.subtitle}(${b.type_sub}) 이면 ${b.type_group}/${COARSE_SUB[b.type_sub]}`)
+    }
+  }
+  // 게임 툴팁에 안 나오는 줄은 숨김이어야 함 (scripts/merge-affix-lines.js)
+  for (const it of itemsData) for (const a of it.affixes || []) if (['cold-len', 'fade'].includes(a.prop) && !a.hidden) err(`${it.name_ko}: ${a.prop} 줄은 숨겨야 함`)
 }
 
 // ---------- 결과 출력 ----------
