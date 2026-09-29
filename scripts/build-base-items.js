@@ -9,7 +9,7 @@
 // - sockets: 그 베이스에 뚫을 수 있는 최대 소켓 수 (베이스 값과 종류별 상한 중 작은 값)
 // - name_ko: 게임 공식 한글 이름 (localestrings-kor), alt_ko: 예전에 직접 붙였던 한글 이름
 //
-// 원본: https://github.com/blizzhackers/d2data (D2R 3.0 JSON) 의 json/armor.json,
+// 원본: https://github.com/blizzhackers/d2data (D2R 3.3 JSON) 의 json/armor.json,
 // json/weapons.json, json/itemtypes.json, json/localestrings-kor.json 을 받은 폴더를 넘겨서 실행
 //   node scripts/build-base-items.js <d2data json 폴더>
 import fs from 'fs'
