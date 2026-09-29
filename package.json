@@ -10,6 +10,7 @@
     "check:items": "node scripts/check-item-data.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "vue": "^3.4.21",
     "vue-router": "^4.6.4"
   },
