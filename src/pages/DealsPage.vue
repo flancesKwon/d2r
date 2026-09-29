@@ -1,13 +1,37 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { dealsState, DEAL_STATUSES, sendDealMessage, updateDealStatus, addReview } from '../dealsStore.js'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { dealsState, loadDeals, loadDealMessages, sendDealMessage, updateDealStatus, addReview } from '../dealsStore.js'
 import { getTradeItem } from '../tradeStore.js'
-import { profileState } from '../profileStore.js'
+import { authState, signIn } from '../profileStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
-const activeId = ref(dealsState.deals[0]?.id || null)
-const activeDeal = computed(() => dealsState.deals.find((d) => d.id === activeId.value))
+// 거래방 - 판매자·구매자만 보임. 알림 링크(/deals/:id)로 들어오면 그 거래를 바로 엶
+const route = useRoute()
+const activeId = ref(route.params.id ? Number(route.params.id) : null)
+watch(() => route.params.id, (id) => { if (id) activeId.value = Number(id) })
+const activeDeal = computed(() => dealsState.deals.find((d) => d.id === activeId.value) || null)
 const draft = ref('')
+const actionError = ref('')
+
+loadDeals().catch(() => {})
+watch(() => dealsState.deals.length, () => {
+  if (!activeDeal.value && dealsState.deals.length) activeId.value = dealsState.deals[0].id
+}, { immediate: true })
+
+// 열린 거래방 메시지 - 5초마다 새로 받음 (창이 보일 때만)
+let timer = 0
+async function refreshMessages() {
+  if (!activeDeal.value || document.hidden) return
+  await loadDealMessages(activeDeal.value).catch(() => {})
+}
+watch(activeDeal, (d) => {
+  clearInterval(timer)
+  if (!d) return
+  refreshMessages()
+  timer = setInterval(refreshMessages, 5000)
+}, { immediate: true })
+onUnmounted(() => clearInterval(timer))
 
 function openDeal(id) {
   activeId.value = id
@@ -22,37 +46,38 @@ function dealIconUrl(deal) {
   return item ? iconUrlFor(item.icon_key) : null
 }
 
-// 로그인이 없어서 지금 브라우저의 프로필 닉네임과 seller/buyer를 비교해서 "상대방"이
-// 누구인지 판단함 - 닉네임을 아직 안 정했으면 판매자를 상대방으로 간주(임시 기본값)
-function counterpartOf(deal) {
-  if (!deal) return ''
-  if (!profileState.nickname) return deal.seller
-  return deal.seller === profileState.nickname ? deal.buyer : deal.seller
+async function run(fn) {
+  actionError.value = ''
+  try {
+    await fn()
+  } catch (e) {
+    actionError.value = e.message || '처리하지 못했어요'
+  }
 }
 
 function submitMessage() {
-  if (!draft.value.trim() || !activeId.value) return
-  sendDealMessage(activeId.value, draft.value)
+  const text = draft.value.trim()
+  if (!text || !activeDeal.value) return
   draft.value = ''
+  return run(() => sendDealMessage(activeDeal.value, text))
 }
 
 function setStatus(status) {
-  if (!activeId.value) return
-  updateDealStatus(activeId.value, status)
+  if (!activeDeal.value) return
+  const label = status === '거래완료' ? '거래완료로 할까요?' : '거래불발로 할까요?'
+  if (!confirm(label)) return
+  return run(() => updateDealStatus(activeDeal.value, status))
 }
 
 const reviewRating = ref(5)
 const reviewComment = ref('')
 function submitReview() {
   if (!activeDeal.value) return
-  addReview(activeDeal.value.id, {
-    rating: reviewRating.value,
-    comment: reviewComment.value,
-    from: profileState.nickname || '익명',
-    to: counterpartOf(activeDeal.value),
+  return run(async () => {
+    await addReview(activeDeal.value, { rating: reviewRating.value, comment: reviewComment.value })
+    reviewComment.value = ''
+    reviewRating.value = 5
   })
-  reviewComment.value = ''
-  reviewRating.value = 5
 }
 </script>
 
@@ -67,7 +92,11 @@ function submitReview() {
     </div>
   </div>
 
-  <div class="grid-wrap deals-wrap">
+  <div class="grid-wrap deals-wrap deals-login" v-if="!authState.user">
+    <p>로그인하면 내 거래방을 볼 수 있어요.</p>
+    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+  </div>
+  <div class="grid-wrap deals-wrap" v-else>
     <div class="deals-layout">
       <div class="deal-list">
         <button
@@ -80,7 +109,7 @@ function submitReview() {
               <span class="deal-row-title">{{ d.postTitle }}</span>
               <span class="deal-status-badge" :class="'status-' + d.status">{{ d.status }}</span>
             </div>
-            <div class="deal-row-sub">{{ counterpartOf(d) }} · {{ d.date }}</div>
+            <div class="deal-row-sub">{{ d.iAmSeller ? '구매자' : '판매자' }} {{ d.counterpart }} · {{ d.date }}</div>
           </div>
         </button>
         <div class="empty-state" v-if="!dealsState.deals.length">아직 진행중인 거래가 없어요. 구매신청을 수락하면 여기에 생겨요.</div>
@@ -90,7 +119,7 @@ function submitReview() {
         <div class="deal-thread-header">
           <div>
             <div class="deal-thread-title">{{ activeDeal.postTitle }}</div>
-            <div class="deal-thread-sub">상대방: {{ counterpartOf(activeDeal) }}</div>
+            <div class="deal-thread-sub">{{ activeDeal.iAmSeller ? '구매자' : '판매자' }}: {{ activeDeal.counterpart }} · <router-link :to="`/trade/${activeDeal.postId}`">판매글 보기</router-link></div>
           </div>
           <div class="deal-status-actions" v-if="activeDeal.status === '거래중'">
             <button type="button" class="deal-action-btn done" @click="setStatus('거래완료')">거래완료</button>
@@ -100,6 +129,7 @@ function submitReview() {
         </div>
 
         <div class="deal-thread-body">
+          <div class="deal-intro">구매신청이 수락됐어요. 접속 시간, 배틀태그 등 거래 세부사항을 여기서 조율하세요.</div>
           <div
             class="conv-bubble" v-for="m in activeDeal.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
@@ -118,7 +148,7 @@ function submitReview() {
         </div>
 
         <div class="review-box" v-if="activeDeal.status === '거래완료' && !activeDeal.review">
-          <div class="d-section-title">{{ counterpartOf(activeDeal) }}님에게 리뷰 남기기</div>
+          <div class="d-section-title">{{ activeDeal.counterpart }}님에게 리뷰 남기기</div>
           <div class="review-stars">
             <button
               type="button" v-for="n in 5" :key="n" class="star-btn"
@@ -129,7 +159,7 @@ function submitReview() {
           <button type="button" class="btn-primary review-submit-btn" @click="submitReview">리뷰 등록</button>
         </div>
         <div class="review-box review-done" v-else-if="activeDeal.review">
-          <div class="d-section-title">남긴 리뷰</div>
+          <div class="d-section-title">{{ activeDeal.review.fromId === authState.user?.id ? '남긴 리뷰' : '받은 리뷰' }}</div>
           <div class="review-stars readonly">
             <span v-for="n in 5" :key="n" class="star-btn" :class="{ filled: n <= activeDeal.review.rating }">★</span>
           </div>
@@ -138,6 +168,7 @@ function submitReview() {
       </div>
       <div class="deal-thread deal-thread-empty" v-else>거래를 선택해주세요</div>
     </div>
+    <div class="action-error" v-if="actionError">{{ actionError }}</div>
   </div>
   </div>
 </template>
@@ -215,4 +246,8 @@ function submitReview() {
   .deal-thread-empty{min-height:160px;}
   .conv-bubble{max-width:85%;}
 }
+.deals-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
+.deal-intro{font-size:12px; color:var(--text-dim); text-align:center; padding:8px 12px; margin-bottom:6px;}
+.deal-thread-sub a{color:var(--gold-dim);}
+.action-error{font-size:12.5px; color:#e0775f; margin-top:10px;}
 </style>

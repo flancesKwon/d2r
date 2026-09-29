@@ -55,6 +55,8 @@ const router = createRouter({
     { path: '/messages', name: 'messages', component: MessagesPage, meta: { title: '쪽지함' } },
     { path: '/mypage', name: 'mypage', component: MyPage, meta: { title: '마이페이지' } },
     { path: '/deals', name: 'deals', component: DealsPage, meta: { title: '거래중인 품목' } },
+    // 거래 시작 알림 링크 (DB 함수가 /deals/거래번호 로 만듦)
+    { path: '/deals/:id', name: 'deal', component: DealsPage, meta: { title: '거래중인 품목' } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage, meta: { title: '페이지를 찾을 수 없음' } },
   ],
   scrollBehavior() {
