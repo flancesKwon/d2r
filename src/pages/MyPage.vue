@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { profileState, saveProfile, authState, signIn } from '../profileStore.js'
 import { tradePostsByAuthor, tradePostsWithMyRequests, getTradeItem } from '../tradeStore.js'
-import { communityPostsByAuthor } from '../communityStore.js'
+import { fetchPosts } from '../communityStore.js'
 import { reviewsForUser } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
@@ -12,7 +12,11 @@ const activeTab = ref(TABS[0])
 const myReviews = computed(() => reviewsForUser(profileState.nickname))
 
 const myTradePosts = computed(() => tradePostsByAuthor(profileState.nickname))
-const myCommunityPosts = computed(() => communityPostsByAuthor(profileState.nickname))
+// 내가 쓴 커뮤니티 글 (DB, 최근 50개)
+const myCommunityPosts = ref([])
+watch(() => authState.user?.id, async (uid) => {
+  myCommunityPosts.value = uid ? (await fetchPosts({ authorId: uid, pageSize: 50 }).catch(() => ({ posts: [] }))).posts : []
+}, { immediate: true })
 const myPurchasePosts = computed(() => tradePostsWithMyRequests(profileState.nickname))
 
 const myPostsCombined = computed(() => {
