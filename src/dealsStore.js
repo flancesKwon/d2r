@@ -1,105 +1,136 @@
-import { reactive, computed } from 'vue'
-import { pushNotification } from './notificationsStore.js'
+import { reactive, computed, watch } from 'vue'
+import { supabase, mustReturnRows } from './supabase.js'
+import { authState } from './profileStore.js'
 
-// 판매자가 구매신청을 수락하면(respondToRequest) 여기서 거래방(채팅)이 하나 열림 -
-// 실제 로그인이 없어서 상대방이 진짜로 타이핑해서 답장하진 않지만, 세부사항을
-// 조율하는 채팅 UI와 거래완료/불발 처리, 리뷰 흐름을 미리 볼 수 있게 함
-const STORAGE_KEY = 'd2r-deals'
-
-function today() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function loadDeals() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-export const dealsState = reactive({ deals: loadDeals() })
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dealsState.deals))
-  } catch {
-    // 프라이빗 창 등 localStorage를 못 쓰는 환경 - 이번 세션 안에서만 유지됨
-  }
-}
-
-let nextDealId = 1 + Math.max(0, ...dealsState.deals.map((d) => d.id))
-let nextMsgId = 1 + Math.max(0, ...dealsState.deals.flatMap((d) => d.messages.map((m) => m.id)))
+// 거래방 - tb_trade_deal / _message / _review
+// 판매자가 구매신청을 수락하면 DB 함수(accept_trade_request)가 거래방을 만듦 (직접 만들 수 없음)
+// 거래 당사자(판매자·구매자)만 보고 쓸 수 있음(RLS). 리뷰는 거래완료 뒤 한 번 (거래당 1개)
+const PERSON = (fk) => `tb_profile!${fk}(nickname, avatar_url)`
+const DEAL_SELECT = `*, seller:${PERSON('tb_trade_deal_seller_id_fkey')}, buyer:${PERSON('tb_trade_deal_buyer_id_fkey')}, review:tb_trade_deal_review(*)`
 
 export const DEAL_STATUSES = ['거래중', '거래완료', '거래불발']
+export const dealsState = reactive({ deals: [], loaded: false, loading: false })
 
-// 같은 구매신청으로 이미 거래방이 열려있으면 새로 만들지 않고 그대로 반환
-export function createDeal(post, request) {
-  const existing = dealsState.deals.find((d) => d.postId === post.id && d.requestId === request.id)
-  if (existing) return existing
-  const deal = {
-    id: nextDealId++,
-    postId: post.id,
-    itemId: post.itemId,
-    postTitle: post.itemName,
-    requestId: request.id,
-    seller: post.author,
-    buyer: request.buyer,
-    status: '거래중',
-    date: today(),
-    messages: [
-      {
-        id: nextMsgId++,
-        from: 'them',
-        text: '구매신청이 수락됐어요! 접속 시간, 배틀태그 등 거래 세부사항을 여기서 조율해주세요.',
-        date: today(),
-      },
-    ],
-    review: null,
-  }
-  dealsState.deals.unshift(deal)
-  persist()
-  pushNotification(`"${post.itemName}" 거래가 시작됐어요. 채팅으로 세부사항을 조율하세요.`, '/deals')
-  return deal
+function fmtDate(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
+function fmtTime(ts) {
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${fmtDate(ts)} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function mapReview(r) {
+  if (!r) return null
+  return { rating: r.rating, comment: r.comment || '', fromId: r.from_id, toId: r.to_id, date: fmtDate(r.created_at) }
+}
+function mapDeal(r) {
+  const uid = authState.user?.id
+  const iAmSeller = r.seller_id === uid
+  const review = Array.isArray(r.review) ? r.review[0] : r.review
+  return {
+    id: r.id,
+    postId: r.post_id,
+    itemId: r.item_id,
+    postTitle: r.post_title,
+    status: r.status,
+    date: fmtDate(r.created_at),
+    sellerId: r.seller_id,
+    buyerId: r.buyer_id,
+    seller: r.seller?.nickname || '알 수 없음',
+    buyer: r.buyer?.nickname || '알 수 없음',
+    // 나 말고 상대방
+    counterpartId: iAmSeller ? r.buyer_id : r.seller_id,
+    counterpart: (iAmSeller ? r.buyer?.nickname : r.seller?.nickname) || '알 수 없음',
+    iAmSeller,
+    review: mapReview(review),
+    messages: [],
+  }
+}
+
+function needUser() {
+  if (!supabase) throw new Error('서버에 연결할 수 없어요')
+  if (!authState.user) throw new Error('로그인이 필요해요')
+  return authState.user.id
+}
+
+export async function loadDeals() {
+  if (!supabase || !authState.user) {
+    dealsState.deals = []
+    dealsState.loaded = false
+    return
+  }
+  dealsState.loading = true
+  try {
+    const { data, error } = await supabase.from('tb_trade_deal').select(DEAL_SELECT).order('created_at', { ascending: false })
+    if (error) throw error
+    const old = new Map(dealsState.deals.map((d) => [d.id, d.messages]))
+    dealsState.deals = data.map((r) => ({ ...mapDeal(r), messages: old.get(r.id) || [] }))
+    dealsState.loaded = true
+  } finally {
+    dealsState.loading = false
+  }
+}
+// 로그인이 바뀌면 다시 (헤더의 "거래중" 숫자도 이걸 씀)
+watch(() => authState.user?.id, () => loadDeals().catch(() => {}), { immediate: true })
 
 export function getDeal(dealId) {
   return dealsState.deals.find((d) => String(d.id) === String(dealId))
 }
 
-export function sendDealMessage(dealId, text) {
-  const deal = getDeal(dealId)
-  if (!deal || !text.trim()) return
-  deal.messages.push({ id: nextMsgId++, from: 'me', text: text.trim(), date: today() })
-  persist()
+export async function loadDealMessages(deal) {
+  if (!supabase || !deal) return
+  const { data, error } = await supabase
+    .from('tb_trade_deal_message').select('*').eq('deal_id', deal.id).order('created_at', { ascending: true })
+  if (error) throw error
+  const uid = authState.user?.id
+  deal.messages = data.map((m) => ({ id: m.id, from: m.sender_id === uid ? 'me' : 'them', text: m.text, date: fmtTime(m.created_at) }))
 }
 
-export function updateDealStatus(dealId, status) {
-  const deal = getDeal(dealId)
-  if (!deal) return
-  deal.status = status
-  persist()
-  if (status === '거래완료') {
-    pushNotification(`"${deal.postTitle}" 거래가 완료됐어요. 상대방에게 리뷰를 남겨보세요.`, '/deals')
-  }
+export async function sendDealMessage(deal, text) {
+  const uid = needUser()
+  const body = (text || '').trim()
+  if (!body) return
+  const rows = await mustReturnRows(
+    supabase.from('tb_trade_deal_message').insert({ deal_id: deal.id, sender_id: uid, text: body }).select('*'),
+    '메시지를 보내지 못했어요'
+  )
+  deal.messages.push({ id: rows[0].id, from: 'me', text: rows[0].text, date: fmtTime(rows[0].created_at) })
 }
 
-// from/to는 닉네임 문자열 - 로그인이 없어서 지금 이 브라우저의 프로필 닉네임(from)이
-// 거래 상대(to)에게 남기는 리뷰로 저장됨
-export function addReview(dealId, { rating, comment, from, to }) {
-  const deal = getDeal(dealId)
-  if (!deal) return
-  deal.review = { rating: Number(rating) || 0, comment: comment || '', from, to, date: today() }
-  persist()
+export async function updateDealStatus(deal, status) {
+  needUser()
+  const rows = await mustReturnRows(
+    supabase.from('tb_trade_deal').update({ status }).eq('id', deal.id).select('status'),
+    '거래 상태를 바꿀 권한이 없어요'
+  )
+  deal.status = rows[0].status
 }
 
-// 마이페이지 "받은 리뷰"에서 사용
-export function reviewsForUser(nickname) {
-  if (!nickname) return []
-  return dealsState.deals
-    .filter((d) => d.review && d.review.to === nickname)
-    .map((d) => ({ ...d.review, postTitle: d.postTitle, dealId: d.id }))
+// 리뷰 - 거래완료 상태에서 상대방에게 (DB가 조건을 다시 확인함)
+export async function addReview(deal, { rating, comment }) {
+  const uid = needUser()
+  const rows = await mustReturnRows(
+    supabase.from('tb_trade_deal_review')
+      .insert({ deal_id: deal.id, from_id: uid, to_id: deal.counterpartId, rating: Number(rating) || 5, comment: (comment || '').trim() || null })
+      .select('*'),
+    '리뷰를 남기지 못했어요'
+  )
+  deal.review = mapReview(rows[0])
+}
+
+// 마이페이지 "받은 리뷰" (리뷰는 공개)
+export async function fetchReviewsFor(userId) {
+  if (!supabase || !userId) return []
+  const { data, error } = await supabase
+    .from('tb_trade_deal_review')
+    .select(`*, from:${PERSON('tb_trade_deal_review_from_id_fkey')}, deal:tb_trade_deal(post_title)`)
+    .eq('to_id', userId).order('created_at', { ascending: false }).limit(100)
+  if (error) throw error
+  return data.map((r) => ({ ...mapReview(r), dealId: r.deal_id, from: r.from?.nickname || '알 수 없음', postTitle: r.deal?.post_title || '' }))
 }
 
 export const activeDealCount = computed(() => dealsState.deals.filter((d) => d.status === '거래중').length)

@@ -3,13 +3,15 @@ import { ref, computed, watch } from 'vue'
 import { profileState, saveProfile, authState, signIn } from '../profileStore.js'
 import { fetchMyTradePosts, fetchMyRequests, getTradeItem } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
-import { reviewsForUser } from '../dealsStore.js'
+import { fetchReviewsFor } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '회원정보수정']
 const activeTab = ref(TABS[0])
 
-const myReviews = computed(() => reviewsForUser(profileState.nickname))
+// 받은 리뷰 (DB)
+const myReviews = ref([])
+watch(() => authState.user?.id, async (uid) => { myReviews.value = uid ? await fetchReviewsFor(uid).catch(() => []) : [] }, { immediate: true })
 
 // 내 판매글 / 내가 보낸 구매신청 / 내가 쓴 커뮤니티 글 (DB)
 const myTradePosts = ref([])
