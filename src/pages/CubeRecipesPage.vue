@@ -128,7 +128,6 @@ const filteredRuneChain = computed(() => {
             </span>
           </div>
         </div>
-        <div class="cube-note">엘~오르트 구간은 룬 3개만 있으면 되고, 보석은 주울 룬부터 필요해요. 구간이 올라갈수록(최하급→하급→일반→상급) 필요한 보석 등급도 같이 올라가요.</div>
       </div>
 
       <div class="empty-state" v-if="filteredRecipes.length === 0 && !showRuneTable">일치하는 레시피가 없어요</div>

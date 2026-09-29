@@ -118,7 +118,6 @@ function saveProfileForm() {
         연락처
         <input type="text" v-model="contactInput" placeholder="배틀태그, 디스코드 등" class="write-input" />
       </label>
-      <div class="profile-hint">여기서 저장한 닉네임·연락처는 새 판매글·게시글 작성 시 자동으로 채워져요.</div>
       <div class="profile-actions">
         <button class="btn-primary" @click="saveProfileForm">저장</button>
         <span class="profile-saved-toast" v-if="savedToast">저장했어요!</span>
@@ -192,7 +191,6 @@ function saveProfileForm() {
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
   padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
-.profile-hint{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 .profile-actions{display:flex; align-items:center; gap:12px;}
 .profile-saved-toast{font-size:12px; color:var(--teal);}
 </style>

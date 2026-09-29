@@ -258,34 +258,28 @@ export function framesAvg(f) {
   return typeof f === 'number' ? f : f.reduce((a, b) => a + b, 0) / f.length
 }
 
-// 결과: 표 목록 [{label, rows}] + 안내
+// 결과: 표 목록 [{label, rows}]
 // o: { cls, form, skill, w1, w2, oneHand, wias1, wias2, buffs, chill, decrep }
 export function iasTables(o) {
   const s = SKILL[o.skill]
   const tables = []
   const maxGain = !o.w1 || !isTwoHanded(o.cls, o.w1) || o.cls === 'bar' ? 88 : 83
-  const notes = []
   const t1 = computeTable(o, 1)
-  const base = s.same || s.key
   if (s.key === 'strafe' || s.key === 'fend') {
     const cross = o.w1?.wc === 'xbw'
     if (s.key === 'fend' || cross) tables.push({ label: '공격 횟수가 짝수일 때', rows: tabulate(t1, (r) => r.f, maxGain) })
     tables.push({ label: s.key === 'fend' || cross ? '공격 횟수가 홀수일 때' : '', rows: tabulate(t1, (r) => r.odd, maxGain) })
-    notes.push('여러 번 때리는 스킬이라 타격마다의 프레임이에요. 예: 5·4·4 (마지막 9) = 첫 타 5, 다음 타 4, 4, 마지막 타 9. 숫자가 하나면 모든 타가 같아요.')
   } else if (s.key === 'ww' && o.w2) {
     const t2 = computeTable(o, 2)
     const r1 = tabulate(t1, (r) => r.f, maxGain)
     const r2 = tabulate(t2, (r) => r.f, maxGain)
     const both = (g) => ({ f: Math.ceil((t1(g).f + t2(g).f) / 2) })
     both.eias = t1.eias
-    tables.push({ label: '두 무기 함께 (실제 휘두르는 간격)', rows: tabulate(both, (r) => r.f, maxGain) })
+    tables.push({ label: '두 무기 함께', rows: tabulate(both, (r) => r.f, maxGain) })
     tables.push({ label: '주무기만', rows: r1 })
     tables.push({ label: '보조 무기만', rows: r2 })
-    notes.push('훨윈드 첫 두 타격은 4·8번째 프레임에 고정이고, 그 뒤부터 표의 간격으로 때려요.')
   } else {
     tables.push({ label: '', rows: tabulate(t1, (r) => r.f, maxGain) })
-    if (s.roll) notes.push('여러 번 때리는 스킬이라 타격마다의 프레임이에요. 예: 5·4·4 (마지막 9) = 첫 타 5, 다음 타 4, 4, 마지막 타 9. 숫자가 하나면 모든 타가 같아요.')
-    if (s.key === 'ww') notes.push('훨윈드 첫 두 타격은 4·8번째 프레임에 고정이고, 그 뒤부터 표의 간격으로 때려요.')
     // 공격 동작이 두 가지인 경우 (무작위)
     const wc = animClass(o.cls, o.w1, o.oneHand || !!o.w2)
     if (s.key === 'std' && o.form === 'human' && ANIM[wc][o.cls]?.alt) {
@@ -293,13 +287,10 @@ export function iasTables(o) {
       if (!same(alt, tables[0].rows)) {
         tables[0].label = '공격 동작 1'
         tables.push({ label: '공격 동작 2', rows: alt })
-        notes.push('이 조합은 공격 동작이 두 가지라 둘 중 하나가 무작위로 나와요.')
       }
     }
-    if (base === 'std' && o.w2) notes.push('보조 무기로 때리는 일반 공격은 확인된 표가 없어 주무기 기준이에요.')
   }
-  if (s.seq && s.dual === 'need' && o.w2) notes.push('두 무기를 번갈아 쓰는 스킬이라 무기 속도·공속을 두 무기 평균으로 계산해요.')
-  return { tables, notes, eias: t1(Number(o.gias) || 0).e }
+  return { tables, eias: t1(Number(o.gias) || 0).e }
 }
 
 // 표에서 지금 공속이 속한 줄과 다음 단계

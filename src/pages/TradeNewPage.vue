@@ -1156,7 +1156,6 @@ function submitPost() {
 
       <div class="option-editor" v-if="itemAffixes.length">
         <div class="option-editor-title">실제 옵션 값 입력</div>
-        <div class="option-editor-hint">실제로 뜬 수치를 입력하세요. 비워두면 범위로 표시돼요.</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
             <span class="option-text">직업 기술 레벨<template v-if="a.min === a.max"> +{{ a.min }}</template></span>
@@ -1185,7 +1184,6 @@ function submitPost() {
 
       <div class="option-editor" v-if="randomGroups.length">
         <div class="option-editor-title">제작 시 붙은 무작위 옵션</div>
-        <div class="option-editor-hint">실제로 붙은 옵션을 고르고 수치를 입력하세요.</div>
         <div class="option-row" v-for="(g, gi) in randomGroups" :key="gi">
           <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="`${gi + 1}그룹 옵션`">
             <option :value="undefined">{{ gi + 1 }}그룹 옵션 선택</option>
@@ -1213,7 +1211,6 @@ function submitPost() {
 
       <div class="option-editor" v-if="allowsCustomOptions">
         <div class="option-editor-title">기타 옵션 직접 추가</div>
-        <div class="option-editor-hint">목록에 없는 옵션은 직접 추가하세요.</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
           <span>{{ o }}</span>
           <button type="button" @click="removeCustomOption(i)">✕</button>

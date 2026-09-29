@@ -138,7 +138,7 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
         </div>
       </div>
       <div class="sk-hint" v-if="minIlvlForMax">
-        최대 {{ Math.max(...info.sock) }}소켓은 아이템 레벨 <b>{{ minIlvlForMax }} 이상</b>이면 나와요. (지옥 난이도 몬스터가 떨어뜨린 아이템은 보통 조건을 넘어요)
+        최대 {{ Math.max(...info.sock) }}소켓은 아이템 레벨 <b>{{ minIlvlForMax }} 이상</b>이면 나와요.
       </div>
 
       <div class="sk-methods">
@@ -160,7 +160,6 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
               <span>{{ pct(o.p) }}</span>
             </div>
           </div>
-          <div class="sk-note">최대 소켓이 나올 확률이 가장 높아요.</div>
         </div>
         <div class="sk-method" v-if="isWeapon">
           <div class="sk-method-title">매직 무기 + 보석 3개</div>
@@ -224,6 +223,5 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
 .sk-odd.top{color:var(--gold);}
 .sk-bar{height:7px; background:var(--panel-2); border-radius:999px; overflow:hidden;}
 .sk-bar div{height:100%; background:var(--gold-dim);}
-.sk-note{font-size:11.5px; color:var(--text-dim);}
 @media (max-width:700px){ .sk-brackets{grid-template-columns:1fr;} .sk-now{margin-left:0; text-align:left;} }
 </style>

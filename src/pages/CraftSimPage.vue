@@ -205,7 +205,6 @@ const tableRows = computed(() => {
       </div>
       <div class="cs-hint">
         아이템 레벨 = 캐릭터 레벨/2 + 재료 아이템 레벨/2. 71 이상이면 무작위 옵션이 항상 4개예요.
-        옵션은 레어 옵션 중에서 뽑히고(접두사·접미사 각각 최대 3개), 같은 종류는 겹치지 않아요.
       </div>
     </section>
 
@@ -217,10 +216,7 @@ const tableRows = computed(() => {
     <section class="cs-panel" v-if="tab === 'table'">
       <div class="cs-title">옵션별 가중치 표</div>
       <div class="cs-hint">
-        옵션 레벨 {{ pools?.alvl }}에서 붙을 수 있는 레어 옵션이에요.
-        <b>한 번 뽑을 때</b> = 가중치 ÷ 같은 쪽 가중치 합(접두사 {{ slotTotals.p }}, 접미사 {{ slotTotals.s }})이고,
-        <b>아이템에 붙을 확률</b>은 옵션 개수·접두/접미 50:50·같은 종류 제외를 반영해 {{ TABLE_RUNS.toLocaleString() }}번 굴린 값이에요.
-        제작법 고정 옵션은 항상 붙어서 빠져 있어요. 줄을 누르면 단계별 가중치가 보여요.
+        옵션 레벨 {{ pools?.alvl }} · 한 번 뽑을 때 = 가중치 ÷ 합(접두사 {{ slotTotals.p }}, 접미사 {{ slotTotals.s }})
       </div>
       <div class="cs-table-tools">
         <div class="cat-tabs">
@@ -273,12 +269,10 @@ const tableRows = computed(() => {
         <div class="cs-tooltip" v-if="rollTooltip">
           <ItemTooltipCanvas :tooltip="rollTooltip" />
         </div>
-        <div class="cs-hint" v-else>누를 때마다 새로 굴려요.</div>
       </section>
 
       <section class="cs-panel">
         <div class="cs-title">원하는 옵션이 나올 확률</div>
-        <div class="cs-hint">원하는 옵션을 최대 {{ MAX_TARGETS }}개 고르면, 전부 붙을 확률을 {{ RUNS.toLocaleString() }}번 굴려서 계산해요.</div>
         <div class="cs-target" v-for="(t, i) in targets" :key="i">
           <select v-model="t.key" class="cs-input cs-target-key" @change="t.min = ''" :aria-label="`목표 옵션 ${i + 1}`">
             <option value="">옵션 선택 ({{ families.length }}종)</option>

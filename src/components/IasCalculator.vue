@@ -111,7 +111,7 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
 
       <div class="ias-row2">
         <label class="ias-field grow">
-          <span class="ias-label">{{ w2 || dualNeed ? '주무기 (오른손)' : '무기' }} <small>괄호 = 무기 속도</small></span>
+          <span class="ias-label">{{ w2 || dualNeed ? '주무기 (오른손)' : '무기' }}</span>
           <select v-model="w1Code" class="ias-select" aria-label="무기">
             <option v-if="unarmedOk" value="">맨손</option>
             <optgroup v-for="g in w1Groups" :key="g.sub" :label="g.sub">
@@ -145,12 +145,12 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
       </div>
 
       <label class="ias-field">
-        <span class="ias-label">{{ w2 ? '무기 외 장비 공속' : '장비 공속 합계' }} <small>{{ w2 ? '장갑·목걸이·방어구 등' : '무기에 붙은 공속까지 모두 더한 값' }}</small></span>
+        <span class="ias-label">{{ w2 ? '무기 외 장비 공속' : '장비 공속 합계' }}</span>
         <span class="ias-num big"><input type="number" min="0" max="999" v-model="gias" aria-label="장비 공속" />%</span>
       </label>
 
       <div class="ias-field" v-if="buffList.length">
-        <div class="ias-label">스킬·오라 <small>레벨 (없으면 0)</small></div>
+        <div class="ias-label">스킬·오라 레벨</div>
         <div class="ias-buffs">
           <label v-for="b in buffList" :key="b.key" class="ias-buff">
             <span>{{ b.ko }}</span>
@@ -196,12 +196,6 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
             </button>
           </div>
         </div>
-
-        <ul class="ias-notes">
-          <li v-if="isSeq">여러 번 때리는 한 동작 전체의 프레임이에요.</li>
-          <li v-for="n in result.notes" :key="n">{{ n }}</li>
-          <li>줄을 누르면 그 공속으로 맞춰져요. 1초 = 25프레임.</li>
-        </ul>
       </template>
     </section>
   </div>
@@ -247,6 +241,5 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
 .ias-row:hover{background:var(--panel-2);}
 .ias-row.passed{color:var(--text-dim);}
 .ias-row.on{border-color:var(--gold-dim); background:rgba(200,163,77,0.1); color:var(--gold); font-weight:600;}
-.ias-notes{margin:0; padding-left:18px; font-size:11.5px; color:var(--text-dim); line-height:1.7;}
 @media (max-width:900px){ .ias{grid-template-columns:1fr;} }
 </style>

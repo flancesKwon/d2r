@@ -88,7 +88,6 @@ const filteredGuides = computed(() => {
         </div>
       </div>
       <div class="empty-state" v-if="!tierRows.length">아직 등록된 가이드가 없어요</div>
-      <div class="tier-note">티어는 가이드 작성 기준(파밍 속도·안정성·장비 부담)이고, 시즌·패치에 따라 달라질 수 있어요.</div>
     </div>
     <div class="guide-grid guide-grid-wide" v-else>
       <router-link class="guide-card" v-for="g in filteredGuides" :key="g.id" :to="`/guides/${g.id}`">
@@ -134,7 +133,6 @@ const filteredGuides = computed(() => {
 .tier-guide-text{display:flex; flex-direction:column; min-width:0;}
 .tier-guide-text b{font-size:13px; color:var(--text); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .tier-guide-text small{font-size:11px; color:var(--text-dim);}
-.tier-note{font-size:11.5px; color:var(--text-dim); text-align:center; margin-top:6px;}
 @media (max-width:900px){ .guide-grid-wide{grid-template-columns:1fr 1fr;} }
 @media (max-width:600px){ .guide-grid-wide{grid-template-columns:1fr;} }
 </style>

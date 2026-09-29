@@ -721,8 +721,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <img :src="itemIconUrl(p.item)" :alt="p.item.name_ko" draggable="false" />
           </button>
         </div>
-
-        <p class="sim-zone-note">장착한 장비의 스탯·저항·방어력·+스킬을 합산해요.</p>
       </section>
 
       <div class="sim-zone-divider"></div>
@@ -1000,7 +998,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-zone-meta.warn{color:var(--blood);}
 .sim-link-btn{font-size:11.5px; color:var(--text-muted); border:none; background:none; text-decoration:underline; cursor:pointer; padding:0;}
 .sim-link-btn:hover{color:var(--gold);}
-.sim-zone-note{margin-top:14px; font-size:11px; color:var(--text-dim); line-height:1.5;}
 
 @media (max-width:1150px){
   .sim-sheet{grid-template-columns:1fr;}
