@@ -110,7 +110,6 @@ function runeSlots(rw) {
       <div class="rw-panel-head">
         <div>
           <div class="rw-panel-title">내 룬 <span class="rw-count" v-if="totalRunes">{{ totalRunes }}개</span></div>
-          <div class="rw-hint">룬을 누르면 1개씩 담기고, − 로 뺄 수 있어요.</div>
         </div>
         <button type="button" class="rw-clear" v-if="totalRunes" @click="clearRunes">전부 비우기</button>
       </div>
@@ -163,7 +162,6 @@ function runeSlots(rw) {
 
       <section class="rw-section">
         <h2>큐브 업그레이드로 만들 수 있어요 <span>{{ upgradable.length }}</span></h2>
-        <div class="rw-hint">아래 룬을 큐브로 올려서 모자란 룬을 만들 수 있어요 (위 룬은 아래로 못 내려요).</div>
         <div class="rw-none" v-if="!upgradable.length">업그레이드로 채울 수 있는 룬워드가 없어요.</div>
         <div class="rw-list">
           <article class="rw-card upgrade" v-for="{ rw, e } in upgradable" :key="rw.item.id">
@@ -223,7 +221,6 @@ function runeSlots(rw) {
 .rw-panel-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
 .rw-panel-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:17px;}
 .rw-count{font-family:'Noto Sans KR', sans-serif; font-size:12px; color:var(--gold); margin-left:6px; font-weight:600;}
-.rw-hint{font-size:11.5px; color:var(--text-dim); margin-top:4px;}
 .rw-clear{font-size:12px; color:var(--text-dim); border:1px solid var(--border); padding:6px 12px; border-radius:999px; background:transparent; flex:none;}
 .rw-clear:hover{color:var(--text);}
 

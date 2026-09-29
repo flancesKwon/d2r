@@ -101,13 +101,7 @@ const perSec = (frames) => (25 / frames).toFixed(2)
         </template>
       </section>
     </div>
-    <div class="bp-foot">
-      줄을 누르면 그 수치로 맞춰져요. 표: Maxroll·Arreat Summit 기준, 악마술사는 네크로맨서와 같은 프레임이에요.
-    </div>
     </template>
-    <div class="bp-foot" v-if="tab === 'ias'">
-      무기 속도는 게임 데이터(weapons.txt), 동작 프레임은 D2R 3.3 기준(Warren1001 IAS Calculator 정리값)이에요.
-    </div>
   </div>
   </div>
 </template>
@@ -139,6 +133,5 @@ const perSec = (frames) => (25 / frames).toFixed(2)
 .bp-row:hover{background:var(--panel-2);}
 .bp-row.passed{color:var(--text-dim);}
 .bp-row.on{border-color:var(--gold-dim); background:rgba(200,163,77,0.1); color:var(--gold); font-weight:600;}
-.bp-foot{font-size:11.5px; color:var(--text-dim); text-align:center; line-height:1.6;}
 @media (max-width:900px){ .bp-grid{grid-template-columns:1fr;} }
 </style>
