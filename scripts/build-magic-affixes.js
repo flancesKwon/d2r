@@ -9,7 +9,7 @@
 // - 스킬이 들어가는 옵션(충전·타격 시 시전 등)은 스킬 한글 이름(src/data/skill_text.json)과
 //   요구 레벨(충전 스킬 레벨 계산용)을 같이 넣음
 //
-// 원본: https://github.com/blizzhackers/d2data (D2R 3.0 JSON) 의 json/magicprefix.json,
+// 원본: https://github.com/blizzhackers/d2data (D2R 3.3 JSON) 의 json/magicprefix.json,
 // magicsuffix.json, automagic.json, armor.json, weapons.json, misc.json, itemtypes.json, skills.json, cubemain.json 을 받은 폴더를 넘겨서 실행
 //   node scripts/build-magic-affixes.js <d2data json 폴더>
 import fs from 'fs'
