@@ -1,88 +1,105 @@
-import { reactive, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
+import { supabase, mustReturnRows } from './supabase.js'
+import { authState } from './profileStore.js'
 
-// 실제 로그인 계정이 없어서 상대방에게 진짜로 쪽지가 전달되진 않지만, UI/흐름을
-// 미리 볼 수 있게 예시 대화를 몇 개 넣어두고 이 브라우저에서 보낸 메시지는
-// 대화창에 쌓이게 함(로컬 저장)
-const STORAGE_KEY = 'd2r-messages'
+// 쪽지 - tb_dm_conversation / tb_dm_message. 두 사람 사이 대화방은 하나 (open_conversation RPC 가 만들거나 찾아 줌)
+// 대화 당사자만 보고 쓸 수 있음(RLS). 읽음 표시는 read_at
+const PERSON = (fk) => `tb_profile!${fk}(id, nickname, avatar_url)`
+const CONV_SELECT = `*, a:${PERSON('tb_dm_conversation_user_a_fkey')}, b:${PERSON('tb_dm_conversation_user_b_fkey')}`
 
-function today() {
-  return new Date().toISOString().slice(0, 10)
+export const messagesState = reactive({ conversations: [], loaded: false })
+
+function fmtTime(ts) {
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function mapMessage(m) {
+  return { id: m.id, from: m.sender_id === authState.user?.id ? 'me' : 'them', text: m.text, date: fmtTime(m.created_at), readAt: m.read_at, createdAt: m.created_at }
 }
 
-const seedConversations = [
-  {
-    id: 'm1',
-    withName: '룬장수',
-    messages: [
-      { from: 'them', text: '이스트 룬 5개 아직 판매중이신가요?', date: '2026-09-20' },
-      { from: 'me', text: '네 아직 있어요! 몇 개 필요하세요?', date: '2026-09-20' },
-      { from: 'them', text: '2개만 살게요, 배틀태그 알려주시면 바로 접속할게요', date: '2026-09-20' },
-    ],
-  },
-  {
-    id: 'm2',
-    withName: '보석상',
-    messages: [
-      { from: 'them', text: '최상급 다이아몬드 스택 통째로 구매 가능할까요?', date: '2026-09-21' },
-    ],
-  },
-  {
-    id: 'm3',
-    withName: '룬워드공방',
-    messages: [
-      { from: 'me', text: '무한 창 옵션 좋아보이는데 실제 옵션 값 알 수 있을까요?', date: '2026-09-19' },
-      { from: 'them', text: '판매글에 실제 옵션 다 적어놨어요, 확인해보세요!', date: '2026-09-19' },
-    ],
-  },
-]
-
-function loadConversations() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : seedConversations
-  } catch {
-    return seedConversations
+// 대화 목록 + 대화마다 마지막 메시지·안 읽은 수
+export async function loadConversations() {
+  const uid = authState.user?.id
+  if (!supabase || !uid) {
+    messagesState.conversations = []
+    messagesState.loaded = false
+    return
   }
-}
-
-export const messagesState = reactive({ conversations: loadConversations() })
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messagesState.conversations))
-  } catch {
-    // 프라이빗 창 등 localStorage를 못 쓰는 환경 - 이번 세션 안에서만 유지됨
-  }
+  const { data: convs, error } = await supabase.from('tb_dm_conversation').select(CONV_SELECT)
+  if (error) throw error
+  const ids = convs.map((c) => c.id)
+  const { data: msgs } = ids.length
+    ? await supabase.from('tb_dm_message').select('*').in('conversation_id', ids).order('created_at', { ascending: false }).limit(500)
+    : { data: [] }
+  const old = new Map(messagesState.conversations.map((c) => [c.id, c.messages]))
+  messagesState.conversations = convs.map((c) => {
+    const other = c.user_a === uid ? c.b : c.a
+    const mine = (msgs || []).filter((m) => m.conversation_id === c.id)
+    return {
+      id: c.id,
+      otherId: other?.id || null,
+      withName: other?.nickname || '알 수 없음',
+      avatar: other?.avatar_url || null,
+      last: mine[0] ? mapMessage(mine[0]) : null,
+      unread: mine.filter((m) => m.sender_id !== uid && !m.read_at).length,
+      messages: old.get(c.id) || [],
+    }
+  }).sort((x, y) => (y.last?.createdAt || '').localeCompare(x.last?.createdAt || ''))
+  messagesState.loaded = true
 }
 
 export function getConversation(id) {
-  return messagesState.conversations.find((c) => c.id === id)
+  return messagesState.conversations.find((c) => String(c.id) === String(id))
 }
 
-export function sendMessage(conversationId, text) {
-  const conv = getConversation(conversationId)
-  if (!conv || !text.trim()) return
-  conv.messages.push({ from: 'me', text: text.trim(), date: today() })
-  persist()
+export async function loadMessages(conv) {
+  if (!supabase || !conv) return
+  const { data, error } = await supabase.from('tb_dm_message').select('*').eq('conversation_id', conv.id).order('created_at', { ascending: true })
+  if (error) throw error
+  conv.messages = data.map(mapMessage)
+  if (data.length) conv.last = mapMessage(data[data.length - 1])
 }
 
-// 대화 목록에서 마지막 메시지를 미리보기로 보여주기 위함
-export function lastMessageOf(conv) {
-  return conv.messages[conv.messages.length - 1] || null
+// 상대가 보낸 안 읽은 쪽지를 읽음으로 (0건이어도 정상이라 결과 행 확인 안 함)
+export async function markConversationRead(conv) {
+  const uid = authState.user?.id
+  if (!supabase || !uid || !conv?.unread) return
+  await supabase.from('tb_dm_message').update({ read_at: new Date().toISOString() })
+    .eq('conversation_id', conv.id).neq('sender_id', uid).is('read_at', null)
+  conv.unread = 0
 }
 
-// 상대방이 마지막으로 보낸 메시지가 있으면 안 읽은 걸로 간주(데모용 - 실제
-// 읽음 처리는 대화를 열면 그 즉시 반영됨)
-const openedConversations = reactive({ ids: new Set() })
-export function isConversationRead(conv) {
-  if (openedConversations.ids.has(conv.id)) return true
-  const last = lastMessageOf(conv)
-  return !last || last.from === 'me'
-}
-export function markConversationOpened(id) {
-  openedConversations.ids.add(id)
+export async function sendMessage(conv, text) {
+  const uid = authState.user?.id
+  if (!uid) throw new Error('로그인이 필요해요')
+  const body = (text || '').trim()
+  if (!body) return
+  const rows = await mustReturnRows(
+    supabase.from('tb_dm_message').insert({ conversation_id: conv.id, sender_id: uid, text: body }).select('*'),
+    '쪽지를 보내지 못했어요'
+  )
+  const m = mapMessage(rows[0])
+  conv.messages.push(m)
+  conv.last = m
 }
 
-export const unreadMessageCount = computed(
-  () => messagesState.conversations.filter((c) => !isConversationRead(c)).length
-)
+// 판매자 등에게 쪽지 보내기 - 대화방 번호를 돌려줌
+export async function openConversationWith(otherUserId) {
+  if (!authState.user) throw new Error('로그인이 필요해요')
+  const { data, error } = await supabase.rpc('open_conversation', { p_other: otherUserId })
+  if (error) throw new Error(error.message || '대화방을 열지 못했어요')
+  return data
+}
+
+export const lastMessageOf = (conv) => conv.last
+export const isConversationRead = (conv) => !conv.unread
+export const unreadMessageCount = computed(() => messagesState.conversations.filter((c) => c.unread > 0).length)
+
+// 로그인하면 불러오고, 30초마다 새 쪽지 확인 (창이 보일 때만)
+let timer = 0
+watch(() => authState.user?.id, (uid) => {
+  clearInterval(timer)
+  loadConversations().catch(() => {})
+  if (uid) timer = setInterval(() => { if (!document.hidden) loadConversations().catch(() => {}) }, 30000)
+}, { immediate: true })

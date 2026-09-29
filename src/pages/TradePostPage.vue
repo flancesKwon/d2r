@@ -9,6 +9,7 @@ import { renderMarkdown } from '../markdown.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { authState, signIn } from '../profileStore.js'
+import { openConversationWith } from '../messagesStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 
@@ -94,6 +95,13 @@ function setStatus(status) {
   return run(async () => {
     const p = await updateTradeStatus(post.value.id, status)
     post.value.status = p.status
+  })
+}
+// 판매자에게 쪽지 - 대화방을 열고(없으면 만들고) 쪽지함으로
+function messageSeller() {
+  return run(async () => {
+    const convId = await openConversationWith(post.value.authorId)
+    router.push({ path: '/messages', query: { c: convId } })
   })
 }
 async function removePost() {
@@ -282,6 +290,7 @@ async function confirmBuy() {
             <span class="contact-value">{{ post.contact || '구매신청으로 문의' }}</span>
             <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ copied ? '복사됨' : '복사' }}</button>
           </div>
+          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지 보내기</button>
         </section>
 
         <section class="side-card owner-card" v-if="canManage">
@@ -703,4 +712,6 @@ async function confirmBuy() {
 .action-error{font-size:12.5px; color:#e0775f; margin-top:10px;}
 .request-login{font-size:13px; color:var(--text-muted); margin:6px 0 12px;}
 .seller-avatar img{width:100%; height:100%; object-fit:cover; border-radius:inherit;}
+.dm-btn{margin-top:12px; width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); font-size:13px;}
+.dm-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 </style>
