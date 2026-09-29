@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { communityState, CATEGORIES } from '../communityStore.js'
+import { CATEGORIES, fetchPosts } from '../communityStore.js'
 
 const route = useRoute()
 const activeCat = ref(CATEGORIES.includes(route.query.cat) ? route.query.cat : null)
@@ -9,31 +9,41 @@ const activeTag = ref(typeof route.query.tag === 'string' ? route.query.tag : nu
 const searchQuery = ref('')
 const sortBy = ref('latest')
 
-const filteredPosts = computed(() => {
-  let list = communityState.posts
-  if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
-  if (activeTag.value) list = list.filter((p) => p.tags.includes(activeTag.value))
-  const q = searchQuery.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.content.toLowerCase().includes(q) ||
-        p.tags.some((t) => t.toLowerCase().includes(q))
-    )
+// 목록은 DB에서 20개씩 (검색·정렬·태그도 DB에서)
+const posts = ref([])
+const total = ref(0)
+const page = ref(0)
+const loading = ref(false)
+const loadError = ref('')
+let seq = 0
+async function load(reset = true) {
+  const my = ++seq
+  loading.value = true
+  loadError.value = ''
+  if (reset) page.value = 0
+  try {
+    const res = await fetchPosts({ category: activeCat.value, tag: activeTag.value, q: searchQuery.value, sort: sortBy.value, page: page.value })
+    if (my !== seq) return
+    posts.value = reset ? res.posts : [...posts.value, ...res.posts]
+    total.value = res.total
+  } catch (e) {
+    if (my === seq) loadError.value = '게시글을 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.'
+  } finally {
+    if (my === seq) loading.value = false
   }
-  const sorted = [...list]
-  if (sortBy.value === 'likes') sorted.sort((a, b) => b.likes - a.likes)
-  else if (sortBy.value === 'views') sorted.sort((a, b) => b.views - a.views)
-  else if (sortBy.value === 'comments') sorted.sort((a, b) => b.comments.length - a.comments.length)
-  else sorted.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-  return sorted
-})
+}
+function loadMore() {
+  page.value++
+  load(false)
+}
+let searchTimer = 0
+watch(searchQuery, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => load(), 300) })
+watch([activeCat, activeTag, sortBy], () => load())
+onMounted(() => load())
 
 function setTagFilter(t) {
   activeTag.value = activeTag.value === t ? null : t
 }
-
 </script>
 
 <template>
@@ -65,7 +75,7 @@ function setTagFilter(t) {
           <option value="views">조회순</option>
           <option value="comments">댓글순</option>
         </select>
-        <span class="result-count">{{ filteredPosts.length }}개</span>
+        <span class="result-count">{{ total }}개</span>
         <router-link class="quality-toggle" :to="{ path: '/community/write', query: activeCat ? { cat: activeCat } : {} }">글쓰기</router-link>
       </div>
       <div class="active-tag-row" v-if="activeTag">
@@ -77,13 +87,12 @@ function setTagFilter(t) {
 
   <div class="grid-wrap community-list-wrap">
     <div class="community-list">
-      <router-link class="community-row" v-for="p in filteredPosts" :key="p.id" :to="`/community/${p.id}`">
+      <router-link class="community-row" v-for="p in posts" :key="p.id" :to="`/community/${p.id}`">
         <span class="community-cat">{{ p.category }}</span>
         <div class="community-body">
           <div class="community-title-row">
             <span class="community-title">{{ p.title }}</span>
             <span class="hot-badge" v-if="p.likes - p.dislikes >= 10">인기</span>
-            <span class="attach-count-badge" v-if="p.attachments.length">📎{{ p.attachments.length }}</span>
           </div>
           <div class="community-meta">
             {{ p.author }} · {{ p.date }} · 조회 {{ p.views }} · 추천 {{ p.likes - p.dislikes }}
@@ -97,9 +106,13 @@ function setTagFilter(t) {
             >#{{ t }}</span>
           </div>
         </div>
-        <span class="community-comment-count" v-if="p.comments.length">{{ p.comments.length }}</span>
+        <span class="community-comment-count" v-if="p.commentCount">{{ p.commentCount }}</span>
       </router-link>
-      <div class="empty-state" v-if="filteredPosts.length === 0">게시글이 없어요</div>
+      <div class="empty-state" v-if="loadError">{{ loadError }}</div>
+      <div class="empty-state" v-else-if="!loading && posts.length === 0">게시글이 없어요</div>
+      <button type="button" class="more-btn" v-if="posts.length < total" :disabled="loading" @click="loadMore">
+        {{ loading ? '불러오는 중…' : '더 보기' }}
+      </button>
     </div>
   </div>
   </div>
@@ -141,7 +154,8 @@ function setTagFilter(t) {
 .community-title-row{display:flex; align-items:center; gap:7px; margin-bottom:6px;}
 .community-title{font-size:15.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .hot-badge{font-size:10px; color:var(--blood); border:1px solid var(--blood); padding:1px 8px; flex:none; border-radius:999px;}
-.attach-count-badge{font-size:10.5px; color:var(--text-dim); flex:none;}
+.more-btn{align-self:center; padding:10px 28px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); font-size:13px;}
+.more-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 .community-meta{font-size:11.5px; color:var(--text-dim); margin-bottom:8px; line-height:1.6;}
 .community-tag-row{display:flex; flex-wrap:wrap; gap:6px;}
 .community-comment-count{font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; flex:none; margin-top:1px; border-radius:999px;}

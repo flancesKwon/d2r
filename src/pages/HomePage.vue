@@ -1,10 +1,10 @@
 <script setup>
 // 메인 - 목록(가이드·커뮤니티·패치노트·거래)은 데이터에서 최신순으로 뽑음 (예전엔 HTML에 직접 적혀 있어서 새 글이 안 보였음)
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, ref } from 'vue'
 import guidesData from '../data/guides.json'
 import patchNotes from '../data/patchNotes.json'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { communityState } from '../communityStore.js'
+import { fetchPosts } from '../communityStore.js'
 
 const CLASSES = [
   { key: 'amazon', name: '아마존', icon: '<path d="M7 4a12 12 0 000 16M7 4l10 8-10 8"/>' },
@@ -21,7 +21,9 @@ const CLASS_CSS = { sorc: 'c-sorc', necro: 'c-necro', paladin: 'c-paladin', barb
 
 const byDate = (a, b) => (b.date || '').localeCompare(a.date || '')
 const latestGuides = computed(() => [...guidesData].sort(byDate).slice(0, 4))
-const latestCommunity = computed(() => [...communityState.posts].sort(byDate).slice(0, 5))
+// 커뮤니티 최신 글 5개 (DB)
+const latestCommunity = ref([])
+fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})
 const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
 // 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
 const trade = shallowRef(null)
@@ -142,8 +144,9 @@ const itemCount = computed(() => trade.value?.itemsData.length)
         <ul>
           <li v-for="c in latestCommunity" :key="c.id">
             <router-link :to="`/community/${c.id}`"><span class="tag">{{ c.category }}</span>{{ c.title }}</router-link>
-            <span class="meta">{{ c.comments?.length || 0 }}</span>
+            <span class="meta">{{ c.commentCount || 0 }}</span>
           </li>
+          <li v-if="!latestCommunity.length" class="board-empty">아직 글이 없어요</li>
         </ul>
       </div>
       <div class="side-block board-box">
@@ -187,4 +190,5 @@ const itemCount = computed(() => trade.value?.itemsData.length)
 .home-trade-price{font-size:11px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 @media (max-width:900px){ .tool-grid{grid-template-columns:repeat(2, 1fr);} }
 @media (max-width:560px){ .tool-grid{grid-template-columns:1fr;} }
+.board-empty{color:var(--text-dim);}
 </style>

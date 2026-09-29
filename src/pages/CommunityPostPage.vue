@@ -1,25 +1,75 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { getPost, addComment, votePost, voteComment } from '../communityStore.js'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit } from '../communityStore.js'
+import { authState, signIn } from '../profileStore.js'
 import { renderMarkdown } from '../markdown.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const route = useRoute()
-const post = computed(() => getPost(route.params.id))
+const router = useRouter()
+const post = ref(null)
+const loading = ref(true)
+const actionError = ref('')
+
+async function load() {
+  loading.value = true
+  actionError.value = ''
+  try {
+    post.value = await fetchPost(route.params.id)
+    if (post.value && (await countView(post.value.id))) post.value.views++
+  } catch (e) {
+    post.value = null
+  } finally {
+    loading.value = false
+  }
+}
+watch(() => route.params.id, load, { immediate: true })
+// 로그인/로그아웃하면 내 추천 표시·버튼을 다시 맞춤
+watch(() => authState.user?.id, () => { if (post.value) load() })
+
 const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
 
-const commentDraft = ref('')
-const commentAuthor = ref('')
-
-function submitComment() {
-  if (!commentDraft.value.trim()) return
-  addComment(route.params.id, { author: commentAuthor.value, content: commentDraft.value })
-  commentDraft.value = ''
+async function run(fn) {
+  actionError.value = ''
+  if (!authState.user) return signIn()
+  try {
+    await fn()
+  } catch (e) {
+    actionError.value = e.message || '처리하지 못했어요'
+  }
 }
 
-function isImage(a) {
-  return a.type && a.type.startsWith('image/')
+const commentDraft = ref('')
+const posting = ref(false)
+async function submitComment() {
+  const text = commentDraft.value.trim()
+  if (!text || posting.value) return
+  posting.value = true
+  await run(async () => {
+    const c = await addComment(post.value.id, text)
+    post.value.comments.push(c)
+    post.value.commentCount++
+    commentDraft.value = ''
+  })
+  posting.value = false
+}
+const onVotePost = (dir) => run(() => votePost(post.value, dir))
+const onVoteComment = (c, dir) => run(() => voteComment(c, dir))
+async function onDeleteComment(c) {
+  if (!confirm('댓글을 삭제할까요?')) return
+  await run(async () => {
+    await deleteComment(c.id)
+    post.value.comments = post.value.comments.filter((x) => x.id !== c.id)
+    post.value.commentCount--
+  })
+}
+async function onDeletePost() {
+  if (!confirm('글을 삭제할까요? 되돌릴 수 없어요.')) return
+  await run(async () => {
+    await deletePost(post.value.id)
+    router.replace('/community')
+  })
 }
 </script>
 
@@ -36,48 +86,53 @@ function isImage(a) {
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
       </div>
 
-      <div class="attach-gallery" v-if="post.attachments.length">
-        <a v-for="(a, i) in post.attachments" :key="i" :href="a.url" target="_blank" rel="noopener noreferrer" class="attach-gallery-item">
-          <img v-if="isImage(a)" :src="a.url" :alt="a.name" />
-          <span v-else class="attach-gallery-file">📄 {{ a.name }}</span>
-        </a>
-      </div>
-
       <div class="community-post-content" v-html="contentHtml"></div>
 
       <div class="vote-row">
-        <button class="vote-btn up" :class="{ active: post.myVote === 'up' }" @click="votePost(post.id, 'up')">
+        <button class="vote-btn up" :class="{ active: post.myVote === 'up' }" @click="onVotePost('up')">
           👍 추천 {{ post.likes }}
         </button>
-        <button class="vote-btn down" :class="{ active: post.myVote === 'down' }" @click="votePost(post.id, 'down')">
+        <button class="vote-btn down" :class="{ active: post.myVote === 'down' }" @click="onVotePost('down')">
           👎 비추천 {{ post.dislikes }}
         </button>
       </div>
+      <div class="post-owner-row" v-if="canEdit(post)">
+        <router-link class="owner-btn" :to="{ path: '/community/write', query: { edit: post.id } }">수정</router-link>
+        <button type="button" class="owner-btn danger" @click="onDeletePost">삭제</button>
+      </div>
+      <div class="action-error" v-if="actionError">{{ actionError }}</div>
     </div>
 
     <div class="d-section-title">댓글 {{ post.comments.length }}개</div>
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
-        <div class="comment-top"><b>{{ c.author }}</b><span>{{ c.date }}</span></div>
+        <div class="comment-top">
+          <b>{{ c.author }}</b>
+          <span>{{ c.date }}<button type="button" class="comment-del" v-if="canEdit(c)" @click="onDeleteComment(c)">삭제</button></span>
+        </div>
         <div class="comment-body" v-html="renderMarkdown(c.content)"></div>
         <div class="comment-vote-row">
-          <button class="vote-btn mini up" :class="{ active: c.myVote === 'up' }" @click="voteComment(post.id, c.id, 'up')">👍 {{ c.likes }}</button>
-          <button class="vote-btn mini down" :class="{ active: c.myVote === 'down' }" @click="voteComment(post.id, c.id, 'down')">👎 {{ c.dislikes }}</button>
+          <button class="vote-btn mini up" :class="{ active: c.myVote === 'up' }" @click="onVoteComment(c, 'up')">👍 {{ c.likes }}</button>
+          <button class="vote-btn mini down" :class="{ active: c.myVote === 'down' }" @click="onVoteComment(c, 'down')">👎 {{ c.dislikes }}</button>
         </div>
       </div>
       <div class="empty-state" v-if="post.comments.length === 0">아직 댓글이 없어요</div>
     </div>
 
-    <div class="comment-form">
-      <input type="text" v-model="commentAuthor" placeholder="닉네임 (비우면 익명)" class="write-input comment-author-input" />
+    <div class="comment-form" v-if="authState.user">
       <MarkdownEditor v-model="commentDraft" placeholder="댓글을 입력하세요" min-height="110px" />
-      <button class="btn-primary write-submit" @click="submitComment">댓글 등록</button>
+      <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">댓글 등록</button>
+    </div>
+    <div class="comment-login" v-else>
+      댓글은 로그인하면 쓸 수 있어요.
+      <button type="button" class="btn-primary write-submit" @click="signIn">디스코드로 로그인</button>
     </div>
   </div>
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
-      <div class="empty-state">게시글을 찾을 수 없어요. <router-link to="/community">커뮤니티로</router-link></div>
+      <div class="empty-state" v-if="loading">불러오는 중…</div>
+      <div class="empty-state" v-else>게시글을 찾을 수 없어요. <router-link to="/community">커뮤니티로</router-link></div>
     </div>
   </div>
 </template>
@@ -96,11 +151,6 @@ function isImage(a) {
   padding:4px 12px; border-radius:999px;
 }
 .tag-chip:hover{border-color:var(--gold-dim); color:var(--gold);}
-
-.attach-gallery{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;}
-.attach-gallery-item{display:block; border:1px solid var(--border-soft); background:var(--panel-2); overflow:hidden; border-radius:12px;}
-.attach-gallery-item img{width:140px; height:140px; object-fit:cover; display:block;}
-.attach-gallery-file{display:flex; align-items:center; padding:10px 14px; font-size:12.5px; color:var(--text-muted);}
 
 .community-post-content{
   font-size:14.5px; line-height:1.9; color:var(--text);
@@ -137,4 +187,12 @@ function isImage(a) {
   padding:11px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 .write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
+.post-owner-row{display:flex; gap:8px; margin-top:18px;}
+.owner-btn{font-size:12px; color:var(--text-dim); border:1px solid var(--border-soft); padding:5px 12px; border-radius:999px;}
+.owner-btn:hover{color:var(--text); border-color:var(--border);}
+.owner-btn.danger:hover{color:#e0775f; border-color:#e0775f;}
+.comment-del{font-size:11px; color:var(--text-dim); margin-left:8px;}
+.comment-del:hover{color:#e0775f;}
+.comment-login{display:flex; align-items:center; gap:12px; font-size:13px; color:var(--text-muted);}
+.action-error{font-size:12.5px; color:#e0775f; margin-top:8px;}
 </style>
