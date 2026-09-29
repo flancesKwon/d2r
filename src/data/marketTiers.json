@@ -1,8 +1,8 @@
 [
-  { "tier": "최상급", "note": "룬", "items": ["Ber Rune", "Jah Rune", "Sur Rune", "Lo Rune"] },
-  { "tier": "상급", "note": "룬", "items": ["Ohm Rune", "Zod Rune", "Cham Rune", "Vex Rune"] },
-  { "tier": "중급", "note": "룬", "items": ["Gul Rune", "Ist Rune", "Mal Rune", "Um Rune", "Pul Rune", "Lem Rune"] },
-  { "tier": "하급", "note": "룬", "items": ["Ko Rune", "Lum Rune", "Fal Rune"] },
+  { "tier": "최상급", "items": ["Ber Rune", "Jah Rune", "Sur Rune", "Lo Rune"] },
+  { "tier": "상급", "items": ["Ohm Rune", "Zod Rune", "Cham Rune", "Vex Rune"] },
+  { "tier": "중급", "items": ["Gul Rune", "Ist Rune", "Mal Rune", "Um Rune", "Pul Rune", "Lem Rune"] },
+  { "tier": "하급", "items": ["Ko Rune", "Lum Rune", "Fal Rune"] },
   {
     "tier": "자주 거래되는 유니크", "note": "",
     "items": ["Griffon's Eye", "Death's Web", "Annihilus", "Hellfire Torch", "Tyrael's Might", "Mara's Kaleidoscope", "Harlequin Crest", "The Stone of Jordan", "Arachnid Mesh", "Crown of Ages", "Andariel's Visage", "War Traveler", "Skin of the Vipermagi", "Herald of Zakarum", "Nightwing's Veil", "Magefist", "Bul-Kathos' Wedding Band", "Gheed's Fortune", "Chance Guards", "Wizardspike", "Raven Frost", "Verdungo's Hearty Cord", "Thundergod's Vigor", "Titan's Revenge", "Stormshield", "Highlord's Wrath"]
