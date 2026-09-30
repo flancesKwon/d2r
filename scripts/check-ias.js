@@ -49,6 +49,9 @@ const KNOWN = [
   [{ cls: 'dru', form: 'wolf', skill: 'fury', w1: null, buffs: { wolf: 1 } }, '0:7/7/6/6/11 5:6/6/5/5/10 19:6/6/5/5/9 30:5/6/5/5/9 39:5/5/5/5/9 42:5/5/5/5/8 48:5/5/4/4/8 86:5/5/4/4/7 95:4/5/4/4/7 142:4/4/4/4/7 194:4/4/4/4/6 304:4/4/3/3/6'],
   [{ cls: 'bar', form: 'human', skill: 'ww', w1: byEn('Colossus Blade'), w2: byEn('Phase Blade') }, '0:6 13:5 75:4'],
   [{ cls: 'bar', form: 'human', skill: 'frenzy', w1: byEn('Phase Blade'), w2: byEn('Phase Blade') }, '0:17 8:16 16:15 27:14 42:13 65:12 102:11 174:10'],
+  // 용병 (연속 동작 -30 없음, 장비 EIAS +78 까지)
+  [{ cls: 'm2', form: 'human', skill: 'mjab', w1: byEn('Thresher') }, '0:13 8:12 22:11 42:10 75:9 142:8'],
+  [{ cls: 'm5', form: 'human', skill: 'mbash', w1: byEn('Colossus Blade') }, '0:16 6:15 15:14 24:13 39:12 58:11 89:10 147:9'],
 ]
 for (const [o, want] of KNOWN) expect(rowsText({ buffs: {}, ...o }) === want, `${o.cls} ${o.skill}: ${rowsText({ buffs: {}, ...o })} != ${want}`)
 

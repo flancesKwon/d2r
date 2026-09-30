@@ -38,7 +38,7 @@ const MENUS = [
     links: [
       { label: '룬워드 찾기', to: '/runewords', desc: '가진 룬으로 만들 수 있는 룬워드' },
       { label: '스킬·스탯 시뮬레이터', to: '/simulator', desc: '스킬 트리·스탯·장비 계획' },
-      { label: '공격 속도 계산기', to: '/breakpoints?tab=ias', desc: '직업·무기·스킬별 공속 프레임' },
+      { label: '공격 속도 계산기', to: '/breakpoints?tab=ias', desc: '직업·용병·무기·스킬별 공속 프레임' },
       { label: '브레이크포인트 계산기', to: '/breakpoints', desc: '시전·타격 회복·막기 속도 단계' },
       { label: '소켓 계산기', to: '/sockets', desc: '베이스별 최대 소켓 수' },
       { label: '크래프트 시뮬레이터', to: '/craft-sim', desc: '크래프트 결과 확률' },
