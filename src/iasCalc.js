@@ -9,14 +9,14 @@
 // f: 동작 길이, af: 타격 프레임, alt: 두 번째 공격 동작 길이(무작위로 둘 중 하나)
 const T = (f, af, alt) => ({ f, af, alt })
 const ANIM = {
-  hth: { ama: T(13, 8), ass: T(11, 6, 12), bar: T(12, 6), dru: T(16, 8), nec: T(15, 8), pal: T(14, 7), sor: T(16, 9), war: T(16, 9) },
+  hth: { ama: T(13, 8), ass: T(11, 6, 12), bar: T(12, 6), dru: T(16, 8), nec: T(15, 8), pal: T(14, 7), sor: T(16, 9), war: T(16, 9), m1: T(15), m2: T(16), m5: T(16), m5f: T(16) },
   ht1: { ass: T(11, 6, 12) },
-  '1hs': { ama: T(16, 10), ass: T(15, 7), bar: T(16, 7), dru: T(19, 9), nec: T(19, 9), pal: T(15, 7), sor: T(20, 12), war: T(16, 9) },
-  '1ht': { ama: T(15, 9), ass: T(15, 7), bar: T(16, 7), dru: T(19, 8), nec: T(19, 9), pal: T(17, 8), sor: T(19, 11), war: T(16, 8) },
-  '2hs': { ama: T(20, 12), ass: T(23, 11), bar: T(18, 8), dru: T(21, 10), nec: T(23, 11), pal: T(18, 8, 19), sor: T(24, 14), war: T(19, 11) },
-  '2ht': { ama: T(18, 11), ass: T(23, 10), bar: T(19, 9), dru: T(23, 9), nec: T(24, 10), pal: T(20, 8), sor: T(23, 13), war: T(21, 11, 23) },
-  stf: { ama: T(20, 12), ass: T(19, 9), bar: T(19, 9), dru: T(17, 9), nec: T(20, 11), pal: T(18, 9), sor: T(18, 11), war: T(17, 10) },
-  bow: { ama: T(14, 6), ass: T(16, 7), bar: T(15, 7), dru: T(16, 8), nec: T(18, 9), pal: T(16, 8), sor: T(17, 9), war: T(17, 11) },
+  '1hs': { ama: T(16, 10), ass: T(15, 7), bar: T(16, 7), dru: T(19, 9), nec: T(19, 9), pal: T(15, 7), sor: T(20, 12), war: T(16, 9), m5: T(16), m5f: T(16) },
+  '1ht': { ama: T(15, 9), ass: T(15, 7), bar: T(16, 7), dru: T(19, 8), nec: T(19, 9), pal: T(17, 8), sor: T(19, 11), war: T(16, 8), m2: T(16) },
+  '2hs': { ama: T(20, 12), ass: T(23, 11), bar: T(18, 8), dru: T(21, 10), nec: T(23, 11), pal: T(18, 8, 19), sor: T(24, 14), war: T(19, 11), m5: T(16) },
+  '2ht': { ama: T(18, 11), ass: T(23, 10), bar: T(19, 9), dru: T(23, 9), nec: T(24, 10), pal: T(20, 8), sor: T(23, 13), war: T(21, 11, 23), m2: T(16) },
+  stf: { ama: T(20, 12), ass: T(19, 9), bar: T(19, 9), dru: T(17, 9), nec: T(20, 11), pal: T(18, 9), sor: T(18, 11), war: T(17, 10), m2: T(16) },
+  bow: { ama: T(14, 6), ass: T(16, 7), bar: T(15, 7), dru: T(16, 8), nec: T(18, 9), pal: T(16, 8), sor: T(17, 9), war: T(17, 11), m1: T(15) },
   xbw: { ama: T(20, 9), ass: T(21, 10), bar: T(20, 10), dru: T(20, 10), nec: T(20, 11), pal: T(20, 10), sor: T(20, 11), war: T(18, 10) },
   thr: { ama: T(16), ass: T(16), bar: T(16), dru: T(18), nec: T(20), pal: T(16), sor: T(20), war: T(20, 10) },
 }
@@ -24,7 +24,11 @@ const ANIM = {
 export const IAS_CLASSES = [
   { key: 'ama', name: '아마존' }, { key: 'ass', name: '어쌔신' }, { key: 'bar', name: '바바리안' }, { key: 'dru', name: '드루이드' },
   { key: 'nec', name: '네크로맨서' }, { key: 'pal', name: '팔라딘' }, { key: 'sor', name: '소서리스' }, { key: 'war', name: '악마술사' },
+  // 용병 (3막 용병은 근접 공격 안 함)
+  { key: 'm1', name: '1막 로그', merc: true }, { key: 'm2', name: '2막 사막 용병', merc: true },
+  { key: 'm5', name: '5막 바바리안 (배쉬)', merc: true }, { key: 'm5f', name: '5막 바바리안 (프렌지)', merc: true },
 ]
+export const isMerc = (cls) => cls[0] === 'm'
 export const IAS_FORMS = [{ key: 'human', name: '사람' }, { key: 'wolf', name: '워울프' }, { key: 'bear', name: '워베어' }]
 
 // kind: std(일반 공격과 같은 동작) seq(연속 동작) roll(되감기 동작) 등 / need: 무기 조건
@@ -64,6 +68,11 @@ export const IAS_SKILLS = [
   // 악마술사
   S('cleave', '가르기', 'Cleave', { cls: ['war'], need: 'melee', seq: true }),
   S('mirrored', '거울상 칼날', 'Mirrored Blades', { cls: ['war'], seq: true }),
+  // 용병
+  S('mjab', '잽', 'Jab', { cls: ['m2'], seq: true }),
+  S('mbash', '배쉬 · 스턴', 'Bash / Stun', { cls: ['m5'], same: 'std' }),
+  S('mfrenzy', '프렌지', 'Frenzy', { cls: ['m5f'], seq: true, dual: 'can' }),
+  S('taunt', '도발', 'Taunt', { cls: ['m5f'], same: 'std', dual: 'can' }),
 ]
 const SKILL = Object.fromEntries(IAS_SKILLS.map((s) => [s.key, s]))
 
@@ -71,8 +80,8 @@ const SKILL = Object.fromEntries(IAS_SKILLS.map((s) => [s.key, s]))
 const dim = (a, b, lvl) => (lvl > 0 ? a + Math.trunc(((b - a) * Math.trunc((110 * lvl) / (lvl + 6))) / 100) : 0)
 export const BUFFS = {
   fana: { ko: '파나티시즘 (팔라딘 오라)', calc: (l) => dim(10, 40, l) },
-  bos: { ko: '버스트 오브 스피드', calc: (l) => dim(15, 60, l) },
-  frenzy: { ko: '프렌지 (공속 버프)', calc: (l) => dim(0, 50, l), cls: ['bar'] },
+  bos: { ko: '버스트 오브 스피드', calc: (l) => dim(15, 60, l), noMerc: true },
+  frenzy: { ko: '프렌지 (공속 버프)', calc: (l) => dim(0, 50, l), cls: ['bar', 'm5f'] },
   wolf: { ko: '워울프 스킬 레벨', calc: (l) => dim(10, 80, l), forms: ['wolf'] },
   maul: { ko: '마울 스킬 레벨', calc: (l) => (l > 0 ? 3 * (Math.floor(l / 2) + 3) : 0), forms: ['bear'], skills: ['maul'] },
   purge: { ko: '주술: 처단', calc: (l) => (l > 0 ? Math.min(30, 10 + (l - 1)) : 0), cls: ['war'] },
@@ -81,7 +90,7 @@ export const BUFFS = {
 }
 export function buffsFor(cls, form, skillKey) {
   return Object.entries(BUFFS)
-    .filter(([, b]) => (!b.cls || b.cls.includes(cls)) && (!b.forms || b.forms.includes(form)) && (!b.skills || b.skills.includes(skillKey)))
+    .filter(([, b]) => (!b.cls || b.cls.includes(cls)) && !(b.noMerc && isMerc(cls)) && (!b.forms || b.forms.includes(form)) && (!b.skills || b.skills.includes(skillKey)))
     .map(([key, b]) => ({ key, ...b }))
 }
 
@@ -96,7 +105,7 @@ export function skillsFor(cls, form) {
   return IAS_SKILLS.filter((s) => {
     const forms = s.forms || ['human']
     if (!forms.includes(form)) return false
-    if (!s.cls) return form === 'human' || s.key === 'std'
+    if (!s.cls) return s.key === 'std' || (form === 'human' && !isMerc(cls))
     return s.cls.includes(cls)
   })
 }
@@ -105,6 +114,11 @@ export function skillsFor(cls, form) {
 export function weaponOk(cls, form, skillKey, w) {
   const s = SKILL[skillKey]
   if (w?.cls && w.cls !== cls) return false
+  if (isMerc(cls) && w) {
+    if (cls === 'm1') return w.wc === 'bow'
+    if (cls === 'm2') return w.sub === '폴암' || w.sub === '창'
+    return w.sub === '검' && (cls === 'm5' || !w.twoHanded)
+  }
   if (form !== 'human') return !isRanged(w)
   switch (s.need) {
     case 'throw': return !!w?.throw
@@ -120,11 +134,13 @@ export function canDual(cls, form, skillKey, w1) {
   if (form !== 'human' || !s.dual || !w1 || isTwoHanded(cls, w1)) return false
   if (cls === 'ass') return isClaw(w1)
   if (cls === 'bar') return !isRanged(w1) && !isClaw(w1)
+  if (cls === 'm5f') return true
   return false
 }
 export function offhandOk(cls, skillKey, w1, w2) {
   if (!w2 || isTwoHanded(cls, w2) || isRanged(w2) || (w2.cls && w2.cls !== cls)) return false
   if (cls === 'ass') return isClaw(w2)
+  if (cls === 'm5f') return w2.sub === '검'
   if (skillKey === 'dthrow') return !!w2.throw
   return !isClaw(w2)
 }
@@ -140,7 +156,8 @@ function sequenceLength(s, wc, dual) {
   switch (s.key) {
     case 'jab': return wc === '2ht' ? 21 : 18
     case 'impale': return wc === '2ht' ? 24 : 21
-    case 'frenzy': case 'ds': return 17
+    case 'mjab': return 14
+    case 'frenzy': case 'ds': case 'mfrenzy': return 17
     case 'dthrow': return 12
     case 'fof': case 'dclaw': return dual ? 16 : 12
     case 'cleave': return { '1hs': 16, '1ht': 16, '2hs': 18, '2ht': 20, stf: 22 }[wc]
@@ -191,14 +208,14 @@ function computeTable(o, hand) {
   for (const b of buffsFor(cls, form, s.key)) sias += b.calc(Number(o.buffs?.[b.key]) || 0)
   if (o.chill) sias -= 50
   if (o.decrep) sias -= 50
-  if (s.seq) sias -= 30
+  if (s.seq && !isMerc(cls)) sias -= 30 // 연속 동작 -30 은 캐릭터만
   sias += s.sias || 0
 
   const cap = form === 'human' ? 75 : 150
   const clamp = (e) => Math.max(-85, Math.min(cap, e))
   const wsm = (x) => x?.wsm || 0
-  // 쌍수 연속 동작(프렌지·더블 스윙·더블 스로우·드래곤 클러)은 두 무기를 평균
-  const avgHands = s.dual === 'need' && s.seq && dual
+  // 쌍수 연속 동작(프렌지·더블 스윙·더블 스로우·드래곤 클러)은 두 무기를 평균 - 프렌지 용병은 쌍수면 모든 공격
+  const avgHands = dual && ((s.dual === 'need' && s.seq) || cls === 'm5f')
   const eiasAt = (g) => avgHands
     ? Math.trunc(sias - (wsm(o.w1) + wsm(o.w2)) / 2 + (eiasFromIas(g + (o.wias1 || 0)) + eiasFromIas(g + (o.wias2 || 0))) / 2)
     : sias - wsm(w) + eiasFromIas(g + ((hand === 2 ? o.wias2 : o.wias1) || 0))
@@ -233,7 +250,7 @@ function computeTable(o, hand) {
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-// 장비 공속으로 올릴 수 있는 EIAS 는 현실적으로 +88 (양손 무기는 +83) 까지만 표에 보여줌
+// 장비 공속으로 올릴 수 있는 EIAS 는 현실적으로 +88 (양손 무기는 +83, 용병은 +78) 까지만 표에 보여줌
 function tabulate(framesAt, pick, maxGain) {
   const rows = []
   const e0 = framesAt.eias(0)
@@ -263,7 +280,7 @@ export function framesAvg(f) {
 export function iasTables(o) {
   const s = SKILL[o.skill]
   const tables = []
-  const maxGain = !o.w1 || !isTwoHanded(o.cls, o.w1) || o.cls === 'bar' ? 88 : 83
+  const maxGain = isMerc(o.cls) ? 78 : !o.w1 || !isTwoHanded(o.cls, o.w1) || o.cls === 'bar' ? 88 : 83
   const t1 = computeTable(o, 1)
   if (s.key === 'strafe' || s.key === 'fend') {
     const cross = o.w1?.wc === 'xbw'

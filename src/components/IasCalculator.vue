@@ -21,6 +21,8 @@ const buffs = ref({})
 const chill = ref(false)
 const decrep = ref(false)
 
+const charClasses = IAS_CLASSES.filter((c) => !c.merc)
+const mercClasses = IAS_CLASSES.filter((c) => c.merc)
 const byCode = new Map(weapons.map((w) => [w.code, w]))
 const w1 = computed(() => byCode.get(w1Code.value) || null)
 const w2 = computed(() => (dualOk.value && byCode.get(w2Code.value)) || null)
@@ -93,7 +95,13 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
       <div class="ias-field">
         <div class="ias-label">직업</div>
         <div class="ias-chips">
-          <button v-for="c in IAS_CLASSES" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ c.name }}</button>
+          <button v-for="c in charClasses" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ c.name }}</button>
+        </div>
+      </div>
+      <div class="ias-field">
+        <div class="ias-label">용병</div>
+        <div class="ias-chips">
+          <button v-for="c in mercClasses" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ c.name }}</button>
         </div>
       </div>
       <div class="ias-field" v-if="forms.length > 1">
