@@ -3,7 +3,7 @@
 // - 추천/비추천 수는 직접 안 올림: 표(행)를 넣고 빼면 DB 트리거가 like_count 를 맞춤
 // - 조회수는 increment_post_view RPC 로만 (views 직접 수정은 RLS가 막음)
 import { supabase, mustReturnRows } from './supabase.js'
-import { authState } from './profileStore.js'
+import { authState, isStaff } from './profileStore.js'
 
 export const CATEGORIES = ['질문', '거래', '잡담', '공략']
 export const PAGE_SIZE = 20
@@ -202,3 +202,5 @@ export async function voteComment(comment, dir) {
 
 // 권한 확인 (화면에서 버튼 보일지만 - 실제 차단은 RLS)
 export const canEdit = (row) => !!authState.user && (row.authorId === authState.user.id || authState.profile?.role === 'admin')
+// 삭제는 운영진(moderator)도 가능 (DB 정책 d2r_staff_delete)
+export const canDelete = (row) => !!authState.user && (row.authorId === authState.user.id || isStaff())

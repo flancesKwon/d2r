@@ -15,6 +15,8 @@ if (!supabase) console.warn('Supabase 설정(VITE_SUPABASE_URL / VITE_SUPABASE_A
 // RLS에 걸린 UPDATE/DELETE는 에러 없이 0건으로 조용히 끝남 -> 쓰기는 항상 .select() 로 돌아온 행을 확인
 export async function mustReturnRows(query, message = '권한이 없어요') {
   const { data, error } = await query
+  // RLS 에 걸린 INSERT 는 영어 에러로 옴 (예: 이용 정지 중) -> 화면에 보여줄 말로
+  if (error?.code === '42501' && /row-level security/i.test(error.message)) throw new Error(message)
   if (error) throw error
   if (!data?.length) throw new Error(message)
   return data
