@@ -14,6 +14,8 @@ import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildR
 import skillIconManifest from '../data/skillIconManifest.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery } from '../itemSearch.js'
+import { buildsState, saveBuild, deleteBuild } from '../buildStore.js'
+import { authState, signIn } from '../profileStore.js'
 
 // 캐릭터 인형(paperdoll) 배치 - 실제 인게임 장비창의 정확한 5열 배치를 그대로 재현
 // (무기·방패는 세로로 긴 슬롯, 목걸이는 갑옷 옆, 반지는 벨트 양옆)
@@ -362,6 +364,55 @@ async function applyShareState(data) {
   if (Array.isArray(data.ch)) data.ch.forEach((id) => addCharm(id))
 }
 
+// ---- 내 빌드 (계정에 저장) ----
+const showBuilds = ref(false)
+const buildName = ref('')
+const currentBuildId = ref(null) // 불러온 빌드면 덮어쓰기 가능
+const buildMsg = ref('')
+const buildBusy = ref(false)
+function flashBuild(msg) {
+  buildMsg.value = msg
+  setTimeout(() => { if (buildMsg.value === msg) buildMsg.value = '' }, 2500)
+}
+function openBuilds() {
+  if (!authState.user) return signIn()
+  showBuilds.value = !showBuilds.value
+  if (!buildName.value) buildName.value = `${classStats[selectedClass.value].name} ${level.value}레벨`
+}
+async function saveCurrentBuild(overwrite = false) {
+  buildBusy.value = true
+  try {
+    const b = await saveBuild({
+      id: overwrite ? currentBuildId.value : null,
+      name: buildName.value,
+      classKey: selectedClass.value,
+      level: level.value,
+      code: encodeShareCode(buildSharePayload()),
+    })
+    currentBuildId.value = b.id
+    flashBuild(overwrite ? '덮어썼어요' : '저장했어요')
+  } catch (e) {
+    flashBuild(e.message || '저장하지 못했어요')
+  } finally {
+    buildBusy.value = false
+  }
+}
+async function loadSavedBuild(b) {
+  await applyShareState(decodeShareCode(b.code))
+  currentBuildId.value = b.id
+  buildName.value = b.name
+  flashBuild(`"${b.name}" 불러왔어요`)
+}
+async function removeSavedBuild(b) {
+  if (!confirm(`"${b.name}" 빌드를 지울까요?`)) return
+  try {
+    await deleteBuild(b)
+    if (currentBuildId.value === b.id) currentBuildId.value = null
+  } catch (e) {
+    flashBuild(e.message || '지우지 못했어요')
+  }
+}
+
 async function shareLink() {
   const code = encodeShareCode(buildSharePayload())
   router.replace({ path: '/simulator', query: { b: code } }).catch(() => {})
@@ -654,6 +705,28 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       </label>
       <button class="sim-reset-btn" @click="resetAll">빌드 초기화</button>
       <button class="sim-reset-btn sim-share-btn" @click="shareLink">빌드 공유 링크 만들기</button>
+      <button class="sim-reset-btn sim-share-btn" @click="openBuilds">내 빌드{{ authState.user && buildsState.list.length ? ` (${buildsState.list.length})` : '' }}</button>
+    </div>
+
+    <div class="sim-builds" v-if="showBuilds && authState.user">
+      <div class="sim-builds-error" v-if="buildsState.error">{{ buildsState.error }}</div>
+      <template v-else>
+        <div class="sim-builds-save">
+          <input v-model="buildName" class="sim-share-input" maxlength="60" placeholder="빌드 이름" aria-label="빌드 이름" @keydown.enter.prevent="saveCurrentBuild(false)" />
+          <button class="sim-reset-btn sim-share-btn" :disabled="buildBusy" @click="saveCurrentBuild(false)">새로 저장</button>
+          <button class="sim-reset-btn" v-if="currentBuildId" :disabled="buildBusy" @click="saveCurrentBuild(true)">덮어쓰기</button>
+          <span class="sim-share-status" v-if="buildMsg">{{ buildMsg }}</span>
+        </div>
+        <div class="sim-builds-list">
+          <div class="sim-build-row" v-for="b in buildsState.list" :key="b.id" :class="{ current: b.id === currentBuildId }">
+            <span class="sim-build-name">{{ b.name }}</span>
+            <span class="sim-build-meta">{{ classStats[b.classKey]?.name || b.classKey }} · Lv {{ b.level }} · {{ b.date }}</span>
+            <button class="sim-build-btn" @click="loadSavedBuild(b)">불러오기</button>
+            <button class="sim-build-btn danger" @click="removeSavedBuild(b)">삭제</button>
+          </div>
+          <div class="sim-builds-empty" v-if="!buildsState.list.length">아직 저장한 빌드가 없어요. 위에서 이름을 정하고 저장해 보세요.</div>
+        </div>
+      </template>
     </div>
 
     <div class="sim-share-box" v-if="shareUrl">
@@ -961,6 +1034,20 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 .sim-share-btn:hover{background:var(--panel);}
 
 .sim-share-box{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:-8px 0 24px;}
+.sim-builds{border:1px solid var(--border-soft); background:var(--panel); border-radius:12px; padding:14px; margin:-8px 0 24px; display:flex; flex-direction:column; gap:12px;}
+.sim-builds-save{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
+.sim-builds-save .sim-share-input{max-width:280px;}
+.sim-builds-list{display:flex; flex-direction:column; gap:4px; max-height:320px; overflow-y:auto;}
+.sim-build-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; border:1px solid transparent;}
+.sim-build-row:hover{background:var(--panel-2);}
+.sim-build-row.current{border-color:var(--gold-dim);}
+.sim-build-name{font-size:13px; color:var(--text); font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.sim-build-meta{font-size:11.5px; color:var(--text-dim); margin-right:auto; white-space:nowrap;}
+.sim-build-btn{font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:4px 10px; border-radius:6px; flex:none;}
+.sim-build-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
+.sim-build-btn.danger:hover{color:#e0775f; border-color:#e0775f;}
+.sim-builds-empty, .sim-builds-error{font-size:12.5px; color:var(--text-dim); padding:6px 4px;}
+@media (max-width:560px){ .sim-build-row{flex-wrap:wrap;} .sim-build-meta{width:100%; order:3;} }
 .sim-share-input{
   flex:1; min-width:220px; background:var(--panel); border:1px solid var(--border); border-radius:4px; color:var(--text);
   padding:9px 12px; font-size:12.5px; font-family:inherit;

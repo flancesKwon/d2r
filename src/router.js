@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage.vue'
 const ItemsPage = () => import('./pages/ItemsPage.vue')
 const GuidesPage = () => import('./pages/GuidesPage.vue')
 const GuideDetailPage = () => import('./pages/GuideDetailPage.vue')
+const GuideEditPage = () => import('./pages/GuideEditPage.vue')
 const PatchNotesPage = () => import('./pages/PatchNotesPage.vue')
 const CommunityPage = () => import('./pages/CommunityPage.vue')
 const CommunityPostPage = () => import('./pages/CommunityPostPage.vue')
@@ -32,7 +33,10 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomePage },
     { path: '/items', name: 'items', component: ItemsPage, meta: { title: '아이템 사전' } },
     { path: '/guides', name: 'guides', component: GuidesPage, meta: { title: '빌드 가이드' } },
+    // /guides/:id 보다 먼저 - 안 그러면 'new'가 가이드 주소로 잡힘
+    { path: '/guides/new', name: 'guide-new', component: GuideEditPage, meta: { title: '가이드 쓰기' } },
     { path: '/guides/:id', name: 'guide-detail', component: GuideDetailPage, meta: { title: '빌드 가이드' } },
+    { path: '/guides/:id/edit', name: 'guide-edit', component: GuideEditPage, meta: { title: '가이드 고치기' } },
     { path: '/patch', name: 'patch', component: PatchNotesPage, meta: { title: '패치노트' } },
     { path: '/community', name: 'community', component: CommunityPage, meta: { title: '커뮤니티' } },
     // /community/:id 보다 먼저 - 안 그러면 'write'가 글 id로 잡힘

@@ -1,7 +1,7 @@
 <script setup>
 // 메인 - 목록(가이드·커뮤니티·패치노트·거래)은 데이터에서 최신순으로 뽑음 (예전엔 HTML에 직접 적혀 있어서 새 글이 안 보였음)
 import { computed, shallowRef, ref } from 'vue'
-import guidesData from '../data/guides.json'
+import { guidesState, loadGuides } from '../guideStore.js'
 import patchNotes from '../data/patchNotes.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { fetchPosts } from '../communityStore.js'
@@ -16,11 +16,12 @@ const CLASSES = [
   { key: 'assassin', name: '어쌔신', icon: '<path d="M12 3v12M9 6h6M9 17l3 4 3-4"/>' },
   { key: 'warlock', name: '악마술사', icon: '<path d="M6 9l6-6 6 6-6 12-6-12z"/><path d="M6 9h12"/>' },
 ]
-const guideCount = (key) => guidesData.filter((g) => g.classKey === key).length
+loadGuides()
+const guideCount = (key) => guidesState.list.filter((g) => g.classKey === key).length
 const CLASS_CSS = { sorc: 'c-sorc', necro: 'c-necro', paladin: 'c-paladin', barb: 'c-barb', druid: 'c-druid', assassin: 'c-assassin', warlock: 'c-warlock', amazon: 'c-amazon' }
 
 const byDate = (a, b) => (b.date || '').localeCompare(a.date || '')
-const latestGuides = computed(() => [...guidesData].sort(byDate).slice(0, 4))
+const latestGuides = computed(() => [...guidesState.list].sort(byDate).slice(0, 4))
 // 커뮤니티 최신 글 5개 (DB)
 const latestCommunity = ref([])
 fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})

@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import guideData from '../data/guides.json'
 import { CLASS_ICONS } from '../icons.js'
+import { guidesState, loadGuides, canEditGuides } from '../guideStore.js'
 
-const guides = guideData
+// 가이드는 DB(운영진이 사이트에서 씀), DB에 못 붙으면 사이트에 들어 있던 것
+loadGuides()
+const guides = computed(() => guidesState.list)
 const route = useRoute()
 
 const classList = [
@@ -40,8 +42,8 @@ function setClass(key) {
 }
 
 const filteredGuides = computed(() => {
-  if (!activeClass.value) return guides
-  return guides.filter((g) => g.classKey === activeClass.value)
+  if (!activeClass.value) return guides.value
+  return guides.value.filter((g) => g.classKey === activeClass.value)
 })
 </script>
 
@@ -62,6 +64,7 @@ const filteredGuides = computed(() => {
         <button :class="{ active: view === 'list' }" @click="view = 'list'">목록</button>
         <button :class="{ active: view === 'tier' }" @click="view = 'tier'">티어리스트</button>
       </div>
+      <router-link v-if="canEditGuides" class="guide-write-btn" :to="{ path: '/guides/new', query: activeClass ? { class: activeClass } : {} }">가이드 쓰기</router-link>
       <div class="cat-tabs">
         <button :class="{ active: activeClass === null }" @click="activeClass = null">전체</button>
         <button
@@ -96,7 +99,7 @@ const filteredGuides = computed(() => {
           <div class="guide-class-badge">{{ g.className }}</div>
           <span class="guide-tier">{{ g.tier }}</span>
         </div>
-        <div class="guide-title">{{ g.title }}</div>
+        <div class="guide-title">{{ g.title }}<span class="guide-draft" v-if="g.published === false">비공개</span></div>
         <div class="guide-desc">{{ g.desc }}</div>
         <div class="guide-date">{{ g.date }}</div>
       </router-link>
@@ -111,6 +114,9 @@ const filteredGuides = computed(() => {
    그림자 생기게 (커뮤니티/거래게시판과 같은 톤) */
 .cat-tabs button{border-radius:999px;}
 .guide-grid-wide{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;}
+.guide-write-btn{margin-left:auto; padding:8px 16px; border-radius:10px; border:1px solid var(--gold-dim); color:var(--gold); font-size:13px; font-weight:600; white-space:nowrap;}
+.guide-write-btn:hover{background:var(--panel-2);}
+.guide-draft{font-size:10.5px; color:var(--text-dim); border:1px dashed var(--border); padding:1px 7px; border-radius:999px; margin-left:6px;}
 .guide-card{border-radius:16px; padding:22px 24px;}
 .guide-card:hover{box-shadow:0 10px 26px -10px rgba(0,0,0,0.55);}
 .guide-class-icon{
