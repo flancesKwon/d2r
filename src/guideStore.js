@@ -33,7 +33,8 @@ function mapGuide(r) {
     title: r.title,
     tier: r.tier || '',
     desc: r.description || '',
-    date: fmtDate(r.updated_at),
+    // 작성일 (updated_at 은 DB가 넣을 때 now 로 채워서, 옮겨 온 가이드도 전부 오늘이 됨)
+    date: fmtDate(r.created_at),
     summary: r.summary || '',
     statPriority: r.stat_priority || '',
     skillOrder: arr(r.skill_order),
@@ -47,7 +48,7 @@ function mapGuide(r) {
 
 export async function loadGuides(force = false) {
   if (!supabase || (guidesState.loaded && !force)) return
-  const { data, error } = await supabase.from('tb_guide').select('*').order('updated_at', { ascending: false })
+  const { data, error } = await supabase.from('tb_guide').select('*').order('created_at', { ascending: false })
   guidesState.loaded = true
   // 표가 없거나(003 전) 비어 있으면 사이트에 들어 있던 가이드 그대로
   if (error || !data?.length) return
