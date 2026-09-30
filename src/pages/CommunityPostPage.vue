@@ -1,10 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit } from '../communityStore.js'
+import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete } from '../communityStore.js'
 import { authState, signIn } from '../profileStore.js'
 import { renderMarkdown } from '../markdown.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import ReportButton from '../components/ReportButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,9 +97,10 @@ async function onDeletePost() {
           👎 비추천 {{ post.dislikes }}
         </button>
       </div>
-      <div class="post-owner-row" v-if="canEdit(post)">
-        <router-link class="owner-btn" :to="{ path: '/community/write', query: { edit: post.id } }">수정</router-link>
-        <button type="button" class="owner-btn danger" @click="onDeletePost">삭제</button>
+      <div class="post-owner-row">
+        <router-link class="owner-btn" v-if="canEdit(post)" :to="{ path: '/community/write', query: { edit: post.id } }">수정</router-link>
+        <button type="button" class="owner-btn danger" v-if="canDelete(post)" @click="onDeletePost">삭제</button>
+        <ReportButton class="post-report" target-type="community_post" :target-id="post.id" :owner-id="post.authorId" label="글 신고" />
       </div>
       <div class="action-error" v-if="actionError">{{ actionError }}</div>
     </div>
@@ -108,12 +110,13 @@ async function onDeletePost() {
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
           <b>{{ c.author }}</b>
-          <span>{{ c.date }}<button type="button" class="comment-del" v-if="canEdit(c)" @click="onDeleteComment(c)">삭제</button></span>
+          <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">삭제</button></span>
         </div>
         <div class="comment-body" v-html="renderMarkdown(c.content)"></div>
         <div class="comment-vote-row">
           <button class="vote-btn mini up" :class="{ active: c.myVote === 'up' }" @click="onVoteComment(c, 'up')">👍 {{ c.likes }}</button>
           <button class="vote-btn mini down" :class="{ active: c.myVote === 'down' }" @click="onVoteComment(c, 'down')">👎 {{ c.dislikes }}</button>
+          <ReportButton class="comment-report" target-type="community_comment" :target-id="c.id" :owner-id="c.authorId" />
         </div>
       </div>
       <div class="empty-state" v-if="post.comments.length === 0">아직 댓글이 없어요</div>
@@ -178,7 +181,9 @@ async function onDeletePost() {
 .comment-top span{color:var(--text-dim);}
 .comment-body{font-size:13px; color:var(--text-muted); line-height:1.7; margin-bottom:10px;}
 .comment-body :deep(p){margin-bottom:4px;}
-.comment-vote-row{display:flex; gap:8px;}
+.comment-vote-row{display:flex; gap:8px; align-items:center;}
+.comment-report{margin-left:auto; font-size:11px; padding:3px 10px;}
+.post-report{margin-left:auto;}
 
 .comment-form{display:flex; flex-direction:column; gap:12px; max-width:680px;}
 .comment-form :deep(.md-editor){border-radius:12px; overflow:hidden;}

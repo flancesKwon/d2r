@@ -58,7 +58,25 @@ export function takeLoginReturn() {
 }
 export const signOut = () => supabase?.auth.signOut()
 
+// 등급: user(일반) / moderator(운영진) / admin(최고관리자). 운영진은 신고 처리·정지·글 삭제, 등급 변경은 최고관리자만
+export const ROLE_LABEL = { user: '일반', moderator: '운영진', admin: '최고관리자' }
 export const isAdmin = () => authState.profile?.role === 'admin'
+export const isStaff = (profile = authState.profile) => profile?.role === 'moderator' || profile?.role === 'admin'
+
+// 이용 정지 - 정지 중이면 풀리는 때(Date, 영구면 Infinity), 아니면 null
+export function suspendedUntil(profile = authState.profile) {
+  const v = profile?.suspended_until
+  if (!v) return null
+  if (v === 'infinity') return Infinity
+  const d = new Date(v)
+  return d > new Date() ? d : null
+}
+export function suspensionText(until) {
+  if (!until) return ''
+  if (until === Infinity) return '영구 정지'
+  const p = (n) => String(n).padStart(2, '0')
+  return `${until.getFullYear()}-${p(until.getMonth() + 1)}-${p(until.getDate())} ${p(until.getHours())}:${p(until.getMinutes())}까지 정지`
+}
 
 // 마이페이지: 닉네임·연락처 수정
 export async function saveProfile({ nickname, contact }) {

@@ -8,9 +8,10 @@ import {
 import { renderMarkdown } from '../markdown.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
-import { authState, signIn } from '../profileStore.js'
+import { authState, signIn, isStaff } from '../profileStore.js'
 import { openConversationWith } from '../messagesStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
+import ReportButton from '../components/ReportButton.vue'
 import { buildTooltip } from '../itemTooltip.js'
 
 const route = useRoute()
@@ -39,6 +40,8 @@ watch(() => authState.user?.id, () => { if (post.value) load() })
 // 판매자 본인(또는 관리자)만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS
 const isOwner = computed(() => !!authState.user && post.value?.authorId === authState.user.id)
 const canManage = computed(() => isOwner.value || authState.profile?.role === 'admin')
+// 운영진은 상태 변경은 못 하고 삭제만 (DB 정책 d2r_staff_delete)
+const canDelete = computed(() => isOwner.value || isStaff())
 async function run(fn) {
   actionError.value = ''
   if (!authState.user) return signIn()
@@ -291,11 +294,12 @@ async function confirmBuy() {
             <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ copied ? '복사됨' : '복사' }}</button>
           </div>
           <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지 보내기</button>
+          <div class="seller-report" v-if="!isOwner"><ReportButton target-type="trade_post" :target-id="post.id" :owner-id="post.authorId" label="판매글 신고" /></div>
         </section>
 
-        <section class="side-card owner-card" v-if="canManage">
-          <div class="card-title">판매 상태 <span class="owner-tag">판매자 전용</span></div>
-          <div class="status-segment" role="radiogroup" aria-label="판매 상태">
+        <section class="side-card owner-card" v-if="canManage || canDelete">
+          <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
+          <div class="status-segment" role="radiogroup" aria-label="판매 상태" v-if="canManage">
             <button
               v-for="s in TRADE_STATUSES" :key="s" type="button" role="radio" :aria-checked="post.status === s"
               :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
@@ -713,5 +717,6 @@ async function confirmBuy() {
 .request-login{font-size:13px; color:var(--text-muted); margin:6px 0 12px;}
 .seller-avatar img{width:100%; height:100%; object-fit:cover; border-radius:inherit;}
 .dm-btn{margin-top:12px; width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); font-size:13px;}
+.seller-report{display:flex; justify-content:flex-end; margin-top:10px;}
 .dm-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
 </style>
