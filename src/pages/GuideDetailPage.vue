@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import guideData from '../data/guides.json'
+import { useRoute, useRouter } from 'vue-router'
+import { guidesState, loadGuides, getGuide, canEditGuides, deleteGuide } from '../guideStore.js'
 import { CLASS_ICONS } from '../icons.js'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -28,7 +28,18 @@ function linkSegments(text) {
 const iconUrl = (it) => (it.icon_key && ITEM_ICONS[it.icon_key] || null)
 
 const route = useRoute()
-const guide = computed(() => guideData.find((g) => g.id === route.params.id))
+const router = useRouter()
+loadGuides()
+const guide = computed(() => getGuide(route.params.id))
+async function removeGuide() {
+  if (!confirm(`"${guide.value.title}" 가이드를 지울까요? 되돌릴 수 없어요.`)) return
+  try {
+    await deleteGuide(guide.value)
+    router.replace('/guides')
+  } catch (e) {
+    alert(e.message || '지우지 못했어요')
+  }
+}
 // 목차 - 해시 라우터라 #앵커 링크 대신 버튼으로 스크롤
 const SECTIONS = [
   { id: 'sec-stat', label: '스탯 우선순위' },
@@ -42,7 +53,7 @@ function scrollToSection(id) {
   if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 76, behavior: 'smooth' })
 }
 const related = computed(() =>
-  guide.value ? guideData.filter((g) => g.classKey === guide.value.classKey && g.id !== guide.value.id) : []
+  guide.value ? guidesState.list.filter((g) => g.classKey === guide.value.classKey && g.id !== guide.value.id) : []
 )
 </script>
 
@@ -55,7 +66,13 @@ const related = computed(() =>
       {{ guide.className }} · {{ guide.tier }}
     </div>
     <h1 class="d-name guide-detail-title">{{ guide.title }}</h1>
-    <div class="guide-detail-date">{{ guide.date }}</div>
+    <div class="guide-detail-date">
+      {{ guide.date }}<span class="guide-draft" v-if="guide.published === false">비공개</span>
+      <template v-if="canEditGuides">
+        <router-link class="guide-edit-link" :to="`/guides/${guide.id}/edit`">수정</router-link>
+        <button type="button" class="guide-edit-link danger" @click="removeGuide">삭제</button>
+      </template>
+    </div>
     <p class="guide-detail-summary">{{ guide.summary }}</p>
 
     <div class="guide-detail-grid">
@@ -149,7 +166,11 @@ const related = computed(() =>
 }
 .guide-class-icon svg{width:11px; height:11px; stroke:var(--gold-dim); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
 .guide-detail-title{font-size:28px; margin:10px 0 8px;}
-.guide-detail-date{font-size:11.5px; color:var(--text-dim); margin-bottom:16px;}
+.guide-detail-date{font-size:11.5px; color:var(--text-dim); margin-bottom:16px; display:flex; align-items:center; gap:8px;}
+.guide-draft{font-size:10.5px; color:var(--text-dim); border:1px dashed var(--border); padding:1px 7px; border-radius:999px;}
+.guide-edit-link{font-size:12px; color:var(--text-muted); border:1px solid var(--border-soft); padding:3px 10px; border-radius:999px;}
+.guide-edit-link:hover{color:var(--gold); border-color:var(--gold-dim);}
+.guide-edit-link.danger:hover{color:#e0775f; border-color:#e0775f;}
 .guide-detail-summary{font-size:14px; color:var(--text-muted); margin-bottom:26px; line-height:1.65; max-width:640px;}
 
 .guide-detail-grid{display:grid; grid-template-columns:1fr 300px; gap:28px; align-items:start;}

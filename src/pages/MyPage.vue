@@ -5,8 +5,10 @@ import { fetchMyTradePosts, fetchMyRequests, getTradeItem } from '../tradeStore.
 import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { buildsState } from '../buildStore.js'
+import classStats from '../data/classStats.json'
 
-const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '회원정보수정']
+const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '저장한 빌드', '회원정보수정']
 const activeTab = ref(TABS[0])
 
 // 받은 리뷰 (DB)
@@ -127,6 +129,19 @@ async function saveProfileForm() {
         <div class="my-review-comment" v-if="r.comment">{{ r.comment }}</div>
       </div>
       <div class="empty-state" v-if="!myReviews.length">아직 받은 리뷰가 없어요</div>
+    </div>
+
+    <div v-else-if="activeTab === '저장한 빌드'" class="mypage-panel">
+      <div class="empty-state" v-if="buildsState.error">{{ buildsState.error }}</div>
+      <template v-else>
+        <div class="my-post-row" v-for="b in buildsState.list" :key="b.id">
+          <span class="my-post-type type-community">{{ classStats[b.classKey]?.name || b.classKey }}</span>
+          <span class="my-post-cat">Lv {{ b.level }}</span>
+          <router-link :to="{ path: '/simulator', query: { b: b.code } }" class="my-post-title">{{ b.name }}</router-link>
+          <span class="my-post-date">{{ b.date }}</span>
+        </div>
+        <div class="empty-state" v-if="!buildsState.list.length">저장한 빌드가 없어요. 스킬·스탯 시뮬레이터에서 "내 빌드"로 저장할 수 있어요.</div>
+      </template>
     </div>
 
     <div v-else class="mypage-panel profile-panel">
