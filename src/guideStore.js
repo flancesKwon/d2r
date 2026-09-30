@@ -87,16 +87,16 @@ function toRow(g) {
 const newSlug = (classKey) => `g-${classKey}-${Date.now().toString(36)}`
 
 export async function saveGuide(g) {
-  if (!authState.user) throw new Error('로그인이 필요해요')
-  if (!g.title?.trim()) throw new Error('제목을 입력해주세요')
+  if (!authState.user) throw new Error('로그인 필요')
+  if (!g.title?.trim()) throw new Error('제목 입력')
   const row = toRow(g)
   let saved
   if (g.dbId) {
-    saved = await mustReturnRows(supabase.from('tb_guide').update(row).eq('id', g.dbId).select('*'), '가이드를 고칠 권한이 없어요')
+    saved = await mustReturnRows(supabase.from('tb_guide').update(row).eq('id', g.dbId).select('*'), '가이드 수정 권한 없음')
   } else {
     saved = await mustReturnRows(
       supabase.from('tb_guide').insert({ ...row, slug: newSlug(g.classKey), author_id: authState.user.id }).select('*'),
-      '가이드를 쓸 권한이 없어요'
+      '가이드 작성 권한 없음'
     )
   }
   const guide = mapGuide(saved[0])
@@ -107,7 +107,7 @@ export async function saveGuide(g) {
 }
 
 export async function deleteGuide(g) {
-  if (!authState.user) throw new Error('로그인이 필요해요')
-  await mustReturnRows(supabase.from('tb_guide').delete().eq('id', g.dbId).select('id'), '가이드를 지울 권한이 없어요')
+  if (!authState.user) throw new Error('로그인 필요')
+  await mustReturnRows(supabase.from('tb_guide').delete().eq('id', g.dbId).select('id'), '가이드 삭제 권한 없음')
   guidesState.list = guidesState.list.filter((x) => x.dbId !== g.dbId)
 }

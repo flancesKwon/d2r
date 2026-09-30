@@ -88,7 +88,7 @@ function insertLink() {
     ></textarea>
     <div v-else class="md-preview" :style="{ minHeight }">
       <div v-if="modelValue" v-html="previewHtml"></div>
-      <div v-else class="md-empty">미리보기할 내용이 없어요</div>
+      <div v-else class="md-empty">미리보기 내용 없음</div>
     </div>
   </div>
 </template>

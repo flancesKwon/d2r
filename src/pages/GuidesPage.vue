@@ -54,7 +54,6 @@ const filteredGuides = computed(() => {
     <div class="patch-hero-inner">
       <div class="eyebrow">직업별 빌드 가이드</div>
       <h1>빌드 가이드</h1>
-      <p>스킬 트리, 장비, 레벨링 루트까지 — 직업별로 골라보세요.</p>
     </div>
   </div>
 
@@ -90,7 +89,7 @@ const filteredGuides = computed(() => {
           </router-link>
         </div>
       </div>
-      <div class="empty-state" v-if="!tierRows.length">아직 등록된 가이드가 없어요</div>
+      <div class="empty-state" v-if="!tierRows.length">가이드 없음</div>
     </div>
     <div class="guide-grid guide-grid-wide" v-else>
       <router-link class="guide-card" v-for="g in filteredGuides" :key="g.id" :to="`/guides/${g.id}`">
@@ -103,7 +102,7 @@ const filteredGuides = computed(() => {
         <div class="guide-desc">{{ g.desc }}</div>
         <div class="guide-date">{{ g.date }}</div>
       </router-link>
-      <div class="empty-state" v-if="filteredGuides.length === 0">아직 등록된 가이드가 없어요</div>
+      <div class="empty-state" v-if="filteredGuides.length === 0">가이드 없음</div>
     </div>
   </div>
   </div>

@@ -3,7 +3,7 @@
     <div class="site-footer-inner">
       <div class="site-footer-brand">
         <b>디아허브</b>
-        <span>비공식 팬 제작 사이트 · Blizzard Entertainment와 무관해요.</span>
+        <span>비공식 팬 제작 사이트 · Blizzard Entertainment와 무관</span>
       </div>
       <nav class="site-footer-links" aria-label="하단 메뉴">
         <div>

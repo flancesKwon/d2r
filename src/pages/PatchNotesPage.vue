@@ -13,7 +13,6 @@ const selected = ref(null)
     <div class="patch-hero-inner">
       <div class="eyebrow">업데이트 기록</div>
       <h1>패치노트</h1>
-      <p>밸런스 조정, 버그 수정, 시즌 소식을 한 곳에서 확인하세요.</p>
     </div>
   </div>
 

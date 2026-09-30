@@ -44,9 +44,9 @@ function cancel() {
   else router.push('/community')
 }
 async function submitPost() {
-  if (!form.value.title.trim()) { formError.value = '제목을 입력해주세요.'; return }
-  if (form.value.title.trim().length > 120) { formError.value = '제목은 120자까지예요.'; return }
-  if (!form.value.content.trim()) { formError.value = '내용을 입력해주세요.'; return }
+  if (!form.value.title.trim()) { formError.value = '제목 입력'; return }
+  if (form.value.title.trim().length > 120) { formError.value = '제목은 120자까지'; return }
+  if (!form.value.content.trim()) { formError.value = '내용 입력'; return }
   formError.value = ''
   saving.value = true
   try {
@@ -59,7 +59,7 @@ async function submitPost() {
       router.replace(`/community/${id}`)
     }
   } catch (e) {
-    formError.value = e.message || '등록하지 못했어요'
+    formError.value = e.message || '등록 실패'
   } finally {
     saving.value = false
   }
@@ -70,7 +70,7 @@ async function submitPost() {
   <div class="items-page community-write-page">
   <div class="write-section" v-if="!authState.user">
     <div class="write-login">
-      <p>글은 로그인하면 쓸 수 있어요.</p>
+      <p>글은 로그인 후 작성</p>
       <button type="button" class="btn-primary" @click="signIn">로그인</button>
     </div>
   </div>
@@ -85,7 +85,7 @@ async function submitPost() {
         >{{ c }}</button>
       </div>
 
-      <input type="text" v-model="form.title" placeholder="제목을 입력하세요" class="write-title-input" aria-label="제목" />
+      <input type="text" v-model="form.title" placeholder="제목" class="write-title-input" aria-label="제목" />
 
       <div class="write-meta-row">
         <span class="write-meta-author">{{ authState.profile?.nickname }}</span>
@@ -99,7 +99,7 @@ async function submitPost() {
         <button v-for="(t, i) in formTags" :key="t" class="tag-chip" @click="removeFormTag(i)">#{{ t }} ✕</button>
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="당신의 이야기를 적어보세요..." size="lg" variant="plain" min-height="420px" />
+      <MarkdownEditor v-model="form.content" placeholder="내용" size="lg" variant="plain" min-height="420px" />
 
       <div class="write-action-bar">
         <span class="write-error" v-if="formError">{{ formError }}</span>

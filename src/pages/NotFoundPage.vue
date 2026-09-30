@@ -3,7 +3,7 @@
     <div class="grid-wrap">
       <div class="empty-state not-found">
         <div class="not-found-code">404</div>
-        <p>페이지를 찾을 수 없어요. 주소가 바뀌었거나 없는 페이지예요.</p>
+        <p>없는 페이지</p>
         <router-link to="/">홈으로</router-link>
       </div>
     </div>

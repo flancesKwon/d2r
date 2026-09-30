@@ -48,7 +48,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리하지 못했어요'
+    actionError.value = e.message || '처리 실패'
   }
 }
 const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
@@ -108,7 +108,7 @@ function messageSeller() {
   })
 }
 async function removePost() {
-  if (!confirm('판매글을 삭제할까요? 되돌릴 수 없어요.')) return
+  if (!confirm('판매글 삭제 - 되돌릴 수 없음')) return
   await run(async () => {
     await deleteTradePost(post.value.id)
     router.replace('/trade')
@@ -275,8 +275,8 @@ async function confirmBuy() {
           <button
             type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
             @click="openBuyModal"
-          >{{ isOwner ? '내 판매글이에요' : post.status === '거래완료' ? '거래가 완료된 글이에요' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
-          <p class="buy-now-hint">{{ post.negotiable ? '원하는 룬·보석·재료로 가격을 제안할 수 있어요.' : '가격 그대로 즉시 구매를 신청해요.' }}</p>
+          >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
+          <p class="buy-now-hint">{{ post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
         </section>
 
         <section class="side-card seller-card">
@@ -345,13 +345,13 @@ async function confirmBuy() {
             </div>
           </div>
         </div>
-        <div class="empty-state request-empty" v-if="!authState.user">구매신청은 판매자와 신청한 사람만 볼 수 있어요.</div>
-        <div class="empty-state request-empty" v-else-if="post.requests.length === 0">{{ isOwner ? '아직 받은 구매신청이 없어요.' : '보낸 구매신청이 없어요.' }}</div>
+        <div class="empty-state request-empty" v-if="!authState.user">구매신청은 판매자·신청자만 볼 수 있음</div>
+        <div class="empty-state request-empty" v-else-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '보낸 구매신청 없음' }}</div>
       </div>
 
       <div class="side-card request-form" v-if="!authState.user">
         <div class="card-title">판매자에게 문의·구매신청</div>
-        <p class="request-login">로그인하면 문의·구매신청을 보낼 수 있어요.</p>
+        <p class="request-login">로그인 후 문의·구매신청</p>
         <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
       </div>
       <div class="side-card request-form" v-else-if="!isOwner">
@@ -361,10 +361,10 @@ async function confirmBuy() {
         </div>
         <textarea
           v-model="reqMessage" class="request-textarea" rows="4" aria-label="메시지"
-          placeholder="판매자에게 전할 메시지 (예: 2개 구매하고 싶어요, 지금 거래 가능하신가요?)"
+          placeholder="판매자에게 전할 메시지 (예: 2개 구매 희망, 지금 거래 가능?)"
         ></textarea>
         <div class="request-form-actions">
-          <span class="request-sent-toast" v-if="showRequestSent">신청을 보냈어요!</span>
+          <span class="request-sent-toast" v-if="showRequestSent">신청 완료</span>
           <button class="btn-primary write-submit" :disabled="!reqMessage.trim()" @click="submitRequest">보내기</button>
         </div>
       </div>
@@ -393,7 +393,7 @@ async function confirmBuy() {
                 <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!offerCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
+              <div class="item-picker-empty" v-if="!offerCandidates.length">일치하는 룬·보석·재료 없음</div>
             </div>
           </div>
         </div>
@@ -407,7 +407,7 @@ async function confirmBuy() {
             <button type="button" @click="removeOfferItem(i)">✕</button>
           </div>
         </div>
-        <div class="empty-state offer-empty" v-else>아직 고른 게 없어요</div>
+        <div class="empty-state offer-empty" v-else>선택 없음</div>
 
         <div class="modal-actions">
           <button type="button" class="btn-primary" :disabled="!offerItems.length" @click="goToConfirm">다음</button>
@@ -454,12 +454,12 @@ async function confirmBuy() {
       </template>
     </div>
   </div>
-  <span class="buy-sent-toast" v-if="showBuySentToast">구매 신청을 보냈어요! 판매자에게 알림이 갔어요.</span>
+  <span class="buy-sent-toast" v-if="showBuySentToast">구매 신청 완료 - 판매자에게 알림 전송</span>
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
       <div class="empty-state" v-if="loading">불러오는 중…</div>
-      <div class="empty-state" v-else>판매글을 찾을 수 없어요. <router-link to="/trade">거래게시판으로</router-link></div>
+      <div class="empty-state" v-else>판매글 없음. <router-link to="/trade">거래게시판으로</router-link></div>
     </div>
   </div>
 </template>

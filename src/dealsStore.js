@@ -52,8 +52,8 @@ function mapDeal(r) {
 }
 
 function needUser() {
-  if (!supabase) throw new Error('서버에 연결할 수 없어요')
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!supabase) throw new Error('서버 연결 실패')
+  if (!authState.user) throw new Error('로그인 필요')
   return authState.user.id
 }
 
@@ -96,7 +96,7 @@ export async function sendDealMessage(deal, text) {
   if (!body) return
   const rows = await mustReturnRows(
     supabase.from('tb_trade_deal_message').insert({ deal_id: deal.id, sender_id: uid, text: body }).select('*'),
-    '메시지를 보내지 못했어요'
+    '메시지 전송 실패'
   )
   deal.messages.push({ id: rows[0].id, from: 'me', text: rows[0].text, date: fmtTime(rows[0].created_at) })
 }
@@ -105,7 +105,7 @@ export async function updateDealStatus(deal, status) {
   needUser()
   const rows = await mustReturnRows(
     supabase.from('tb_trade_deal').update({ status }).eq('id', deal.id).select('status'),
-    '거래 상태를 바꿀 권한이 없어요'
+    '거래 상태 변경 권한 없음'
   )
   deal.status = rows[0].status
 }
@@ -117,7 +117,7 @@ export async function addReview(deal, { rating, comment }) {
     supabase.from('tb_trade_deal_review')
       .insert({ deal_id: deal.id, from_id: uid, to_id: deal.counterpartId, rating: Number(rating) || 5, comment: (comment || '').trim() || null })
       .select('*'),
-    '리뷰를 남기지 못했어요'
+    '리뷰 등록 실패'
   )
   deal.review = mapReview(rows[0])
 }

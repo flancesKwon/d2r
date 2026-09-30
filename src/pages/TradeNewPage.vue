@@ -220,7 +220,7 @@ function buildCraftOptions() {
 }
 const craftErrors = computed(() => {
   if (!isCrafted.value) return []
-  if (!pickedCraft.value) return ['크래프트 제작법을 골라주세요']
+  if (!pickedCraft.value) return ['크래프트 제작법 선택']
   return validateCraftValues(pickedCraft.value, craftPick.value.values)
 })
 const allAffixFamilies = computed(() =>
@@ -383,7 +383,7 @@ const baseDefenseWarning = computed(() => {
   const v = armorStats.value.baseDefense
   if (!exp || v === '' || v === null) return ''
   return Number(v) < exp.min || Number(v) > exp.max
-    ? `고른 베이스의 기본 방어력 범위(${exp.min}~${exp.max}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어나요. 다시 확인해 주세요.`
+    ? `고른 베이스의 기본 방어력 범위(${exp.min}~${exp.max}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어남 - 다시 확인`
     : ''
 })
 // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배) - 입력받지 않고 이 값을 그대로 저장
@@ -525,11 +525,11 @@ const invalidInputs = computed(() => {
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
   for (const { fam, values } of pickedAffixes.value) {
-    if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - 수치를 골라주세요`)
+    if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - 수치 선택`)
   }
   bad.push(...craftErrors.value, ...affixErrors.value)
-  if (hasSockets.value && !uniqueSockets.value) bad.push('소켓 개수를 골라주세요')
-  if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push('소켓 개수를 골라주세요')
+  if (hasSockets.value && !uniqueSockets.value) bad.push('소켓 개수 선택')
+  if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push('소켓 개수 선택')
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -716,15 +716,15 @@ async function savePost(payload) {
     const post = await addTradePost(payload)
     router.push(`/trade/${post.id}`)
   } catch (e) {
-    formError.value = e.message || '등록하지 못했어요'
+    formError.value = e.message || '등록 실패'
   } finally {
     saving.value = false
   }
 }
 
 function submitBundle() {
-  if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담아주세요.'; return }
-  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
+  if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담을 것'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -770,15 +770,15 @@ const previewTooltip = computed(() =>
 function submitPost() {
   if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
-  if (!form.value.itemName.trim()) { formError.value = '아이템을 검색해서 선택하거나 이름을 입력해주세요.'; return }
-  if (!amountLabel.trim()) { formError.value = '개수를 입력해주세요.'; return }
+  if (!form.value.itemName.trim()) { formError.value = '아이템 검색·선택 또는 이름 입력'; return }
+  if (!amountLabel.trim()) { formError.value = '개수 입력'; return }
   if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
-    formError.value = '룬워드는 베이스 아이템을 검색해서 선택해야 등록할 수 있어요.'
+    formError.value = '룬워드는 베이스 아이템 선택 필수'
     return
   }
-  if (!priceItems.value.length) { formError.value = '희망 가격으로 받을 룬·보석·재료를 하나 이상 골라주세요.'; return }
+  if (!priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택'; return }
   if (invalidInputs.value.length) {
-    formError.value = `게임에서 나올 수 없는 수치가 있어요: ${invalidInputs.value[0]}`
+    formError.value = `게임에서 나올 수 없는 수치: ${invalidInputs.value[0]}`
     return
   }
   formError.value = ''
@@ -801,12 +801,11 @@ function submitPost() {
     <div class="patch-hero-inner">
       <div class="eyebrow">판매글 등록</div>
       <h1>아이템 등록하기</h1>
-      <p>아이템을 검색해서 고르면 옵션 입력 칸이 자동으로 맞춰져요.</p>
     </div>
   </div>
 
   <div class="grid-wrap trade-new-wrap trade-new-login" v-if="!authState.user">
-    <p>판매글은 로그인하면 올릴 수 있어요.</p>
+    <p>로그인 필요</p>
     <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap trade-new-wrap" v-else>
@@ -832,7 +831,7 @@ function submitPost() {
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
         <button v-else type="button" class="item-picker-trigger" @click="showItemModal = true">
-          아이템명을 검색해서 선택하세요 (예: 이스트 룬, 무한, 할리퀸 관모)
+          아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)
         </button>
       </div>
 
@@ -866,7 +865,7 @@ function submitPost() {
               </div>
             </template>
             <div class="item-picker-empty-block" v-if="form.itemName.trim() && !itemCandidates.length">
-              <p class="item-picker-empty">{{ equipBaseCandidates.length ? '찾는 게 없으면 종류를 골라 이 이름 그대로 등록할 수 있어요.' : '사전에 없는 아이템이에요. 종류를 고르면 이 이름 그대로 등록돼요.' }}</p>
+              <p class="item-picker-empty">{{ equipBaseCandidates.length ? '찾는 게 없으면 종류를 골라 이 이름 그대로 등록' : '사전에 없는 아이템 - 종류를 고르면 이 이름 그대로 등록' }}</p>
               <div class="fallback-cat-row">
                 <button
                   type="button" v-for="c in FALLBACK_CATEGORIES" :key="c"
@@ -874,7 +873,7 @@ function submitPost() {
                 >{{ c }}</button>
               </div>
             </div>
-            <div class="item-modal-empty" v-if="!form.itemName.trim()">아이템명을 입력해서 검색하세요.</div>
+            <div class="item-modal-empty" v-if="!form.itemName.trim()">아이템명 입력</div>
           </div>
         </div>
       </div>
@@ -903,7 +902,7 @@ function submitPost() {
       </div>
 
       <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반' && !selectedBaseItem">
-        <div class="option-editor-title">베이스 종류를 골라주세요</div>
+        <div class="option-editor-title">베이스 종류 선택</div>
         <div class="fallback-cat-row">
           <button type="button" :class="{ active: manualBaseKind === 'weapon' }" @click="pickManualBaseKind('weapon')">무기</button>
           <button type="button" :class="{ active: manualBaseKind === 'armor' }" @click="pickManualBaseKind('armor')">방어구</button>
@@ -940,7 +939,7 @@ function submitPost() {
           <small class="base-sub">{{ selectedBaseItem.tier }} · {{ selectedBaseItem.type_sub }}</small>
           <button type="button" class="base-change-btn" @click="changeEquipBase">다른 베이스</button>
         </div>
-        <div class="unit-hint" v-if="!itemQuality">아래에서 품질(일반·매직·레어·크래프트)을 먼저 골라주세요.</div>
+        <div class="unit-hint" v-if="!itemQuality">품질(일반·매직·레어·크래프트) 먼저 선택</div>
       </div>
 
       <div class="option-editor" v-if="qualityChoices.length">
@@ -1013,7 +1012,7 @@ function submitPost() {
                 <span class="item-picker-row-cat">{{ b.tier }} · {{ b.type_sub }}{{ b.sockets ? ` · 최대 ${b.sockets}소켓` : '' }}</span>
               </button>
               <div class="item-picker-empty" v-if="!baseItemCandidates.length">
-                {{ isRuneword ? '이 룬워드를 만들 수 있는 베이스 중 일치하는 게 없어요.' : '일치하는 베이스가 없어요. 아래 칸에 직접 입력하세요.' }}
+                {{ isRuneword ? '이 룬워드 베이스 중 일치 없음' : '일치하는 베이스 없음 - 아래 칸에 직접 입력' }}
               </div>
             </div>
           </div>
@@ -1041,7 +1040,7 @@ function submitPost() {
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값이라 자동으로 들어가요</span>
+            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값 (자동 입력)</span>
             <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
           </div>
@@ -1094,7 +1093,7 @@ function submitPost() {
               <option value="larzuk" v-if="larzukMax">소켓 있음 · 라르주크 퀘스트로 뚫음 ({{ larzukMax > 1 ? `1~${larzukMax}` : '1' }}개)</option>
             </select>
           </div>
-          <div class="option-editor-hint" v-if="socketSource === 'affix'">소켓 옵션이 접두사 한 칸을 차지해요.</div>
+          <div class="option-editor-hint" v-if="socketSource === 'affix'">소켓 옵션이 접두사 한 칸 차지</div>
           <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
             <span class="option-text">소켓 개수 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
             <select v-model.number="socketAffixCount" class="write-select option-value-select" aria-label="소켓 개수">
@@ -1129,7 +1128,7 @@ function submitPost() {
             />
           </div>
           <template v-if="baseClassSkills">
-            <div class="option-editor-hint">{{ baseClassSkills.name }} 스킬은 최대 3개까지, 각각 +1~3으로 붙어요. 붙은 만큼 추가하세요.</div>
+            <div class="option-editor-hint">{{ baseClassSkills.name }} 스킬 최대 3개, 각 +1~3</div>
             <div class="option-row" v-for="(p, i) in classSkillPicks" :key="i">
               <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${baseClassSkills.name} 스킬 ${i + 1}`">
                 <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
@@ -1154,7 +1153,7 @@ function submitPost() {
 
       <label class="ethereal-check" v-if="hasEthereal">
         <input type="checkbox" v-model="form.ethereal" />
-        에테리얼(Ethereal) 아이템이에요
+        에테리얼(Ethereal) 아이템
       </label>
 
       <template v-if="selectedItem || form.category">
@@ -1212,7 +1211,7 @@ function submitPost() {
 
       <div class="option-editor" v-if="uniqueMaxSockets && !lockedEquipBase">
         <div class="option-editor-title">소켓</div>
-        <div class="option-editor-hint">유니크·세트는 라르주크 퀘스트로 소켓 1개만 뚫을 수 있어요.</div>
+        <div class="option-editor-hint">유니크·세트: 라르주크 퀘스트로 소켓 1개만</div>
         <div class="option-row">
           <select v-model="uniqueSockets" class="write-select random-group-select" aria-label="소켓 개수">
             <option value="">소켓 없음</option>
@@ -1271,7 +1270,7 @@ function submitPost() {
                 <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
                 <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
+              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석·재료 없음</div>
             </div>
           </div>
         </div>
@@ -1295,7 +1294,7 @@ function submitPost() {
           </div>
         </div>
         <button type="button" class="item-picker-trigger" @click="openPriceModal">
-          {{ priceItems.length ? '+ 더 추가하기' : '받고 싶은 룬·보석·재료를 검색해서 선택하세요 (예: 이스트 룬, 파괴의 열쇠)' }}
+          {{ priceItems.length ? '+ 더 추가하기' : '받을 룬·보석·재료 검색 (예: 이스트 룬, 파괴의 열쇠)' }}
         </button>
       </div>
 
@@ -1316,7 +1315,7 @@ function submitPost() {
               <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
               <span class="item-picker-row-cat price-picked" v-if="priceQtyOf(it)">담김 {{ priceQtyOf(it) }}개</span>
             </button>
-            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석·재료가 없어요.</div>
+            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석·재료 없음</div>
           </div>
         </div>
       </div>
@@ -1330,7 +1329,7 @@ function submitPost() {
         </select>
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="추가 설명을 입력하세요 (옵션 정보, 거래 방식 등)" min-height="260px" />
+      <MarkdownEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="260px" />
 
       <div class="tooltip-preview" v-if="previewTooltip">
         <div class="option-editor-title">미리보기</div>

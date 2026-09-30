@@ -79,7 +79,7 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
 
   // 룬·보석은 게임처럼 박는 부위별 효과를 보여줌 (무기 / 갑옷·투구 / 방패)
   if (item?.category === 'gem' && !mods.length) {
-    push('소켓에 박을 수 있어요', TOOLTIP_COLORS.gray)
+    push('소켓에 박을 수 있음', TOOLTIP_COLORS.gray)
     for (const [slot, label] of [['in_weapon', '무기'], ['in_helm', '갑옷·투구'], ['in_shield', '방패']]) {
       const texts = (item.extra?.[slot] || []).map((a) => a.text).filter(Boolean)
       if (texts.length) push(`${label}: ${texts.join(', ')}`)

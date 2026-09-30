@@ -9,7 +9,6 @@ import ladder from '../data/ladder.json'
     <div class="patch-hero-inner">
       <div class="eyebrow">시즌 안내</div>
       <h1>{{ ladder.seasonName }}</h1>
-      <p>현재 레더 시즌 진행 상황과 초기화 관련 정보를 정리했어요.</p>
     </div>
   </div>
 

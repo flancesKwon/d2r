@@ -46,7 +46,6 @@ const perSec = (frames) => (25 / frames).toFixed(2)
     <div class="patch-hero-inner">
       <div class="eyebrow">장비 맞추기</div>
       <h1>브레이크포인트 계산기</h1>
-      <p>공격·시전·타격 회복·막기 속도는 정해진 %를 넘어야만 실제로 빨라져요. 지금 수치로 몇 프레임인지, 다음 단계까지 얼마나 더 필요한지 알려드려요.</p>
     </div>
   </div>
 
@@ -87,7 +86,7 @@ const perSec = (frames) => (25 / frames).toFixed(2)
             <div class="bp-next" v-if="states[s.key].next">
               다음 단계 <b>{{ states[s.key].next[0] }}%</b> ({{ states[s.key].next[1] }}프레임)까지 <b class="up">+{{ states[s.key].need }}%</b>
             </div>
-            <div class="bp-next done" v-else>최고 단계예요</div>
+            <div class="bp-next done" v-else>최고 단계</div>
           </div>
 
           <div class="bp-table">

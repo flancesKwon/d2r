@@ -498,8 +498,8 @@ function mapTradePost(r) {
 }
 
 function needUser() {
-  if (!supabase) throw new Error('거래 서버에 연결할 수 없어요')
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!supabase) throw new Error('거래 서버 연결 실패')
+  if (!authState.user) throw new Error('로그인 필요')
   return authState.user.id
 }
 
@@ -516,7 +516,7 @@ export async function loadTradePosts(force = false) {
     tradeState.posts = data.map(mapTradePost)
     tradeState.loaded = true
   } catch (e) {
-    tradeState.error = '판매글을 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.'
+    tradeState.error = '판매글 불러오기 실패 - 잠시 뒤 다시 시도'
   } finally {
     tradeState.loading = false
   }
@@ -571,7 +571,7 @@ export async function addTradePost({
       contact: (contact ?? authState.profile?.contact) || null,
       content: content || null,
     }).select(`*, ${POST_AUTHOR}`),
-    '판매글을 등록하지 못했어요'
+    '판매글 등록 실패'
   )
   const post = mapTradePost(rows[0])
   tradeState.posts.unshift(post)
@@ -582,7 +582,7 @@ export async function updateTradeStatus(postId, status) {
   needUser()
   const rows = await mustReturnRows(
     supabase.from('tb_trade_post').update({ status, updated_at: new Date().toISOString() }).eq('id', postId).select(`*, ${POST_AUTHOR}`),
-    '판매 상태를 바꿀 권한이 없어요'
+    '판매 상태 변경 권한 없음'
   )
   const post = mapTradePost(rows[0])
   const cached = getTradePost(postId)
@@ -592,7 +592,7 @@ export async function updateTradeStatus(postId, status) {
 
 export async function deleteTradePost(postId) {
   needUser()
-  await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', postId).select('id'), '판매글을 삭제할 권한이 없어요')
+  await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', postId).select('id'), '판매글 삭제 권한 없음')
   tradeState.posts = tradeState.posts.filter((p) => String(p.id) !== String(postId))
 }
 
@@ -642,11 +642,11 @@ export async function addTradeRequest(postId, { qty, message }) {
     .insert({ post_id: Number(postId), buyer_id: uid, qty: Number(qty) || 1, message: message || null })
     .select(`*, ${REQUEST_BUYER}`)
   if (error) {
-    if (error.code === '23505') throw new Error('이 글에 아직 답을 기다리는 신청이 있어요')
-    if (error.code === '42501') throw new Error('내 판매글에는 신청할 수 없어요')
+    if (error.code === '23505') throw new Error('이 글에 대기 중인 신청 있음')
+    if (error.code === '42501') throw new Error('내 판매글에는 신청 불가')
     throw error
   }
-  if (!data?.length) throw new Error('신청하지 못했어요')
+  if (!data?.length) throw new Error('신청 실패')
   return mapRequest(data[0])
 }
 
@@ -656,7 +656,7 @@ export async function respondToRequest(post, request, decision) {
   needUser()
   if (decision === 'accepted') {
     const { data: dealId, error } = await supabase.rpc('accept_trade_request', { p_request_id: request.id })
-    if (error) throw new Error(error.message || '수락하지 못했어요')
+    if (error) throw new Error(error.message || '수락 실패')
     request.status = 'accepted'
     // 수락하면 판매중이던 글은 예약중으로
     if (post.status === '판매중') await updateTradeStatus(post.id, '예약중').then((p) => (post.status = p.status)).catch(() => {})
@@ -665,7 +665,7 @@ export async function respondToRequest(post, request, decision) {
   const status = decision === 'cancelled' ? 'cancelled' : 'rejected'
   await mustReturnRows(
     supabase.from('tb_trade_request').update({ status }).eq('id', request.id).select('id'),
-    '처리할 권한이 없어요'
+    '처리 권한 없음'
   )
   request.status = REQUEST_STATUS_FROM_DB[status] || status
   return null

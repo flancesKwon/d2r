@@ -27,7 +27,7 @@ async function load(reset = true) {
     posts.value = reset ? res.posts : [...posts.value, ...res.posts]
     total.value = res.total
   } catch (e) {
-    if (my === seq) loadError.value = '게시글을 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.'
+    if (my === seq) loadError.value = '게시글 불러오기 실패 - 잠시 뒤 다시 시도'
   } finally {
     if (my === seq) loading.value = false
   }
@@ -53,7 +53,6 @@ function setTagFilter(t) {
     <div class="patch-hero-inner">
       <div class="eyebrow">유저 커뮤니티</div>
       <h1>커뮤니티</h1>
-      <p>질문, 거래, 잡담, 공략 인증까지 자유롭게 이야기해보세요.</p>
     </div>
   </div>
 
@@ -109,7 +108,7 @@ function setTagFilter(t) {
         <span class="community-comment-count" v-if="p.commentCount">{{ p.commentCount }}</span>
       </router-link>
       <div class="empty-state" v-if="loadError">{{ loadError }}</div>
-      <div class="empty-state" v-else-if="!loading && posts.length === 0">게시글이 없어요</div>
+      <div class="empty-state" v-else-if="!loading && posts.length === 0">게시글 없음</div>
       <button type="button" class="more-btn" v-if="posts.length < total" :disabled="loading" @click="loadMore">
         {{ loading ? '불러오는 중…' : '더 보기' }}
       </button>

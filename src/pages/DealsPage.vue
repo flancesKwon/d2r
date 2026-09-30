@@ -51,7 +51,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리하지 못했어요'
+    actionError.value = e.message || '처리 실패'
   }
 }
 
@@ -64,7 +64,7 @@ function submitMessage() {
 
 function setStatus(status) {
   if (!activeDeal.value) return
-  const label = status === '거래완료' ? '거래완료로 할까요?' : '거래불발로 할까요?'
+  const label = status === '거래완료' ? '거래완료로 변경' : '거래불발로 변경'
   if (!confirm(label)) return
   return run(() => updateDealStatus(activeDeal.value, status))
 }
@@ -88,12 +88,11 @@ function submitReview() {
     <div class="patch-hero-inner">
       <div class="eyebrow">구매신청이 수락된 거래</div>
       <h1>거래중인 품목</h1>
-      <p>구매신청이 수락되면 여기서 상대방과 세부사항을 조율하고, 거래완료·불발을 선택할 수 있어요. 거래가 끝나면 리뷰도 남길 수 있어요.</p>
     </div>
   </div>
 
   <div class="grid-wrap deals-wrap deals-login" v-if="!authState.user">
-    <p>로그인하면 내 거래방을 볼 수 있어요.</p>
+    <p>로그인 필요</p>
     <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap deals-wrap" v-else>
@@ -112,7 +111,7 @@ function submitReview() {
             <div class="deal-row-sub">{{ d.iAmSeller ? '구매자' : '판매자' }} {{ d.counterpart }} · {{ d.date }}</div>
           </div>
         </button>
-        <div class="empty-state" v-if="!dealsState.deals.length">아직 진행중인 거래가 없어요. 구매신청을 수락하면 여기에 생겨요.</div>
+        <div class="empty-state" v-if="!dealsState.deals.length">진행 중인 거래 없음 (구매신청 수락 시 생성)</div>
       </div>
 
       <div class="deal-thread" v-if="activeDeal">
@@ -129,7 +128,7 @@ function submitReview() {
         </div>
 
         <div class="deal-thread-body">
-          <div class="deal-intro">구매신청이 수락됐어요. 접속 시간, 배틀태그 등 거래 세부사항을 여기서 조율하세요.</div>
+          <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율</div>
           <div
             class="conv-bubble" v-for="m in activeDeal.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
@@ -141,7 +140,7 @@ function submitReview() {
 
         <div class="deal-thread-input" v-if="activeDeal.status === '거래중'">
           <input
-            type="text" v-model="draft" placeholder="메시지를 입력하세요"
+            type="text" v-model="draft" placeholder="메시지"
             class="write-input" @keydown.enter.prevent="submitMessage"
           />
           <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">보내기</button>
@@ -155,7 +154,7 @@ function submitReview() {
               :class="{ filled: n <= reviewRating }" @click="reviewRating = n"
             >★</button>
           </div>
-          <textarea v-model="reviewComment" class="review-textarea" rows="3" placeholder="거래는 어떠셨나요? (예: 약속 시간 잘 지켰어요, 친절해요)"></textarea>
+          <textarea v-model="reviewComment" class="review-textarea" rows="3" placeholder="거래 후기 (예: 약속 시간 잘 지킴)"></textarea>
           <button type="button" class="btn-primary review-submit-btn" @click="submitReview">리뷰 등록</button>
         </div>
         <div class="review-box review-done" v-else-if="activeDeal.review">
@@ -166,7 +165,7 @@ function submitReview() {
           <div class="review-comment-text">{{ activeDeal.review.comment }}</div>
         </div>
       </div>
-      <div class="deal-thread deal-thread-empty" v-else>거래를 선택해주세요</div>
+      <div class="deal-thread deal-thread-empty" v-else>거래 선택</div>
     </div>
     <div class="action-error" v-if="actionError">{{ actionError }}</div>
   </div>

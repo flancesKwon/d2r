@@ -17,7 +17,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
     <div class="login-panel" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <button type="button" class="login-close" aria-label="닫기" @click="close">✕</button>
       <h2 id="login-title">로그인</h2>
-      <p class="login-sub">쓰던 계정으로 바로 시작해요. 비밀번호는 받지 않아요.</p>
+      <p class="login-sub">비밀번호 저장 안 함</p>
 
       <button type="button" class="login-btn discord" @click="signIn('discord')">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.3 5.3A16.6 16.6 0 0015.2 4l-.5 1a15.3 15.3 0 00-5.4 0l-.5-1a16.6 16.6 0 00-4.1 1.3C2.1 9.2 1.4 13 1.7 16.7a16.7 16.7 0 005.1 2.6l1.1-1.7a10.7 10.7 0 01-1.7-.8l.4-.3a11.9 11.9 0 0010.8 0l.4.3a10.7 10.7 0 01-1.7.8l1.1 1.7a16.6 16.6 0 005.1-2.6c.4-4.3-.7-8-2.9-11.4zM8.7 14.5c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>
@@ -34,7 +34,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       </button>
 
       <p class="login-note">
-        처음 로그인하면 계정 이름이 닉네임이 돼요. 실명이 보이는 게 싫으면 마이페이지에서 바꿀 수 있어요.
+        처음 로그인 시 계정 이름이 닉네임 - 마이페이지에서 변경 가능
         <router-link to="/privacy" @click="close">개인정보 처리 안내</router-link>
       </p>
     </div>

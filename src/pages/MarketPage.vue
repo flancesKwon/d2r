@@ -35,7 +35,6 @@ const CAT_KO = { unique: '유니크', set: '세트', runeword: '룬워드', gem:
     <div class="patch-hero-inner">
       <div class="eyebrow">거래 참고 자료</div>
       <h1>시세 게시판</h1>
-      <p>룬 가치 등급(Maxroll 룬 가치표 기준)과 자주 거래되는 유니크예요.</p>
     </div>
   </div>
 

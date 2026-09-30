@@ -80,7 +80,7 @@ const summaryIcon = (s) => iconUrl(s.iconKey)
         </template>
         <template v-else>
           <h1>아이템별 거래내역</h1>
-          <p>아이템을 고르면 지금까지 올라온 판매글과 거래완료 가격을 모아서 보여줘요.</p>
+          
         </template>
       </div>
     </div>
@@ -138,7 +138,7 @@ const summaryIcon = (s) => iconUrl(s.iconKey)
               <span class="th-req" v-if="p.requests && p.requests.length">신청 {{ p.requests.length }}</span>
             </router-link>
             <div class="empty-state" v-if="!posts.length">
-              아직 이 아이템 거래내역이 없어요. <router-link to="/trade/new">판매글 등록하기</router-link>
+              거래내역 없음. <router-link to="/trade/new">판매글 등록하기</router-link>
             </div>
           </div>
         </section>
@@ -164,7 +164,7 @@ const summaryIcon = (s) => iconUrl(s.iconKey)
               <span class="th-summary-meta">판매글 {{ s.total }} · 거래완료 {{ s.done }} · 최근 {{ s.lastDate }}</span>
             </span>
           </button>
-          <div class="empty-state" v-if="!summaries.length">아직 올라온 판매글이 없어요.</div>
+          <div class="empty-state" v-if="!summaries.length">판매글 없음</div>
         </div>
       </template>
     </div>

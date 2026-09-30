@@ -19,19 +19,19 @@ export const REPORT_STATUS_LABEL = { open: '처리 대기', resolved: '처리함
 export const isMissingSchema = (error) => ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code)
 
 export async function submitReport({ targetType, targetId, reason, detail = '' }) {
-  if (!supabase) throw new Error('서버에 연결할 수 없어요')
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!supabase) throw new Error('서버 연결 실패')
+  if (!authState.user) throw new Error('로그인 필요')
   const { data, error } = await supabase
     .from('tb_report')
     .insert({ target_type: targetType, target_id: String(targetId), reason, detail: detail.trim() || null })
     .select('id')
   if (error) {
-    if (error.code === '23505') throw new Error('이미 신고한 대상이에요')
-    if (isMissingSchema(error)) throw new Error('신고 기능이 아직 준비 중이에요')
-    if (error.code === '42501' && /row-level security/i.test(error.message)) throw new Error('지금은 신고할 수 없어요')
-    throw new Error(error.message || '신고하지 못했어요')
+    if (error.code === '23505') throw new Error('이미 신고한 대상')
+    if (isMissingSchema(error)) throw new Error('신고 기능 준비 중')
+    if (error.code === '42501' && /row-level security/i.test(error.message)) throw new Error('지금은 신고 불가')
+    throw new Error(error.message || '신고 실패')
   }
-  if (!data?.length) throw new Error('신고하지 못했어요')
+  if (!data?.length) throw new Error('신고 실패')
   return data[0]
 }
 
@@ -60,13 +60,13 @@ export async function countOpenReports() {
 export async function setReportStatus(id, status) {
   const rows = await mustReturnRows(
     supabase.from('tb_report').update({ status }).eq('id', id).select('status, handled_at'),
-    '신고 상태를 바꾸지 못했어요'
+    '신고 상태 변경 실패'
   )
   return rows[0]
 }
 
 export async function deleteReport(id) {
-  await mustReturnRows(supabase.from('tb_report').delete().eq('id', id).select('id'), '신고를 지우지 못했어요')
+  await mustReturnRows(supabase.from('tb_report').delete().eq('id', id).select('id'), '신고 삭제 실패')
 }
 
 // 신고된 대상으로 가는 주소 (회원 신고는 없음)
@@ -81,7 +81,7 @@ const TARGET_TABLE = { community_post: 'tb_community_post', community_comment: '
 export const canDeleteTarget = (r) => !!TARGET_TABLE[r.target_type]
 export async function deleteReportTarget(r) {
   const table = TARGET_TABLE[r.target_type]
-  if (!table) throw new Error('지울 수 없는 대상이에요')
+  if (!table) throw new Error('삭제할 수 없는 대상')
   const { data, error } = await supabase.from(table).delete().eq('id', r.target_id).select('id')
   if (error) throw error
   return data?.length > 0 // 0건이면 이미 지워진 것

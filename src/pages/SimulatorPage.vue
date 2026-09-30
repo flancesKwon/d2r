@@ -390,9 +390,9 @@ async function saveCurrentBuild(overwrite = false) {
       code: encodeShareCode(buildSharePayload()),
     })
     currentBuildId.value = b.id
-    flashBuild(overwrite ? '덮어썼어요' : '저장했어요')
+    flashBuild(overwrite ? '덮어씀' : '저장됨')
   } catch (e) {
-    flashBuild(e.message || '저장하지 못했어요')
+    flashBuild(e.message || '저장 실패')
   } finally {
     buildBusy.value = false
   }
@@ -401,15 +401,15 @@ async function loadSavedBuild(b) {
   await applyShareState(decodeShareCode(b.code))
   currentBuildId.value = b.id
   buildName.value = b.name
-  flashBuild(`"${b.name}" 불러왔어요`)
+  flashBuild(`"${b.name}" 불러옴`)
 }
 async function removeSavedBuild(b) {
-  if (!confirm(`"${b.name}" 빌드를 지울까요?`)) return
+  if (!confirm(`"${b.name}" 빌드 삭제`)) return
   try {
     await deleteBuild(b)
     if (currentBuildId.value === b.id) currentBuildId.value = null
   } catch (e) {
-    flashBuild(e.message || '지우지 못했어요')
+    flashBuild(e.message || '삭제 실패')
   }
 }
 
@@ -682,7 +682,6 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
     <div class="patch-hero-inner">
       <div class="eyebrow">빌드 계획 도구</div>
       <h1>스킬·스탯 시뮬레이터</h1>
-      <p>레벨·스탯·스킬 포인트에 장비까지 껴서 데미지·생명력·저항 같은 캐릭터 상세 정보를 미리 확인해보세요.</p>
     </div>
   </div>
 
@@ -724,17 +723,17 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <button class="sim-build-btn" @click="loadSavedBuild(b)">불러오기</button>
             <button class="sim-build-btn danger" @click="removeSavedBuild(b)">삭제</button>
           </div>
-          <div class="sim-builds-empty" v-if="!buildsState.list.length">아직 저장한 빌드가 없어요. 위에서 이름을 정하고 저장해 보세요.</div>
+          <div class="sim-builds-empty" v-if="!buildsState.list.length">저장한 빌드 없음</div>
         </div>
       </template>
     </div>
 
     <div class="sim-share-box" v-if="shareUrl">
       <input class="sim-share-input" type="text" :value="shareUrl" readonly @focus="$event.target.select()" />
-      <span class="sim-share-status">{{ shareCopied ? '링크가 복사됐어요' : '복사가 안 되면 위 링크를 직접 선택해서 복사해주세요' }}</span>
+      <span class="sim-share-status">{{ shareCopied ? '링크 복사됨' : '복사 안 되면 위 링크를 직접 복사' }}</span>
     </div>
 
-    <div class="note-box sim-quest-note">퀘스트 보상은 전부 클리어한 상태를 기본값으로 계산해요 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
+    <div class="note-box sim-quest-note">퀘스트 보상 전부 클리어 기준 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
 
     <div class="sim-sheet">
       <section class="sim-zone sim-zone-equip">
@@ -779,7 +778,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               {{ c.name_ko }} ({{ charmCellHeight(c) }}칸){{ equippedCharms.includes(c.id) ? ' - 장착됨' : '' }}
             </option>
           </select>
-          <span class="sim-charm-warn" v-if="charmFullNotice">칸이 부족해요</span>
+          <span class="sim-charm-warn" v-if="charmFullNotice">칸 부족</span>
         </div>
 
         <div class="sim-inv-grid">
@@ -899,7 +898,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             </p>
           </div>
         </div>
-        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘을 클릭해서 포인트를 찍어보세요 · 마우스를 올리면 설명과 시너지가 보여요</div>
+        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘 클릭: 포인트 · 마우스 올리기: 설명·시너지</div>
 
         <div class="skill-tip" v-if="hoverTip" ref="tipEl" :style="tooltipStyle" role="tooltip">
           <div class="skill-tip-name">
@@ -922,7 +921,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 현재 레벨 <b>{{ hoverTip.eff }}</b>
                 <small v-if="hoverTip.eff !== hoverTip.hard">(하드 {{ hoverTip.hard }} + 장비 {{ hoverTip.eff - hoverTip.hard }})</small>
               </template>
-              <template v-else>아직 투자하지 않았어요</template>
+              <template v-else>투자 안 함</template>
             </div>
             <div class="skill-tip-dmg" v-for="l in dmgLine(hoverTip.now)" :key="'n' + l">{{ l }}</div>
             <div class="skill-tip-next" v-for="l in dmgLine(hoverTip.next)" :key="'x' + l">
@@ -1007,7 +1006,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           </span>
           <span class="sim-picker-cat">{{ it.category_label }}</span>
         </button>
-        <p class="sim-picker-empty-msg" v-if="!slotPickerItems.length">검색 결과가 없어요</p>
+        <p class="sim-picker-empty-msg" v-if="!slotPickerItems.length">검색 결과 없음</p>
       </div>
     </div>
   </div>
