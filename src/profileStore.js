@@ -1,9 +1,9 @@
 import { reactive } from 'vue'
 import { supabase, mustReturnRows } from './supabase.js'
 
-// 로그인(디스코드) 상태. 글의 주인은 로그인 유저의 uuid(author_id)로 판단하고, 닉네임은 보여주기용.
+// 로그인(디스코드·구글) 상태. 글의 주인은 로그인 유저의 uuid(author_id)로 판단하고, 닉네임은 보여주기용.
 // profile = tb_profile 한 줄 (가입할 때 DB 트리거가 자동으로 만들어 둠)
-export const authState = reactive({ user: null, profile: null, ready: false })
+export const authState = reactive({ user: null, profile: null, ready: false, loginOpen: false })
 
 // 예전 코드 호환: 닉네임·연락처를 바로 꺼내 쓰던 곳들
 export const profileState = reactive({ nickname: '', contact: '' })
@@ -37,12 +37,19 @@ export async function initAuth() {
 }
 
 const RETURN_KEY = 'd2r-login-return'
-export function signIn() {
+export const LOGIN_PROVIDERS = ['discord', 'google']
+// signIn('discord' | 'google') 은 바로 로그인, 그 밖에(@click 이벤트 등)는 디스코드/구글 고르는 창을 엶
+export function signIn(provider) {
   if (!supabase) return
+  if (!LOGIN_PROVIDERS.includes(provider)) {
+    authState.loginOpen = true
+    return
+  }
+  authState.loginOpen = false
   // 로그인 후 원래 보던 화면으로 돌아오게
   try { sessionStorage.setItem(RETURN_KEY, window.location.hash || '#/') } catch (e) {}
   return supabase.auth.signInWithOAuth({
-    provider: 'discord',
+    provider,
     // vite base 가 './' 라서 BASE_URL 을 쓰면 주소가 깨짐 -> 지금 페이지 경로(/d2r/) 그대로. Supabase Redirect URLs 에 등록된 주소와 같아야 함
     options: { redirectTo: window.location.origin + window.location.pathname },
   })

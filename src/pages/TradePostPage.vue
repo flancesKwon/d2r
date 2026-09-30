@@ -352,7 +352,7 @@ async function confirmBuy() {
       <div class="side-card request-form" v-if="!authState.user">
         <div class="card-title">판매자에게 문의·구매신청</div>
         <p class="request-login">로그인하면 문의·구매신청을 보낼 수 있어요.</p>
-        <button type="button" class="btn-primary write-submit" @click="signIn">디스코드로 로그인</button>
+        <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
       </div>
       <div class="side-card request-form" v-else-if="!isOwner">
         <div class="card-title">판매자에게 문의·구매신청</div>

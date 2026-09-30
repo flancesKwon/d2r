@@ -78,7 +78,7 @@ async function saveProfileForm() {
   <div class="grid-wrap mypage-wrap" v-if="!authState.user">
     <div class="mypage-login">
       <p>로그인하면 내가 쓴 글·거래내역·받은 리뷰를 볼 수 있어요.</p>
-      <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+      <button type="button" class="btn-primary" @click="signIn">로그인</button>
     </div>
   </div>
   <div class="grid-wrap mypage-wrap" v-else>

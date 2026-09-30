@@ -71,7 +71,7 @@ async function submitPost() {
   <div class="write-section" v-if="!authState.user">
     <div class="write-login">
       <p>글은 로그인하면 쓸 수 있어요.</p>
-      <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+      <button type="button" class="btn-primary" @click="signIn">로그인</button>
     </div>
   </div>
   <div class="write-section" v-else>

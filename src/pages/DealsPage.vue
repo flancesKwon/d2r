@@ -94,7 +94,7 @@ function submitReview() {
 
   <div class="grid-wrap deals-wrap deals-login" v-if="!authState.user">
     <p>로그인하면 내 거래방을 볼 수 있어요.</p>
-    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+    <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap deals-wrap" v-else>
     <div class="deals-layout">
