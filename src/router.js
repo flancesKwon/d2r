@@ -74,4 +74,25 @@ router.afterEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 정보'
 })
 
+// 새로 배포되면 페이지 조각 파일 이름이 바뀌어서, 배포 전에 열어 둔 창에선 메뉴를 눌러도 옛 파일을 못 받아 안 넘어감
+// -> 그럴 땐 새 버전으로 한 번 새로고침해서 누른 메뉴로 바로 감 (1분 안에 또 나면 무한 새로고침 막으려고 멈춤)
+const RELOAD_KEY = 'd2r-chunk-reload'
+function reloadToNewVersion(path) {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0)
+    if (Date.now() - last < 60000) return false
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()))
+  } catch (e) {}
+  if (path) window.location.hash = path
+  window.location.reload()
+  return true
+}
+const isChunkError = (err) => /dynamically imported module|Importing a module script failed|error loading dynamically imported|Failed to fetch/i.test(err?.message || '')
+router.onError((err, to) => {
+  if (isChunkError(err)) reloadToNewVersion(to?.fullPath)
+})
+window.addEventListener('vite:preloadError', (e) => {
+  if (reloadToNewVersion()) e.preventDefault()
+})
+
 export default router
