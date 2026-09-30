@@ -128,7 +128,7 @@ async function onDeletePost() {
     </div>
     <div class="comment-login" v-else>
       댓글은 로그인하면 쓸 수 있어요.
-      <button type="button" class="btn-primary write-submit" @click="signIn">디스코드로 로그인</button>
+      <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
     </div>
   </div>
   </div>

@@ -71,7 +71,7 @@ async function submitMessage() {
 
   <div class="grid-wrap messages-wrap messages-login" v-if="!authState.user">
     <p>로그인하면 쪽지를 주고받을 수 있어요.</p>
-    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+    <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap messages-wrap" v-else>
     <div class="messages-layout">

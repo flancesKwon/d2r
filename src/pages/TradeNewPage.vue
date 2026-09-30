@@ -807,7 +807,7 @@ function submitPost() {
 
   <div class="grid-wrap trade-new-wrap trade-new-login" v-if="!authState.user">
     <p>판매글은 로그인하면 올릴 수 있어요.</p>
-    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+    <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap trade-new-wrap" v-else>
     <div class="write-form trade-write-form">

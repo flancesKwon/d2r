@@ -224,7 +224,7 @@ function removeTradePost(p) {
 
   <div class="grid-wrap admin-wrap admin-gate" v-if="!authState.user">
     <p>운영진 계정으로 로그인해주세요.</p>
-    <button type="button" class="btn-primary" @click="signIn">디스코드로 로그인</button>
+    <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap admin-wrap admin-gate" v-else-if="!staff">
     <p>운영진만 볼 수 있는 페이지예요.</p>
