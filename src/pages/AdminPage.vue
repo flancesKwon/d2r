@@ -101,7 +101,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리하지 못했어요'
+    actionError.value = e.message || '처리 실패'
   }
 }
 
@@ -114,9 +114,9 @@ async function setRole(m, role, event) {
   // 취소·실패하면 셀렉트를 원래 등급으로 되돌림
   const revert = () => { if (event) event.target.value = m.role }
   if (role === m.role) return
-  if (m.id === authState.user?.id && role !== 'admin' && !confirm('내 최고관리자 권한을 내려놓을까요? 되돌리려면 다른 최고관리자가 필요해요.')) return revert()
+  if (m.id === authState.user?.id && role !== 'admin' && !confirm('내 최고관리자 권한 해제 - 되돌리려면 다른 최고관리자 필요')) return revert()
   await run(async () => {
-    const rows = await mustReturnRows(supabase.from('tb_profile').update({ role }).eq('id', m.id).select('role'), '등급을 바꾸지 못했어요')
+    const rows = await mustReturnRows(supabase.from('tb_profile').update({ role }).eq('id', m.id).select('role'), '등급 변경 실패')
     m.role = rows[0].role
   })
   revert()
@@ -125,25 +125,25 @@ function suspend(m, option, event) {
   if (event) event.target.value = ''
   if (!option) return
   const label = SUSPEND_OPTIONS.find((o) => o.value === option)?.label
-  const reason = prompt(`${m.nickname} 님을 ${label} 정지할까요? 사유를 적어주세요 (본인에게 보여요)`, '')
+  const reason = prompt(`${m.nickname} 님을 ${label} 정지 - 사유 입력 (본인에게 보임)`, '')
   if (reason === null) return
   const until = option === 'forever' ? 'infinity' : new Date(Date.now() + Number(option) * 86400000).toISOString()
   return run(async () => {
     const rows = await mustReturnRows(
       supabase.from('tb_profile').update({ suspended_until: until, suspended_reason: reason.trim().slice(0, 200) || null })
         .eq('id', m.id).select('suspended_until, suspended_reason'),
-      '정지하지 못했어요'
+      '정지 실패'
     )
     Object.assign(m, rows[0])
     syncReportAuthors(m)
   })
 }
 function unsuspend(m) {
-  if (!confirm(`${m.nickname} 님의 정지를 풀까요?`)) return
+  if (!confirm(`${m.nickname} 님 정지 해제`)) return
   return run(async () => {
     const rows = await mustReturnRows(
       supabase.from('tb_profile').update({ suspended_until: null, suspended_reason: null }).eq('id', m.id).select('suspended_until, suspended_reason'),
-      '정지를 풀지 못했어요'
+      '정지 해제 실패'
     )
     Object.assign(m, rows[0])
     syncReportAuthors(m)
@@ -164,7 +164,7 @@ function changeReport(r, status) {
   })
 }
 function removeReportTarget(r) {
-  if (!confirm(`신고된 ${REPORT_TARGET_LABEL[r.target_type]}을(를) 삭제하고 신고를 처리함으로 바꿀까요?`)) return
+  if (!confirm(`신고된 ${REPORT_TARGET_LABEL[r.target_type]}삭제 후 신고 처리함으로 변경`)) return
   return run(async () => {
     await deleteReportTarget(r)
     await changeReport(r, 'resolved')
@@ -177,7 +177,7 @@ function suspendReportAuthor(r, option, event) {
   return suspend(m, option, event)?.then(() => { a.suspended_until = m.suspended_until })
 }
 function removeReport(r) {
-  if (!confirm('이 신고 기록을 지울까요?')) return
+  if (!confirm('신고 기록 삭제')) return
   return run(async () => {
     await deleteReport(r.id)
     reports.value = reports.value.filter((x) => x.id !== r.id)
@@ -194,17 +194,17 @@ const canSuspendAuthor = (r) => r.target_author && canSuspend(r.target_author)
 
 // ── 최근 글
 function removeCommunityPost(p) {
-  if (!confirm(`"${p.title}" 글을 삭제할까요?`)) return
+  if (!confirm(`"${p.title}" 글 삭제`)) return
   return run(async () => {
-    await mustReturnRows(supabase.from('tb_community_post').delete().eq('id', p.id).select('id'), '삭제하지 못했어요')
+    await mustReturnRows(supabase.from('tb_community_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentCommunity.value = recentCommunity.value.filter((x) => x.id !== p.id)
     stats.value.communityPosts--
   })
 }
 function removeTradePost(p) {
-  if (!confirm(`"${p.item_name}" 판매글을 삭제할까요?`)) return
+  if (!confirm(`"${p.item_name}" 판매글 삭제`)) return
   return run(async () => {
-    await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', p.id).select('id'), '삭제하지 못했어요')
+    await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentTrade.value = recentTrade.value.filter((x) => x.id !== p.id)
     stats.value.tradePosts--
   })
@@ -218,21 +218,20 @@ function removeTradePost(p) {
     <div class="patch-hero-inner">
       <div class="eyebrow">운영 도구</div>
       <h1>관리자 페이지</h1>
-      <p>신고, 회원, 게시글을 관리해요.</p>
     </div>
   </div>
 
   <div class="grid-wrap admin-wrap admin-gate" v-if="!authState.user">
-    <p>운영진 계정으로 로그인해주세요.</p>
+    <p>운영진 계정 로그인 필요</p>
     <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap admin-wrap admin-gate" v-else-if="!staff">
-    <p>운영진만 볼 수 있는 페이지예요.</p>
+    <p>운영진 전용</p>
   </div>
 
   <div class="grid-wrap admin-wrap" v-else>
     <div class="admin-notice" v-if="!schemaReady">
-      신고·이용 정지가 아직 꺼져 있어요. Supabase SQL Editor 에서 <code>supabase/002_reports_suspension.sql</code> 을 실행하면 켜져요.
+      신고·이용 정지 꺼짐 - Supabase SQL Editor 에서 <code>supabase/002_reports_suspension.sql</code> 실행 필요
     </div>
 
     <div class="admin-stat-row">
@@ -300,7 +299,7 @@ function removeTradePost(p) {
             </template>
           </div>
         </div>
-        <div class="empty-state" v-if="!reports.length">{{ reportFilter === 'open' ? '처리할 신고가 없어요' : '신고가 없어요' }}</div>
+        <div class="empty-state" v-if="!reports.length">{{ reportFilter === 'open' ? '처리할 신고 없음' : '신고 없음' }}</div>
       </div>
     </template>
 
@@ -344,7 +343,7 @@ function removeTradePost(p) {
               <span class="admin-dim" v-else>-</span>
             </td>
           </tr>
-          <tr v-if="!members.length"><td colspan="6" class="admin-dim">회원이 없어요</td></tr>
+          <tr v-if="!members.length"><td colspan="6" class="admin-dim">회원 없음</td></tr>
         </tbody>
       </table>
     </div>
@@ -358,7 +357,7 @@ function removeTradePost(p) {
         </div>
         <button class="admin-action-btn" @click="removeCommunityPost(p)">삭제</button>
       </div>
-      <div class="empty-state" v-if="!recentCommunity.length">글이 없어요</div>
+      <div class="empty-state" v-if="!recentCommunity.length">글 없음</div>
     </div>
 
     <div class="d-section-title">최근 판매글</div>
@@ -370,7 +369,7 @@ function removeTradePost(p) {
         </div>
         <button class="admin-action-btn" @click="removeTradePost(p)">삭제</button>
       </div>
-      <div class="empty-state" v-if="!recentTrade.length">판매글이 없어요</div>
+      <div class="empty-state" v-if="!recentTrade.length">판매글 없음</div>
     </div>
   </div>
   </div>

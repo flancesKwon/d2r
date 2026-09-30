@@ -37,7 +37,7 @@ loadGuides().then(() => {
 
 const LIST_FIELDS = [
   { key: 'keyItems', label: '추천 장비', placeholder: '예: 투구: 할리퀸 관모 (모든 기술·마법 아이템 발견)' },
-  { key: 'levelingNotes', label: '레벨링 노트', placeholder: '예: 노멀은 화염탄만으로 충분해요' },
+  { key: 'levelingNotes', label: '레벨링 노트', placeholder: '예: 노멀은 화염탄만으로 충분' },
   { key: 'strengths', label: '장점', placeholder: '예: 광역 사냥이 빠름' },
   { key: 'weaknesses', label: '단점', placeholder: '예: 화염 면역 몬스터에 약함' },
 ]
@@ -50,14 +50,14 @@ const saving = ref(false)
 const error = ref('')
 async function submit() {
   error.value = ''
-  if (!form.value.title.trim()) return (error.value = '제목을 입력해주세요')
-  if (form.value.title.trim().length > 120) return (error.value = '제목은 120자까지예요')
+  if (!form.value.title.trim()) return (error.value = '제목 입력')
+  if (form.value.title.trim().length > 120) return (error.value = '제목은 120자까지')
   saving.value = true
   try {
     const g = await saveGuide(form.value)
     router.replace(`/guides/${g.id}`)
   } catch (e) {
-    error.value = e.message || '저장하지 못했어요'
+    error.value = e.message || '저장 실패'
   } finally {
     saving.value = false
   }
@@ -72,16 +72,15 @@ watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate:
     <div class="patch-hero-inner">
       <div class="eyebrow">빌드 가이드</div>
       <h1>{{ pageTitle }}</h1>
-      <p>운영진만 쓰고 고칠 수 있어요. 비공개로 저장하면 운영진에게만 보여요.</p>
     </div>
   </div>
 
   <div class="grid-wrap ge-wrap ge-gate" v-if="!authState.user">
-    <p>운영진 계정으로 로그인해주세요.</p>
+    <p>운영진 계정 로그인 필요</p>
     <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap ge-wrap ge-gate" v-else-if="guidesState.loaded && !canEditGuides">
-    <p>운영진만 가이드를 쓰고 고칠 수 있어요.</p>
+    <p>운영진 전용</p>
     <router-link to="/guides" class="btn-primary">가이드 목록으로</router-link>
   </div>
 
@@ -110,7 +109,7 @@ watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate:
       <input v-model="form.title" class="ge-input ge-title" maxlength="120" placeholder="예: 파벽 소서리스 — 초보자용 완전 정복" />
     </label>
     <label class="ge-field">
-      <span>한 줄 소개 <small>목록 카드에 보여요</small></span>
+      <span>한 줄 소개 <small>목록 카드에 표시</small></span>
       <input v-model="form.desc" class="ge-input" placeholder="예: 스킬 트리, 필요 장비, 레벨링 순서까지 한 번에" />
     </label>
     <label class="ge-field">

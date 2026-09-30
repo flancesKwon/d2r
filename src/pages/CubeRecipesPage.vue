@@ -58,7 +58,6 @@ const filteredRuneChain = computed(() => {
     <div class="patch-hero-inner">
       <div class="eyebrow">호라드림 큐브 활용법</div>
       <h1>큐브 레시피</h1>
-      <p>크래프트, 수리, 룬·보석·아이템 업그레이드, 그 외 유용한 조합법까지 카테고리별로 정리했어요.</p>
       <p class="cube-sim-link"><router-link to="/craft-sim">크래프트 결과를 확률대로 굴려보기 → 크래프트 시뮬레이터</router-link></p>
     </div>
   </div>
@@ -130,7 +129,7 @@ const filteredRuneChain = computed(() => {
         </div>
       </div>
 
-      <div class="empty-state" v-if="filteredRecipes.length === 0 && !showRuneTable">일치하는 레시피가 없어요</div>
+      <div class="empty-state" v-if="filteredRecipes.length === 0 && !showRuneTable">일치하는 레시피 없음</div>
     </div>
   </div>
   </div>

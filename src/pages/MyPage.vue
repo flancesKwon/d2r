@@ -51,7 +51,7 @@ const saving = ref(false)
 async function saveProfileForm() {
   saveError.value = ''
   const nick = nicknameInput.value.trim()
-  if (nick.length < 2 || nick.length > 20) return (saveError.value = '닉네임은 2~20자로 정해주세요')
+  if (nick.length < 2 || nick.length > 20) return (saveError.value = '닉네임은 2~20자')
   saving.value = true
   try {
     await saveProfile({ nickname: nick, contact: contactInput.value })
@@ -59,7 +59,7 @@ async function saveProfileForm() {
     setTimeout(() => (savedToast.value = false), 2000)
   } catch (e) {
     // 닉네임 중복(unique 제약) 등
-    saveError.value = /duplicate|unique/i.test(e.message || '') ? '이미 쓰는 사람이 있는 닉네임이에요' : e.message || '저장하지 못했어요'
+    saveError.value = /duplicate|unique/i.test(e.message || '') ? '이미 사용 중인 닉네임' : e.message || '저장 실패'
   } finally {
     saving.value = false
   }
@@ -73,13 +73,12 @@ async function saveProfileForm() {
     <div class="patch-hero-inner">
       <div class="eyebrow">내 정보</div>
       <h1>마이페이지</h1>
-      <p>내가 쓴 글, 거래내역, 회원정보를 한곳에서 관리하세요.</p>
     </div>
   </div>
 
   <div class="grid-wrap mypage-wrap" v-if="!authState.user">
     <div class="mypage-login">
-      <p>로그인하면 내가 쓴 글·거래내역·받은 리뷰를 볼 수 있어요.</p>
+      <p>로그인 필요</p>
       <button type="button" class="btn-primary" @click="signIn">로그인</button>
     </div>
   </div>
@@ -95,7 +94,7 @@ async function saveProfileForm() {
         <router-link :to="p.link" class="my-post-title">{{ p.title }}</router-link>
         <span class="my-post-date">{{ p.date }}</span>
       </div>
-      <div class="empty-state" v-if="!myPostsCombined.length">아직 작성한 글이 없어요</div>
+      <div class="empty-state" v-if="!myPostsCombined.length">작성한 글 없음</div>
     </div>
 
     <div v-else-if="activeTab === '거래내역'" class="mypage-panel">
@@ -106,7 +105,7 @@ async function saveProfileForm() {
         <span class="status-badge" :class="'status-' + p.status">{{ p.status }}</span>
         <span class="my-trade-date">{{ p.date }}</span>
       </div>
-      <div class="empty-state" v-if="!myTradePosts.length">등록한 판매글이 없어요</div>
+      <div class="empty-state" v-if="!myTradePosts.length">판매글 없음</div>
 
       <div class="d-section-title" style="margin-top:26px;">내가 구매신청 보낸 거래</div>
       <div class="my-trade-row" v-for="r in myRequests" :key="'buy-' + r.id">
@@ -115,7 +114,7 @@ async function saveProfileForm() {
         <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
         <span class="my-trade-date">{{ r.date }}</span>
       </div>
-      <div class="empty-state" v-if="!myRequests.length">보낸 구매신청이 없어요</div>
+      <div class="empty-state" v-if="!myRequests.length">보낸 구매신청 없음</div>
     </div>
 
     <div v-else-if="activeTab === '받은 리뷰'" class="mypage-panel">
@@ -128,7 +127,7 @@ async function saveProfileForm() {
         </div>
         <div class="my-review-comment" v-if="r.comment">{{ r.comment }}</div>
       </div>
-      <div class="empty-state" v-if="!myReviews.length">아직 받은 리뷰가 없어요</div>
+      <div class="empty-state" v-if="!myReviews.length">받은 리뷰 없음</div>
     </div>
 
     <div v-else-if="activeTab === '저장한 빌드'" class="mypage-panel">
@@ -140,7 +139,7 @@ async function saveProfileForm() {
           <router-link :to="{ path: '/simulator', query: { b: b.code } }" class="my-post-title">{{ b.name }}</router-link>
           <span class="my-post-date">{{ b.date }}</span>
         </div>
-        <div class="empty-state" v-if="!buildsState.list.length">저장한 빌드가 없어요. 스킬·스탯 시뮬레이터에서 "내 빌드"로 저장할 수 있어요.</div>
+        <div class="empty-state" v-if="!buildsState.list.length">저장한 빌드 없음 (시뮬레이터 "내 빌드"에서 저장)</div>
       </template>
     </div>
 
@@ -152,11 +151,11 @@ async function saveProfileForm() {
       <label class="profile-field">
         연락처
         <input type="text" v-model="contactInput" placeholder="배틀태그, 디스코드 등" class="write-input" />
-        <small class="profile-hint-public">거래 상대가 볼 수 있게 공개돼요.</small>
+        <small class="profile-hint-public">공개 (거래 상대가 봄)</small>
       </label>
       <div class="profile-actions">
         <button class="btn-primary" :disabled="saving" @click="saveProfileForm">저장</button>
-        <span class="profile-saved-toast" v-if="savedToast">저장했어요!</span>
+        <span class="profile-saved-toast" v-if="savedToast">저장됨</span>
         <span class="profile-save-error" v-if="saveError">{{ saveError }}</span>
       </div>
     </div>

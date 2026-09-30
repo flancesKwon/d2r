@@ -32,12 +32,12 @@ const router = useRouter()
 loadGuides()
 const guide = computed(() => getGuide(route.params.id))
 async function removeGuide() {
-  if (!confirm(`"${guide.value.title}" 가이드를 지울까요? 되돌릴 수 없어요.`)) return
+  if (!confirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
   try {
     await deleteGuide(guide.value)
     router.replace('/guides')
   } catch (e) {
-    alert(e.message || '지우지 못했어요')
+    alert(e.message || '삭제 실패')
   }
 }
 // 목차 - 해시 라우터라 #앵커 링크 대신 버튼으로 스크롤
@@ -134,7 +134,7 @@ const related = computed(() =>
         </div>
         <div class="side-block tool-box">
           <h3>이 빌드의 아이템이 궁금하다면</h3>
-          <p>가이드에 언급된 아이템 옵션을 아이템 사전에서 찾아보세요</p>
+          <p>가이드 속 아이템 옵션은 아이템 사전에서</p>
           <router-link to="/items">아이템 검색하기</router-link>
         </div>
         <div class="side-block board-box" v-if="related.length">
@@ -151,7 +151,7 @@ const related = computed(() =>
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
-      <div class="empty-state">가이드를 찾을 수 없어요. <router-link to="/guides">가이드 목록으로</router-link></div>
+      <div class="empty-state">가이드 없음. <router-link to="/guides">가이드 목록으로</router-link></div>
     </div>
   </div>
 </template>

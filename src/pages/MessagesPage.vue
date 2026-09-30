@@ -53,7 +53,7 @@ async function submitMessage() {
     await sendMessage(activeConversation.value, text)
   } catch (e) {
     draft.value = text
-    sendError.value = e.message || '보내지 못했어요'
+    sendError.value = e.message || '전송 실패'
   }
 }
 </script>
@@ -65,12 +65,11 @@ async function submitMessage() {
     <div class="patch-hero-inner">
       <div class="eyebrow">1:1 대화</div>
       <h1>쪽지함</h1>
-      <p>거래·문의 상대와 주고받은 쪽지를 한 곳에서 확인하세요.</p>
     </div>
   </div>
 
   <div class="grid-wrap messages-wrap messages-login" v-if="!authState.user">
-    <p>로그인하면 쪽지를 주고받을 수 있어요.</p>
+    <p>로그인 필요</p>
     <button type="button" class="btn-primary" @click="signIn">로그인</button>
   </div>
   <div class="grid-wrap messages-wrap" v-else>
@@ -90,7 +89,7 @@ async function submitMessage() {
             <div class="conv-preview">{{ lastMessageOf(c)?.text }}</div>
           </div>
         </button>
-        <div class="empty-state" v-if="!messagesState.conversations.length">쪽지함이 비어있어요. 판매글의 "쪽지 보내기"로 대화를 시작할 수 있어요.</div>
+        <div class="empty-state" v-if="!messagesState.conversations.length">쪽지 없음 (판매글의 "쪽지 보내기"로 시작)</div>
       </div>
 
       <div class="conv-thread" v-if="activeConversation">
@@ -106,14 +105,14 @@ async function submitMessage() {
         </div>
         <div class="conv-thread-input">
           <input
-            type="text" v-model="draft" placeholder="메시지를 입력하세요"
+            type="text" v-model="draft" placeholder="메시지"
             class="write-input" @keydown.enter.prevent="submitMessage"
           />
           <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">보내기</button>
         </div>
         <div class="send-error" v-if="sendError">{{ sendError }}</div>
       </div>
-      <div class="conv-thread conv-thread-empty" v-else>대화를 선택해주세요</div>
+      <div class="conv-thread conv-thread-empty" v-else>대화 선택</div>
     </div>
   </div>
   </div>

@@ -54,11 +54,11 @@ function mapComment(r) {
 const voteDir = (v) => (v === 1 ? 'up' : v === -1 ? 'down' : null)
 
 function needLogin() {
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!authState.user) throw new Error('로그인 필요')
   return authState.user.id
 }
 function needDb() {
-  if (!supabase) throw new Error('게시판 서버에 연결할 수 없어요')
+  if (!supabase) throw new Error('게시판 서버 연결 실패')
 }
 
 const SORT_COLUMN = { latest: 'created_at', likes: 'like_count', views: 'views', comments: 'comment_count' }
@@ -131,7 +131,7 @@ export async function createPost({ category, title, content, tags = [] }) {
     supabase.from('tb_community_post')
       .insert({ author_id: uid, category, title: title.trim(), content, tags })
       .select('id'),
-    '글을 등록하지 못했어요'
+    '글 등록 실패'
   )
   return rows[0].id
 }
@@ -143,14 +143,14 @@ export async function updatePost(id, { category, title, content, tags }) {
     supabase.from('tb_community_post')
       .update({ category, title: title.trim(), content, tags, updated_at: new Date().toISOString() })
       .eq('id', id).select('id'),
-    '글을 수정할 권한이 없어요'
+    '글 수정 권한 없음'
   )
 }
 
 export async function deletePost(id) {
   needDb()
   needLogin()
-  await mustReturnRows(supabase.from('tb_community_post').delete().eq('id', id).select('id'), '글을 삭제할 권한이 없어요')
+  await mustReturnRows(supabase.from('tb_community_post').delete().eq('id', id).select('id'), '글 삭제 권한 없음')
 }
 
 export async function addComment(postId, content) {
@@ -160,7 +160,7 @@ export async function addComment(postId, content) {
     supabase.from('tb_community_comment')
       .insert({ post_id: Number(postId), author_id: uid, content })
       .select(`*, ${COMMENT_AUTHOR}`),
-    '댓글을 등록하지 못했어요'
+    '댓글 등록 실패'
   )
   return mapComment(rows[0])
 }
@@ -168,7 +168,7 @@ export async function addComment(postId, content) {
 export async function deleteComment(id) {
   needDb()
   needLogin()
-  await mustReturnRows(supabase.from('tb_community_comment').delete().eq('id', id).select('id'), '댓글을 삭제할 권한이 없어요')
+  await mustReturnRows(supabase.from('tb_community_comment').delete().eq('id', id).select('id'), '댓글 삭제 권한 없음')
 }
 
 // 추천/비추천: 같은 걸 다시 누르면 취소, 반대를 누르면 바꿈. 숫자는 트리거가 맞춘 값을 다시 읽음
@@ -177,12 +177,12 @@ async function vote(table, key, id, target, dir) {
   const uid = needLogin()
   const value = dir === 'up' ? 1 : -1
   if (target.myVote === dir) {
-    await mustReturnRows(supabase.from(table).delete().eq(key, id).eq('user_id', uid).select(key), '추천을 취소하지 못했어요')
+    await mustReturnRows(supabase.from(table).delete().eq(key, id).eq('user_id', uid).select(key), '추천 취소 실패')
     target.myVote = null
   } else {
     await mustReturnRows(
       supabase.from(table).upsert({ [key]: id, user_id: uid, value }, { onConflict: `${key},user_id` }).select(key),
-      '추천하지 못했어요'
+      '추천 실패'
     )
     target.myVote = dir
   }

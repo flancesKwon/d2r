@@ -10,10 +10,10 @@ export const supabase = url && key
   ? createClient(url, key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } })
   : null
 
-if (!supabase) console.warn('Supabase 설정(VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)이 없어 로그인·게시판이 꺼져 있어요.')
+if (!supabase) console.warn('Supabase 설정(VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)없음 - 로그인·게시판 꺼짐')
 
 // RLS에 걸린 UPDATE/DELETE는 에러 없이 0건으로 조용히 끝남 -> 쓰기는 항상 .select() 로 돌아온 행을 확인
-export async function mustReturnRows(query, message = '권한이 없어요') {
+export async function mustReturnRows(query, message = '권한 없음') {
   const { data, error } = await query
   // RLS 에 걸린 INSERT 는 영어 에러로 옴 (예: 이용 정지 중) -> 화면에 보여줄 말로
   if (error?.code === '42501' && /row-level security/i.test(error.message)) throw new Error(message)

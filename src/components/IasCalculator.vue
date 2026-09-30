@@ -169,7 +169,7 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
     </section>
 
     <section class="ias-card ias-result">
-      <div v-if="missingOffhand" class="ias-empty">이 스킬은 무기 두 개가 필요해요. 보조 무기를 골라주세요.</div>
+      <div v-if="missingOffhand" class="ias-empty">무기 두 개 필요 - 보조 무기 선택</div>
       <template v-else-if="main">
         <div class="ias-now">
           <div class="ias-now-main">
@@ -180,7 +180,7 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
           <div class="ias-next" v-if="main.state.next">
             다음 단계 <b>{{ main.state.next.ias }}%</b> ({{ framesText(main.state.next.frames) }}프레임)까지 <b class="up">+{{ main.state.need }}%</b>
           </div>
-          <div class="ias-next done" v-else>최고 단계예요</div>
+          <div class="ias-next done" v-else>최고 단계</div>
           <div class="ias-meta">EIAS {{ result.eias }}<template v-if="!w2"> · 공속 합계 {{ totalIas }}%</template></div>
         </div>
 

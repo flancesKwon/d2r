@@ -24,7 +24,7 @@ export async function loadBuilds() {
   buildsState.loaded = true
   if (error) {
     // 003 을 아직 안 돌렸으면 표가 없음
-    buildsState.error = '빌드 저장 기능을 준비 중이에요.'
+    buildsState.error = '빌드 저장 준비 중'
     buildsState.list = []
     return
   }
@@ -34,14 +34,14 @@ watch(() => authState.user?.id, () => loadBuilds().catch(() => {}), { immediate:
 
 // 새로 저장 (id 가 있으면 그 빌드를 덮어씀)
 export async function saveBuild({ id = null, name, classKey, level, code }) {
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!authState.user) throw new Error('로그인 필요')
   const row = { name: (name || '').trim().slice(0, 60) || '이름 없는 빌드', class_key: classKey, level: Math.min(99, Math.max(1, Number(level) || 1)), code }
   const q = id
     ? supabase.from('tb_saved_build').update(row).eq('id', id).select('*')
     : supabase.from('tb_saved_build').insert({ ...row, user_id: authState.user.id }).select('*')
   const { data, error } = await q
-  if (error) throw new Error(/100/.test(error.message) ? '빌드는 100개까지 저장할 수 있어요' : '빌드를 저장하지 못했어요')
-  if (!data?.length) throw new Error('빌드를 저장하지 못했어요')
+  if (error) throw new Error(/100/.test(error.message) ? '빌드는 100개까지' : '빌드 저장 실패')
+  if (!data?.length) throw new Error('빌드 저장 실패')
   const b = mapBuild(data[0])
   buildsState.list = [b, ...buildsState.list.filter((x) => x.id !== b.id)]
   return b
@@ -50,12 +50,12 @@ export async function saveBuild({ id = null, name, classKey, level, code }) {
 export async function renameBuild(build, name) {
   const rows = await mustReturnRows(
     supabase.from('tb_saved_build').update({ name: (name || '').trim().slice(0, 60) || build.name }).eq('id', build.id).select('*'),
-    '이름을 바꾸지 못했어요'
+    '이름 변경 실패'
   )
   Object.assign(build, mapBuild(rows[0]))
 }
 
 export async function deleteBuild(build) {
-  await mustReturnRows(supabase.from('tb_saved_build').delete().eq('id', build.id).select('id'), '빌드를 지우지 못했어요')
+  await mustReturnRows(supabase.from('tb_saved_build').delete().eq('id', build.id).select('id'), '빌드 삭제 실패')
   buildsState.list = buildsState.list.filter((x) => x.id !== build.id)
 }

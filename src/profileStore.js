@@ -30,7 +30,7 @@ export async function initAuth() {
     const { data } = await supabase.auth.getSession()
     await applySession(data.session)
   })()
-  await Promise.race([load.catch((e) => console.warn('로그인 정보를 못 불러왔어요', e)), new Promise((r) => setTimeout(r, 3000))])
+  await Promise.race([load.catch((e) => console.warn('로그인 정보 불러오기 실패', e)), new Promise((r) => setTimeout(r, 3000))])
   // onAuthStateChange 콜백 안에서 supabase 를 바로 await 하면 멈출 수 있어서 다음 틱으로 넘김
   supabase.auth.onAuthStateChange((_e, session) => setTimeout(() => applySession(session), 0))
   authState.ready = true
@@ -87,13 +87,13 @@ export function suspensionText(until) {
 
 // 마이페이지: 닉네임·연락처 수정
 export async function saveProfile({ nickname, contact }) {
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!authState.user) throw new Error('로그인 필요')
   const rows = await mustReturnRows(
     supabase.from('tb_profile')
       .update({ nickname: (nickname || '').trim(), contact: (contact || '').trim() || null })
       .eq('id', authState.user.id)
       .select(),
-    '프로필을 저장하지 못했어요'
+    '프로필 저장 실패'
   )
   authState.profile = rows[0]
   profileState.nickname = rows[0].nickname

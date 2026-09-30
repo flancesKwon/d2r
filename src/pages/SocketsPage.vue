@@ -84,7 +84,6 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
     <div class="patch-hero-inner">
       <div class="eyebrow">룬워드 베이스 준비</div>
       <h1>소켓 계산기</h1>
-      <p>베이스와 아이템 레벨을 고르면 최대 소켓 수와 라르주크 퀘스트·큐브로 뚫었을 때 나오는 소켓을 알려줘요.</p>
     </div>
   </div>
 
@@ -101,7 +100,7 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
               <span class="sk-thumb"><img v-if="iconUrl(b.code)" :src="iconUrl(b.code)" alt="" /><svg v-else viewBox="0 0 24 24" class="sk-glyph" v-html="glyphOf(b)"></svg></span>
               {{ baseItemLabel(b) }} <small>{{ b.tier }} · {{ b.type_sub }}</small>
             </button>
-            <div class="sk-empty" v-if="!candidates.length">소켓을 뚫을 수 있는 베이스 중 일치하는 게 없어요.</div>
+            <div class="sk-empty" v-if="!candidates.length">일치하는 베이스 없음</div>
           </div>
         </div>
         <label class="sk-lv">
@@ -138,7 +137,7 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
         </div>
       </div>
       <div class="sk-hint" v-if="minIlvlForMax">
-        최대 {{ Math.max(...info.sock) }}소켓은 아이템 레벨 <b>{{ minIlvlForMax }} 이상</b>이면 나와요.
+        최대 {{ Math.max(...info.sock) }}소켓은 아이템 레벨 <b>{{ minIlvlForMax }} 이상</b>에서 나옴.
       </div>
 
       <div class="sk-methods">
@@ -163,7 +162,7 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
         </div>
         <div class="sk-method" v-if="isWeapon">
           <div class="sk-method-title">매직 무기 + 보석 3개</div>
-          <div class="sk-recipe">깨진 보석 3개 또는 흠 없는 보석 3개 + 매직 무기 → 같은 종류의 매직 무기로 새로 만들어지고 1~{{ Math.min(2, maxNow) }}소켓 (옵션도 새로 붙어요)</div>
+          <div class="sk-recipe">깨진 보석 3개 또는 흠 없는 보석 3개 + 매직 무기 → 같은 종류의 매직 무기로 새로 만들어지고 1~{{ Math.min(2, maxNow) }}소켓 (옵션도 새로 붙음)</div>
         </div>
       </div>
     </section>

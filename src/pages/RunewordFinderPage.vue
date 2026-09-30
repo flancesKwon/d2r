@@ -101,7 +101,6 @@ function runeSlots(rw) {
     <div class="patch-hero-inner">
       <div class="eyebrow">룬워드 계산기</div>
       <h1>가진 룬으로 룬워드 찾기</h1>
-      <p>가진 룬을 담으면 바로 만들 수 있는 룬워드, 큐브 업그레이드로 만들 수 있는 룬워드, 룬 1~2개만 더 있으면 되는 룬워드를 찾아줘요.</p>
     </div>
   </div>
 
@@ -138,12 +137,12 @@ function runeSlots(rw) {
       </div>
     </div>
 
-    <div class="empty-state" v-if="!totalRunes">위에서 가진 룬을 눌러서 담아보세요.</div>
+    <div class="empty-state" v-if="!totalRunes">가진 룬을 눌러서 담기</div>
 
     <template v-else>
       <section class="rw-section">
-        <h2>바로 만들 수 있어요 <span>{{ ready.length }}</span></h2>
-        <div class="rw-none" v-if="!ready.length">가진 룬만으로 바로 만들 수 있는 룬워드가 없어요.</div>
+        <h2>바로 제작 가능 <span>{{ ready.length }}</span></h2>
+        <div class="rw-none" v-if="!ready.length">바로 만들 수 있는 룬워드 없음</div>
         <div class="rw-list">
           <article class="rw-card ready" v-for="{ rw } in ready" :key="rw.item.id">
             <div class="rw-card-top">
@@ -161,8 +160,8 @@ function runeSlots(rw) {
       </section>
 
       <section class="rw-section">
-        <h2>큐브 업그레이드로 만들 수 있어요 <span>{{ upgradable.length }}</span></h2>
-        <div class="rw-none" v-if="!upgradable.length">업그레이드로 채울 수 있는 룬워드가 없어요.</div>
+        <h2>큐브 업그레이드로 제작 가능 <span>{{ upgradable.length }}</span></h2>
+        <div class="rw-none" v-if="!upgradable.length">업그레이드로 채울 수 있는 룬워드 없음</div>
         <div class="rw-list">
           <article class="rw-card upgrade" v-for="{ rw, e } in upgradable" :key="rw.item.id">
             <div class="rw-card-top">
@@ -188,8 +187,8 @@ function runeSlots(rw) {
       </section>
 
       <section class="rw-section">
-        <h2>룬 1~2개만 더 있으면 돼요 <span>{{ almost.length }}</span></h2>
-        <div class="rw-none" v-if="!almost.length">1~2개 차이로 만들 수 있는 룬워드가 없어요.</div>
+        <h2>룬 1~2개 부족 <span>{{ almost.length }}</span></h2>
+        <div class="rw-none" v-if="!almost.length">1~2개 차이 룬워드 없음</div>
         <div class="rw-list">
           <article class="rw-card almost" v-for="{ rw, e } in almost" :key="rw.item.id">
             <div class="rw-card-top">

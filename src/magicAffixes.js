@@ -264,7 +264,7 @@ const badSlot = (fam, vals) =>
 // 크래프트 고정 옵션 수치 검사 -> 문제 문구 목록
 export function validateCraftValues(recipe, values) {
   const vals = filledValues(recipe.fam, values)
-  if (vals.some((v) => v === null)) return [`${recipe.name} 고정 옵션 수치를 골라주세요`]
+  if (vals.some((v) => v === null)) return [`${recipe.name} 고정 옵션 수치 선택`]
   const bad = badSlot(recipe.fam, vals)
   return bad >= 0 ? [`${recipe.name} 고정 옵션 (수치 ${recipe.fam.slotRanges[bad].join('~')})`] : []
 }
@@ -277,9 +277,9 @@ export function validateAffixPicks(data, base, quality, picks) {
   if (!info) return errs
   const lim = affixLimits(base, quality)
   const count = (s) => picks.filter((p) => p.fam.slot === s).length
-  if (count('p') > lim.p) errs.push(`접두사는 최대 ${lim.p}개예요`)
-  if (count('s') > lim.s) errs.push(`접미사는 최대 ${lim.s}개예요`)
-  if (picks.length > lim.total) errs.push(`옵션은 합쳐서 최대 ${lim.total}개예요`)
+  if (count('p') > lim.p) errs.push(`접두사 최대 ${lim.p}개`)
+  if (count('s') > lim.s) errs.push(`접미사 최대 ${lim.s}개`)
+  if (picks.length > lim.total) errs.push(`옵션 합계 최대 ${lim.total}개`)
   // 옵션마다 입력한 수치에 맞는 단계(tier) 후보
   const cands = []
   for (const p of picks) {
@@ -292,7 +292,7 @@ export function validateAffixPicks(data, base, quality, picks) {
     }
     const ts = p.fam.tiers.filter((t) => t.slots.every(([lo, hi], i) => vals[i] === null || (vals[i] >= lo && vals[i] <= hi)))
     if (!ts.length) {
-      errs.push(`${familyText(p.fam, vals.map((v, i) => v ?? p.fam.slotRanges[i].join('~')))} - 이 수치 조합은 한 단계에서 나오지 않아요`)
+      errs.push(`${familyText(p.fam, vals.map((v, i) => v ?? p.fam.slotRanges[i].join('~')))} - 한 단계에서 나올 수 없는 수치 조합`)
       continue
     }
     cands.push({ p, ts })
@@ -317,7 +317,7 @@ export function validateAffixPicks(data, base, quality, picks) {
     }
     return pick(0)
   })
-  if (!ok) errs.push('고른 옵션들은 한 아이템에 같이 붙을 수 없어요 (같은 종류 옵션이 겹치거나 아이템 레벨 조건이 안 맞아요)')
+  if (!ok) errs.push('한 아이템에 같이 붙을 수 없는 조합 (같은 종류 중복 또는 아이템 레벨 조건)')
   return errs
 }
 

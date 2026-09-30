@@ -156,7 +156,6 @@ const tableRows = computed(() => {
     <div class="patch-hero-inner">
       <div class="eyebrow">큐브 크래프트</div>
       <h1>크래프트 시뮬레이터</h1>
-      <p>제작법과 레벨을 정하면 게임 확률대로 크래프트를 굴려보고, 원하는 옵션이 나올 확률과 평균 몇 번 만에 나오는지 계산해요.</p>
     </div>
   </div>
 
@@ -204,7 +203,7 @@ const tableRows = computed(() => {
         </span>
       </div>
       <div class="cs-hint">
-        아이템 레벨 = 캐릭터 레벨/2 + 재료 아이템 레벨/2. 71 이상이면 무작위 옵션이 항상 4개예요.
+        아이템 레벨 = 캐릭터 레벨/2 + 재료 아이템 레벨/2. 71 이상이면 무작위 옵션 항상 4개.
       </div>
     </section>
 
@@ -296,10 +295,10 @@ const tableRows = computed(() => {
           <div class="cs-success" v-if="successP !== null">
             <div class="cs-success-p">{{ fmtPct(successP) }}</div>
             <div v-if="expectedTries">
-              평균 <b>{{ expectedTries.toLocaleString() }}번</b>에 1번 나와요.
-              재료로 치면 {{ materials.slice(2).map((m) => `${m.name} ${expectedTries.toLocaleString()}개`).join(', ') }}와 주얼·매직 {{ base.name_ko || base.subtitle }} 각각 {{ expectedTries.toLocaleString() }}개쯤이에요.
+              평균 <b>{{ expectedTries.toLocaleString() }}번</b>에 1번.
+              재료로 치면 {{ materials.slice(2).map((m) => `${m.name} ${expectedTries.toLocaleString()}개`).join(', ') }}와 주얼·매직 {{ base.name_ko || base.subtitle }} 각각 {{ expectedTries.toLocaleString() }}개 정도.
             </div>
-            <div v-else>{{ RUNS.toLocaleString() }}번 중에 한 번도 안 나왔어요. 조건을 낮춰보세요.</div>
+            <div v-else>{{ RUNS.toLocaleString() }}번 중 0번 - 조건을 낮춰 볼 것.</div>
           </div>
           <div class="cs-sub">무작위 옵션 개수</div>
           <div class="cs-bars">

@@ -60,7 +60,7 @@ function openNotification(n) {
           <span class="header-notif-text">{{ n.text }}</span>
           <span class="header-notif-date">{{ n.date }}</span>
         </button>
-        <div class="header-notif-empty" v-if="!notificationsState.items.length">알림이 없어요</div>
+        <div class="header-notif-empty" v-if="!notificationsState.items.length">알림 없음</div>
       </div>
     </div>
     <router-link to="/messages" class="header-icon-btn" title="쪽지함">

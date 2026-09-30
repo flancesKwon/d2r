@@ -56,7 +56,7 @@ const itemCount = computed(() => trade.value?.itemsData.length)
       <div class="hero-copy">
         <div class="eyebrow">디아블로 2 레저렉션 · 비공식</div>
         <h1>레더 시즌, <span class="accent">뭐 키울지</span> 고민될 때.</h1>
-        <p>직업별 검증된 빌드부터 스킬 트리, 필요 장비까지 — 스탯 찍기 전에 한 번 훑어보세요.</p>
+        <p>직업별 빌드 · 스킬 트리 · 필요 장비</p>
         <div class="hero-cta">
           <router-link class="btn-primary" to="/guides">빌드 가이드 보기</router-link>
           <router-link class="btn-ghost" to="/runewords">룬워드 찾기</router-link>
@@ -147,7 +147,7 @@ const itemCount = computed(() => trade.value?.itemsData.length)
             <router-link :to="`/community/${c.id}`"><span class="tag">{{ c.category }}</span>{{ c.title }}</router-link>
             <span class="meta">{{ c.commentCount || 0 }}</span>
           </li>
-          <li v-if="!latestCommunity.length" class="board-empty">아직 글이 없어요</li>
+          <li v-if="!latestCommunity.length" class="board-empty">글 없음</li>
         </ul>
       </div>
       <div class="side-block board-box">
@@ -158,7 +158,7 @@ const itemCount = computed(() => trade.value?.itemsData.length)
       </div>
       <div class="side-block promo-box">
         <div class="p-tag">공략 제보</div>
-        <h3>내 빌드 자랑하고<br />다른 유저 의견도 들어보세요</h3>
+        <h3>빌드 공유 ·<br />유저 의견</h3>
         <router-link to="/community/write?cat=공략">가이드 제보하러 가기</router-link>
       </div>
     </aside>

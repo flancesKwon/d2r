@@ -37,7 +37,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리하지 못했어요'
+    actionError.value = e.message || '처리 실패'
   }
 }
 
@@ -58,7 +58,7 @@ async function submitComment() {
 const onVotePost = (dir) => run(() => votePost(post.value, dir))
 const onVoteComment = (c, dir) => run(() => voteComment(c, dir))
 async function onDeleteComment(c) {
-  if (!confirm('댓글을 삭제할까요?')) return
+  if (!confirm('댓글 삭제')) return
   await run(async () => {
     await deleteComment(c.id)
     post.value.comments = post.value.comments.filter((x) => x.id !== c.id)
@@ -66,7 +66,7 @@ async function onDeleteComment(c) {
   })
 }
 async function onDeletePost() {
-  if (!confirm('글을 삭제할까요? 되돌릴 수 없어요.')) return
+  if (!confirm('글 삭제 - 되돌릴 수 없음')) return
   await run(async () => {
     await deletePost(post.value.id)
     router.replace('/community')
@@ -119,15 +119,15 @@ async function onDeletePost() {
           <ReportButton class="comment-report" target-type="community_comment" :target-id="c.id" :owner-id="c.authorId" />
         </div>
       </div>
-      <div class="empty-state" v-if="post.comments.length === 0">아직 댓글이 없어요</div>
+      <div class="empty-state" v-if="post.comments.length === 0">댓글 없음</div>
     </div>
 
     <div class="comment-form" v-if="authState.user">
-      <MarkdownEditor v-model="commentDraft" placeholder="댓글을 입력하세요" min-height="110px" />
+      <MarkdownEditor v-model="commentDraft" placeholder="댓글" min-height="110px" />
       <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">댓글 등록</button>
     </div>
     <div class="comment-login" v-else>
-      댓글은 로그인하면 쓸 수 있어요.
+      댓글은 로그인 후 작성
       <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
     </div>
   </div>
@@ -135,7 +135,7 @@ async function onDeletePost() {
   <div class="items-page" v-else>
     <div class="grid-wrap">
       <div class="empty-state" v-if="loading">불러오는 중…</div>
-      <div class="empty-state" v-else>게시글을 찾을 수 없어요. <router-link to="/community">커뮤니티로</router-link></div>
+      <div class="empty-state" v-else>게시글 없음. <router-link to="/community">커뮤니티로</router-link></div>
     </div>
   </div>
 </template>

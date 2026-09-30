@@ -154,7 +154,6 @@ const filteredPosts = computed(() => {
     <div class="patch-hero-inner">
       <div class="eyebrow">유저 간 아이템 거래</div>
       <h1>거래게시판</h1>
-      <p>룬·보석부터 유니크·세트·룬워드·매직·레어·일반 장비, 우버보스 재료·정수까지 등록된 모든 아이템을 올릴 수 있어요. 구매자는 구매신청을 보내면 돼요.</p>
     </div>
   </div>
 
@@ -261,7 +260,7 @@ const filteredPosts = computed(() => {
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매글 없음</div>
     </div>
 
     <div class="trade-grid" v-else>
@@ -296,7 +295,7 @@ const filteredPosts = computed(() => {
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">등록된 판매글이 없어요</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매글 없음</div>
     </div>
   </div>
   </div>

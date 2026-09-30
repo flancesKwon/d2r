@@ -187,7 +187,7 @@ const filteredItems = computed(() => {
         <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypesKo(it.subtitle) : it.subtitle || '' }}</div>
         <div class="card-level" v-if="it.level">Lv {{ it.level }}</div>
       </button>
-      <div class="empty-state" v-if="filteredItems.length === 0">검색 결과가 없어요</div>
+      <div class="empty-state" v-if="filteredItems.length === 0">검색 결과 없음</div>
     </div>
   </div>
 
@@ -238,12 +238,12 @@ const filteredItems = computed(() => {
           </div>
         </div>
         <div class="note-box warn" v-if="selected.spawnable === false">
-          이 아이템은 현재 게임 내에서 드랍되지 않는 것으로 표기되어 있어요.
+          현재 게임에서 드랍되지 않는 아이템.
         </div>
         <div class="d-section-title">옵션</div>
         <div class="affix-list">
           <div v-if="shown(selected.affixes).length === 0" class="affix-line unresolved">
-            <span class="a-text">옵션 데이터가 없는 아이템이에요</span>
+            <span class="a-text">옵션 데이터 없음</span>
           </div>
           <div
             v-for="(a, i) in shown(selected.affixes)"
@@ -258,7 +258,7 @@ const filteredItems = computed(() => {
         <template v-if="selected.extra && selected.extra.random_groups">
           <div class="d-section-title">제작 시 무작위 옵션</div>
           <p class="note-box" style="margin-bottom:10px">
-            큐브로 만들 때 아래 {{ selected.extra.random_groups.length }}개 그룹에서 <b>그룹마다 하나씩</b> 붙고, 수치는 범위 안에서 무작위로 정해져요.
+            큐브로 만들 때 아래 {{ selected.extra.random_groups.length }}개 그룹에서 <b>그룹마다 하나씩</b> 붙음, 수치는 범위 안에서 무작위.
           </p>
           <div class="random-group-list">
             <div class="random-group" v-for="(g, gi) in selected.extra.random_groups" :key="gi">
@@ -274,7 +274,7 @@ const filteredItems = computed(() => {
         </template>
         <template v-if="selected.extra && selected.extra.icon_variants">
           <div class="d-section-title">아이템 그림</div>
-          <p class="note-box" style="margin-bottom:10px">게임에서는 아래 3가지 그림 중 하나로 무작위로 나와요. 옵션과는 상관없어요.</p>
+          <p class="note-box" style="margin-bottom:10px">게임에서 아래 3가지 그림 중 하나로 무작위 (옵션과 무관).</p>
           <div class="icon-variant-row">
             <div class="icon-variant" v-for="v in selected.extra.icon_variants" :key="v.key">
               <img v-if="icons[v.key]" :src="icons[v.key]" alt="" />
@@ -355,10 +355,10 @@ const filteredItems = computed(() => {
           <span v-if="selected.extra.socket_count"> · 소켓 {{ selected.extra.socket_count }}개 필요</span>
         </div>
         <div class="d-section-title">옵션</div>
-        <p class="note-box" style="margin-bottom:10px">룬워드 고유 옵션에 박힌 룬들 자체 효과까지 합친 실제 최종 옵션이에요.</p>
+        <p class="note-box" style="margin-bottom:10px">룬워드 고유 옵션 + 박힌 룬 효과 = 최종 옵션.</p>
         <div class="affix-list">
           <div v-if="runewordFullAffixes(selected).length === 0" class="affix-line unresolved">
-            <span class="a-text">옵션 데이터가 없어요</span>
+            <span class="a-text">옵션 데이터 없음</span>
           </div>
           <div
             v-for="(a, i) in runewordFullAffixes(selected)"

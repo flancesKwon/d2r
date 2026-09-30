@@ -72,12 +72,12 @@ export async function markConversationRead(conv) {
 
 export async function sendMessage(conv, text) {
   const uid = authState.user?.id
-  if (!uid) throw new Error('로그인이 필요해요')
+  if (!uid) throw new Error('로그인 필요')
   const body = (text || '').trim()
   if (!body) return
   const rows = await mustReturnRows(
     supabase.from('tb_dm_message').insert({ conversation_id: conv.id, sender_id: uid, text: body }).select('*'),
-    '쪽지를 보내지 못했어요'
+    '쪽지 전송 실패'
   )
   const m = mapMessage(rows[0])
   conv.messages.push(m)
@@ -86,9 +86,9 @@ export async function sendMessage(conv, text) {
 
 // 판매자 등에게 쪽지 보내기 - 대화방 번호를 돌려줌
 export async function openConversationWith(otherUserId) {
-  if (!authState.user) throw new Error('로그인이 필요해요')
+  if (!authState.user) throw new Error('로그인 필요')
   const { data, error } = await supabase.rpc('open_conversation', { p_other: otherUserId })
-  if (error) throw new Error(error.message || '대화방을 열지 못했어요')
+  if (error) throw new Error(error.message || '대화방 열기 실패')
   return data
 }
 
