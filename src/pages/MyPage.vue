@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { profileState, saveProfile, authState, signIn } from '../profileStore.js'
+import { profileState, saveProfile, authState, signIn, ROLE_LABEL } from '../profileStore.js'
 import { fetchMyTradePosts, fetchMyRequests, getTradeItem } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
-import { fetchReviewsFor } from '../dealsStore.js'
+import { fetchReviewsFor, dealsState } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { buildsState } from '../buildStore.js'
 import classStats from '../data/classStats.json'
@@ -41,6 +41,23 @@ function tradeIconUrl(post) {
   const item = getTradeItem(post.itemId)
   return item ? iconUrlFor(item.icon_key) : null
 }
+
+// 프로필 카드: 가입일·마지막 활동·거래·리뷰 요약
+const fmtDay = (ts) => { if (!ts) return '-'; const d = new Date(ts); return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate() }
+function ago(ts) {
+  if (!ts) return '-'
+  const min = Math.floor((Date.now() - new Date(ts)) / 60000)
+  if (min < 5) return '방금'
+  if (min < 60) return min + '분 전'
+  if (min < 1440) return Math.floor(min / 60) + '시간 전'
+  return Math.floor(min / 1440) + '일 전'
+}
+const summary = computed(() => {
+  const done = dealsState.deals.filter((d) => d.status === '거래완료').length
+  const n = myReviews.value.length
+  const avg = n ? (myReviews.value.reduce((a, r) => a + r.rating, 0) / n).toFixed(1) : null
+  return { posts: myTradePosts.value.length + myCommunityPosts.value.length, done, reviews: n, avg }
+})
 
 const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
 
@@ -89,6 +106,23 @@ async function saveProfileForm() {
     </div>
   </div>
   <div class="grid-wrap mypage-wrap" v-else>
+    <section class="my-profile-card">
+      <UserAvatar :src="authState.profile?.avatar_url" :name="authState.profile?.nickname" :size="64" />
+      <div class="my-profile-main">
+        <div class="my-profile-name">
+          {{ authState.profile?.nickname || '닉네임' }}
+          <span class="my-role" v-if="authState.profile?.role && authState.profile.role !== 'user'">{{ ROLE_LABEL[authState.profile.role] || authState.profile.role }}</span>
+        </div>
+        <div class="my-profile-meta">가입 {{ fmtDay(authState.profile?.created_at) }} · 마지막 활동 {{ ago(authState.profile?.last_seen_at) }}</div>
+        <div class="my-profile-stats">
+          <span>작성 <b>{{ summary.posts }}</b></span>
+          <span>거래완료 <b>{{ summary.done }}</b></span>
+          <span>받은 리뷰 <b>{{ summary.reviews }}</b><template v-if="summary.avg"> · ★{{ summary.avg }}</template></span>
+        </div>
+      </div>
+      <button type="button" class="my-profile-edit" @click="activeTab = '회원정보수정'">프로필 수정</button>
+    </section>
+
     <div class="mypage-tabs">
       <button v-for="t in TABS" :key="t" :class="{ active: activeTab === t }" @click="activeTab = t">{{ t }}</button>
     </div>
@@ -201,6 +235,15 @@ async function saveProfileForm() {
 .avatar-pick.active small{color:var(--gold);}
 .mypage-wrap{max-width:920px;}
 /* 폰에서도 탭 이름이 세로로 꺾이지 않게 한 줄 유지, 넘치면 옆으로 밀어서 봄 */
+.my-profile-card{display:flex; align-items:center; gap:18px; background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:20px 22px; margin-bottom:18px; flex-wrap:wrap;}
+.my-profile-main{flex:1; min-width:200px; display:flex; flex-direction:column; gap:5px;}
+.my-profile-name{font-family:'Noto Serif KR', serif; font-size:19px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
+.my-role{font-family:'Noto Sans KR', sans-serif; font-size:11px; font-weight:600; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:2px 9px;}
+.my-profile-meta{font-size:12px; color:var(--text-dim);}
+.my-profile-stats{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);}
+.my-profile-stats b{color:var(--gold);}
+.my-profile-edit{font-size:12.5px; color:var(--gold-dim); border:1px solid var(--border); border-radius:10px; padding:8px 14px;}
+.my-profile-edit:hover{color:var(--gold); border-color:var(--gold-dim);}
 .mypage-tabs{display:flex; border:1px solid var(--border); border-radius:10px; overflow-x:auto; width:fit-content; max-width:100%; margin-bottom:20px;}
 .mypage-tabs button{font-size:13px; padding:10px 20px; color:var(--text-dim); background:var(--panel); white-space:nowrap; flex:none;}
 @media (max-width:560px){ .mypage-tabs button{padding:10px 14px;} }

@@ -9,6 +9,8 @@ import {
   isConversationRead,
   markConversationRead,
   sendMessage,
+  deleteMessage,
+  leaveConversation,
 } from '../messagesStore.js'
 import { authState, signIn } from '../profileStore.js'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -16,6 +18,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 // 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
 const route = useRoute()
 const activeId = ref(route.query.c ? Number(route.query.c) : null)
+if (activeId.value) messagesState.keepId = activeId.value
 const activeConversation = computed(() => messagesState.conversations.find((c) => c.id === activeId.value) || null)
 const draft = ref('')
 const sendError = ref('')
@@ -23,7 +26,7 @@ const sendError = ref('')
 loadConversations().then(() => {
   if (!activeConversation.value && messagesState.conversations.length) activeId.value = messagesState.conversations[0].id
 }).catch(() => {})
-watch(() => route.query.c, (c) => { if (c) activeId.value = Number(c) })
+watch(() => route.query.c, (c) => { if (c) { activeId.value = Number(c); messagesState.keepId = Number(c) } })
 
 // 열린 대화는 5초마다 새로 받고 읽음 처리 (창이 보일 때만)
 let timer = 0
@@ -44,6 +47,21 @@ onUnmounted(() => clearInterval(timer))
 
 function openConversation(id) {
   activeId.value = id
+}
+
+// 내 쪽지 삭제 / 대화방 나가기
+async function removeMessage(m) {
+  if (!confirm('쪽지 삭제 - 상대 화면에서도 사라짐')) return
+  sendError.value = ''
+  try { await deleteMessage(activeConversation.value, m) } catch (e) { sendError.value = e.message || '삭제 실패' }
+}
+async function leave() {
+  if (!confirm('대화방 나가기 - 내 목록에서만 사라지고, 상대가 새 쪽지를 보내면 다시 보임')) return
+  sendError.value = ''
+  try {
+    await leaveConversation(activeConversation.value)
+    activeId.value = messagesState.conversations[0]?.id || null
+  } catch (e) { sendError.value = e.message || '나가기 실패' }
 }
 
 async function submitMessage() {
@@ -96,14 +114,21 @@ async function submitMessage() {
       </div>
 
       <div class="conv-thread" v-if="activeConversation">
-        <div class="conv-thread-header">{{ activeConversation.withName }}</div>
+        <div class="conv-thread-header">
+          <span>{{ activeConversation.withName }}</span>
+          <button type="button" class="conv-leave" @click="leave">나가기</button>
+        </div>
         <div class="conv-thread-body">
           <div
             class="conv-bubble" v-for="m in activeConversation.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
           >
             <div class="conv-bubble-text">{{ m.text }}</div>
-            <div class="conv-bubble-date">{{ m.date }}</div>
+            <div class="conv-bubble-date">
+              <span class="conv-unread" v-if="m.from === 'me' && !m.readAt" title="상대가 아직 안 읽음">1</span>
+              {{ m.date }}
+              <button type="button" class="conv-del" v-if="m.from === 'me'" @click="removeMessage(m)" aria-label="쪽지 삭제">삭제</button>
+            </div>
           </div>
         </div>
         <div class="conv-thread-input">
@@ -145,7 +170,9 @@ async function submitMessage() {
   display:flex; flex-direction:column; gap:16px; min-height:480px;
 }
 .conv-thread-empty{align-items:center; justify-content:center; color:var(--text-dim); font-size:13px;}
-.conv-thread-header{font-family:'Noto Serif KR', serif; font-weight:700; font-size:15px; border-bottom:1px solid var(--border-soft); padding-bottom:14px;}
+.conv-thread-header{font-family:'Noto Serif KR', serif; font-weight:700; font-size:15px; border-bottom:1px solid var(--border-soft); padding-bottom:14px; display:flex; align-items:center; justify-content:space-between;}
+.conv-leave{font-family:'Noto Sans KR', sans-serif; font-weight:400; font-size:12px; color:var(--text-dim); border:1px solid var(--border); border-radius:8px; padding:5px 10px;}
+.conv-leave:hover{color:#e0775f; border-color:#e0775f;}
 .conv-thread-body{flex:1; display:flex; flex-direction:column; gap:10px; overflow-y:auto;}
 .conv-bubble{max-width:70%; display:flex; flex-direction:column; gap:4px;}
 .conv-bubble.theirs{align-self:flex-start;}
@@ -154,7 +181,11 @@ async function submitMessage() {
   font-size:13px; padding:10px 14px; border-radius:14px; line-height:1.6; background:var(--panel-2); color:var(--text);
 }
 .conv-bubble.mine .conv-bubble-text{background:var(--gold-dim); color:#1c1712;}
-.conv-bubble-date{font-size:10px; color:var(--text-dim);}
+.conv-bubble-date{font-size:10px; color:var(--text-dim); display:flex; align-items:center; gap:6px;}
+/* 카톡처럼 상대가 안 읽은 내 쪽지에 1 */
+.conv-unread{color:var(--gold); font-weight:700; font-size:11px;}
+.conv-del{font-size:10px; color:var(--text-dim); opacity:0.7;}
+.conv-del:hover{color:#e0775f; opacity:1;}
 .conv-thread-input{display:flex; gap:8px;}
 .conv-thread-input .write-input{flex:1;}
 .write-input{

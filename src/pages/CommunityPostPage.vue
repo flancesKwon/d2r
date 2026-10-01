@@ -106,7 +106,9 @@ async function onDeletePost() {
       <div class="action-error" v-if="actionError">{{ actionError }}</div>
     </div>
 
-    <div class="d-section-title">댓글 {{ post.comments.length }}개</div>
+    <!-- 댓글 목록과 쓰기를 카드 하나에 (댓글마다 카드를 나누지 않고 구분선으로) -->
+    <div class="comment-card">
+    <div class="d-section-title comment-card-title">댓글 {{ post.comments.length }}개</div>
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
@@ -130,6 +132,7 @@ async function onDeletePost() {
     <div class="comment-login" v-else>
       댓글은 로그인 후 작성
       <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
+    </div>
     </div>
   </div>
   </div>
@@ -175,8 +178,12 @@ async function onDeletePost() {
 .vote-btn.down.active{color:var(--blood); border-color:var(--blood); background:var(--panel-2);}
 .vote-btn.mini{font-size:11px; padding:4px 12px;}
 
-.comment-list{display:flex; flex-direction:column; gap:12px; margin-bottom:24px;}
-.comment-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:16px 20px;}
+.comment-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:18px; padding:24px 28px;}
+.comment-card-title{margin-top:0;}
+.comment-list{display:flex; flex-direction:column; margin-bottom:18px;}
+.comment-item{padding:14px 0; border-top:1px solid var(--border-soft);}
+.comment-item:first-child{border-top:none; padding-top:4px;}
+.comment-list .empty-state{padding:18px 0;}
 .comment-top{display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px;}
 .comment-top b{color:var(--gold-dim); font-weight:600;}
 .comment-author{display:inline-flex; align-items:center; gap:7px;}
@@ -187,7 +194,7 @@ async function onDeletePost() {
 .comment-report{margin-left:auto; font-size:11px; padding:3px 10px;}
 .post-report{margin-left:auto;}
 
-.comment-form{display:flex; flex-direction:column; gap:12px; max-width:680px;}
+.comment-form{display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--border-soft); padding-top:18px;}
 .comment-form :deep(.md-editor){border-radius:12px; overflow:hidden;}
 .write-input{
   background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px;
@@ -200,6 +207,7 @@ async function onDeletePost() {
 .owner-btn.danger:hover{color:#e0775f; border-color:#e0775f;}
 .comment-del{font-size:11px; color:var(--text-dim); margin-left:8px;}
 .comment-del:hover{color:#e0775f;}
+@media (max-width:560px){ .comment-card{padding:18px 16px;} }
 .comment-login{display:flex; align-items:center; gap:12px; font-size:13px; color:var(--text-muted);}
 .action-error{font-size:12.5px; color:#e0775f; margin-top:8px;}
 </style>

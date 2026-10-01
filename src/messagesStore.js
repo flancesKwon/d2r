@@ -7,7 +7,8 @@ import { authState } from './profileStore.js'
 const PERSON = (fk) => `tb_profile!${fk}(id, nickname, avatar_url)`
 const CONV_SELECT = `*, a:${PERSON('tb_dm_conversation_user_a_fkey')}, b:${PERSON('tb_dm_conversation_user_b_fkey')}`
 
-export const messagesState = reactive({ conversations: [], loaded: false })
+// keepId: 나간 방이라도 지금 열려 있는 방(쪽지 보내기로 다시 연 방)은 목록에 남김
+export const messagesState = reactive({ conversations: [], loaded: false, keepId: null })
 
 function fmtTime(ts) {
   const d = new Date(ts)
@@ -33,10 +34,13 @@ export async function loadConversations() {
     ? await supabase.from('tb_dm_message').select('*').in('conversation_id', ids).order('created_at', { ascending: false }).limit(500)
     : { data: [] }
   const old = new Map(messagesState.conversations.map((c) => [c.id, c.messages]))
-  messagesState.conversations = convs.map((c) => {
+  const list = convs.map((c) => {
     const other = c.user_a === uid ? c.b : c.a
-    const mine = (msgs || []).filter((m) => m.conversation_id === c.id)
+    // 내가 나간 방은 나간 뒤에 온 쪽지만 (카톡 나가기처럼)
+    const leftAt = (c.user_a === uid ? c.a_left_at : c.b_left_at) || null
+    const mine = (msgs || []).filter((m) => m.conversation_id === c.id && (!leftAt || m.created_at > leftAt))
     return {
+      leftAt,
       id: c.id,
       otherId: other?.id || null,
       withName: other?.nickname || '알 수 없음',
@@ -45,7 +49,10 @@ export async function loadConversations() {
       unread: mine.filter((m) => m.sender_id !== uid && !m.read_at).length,
       messages: old.get(c.id) || [],
     }
-  }).sort((x, y) => (y.last?.createdAt || '').localeCompare(x.last?.createdAt || ''))
+  })
+  messagesState.conversations = list
+    .filter((c) => !c.leftAt || c.last || c.id === messagesState.keepId)
+    .sort((x, y) => (y.last?.createdAt || '').localeCompare(x.last?.createdAt || ''))
   messagesState.loaded = true
 }
 
@@ -55,7 +62,9 @@ export function getConversation(id) {
 
 export async function loadMessages(conv) {
   if (!supabase || !conv) return
-  const { data, error } = await supabase.from('tb_dm_message').select('*').eq('conversation_id', conv.id).order('created_at', { ascending: true })
+  let q = supabase.from('tb_dm_message').select('*').eq('conversation_id', conv.id)
+  if (conv.leftAt) q = q.gt('created_at', conv.leftAt)
+  const { data, error } = await q.order('created_at', { ascending: true })
   if (error) throw error
   conv.messages = data.map(mapMessage)
   if (data.length) conv.last = mapMessage(data[data.length - 1])
@@ -84,11 +93,27 @@ export async function sendMessage(conv, text) {
   conv.last = m
 }
 
+// 내가 보낸 쪽지 삭제 (상대 화면에서도 사라짐)
+export async function deleteMessage(conv, m) {
+  await mustReturnRows(supabase.from('tb_dm_message').delete().eq('id', m.id).select('id'), '쪽지 삭제 실패')
+  conv.messages = conv.messages.filter((x) => x.id !== m.id)
+  conv.last = conv.messages[conv.messages.length - 1] || null
+}
+
+// 대화방 나가기 - 나에게서만 숨김. 상대가 새 쪽지를 보내면 그 쪽지부터 다시 보임
+export async function leaveConversation(conv) {
+  const { error } = await supabase.rpc('d2r_leave_conversation', { p_conversation: conv.id })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '나가기 준비 중 (DB 업데이트 필요)' : error.message || '나가기 실패')
+  if (messagesState.keepId === conv.id) messagesState.keepId = null
+  messagesState.conversations = messagesState.conversations.filter((c) => c.id !== conv.id)
+}
+
 // 판매자 등에게 쪽지 보내기 - 대화방 번호를 돌려줌
 export async function openConversationWith(otherUserId) {
   if (!authState.user) throw new Error('로그인 필요')
   const { data, error } = await supabase.rpc('open_conversation', { p_other: otherUserId })
   if (error) throw new Error(error.message || '대화방 열기 실패')
+  messagesState.keepId = data
   return data
 }
 

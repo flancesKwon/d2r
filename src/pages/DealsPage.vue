@@ -135,7 +135,7 @@ function submitReview() {
             :class="m.from === 'me' ? 'mine' : 'theirs'"
           >
             <div class="conv-bubble-text">{{ m.text }}</div>
-            <div class="conv-bubble-date">{{ m.date }}</div>
+            <div class="conv-bubble-date"><span class="conv-unread" v-if="m.from === 'me' && !m.readAt" title="상대가 아직 안 읽음">1</span>{{ m.date }}</div>
           </div>
         </div>
 
@@ -221,7 +221,8 @@ function submitReview() {
 .conv-bubble.mine{align-self:flex-end; align-items:flex-end;}
 .conv-bubble-text{font-size:13px; padding:10px 14px; border-radius:14px; line-height:1.6; background:var(--panel-2); color:var(--text);}
 .conv-bubble.mine .conv-bubble-text{background:var(--gold-dim); color:#1c1712;}
-.conv-bubble-date{font-size:10px; color:var(--text-dim);}
+.conv-bubble-date{font-size:10px; color:var(--text-dim); display:flex; align-items:center; gap:6px;}
+.conv-unread{color:var(--gold); font-weight:700; font-size:11px;}
 
 .deal-thread-input{display:flex; gap:8px;}
 .deal-thread-input .write-input{flex:1;}

@@ -19,12 +19,30 @@ export async function fetchSuspensionReasons(ids) {
   return Object.fromEntries((data || []).map((r) => [r.id, r.suspended_reason]))
 }
 
+// 마지막 활동 시각 기록 - DB 가 5분에 한 번만 실제로 씀. 창이 보일 때 5분마다
+let touchTimer = 0
+function touchLastSeen() {
+  clearInterval(touchTimer)
+  if (!supabase || !authState.user) return
+  const touch = () => {
+    if (document.hidden) return
+    supabase.rpc('d2r_touch_last_seen').then(({ data }) => {
+      if (data && authState.profile) authState.profile.last_seen_at = data
+    }, () => {})
+  }
+  touch()
+  touchTimer = setInterval(touch, 5 * 60 * 1000)
+}
+
 async function applySession(session) {
   authState.user = session?.user ?? null
   if (!authState.user) {
     authState.profile = null
   } else {
-    const { data } = await supabase.from('tb_profile').select(PROFILE_COLS).eq('id', authState.user.id).single()
+    // 마지막 활동(last_seen_at)은 007 SQL 이후 생긴 칸 - 없으면 빼고 다시
+    let { data, error } = await supabase.from('tb_profile').select(PROFILE_COLS + ', last_seen_at').eq('id', authState.user.id).single()
+    if (error) ({ data } = await supabase.from('tb_profile').select(PROFILE_COLS).eq('id', authState.user.id).single())
+    touchLastSeen()
     if (data?.suspended_until && new Date(data.suspended_until) > new Date()) {
       data.suspended_reason = (await fetchSuspensionReasons([data.id]))[data.id] || null
     }
