@@ -5,7 +5,7 @@
 import { supabase, mustReturnRows } from './supabase.js'
 import { authState, isStaff } from './profileStore.js'
 
-export const CATEGORIES = ['질문', '거래', '잡담', '공략']
+export const CATEGORIES = ['질문', '거래', '잡담', '공략', '건의', '버그제보']
 export const PAGE_SIZE = 20
 
 // tb_profile 로 가는 길이 둘(작성자 / 추천 표)이라 외래키 이름을 꼭 적어야 함 (안 적으면 PGRST201)

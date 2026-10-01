@@ -57,6 +57,7 @@ const MENUS = [
     links: [
       { label: '전체', to: '/community' }, { label: '자유게시판', to: '/community?cat=잡담' },
       { label: '질문게시판', to: '/community?cat=질문' }, { label: '공략 인증', to: '/community?cat=공략' },
+      { label: '건의게시판', to: '/community?cat=건의' }, { label: '버그 제보', to: '/community?cat=버그제보' },
     ],
   },
   {
