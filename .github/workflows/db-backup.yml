@@ -1,0 +1,58 @@
+# DB 백업 + 무료 플랜 자동 정지 방지
+# - keepalive: 3일마다 사이트와 같은 공개 키로 가이드 1개를 읽음 (Supabase 무료 플랜은 7일 동안 요청이 없으면 일시정지)
+# - backup: 매주 월요일 DB(public·auth 스키마)를 pg_dump -> 암호화 -> Actions 아티팩트(30일 보관)
+#   저장소가 공개라서 반드시 암호화. 필요한 secrets: SUPABASE_DB_URL(Session pooler 주소), BACKUP_PASSPHRASE
+#   secrets 가 없으면 백업은 건너뜀
+# 복원: 아티팩트 내려받기 -> gpg -d backup.sql.gz.gpg | gunzip > backup.sql -> psql 로 실행
+name: DB backup
+
+on:
+  schedule:
+    - cron: '0 18 */3 * *'   # 3일마다 03:00 (한국) - keepalive
+    - cron: '0 19 * * 0'     # 매주 월요일 04:00 (한국) - backup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keepalive:
+    if: github.event.schedule != '0 19 * * 0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase 요청 1번
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/tb_guide?select=id&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          echo "응답 $code"
+          test "$code" = 200
+
+  backup:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 19 * * 0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: secrets 확인
+        id: when
+        env:
+          HAS_DB: ${{ secrets.SUPABASE_DB_URL != '' && secrets.BACKUP_PASSPHRASE != '' }}
+        run: |
+          if [ "$HAS_DB" = "true" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "secrets 없음 - 건너뜀"; echo "run=false" >> "$GITHUB_OUTPUT"; fi
+      - name: pg_dump -> 암호화
+        if: steps.when.outputs.run == 'true'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -o pipefail
+          docker run --rm -e DB_URL postgres:17 sh -c 'pg_dump "$DB_URL" --no-owner --no-privileges --schema=public --schema=auth' | gzip > backup.sql.gz
+          test "$(stat -c %s backup.sql.gz)" -gt 1000
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$PASS" -o backup.sql.gz.gpg backup.sql.gz
+          rm backup.sql.gz
+      - uses: actions/upload-artifact@v4
+        if: steps.when.outputs.run == 'true'
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.sql.gz.gpg
+          retention-days: 30
