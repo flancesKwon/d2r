@@ -616,6 +616,7 @@ function mapRequest(r) {
     buyerId: r.buyer_id,
     buyer: r.buyer?.nickname || '알 수 없음',
     contact: r.buyer?.contact || '',
+    buyerAvatar: r.buyer?.avatar_url || null,
     qty: r.qty,
     message: r.message || '',
     kind: (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',

@@ -12,6 +12,8 @@ import { authState, signIn, isStaff } from '../profileStore.js'
 import { openConversationWith } from '../messagesStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import ReportButton from '../components/ReportButton.vue'
+import UserAvatar from '../components/UserAvatar.vue'
+import { avatarSrc } from '../avatars.js'
 import { buildTooltip } from '../itemTooltip.js'
 
 const route = useRoute()
@@ -282,7 +284,7 @@ async function confirmBuy() {
         <section class="side-card seller-card">
           <div class="card-title">판매자</div>
           <div class="seller-row">
-            <span class="seller-avatar" aria-hidden="true"><img v-if="post.avatar" :src="post.avatar" alt="" /><template v-else>{{ (post.author || '?').slice(0, 1) }}</template></span>
+            <span class="seller-avatar" aria-hidden="true"><img v-if="avatarSrc(post.avatar)" :src="avatarSrc(post.avatar)" alt="" /><template v-else>{{ (post.author || '?').slice(0, 1) }}</template></span>
             <div class="seller-name-block">
               <div class="seller-name">{{ post.author }}</div>
               <div class="seller-sub">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
@@ -319,7 +321,7 @@ async function confirmBuy() {
       <div class="request-list">
         <div class="request-item" v-for="r in post.requests" :key="r.id">
           <div class="request-top">
-            <span class="seller-avatar small" aria-hidden="true">{{ (r.buyer || '?').slice(0, 1) }}</span>
+            <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" />
             <b>{{ r.buyer }}</b>
             <span class="request-kind" v-if="r.kind === 'buy_now'">{{ REQUEST_KIND_LABEL.buy_now }}</span>
             <span class="request-qty">{{ r.qty }}개</span>

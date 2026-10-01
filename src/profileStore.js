@@ -99,12 +99,14 @@ export function suspensionText(until) {
   return `${until.getFullYear()}-${p(until.getMonth() + 1)}-${p(until.getDate())} ${p(until.getHours())}:${p(until.getMinutes())}까지 정지`
 }
 
-// 마이페이지: 닉네임·연락처 수정
-export async function saveProfile({ nickname, contact }) {
+// 마이페이지: 닉네임·연락처·프로필 사진 수정 (avatarUrl 을 안 넘기면 사진은 그대로)
+export async function saveProfile({ nickname, contact, avatarUrl }) {
   if (!authState.user) throw new Error('로그인 필요')
+  const row = { nickname: (nickname || '').trim(), contact: (contact || '').trim() || null }
+  if (avatarUrl !== undefined) row.avatar_url = avatarUrl || null
   const rows = await mustReturnRows(
     supabase.from('tb_profile')
-      .update({ nickname: (nickname || '').trim(), contact: (contact || '').trim() || null })
+      .update(row)
       .eq('id', authState.user.id)
       .select(PROFILE_COLS),
     '프로필 저장 실패'

@@ -7,6 +7,8 @@ import { fetchReviewsFor } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { buildsState } from '../buildStore.js'
 import classStats from '../data/classStats.json'
+import UserAvatar from '../components/UserAvatar.vue'
+import { AVATAR_PRESETS, presetValue } from '../avatars.js'
 
 const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '저장한 빌드', '회원정보수정']
 const activeTab = ref(TABS[0])
@@ -44,6 +46,10 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 
 const nicknameInput = ref(profileState.nickname)
 const contactInput = ref(profileState.contact)
+// 프로필 사진: 로그인한 디스코드·구글 사진 / 준비된 그림 / 없음(닉네임 첫 글자)
+const avatarInput = ref(authState.profile?.avatar_url || '')
+watch(() => authState.profile?.avatar_url, (v) => (avatarInput.value = v || ''))
+const loginPhoto = computed(() => { const m = authState.user?.user_metadata || {}; return m.avatar_url || m.picture || '' })
 watch(() => [profileState.nickname, profileState.contact], ([n, c]) => { nicknameInput.value = n; contactInput.value = c })
 const savedToast = ref(false)
 const saveError = ref('')
@@ -54,7 +60,7 @@ async function saveProfileForm() {
   if (nick.length < 2 || nick.length > 20) return (saveError.value = '닉네임은 2~20자')
   saving.value = true
   try {
-    await saveProfile({ nickname: nick, contact: contactInput.value })
+    await saveProfile({ nickname: nick, contact: contactInput.value, avatarUrl: avatarInput.value })
     savedToast.value = true
     setTimeout(() => (savedToast.value = false), 2000)
   } catch (e) {
@@ -144,6 +150,24 @@ async function saveProfileForm() {
     </div>
 
     <div v-else class="mypage-panel profile-panel">
+      <div class="profile-field">
+        프로필 사진
+        <div class="avatar-now">
+          <UserAvatar :src="avatarInput" :name="nicknameInput" :size="64" />
+          <span class="avatar-now-name">{{ nicknameInput || '닉네임' }}</span>
+        </div>
+        <div class="avatar-grid" role="radiogroup" aria-label="프로필 사진 고르기">
+          <button type="button" v-if="loginPhoto" class="avatar-pick" :class="{ active: avatarInput === loginPhoto }" @click="avatarInput = loginPhoto" title="로그인 계정 사진">
+            <UserAvatar :src="loginPhoto" :size="44" /><small>계정 사진</small>
+          </button>
+          <button type="button" v-for="a in AVATAR_PRESETS" :key="a.key" class="avatar-pick" :class="{ active: avatarInput === presetValue(a.key) }" @click="avatarInput = presetValue(a.key)" :title="a.label">
+            <UserAvatar :src="presetValue(a.key)" :size="44" /><small>{{ a.label }}</small>
+          </button>
+          <button type="button" class="avatar-pick" :class="{ active: !avatarInput }" @click="avatarInput = ''" title="사진 없음">
+            <UserAvatar :name="nicknameInput" :size="44" /><small>없음</small>
+          </button>
+        </div>
+      </div>
       <label class="profile-field">
         닉네임
         <input type="text" v-model="nicknameInput" placeholder="판매글·게시글에 보일 닉네임 (2~20자)" maxlength="20" class="write-input" />
@@ -167,9 +191,19 @@ async function saveProfileForm() {
 .mypage-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px; text-align:center;}
 .profile-hint-public{font-size:11.5px; color:var(--text-dim); font-weight:400;}
 .profile-save-error{font-size:12.5px; color:#e0775f;}
+.avatar-now{display:flex; align-items:center; gap:14px; margin:4px 0 6px;}
+.avatar-now-name{font-size:15px; color:var(--text); font-weight:600;}
+.avatar-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:8px;}
+.avatar-pick{display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 4px 8px; border:1px solid var(--border-soft); border-radius:10px; background:var(--panel);}
+.avatar-pick small{font-size:11px; color:var(--text-dim); font-weight:400; white-space:nowrap;}
+.avatar-pick:hover{border-color:var(--gold-dim);}
+.avatar-pick.active{border-color:var(--gold); background:var(--panel-2);}
+.avatar-pick.active small{color:var(--gold);}
 .mypage-wrap{max-width:920px;}
-.mypage-tabs{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; width:fit-content; margin-bottom:20px;}
-.mypage-tabs button{font-size:13px; padding:10px 20px; color:var(--text-dim); background:var(--panel);}
+/* 폰에서도 탭 이름이 세로로 꺾이지 않게 한 줄 유지, 넘치면 옆으로 밀어서 봄 */
+.mypage-tabs{display:flex; border:1px solid var(--border); border-radius:10px; overflow-x:auto; width:fit-content; max-width:100%; margin-bottom:20px;}
+.mypage-tabs button{font-size:13px; padding:10px 20px; color:var(--text-dim); background:var(--panel); white-space:nowrap; flex:none;}
+@media (max-width:560px){ .mypage-tabs button{padding:10px 14px;} }
 .mypage-tabs button + button{border-left:1px solid var(--border);}
 .mypage-tabs button.active{color:var(--gold); background:var(--panel-2);}
 
