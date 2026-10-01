@@ -27,17 +27,18 @@ watch(() => route.query.c, (c) => { if (c) activeId.value = Number(c) })
 
 // 열린 대화는 5초마다 새로 받고 읽음 처리 (창이 보일 때만)
 let timer = 0
-async function refresh() {
+// force: 대화를 처음 열 때는 창이 안 보여도 불러옴 (안 그러면 백그라운드 탭에서 연 대화가 비어 보임)
+async function refresh(force = false) {
   const conv = activeConversation.value
-  if (!conv || document.hidden) return
+  if (!conv || (document.hidden && !force)) return
   await loadMessages(conv).catch(() => {})
   await markConversationRead(conv).catch(() => {})
 }
 watch(activeConversation, (c) => {
   clearInterval(timer)
   if (!c) return
-  refresh()
-  timer = setInterval(refresh, 5000)
+  refresh(true)
+  timer = setInterval(() => refresh(), 5000)
 }, { immediate: true })
 onUnmounted(() => clearInterval(timer))
 
