@@ -24,14 +24,15 @@ let touchTimer = 0
 function touchLastSeen() {
   clearInterval(touchTimer)
   if (!supabase || !authState.user) return
-  const touch = () => {
-    if (document.hidden) return
+  // 로그인·페이지를 열 때 한 번은 무조건, 그 뒤엔 창이 보일 때만
+  const touch = (force = false) => {
+    if (document.hidden && !force) return
     supabase.rpc('d2r_touch_last_seen').then(({ data }) => {
       if (data && authState.profile) authState.profile.last_seen_at = data
     }, () => {})
   }
-  touch()
-  touchTimer = setInterval(touch, 5 * 60 * 1000)
+  touch(true)
+  touchTimer = setInterval(() => touch(), 5 * 60 * 1000)
 }
 
 async function applySession(session) {
