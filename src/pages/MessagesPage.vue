@@ -51,7 +51,7 @@ function openConversation(id) {
 
 // 내 쪽지 삭제 / 대화방 나가기
 async function removeMessage(m) {
-  if (!confirm('쪽지 삭제 - 상대 화면에서도 사라짐')) return
+  if (!confirm('쪽지 삭제 - 내 화면에서만 사라짐 (상대 화면엔 남음)')) return
   sendError.value = ''
   try { await deleteMessage(activeConversation.value, m) } catch (e) { sendError.value = e.message || '삭제 실패' }
 }
@@ -127,7 +127,7 @@ async function submitMessage() {
             <div class="conv-bubble-date">
               <span class="conv-unread" v-if="m.from === 'me' && !m.readAt" title="상대가 아직 안 읽음">1</span>
               {{ m.date }}
-              <button type="button" class="conv-del" v-if="m.from === 'me'" @click="removeMessage(m)" aria-label="쪽지 삭제">삭제</button>
+              <button type="button" class="conv-del" @click="removeMessage(m)" aria-label="내 화면에서 쪽지 삭제">삭제</button>
             </div>
           </div>
         </div>

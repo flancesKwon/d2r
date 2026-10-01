@@ -15,6 +15,9 @@ function fmtTime(ts) {
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+// 내가 내 화면에서 지운 쪽지인지 (보낸 쪽지는 sender_hidden_at, 받은 쪽지는 receiver_hidden_at)
+const hiddenForMe = (m, uid) => (m.sender_id === uid ? m.sender_hidden_at : m.receiver_hidden_at)
+
 function mapMessage(m) {
   return { id: m.id, from: m.sender_id === authState.user?.id ? 'me' : 'them', text: m.text, date: fmtTime(m.created_at), readAt: m.read_at, createdAt: m.created_at }
 }
@@ -38,7 +41,7 @@ export async function loadConversations() {
     const other = c.user_a === uid ? c.b : c.a
     // 내가 나간 방은 나간 뒤에 온 쪽지만 (카톡 나가기처럼)
     const leftAt = (c.user_a === uid ? c.a_left_at : c.b_left_at) || null
-    const mine = (msgs || []).filter((m) => m.conversation_id === c.id && (!leftAt || m.created_at > leftAt))
+    const mine = (msgs || []).filter((m) => m.conversation_id === c.id && (!leftAt || m.created_at > leftAt) && !hiddenForMe(m, uid))
     return {
       leftAt,
       id: c.id,
@@ -66,8 +69,10 @@ export async function loadMessages(conv) {
   if (conv.leftAt) q = q.gt('created_at', conv.leftAt)
   const { data, error } = await q.order('created_at', { ascending: true })
   if (error) throw error
-  conv.messages = data.map(mapMessage)
-  if (data.length) conv.last = mapMessage(data[data.length - 1])
+  const uid = authState.user?.id
+  const visible = data.filter((m) => !hiddenForMe(m, uid))
+  conv.messages = visible.map(mapMessage)
+  if (visible.length) conv.last = mapMessage(visible[visible.length - 1])
 }
 
 // 상대가 보낸 안 읽은 쪽지를 읽음으로 (0건이어도 정상이라 결과 행 확인 안 함)
@@ -93,9 +98,10 @@ export async function sendMessage(conv, text) {
   conv.last = m
 }
 
-// 내가 보낸 쪽지 삭제 (상대 화면에서도 사라짐)
+// 쪽지 삭제 - 내 화면에서만 사라짐 (상대 화면엔 그대로). 보낸 쪽지·받은 쪽지 모두
 export async function deleteMessage(conv, m) {
-  await mustReturnRows(supabase.from('tb_dm_message').delete().eq('id', m.id).select('id'), '쪽지 삭제 실패')
+  const { error } = await supabase.rpc('d2r_hide_message', { p_message: m.id })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '삭제 준비 중 (DB 업데이트 필요)' : error.message || '쪽지 삭제 실패')
   conv.messages = conv.messages.filter((x) => x.id !== m.id)
   conv.last = conv.messages[conv.messages.length - 1] || null
 }
