@@ -132,7 +132,9 @@ const filteredGuides = computed(() => {
 .t-A .tier-badge{background:var(--gold);}
 .t-B .tier-badge{background:var(--teal);}
 .t-C .tier-badge{background:var(--text-dim);}
-.tier-guides{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px; padding:12px;}
+.tier-guides{display:grid; grid-template-columns:repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap:8px; padding:12px; min-width:0;}
+/* 폰: 등급 칸을 줄이고 카드가 남은 폭에 맞게 (예전엔 260px 고정이라 오른쪽이 잘림) */
+@media (max-width:560px){ .tier-row{grid-template-columns:52px minmax(0, 1fr);} .tier-badge{font-size:22px;} .tier-guides{padding:8px;} }
 .tier-guide{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border-soft); border-radius:10px; background:var(--panel-2); transition:border-color .15s;}
 .tier-guide:hover{border-color:var(--gold-dim);}
 .tier-guide-text{display:flex; flex-direction:column; min-width:0;}
