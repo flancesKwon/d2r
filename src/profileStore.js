@@ -8,12 +8,26 @@ export const authState = reactive({ user: null, profile: null, ready: false, log
 // 예전 코드 호환: 닉네임·연락처를 바로 꺼내 쓰던 곳들
 export const profileState = reactive({ nickname: '', contact: '' })
 
+// 프로필에서 읽는 칸 - 정지 사유(suspended_reason)는 남이 못 읽게 막혀 있어서 따로(d2r_suspension_reasons) 받음
+export const PROFILE_COLS = 'id, nickname, contact, avatar_url, role, created_at, suspended_until'
+
+// 정지 사유 - 본인 것 / 운영진은 남의 것도. 함수가 없거나 실패하면 빈 값
+export async function fetchSuspensionReasons(ids) {
+  if (!supabase || !ids.length) return {}
+  const { data, error } = await supabase.rpc('d2r_suspension_reasons', { p_ids: ids })
+  if (error) return {}
+  return Object.fromEntries((data || []).map((r) => [r.id, r.suspended_reason]))
+}
+
 async function applySession(session) {
   authState.user = session?.user ?? null
   if (!authState.user) {
     authState.profile = null
   } else {
-    const { data } = await supabase.from('tb_profile').select('*').eq('id', authState.user.id).single()
+    const { data } = await supabase.from('tb_profile').select(PROFILE_COLS).eq('id', authState.user.id).single()
+    if (data?.suspended_until && new Date(data.suspended_until) > new Date()) {
+      data.suspended_reason = (await fetchSuspensionReasons([data.id]))[data.id] || null
+    }
     authState.profile = data
   }
   profileState.nickname = authState.profile?.nickname || ''
@@ -92,10 +106,10 @@ export async function saveProfile({ nickname, contact }) {
     supabase.from('tb_profile')
       .update({ nickname: (nickname || '').trim(), contact: (contact || '').trim() || null })
       .eq('id', authState.user.id)
-      .select(),
+      .select(PROFILE_COLS),
     '프로필 저장 실패'
   )
-  authState.profile = rows[0]
+  authState.profile = { ...rows[0], suspended_reason: authState.profile?.suspended_reason ?? null }
   profileState.nickname = rows[0].nickname
   profileState.contact = rows[0].contact || ''
   return rows[0]

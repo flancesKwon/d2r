@@ -30,7 +30,8 @@ function mapReview(r) {
 function mapDeal(r) {
   const uid = authState.user?.id
   const iAmSeller = r.seller_id === uid
-  const review = Array.isArray(r.review) ? r.review[0] : r.review
+  // 리뷰는 거래당 사람마다 하나 (내가 쓴 것 / 상대가 쓴 것)
+  const reviews = (Array.isArray(r.review) ? r.review : r.review ? [r.review] : []).map(mapReview)
   return {
     id: r.id,
     postId: r.post_id,
@@ -46,7 +47,8 @@ function mapDeal(r) {
     counterpartId: iAmSeller ? r.buyer_id : r.seller_id,
     counterpart: (iAmSeller ? r.buyer?.nickname : r.seller?.nickname) || '알 수 없음',
     iAmSeller,
-    review: mapReview(review),
+    myReview: reviews.find((v) => v.fromId === uid) || null,
+    theirReview: reviews.find((v) => v.fromId !== uid) || null,
     messages: [],
   }
 }
@@ -119,7 +121,7 @@ export async function addReview(deal, { rating, comment }) {
       .select('*'),
     '리뷰 등록 실패'
   )
-  deal.review = mapReview(rows[0])
+  deal.myReview = mapReview(rows[0])
 }
 
 // 마이페이지 "받은 리뷰" (리뷰는 공개)
