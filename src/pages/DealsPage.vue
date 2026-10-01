@@ -21,15 +21,16 @@ watch(() => dealsState.deals.length, () => {
 
 // 열린 거래방 메시지 - 5초마다 새로 받음 (창이 보일 때만)
 let timer = 0
-async function refreshMessages() {
-  if (!activeDeal.value || document.hidden) return
+// force: 거래방을 처음 열 때는 창이 안 보여도 불러옴
+async function refreshMessages(force = false) {
+  if (!activeDeal.value || (document.hidden && !force)) return
   await loadDealMessages(activeDeal.value).catch(() => {})
 }
 watch(activeDeal, (d) => {
   clearInterval(timer)
   if (!d) return
-  refreshMessages()
-  timer = setInterval(refreshMessages, 5000)
+  refreshMessages(true)
+  timer = setInterval(() => refreshMessages(), 5000)
 }, { immediate: true })
 onUnmounted(() => clearInterval(timer))
 
