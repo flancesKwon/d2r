@@ -48,6 +48,14 @@ const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS]
 export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber' || it?.category === 'essence'
 export const CURRENCY_ITEMS = [...itemsData.filter(isCurrencyItem), ...EXTRA_MATERIALS]
 const CURRENCY_BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
+// 흔히 쓰는 룬 이름도 아이콘이 붙게 ("움 룬" = 우움 룬, "옴 룬" = 오움 룬). 공식 이름이 더 길어서 먼저 잡힘
+for (const it of CURRENCY_ITEMS) {
+  if (!it.name_ko?.endsWith(' 룬')) continue
+  for (const a of it.aliases || []) {
+    const name = `${a} 룬`
+    if (/[가-힣]/.test(a) && !a.endsWith('룬') && !CURRENCY_BY_NAME.has(name)) CURRENCY_BY_NAME.set(name, it)
+  }
+}
 const CURRENCY_PATTERN = new RegExp(
   '(' + [...CURRENCY_BY_NAME.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|') + ')',
   'g'
