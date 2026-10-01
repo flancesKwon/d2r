@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { itemMatchesQuery } from '../itemSearch.js'
+import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
 
@@ -43,6 +43,8 @@ const activeSub = ref(null)
 // ?q=이름 으로 들어오면(룬워드 찾기 등) 그 검색어로 시작
 const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const selected = ref(null)
+// 검색 기준: 이름 / 옵션 (?by=option 으로도 들어옴)
+const searchBy = ref(route.query.by === 'option' ? 'option' : 'name')
 // 상단 통합 검색에서 아이템을 고르면 ?q=이름&id=아이템 으로 들어옴 -> 그 아이템 상세를 바로 열기
 // (이미 사전 페이지에 있을 때도 주소만 바뀌니 watch 로 따라감)
 // 상단 메뉴의 유니크·세트·룬워드 등(?cat=)도 이미 사전 페이지에 있을 때 주소만 바뀌어서, 탭도 주소를 따라가게 함
@@ -50,6 +52,7 @@ const selected = ref(null)
 const URL_CATS = ['unique', 'set', 'runeword', 'gem']
 function applyRouteQuery(q) {
   if (typeof q.q === 'string') searchQuery.value = q.q
+  if (q.by === 'option' || q.by === 'name') searchBy.value = q.by
   selected.value = (q.id && items.find((it) => it.id === q.id)) || null
   const cat = URL_CATS.includes(q.cat) ? q.cat : 'all'
   if (cat !== activeCat.value && !q.id) setCat(cat)
@@ -88,8 +91,27 @@ const filteredItems = computed(() => {
   if (activeGroup.value) list = list.filter((it) => it.type_group === activeGroup.value)
   if (activeSub.value) list = list.filter((it) => it.type_sub === activeSub.value)
   // 공식 이름·영문·별칭(조던, 에니그마 등)·베이스 이름, 띄어쓰기 무시
-  if (searchQuery.value.trim()) list = list.filter((it) => itemMatchesQuery(it, searchQuery.value, [it.subtitle]))
+  if (searchQuery.value.trim()) {
+    if (searchBy.value === 'option') {
+      list = list.filter((it) => optionHits.value.has(it.id))
+    } else {
+      list = list.filter((it) => itemMatchesQuery(it, searchQuery.value, [it.subtitle]))
+    }
+  }
   return list
+})
+// 옵션 검색: 아이템마다 맞은 옵션 줄 (카드에 보여줌). 룬워드는 박힌 룬 효과까지 합친 옵션으로
+const optionHits = computed(() => {
+  const hits = new Map()
+  if (searchBy.value !== 'option') return hits
+  const terms = optionTerms(searchQuery.value)
+  if (!terms.length) return hits
+  for (const it of items) {
+    const extra = it.category === 'runeword' ? runewordRuneAffixes(it, runeLookup) : []
+    const m = matchOptionLines(itemOptionLines(it, extra), terms)
+    if (m) hits.set(it.id, m)
+  }
+  return hits
 })
 </script>
 
@@ -130,11 +152,15 @@ const filteredItems = computed(() => {
       </div>
 
       <div class="search-row">
+        <div class="search-by" role="group" aria-label="검색 기준">
+          <button type="button" :class="{ active: searchBy === 'name' }" @click="searchBy = 'name'">이름</button>
+          <button type="button" :class="{ active: searchBy === 'option' }" @click="searchBy = 'option'">옵션</button>
+        </div>
         <div class="search-input-wrap">
           <input
             type="text"
             :value="searchQuery" @input="searchQuery = $event.target.value"
-            placeholder="이름 검색 — 예) 갉아먹는 자"
+            :placeholder="searchBy === 'option' ? '옵션 검색 — 예) 패캐, 올스 (쉼표로 여러 개)' : '이름 검색 — 예) 갉아먹는 자'"
             aria-label="아이템 검색"
           />
         </div>
@@ -185,7 +211,10 @@ const filteredItems = computed(() => {
         </span>
         <div class="card-name">{{ it.name_ko }}</div>
         <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypesKo(it.subtitle) : it.subtitle || '' }}</div>
-        <div class="card-level" v-if="it.level">Lv {{ it.level }}</div>
+        <div class="card-level" v-if="it.level && it.level !== '0'">Lv {{ it.level }}</div>
+        <div class="card-hits" v-if="optionHits.has(it.id)">
+          <span v-for="line in optionHits.get(it.id)" :key="line">{{ line }}</span>
+        </div>
       </button>
       <div class="empty-state" v-if="filteredItems.length === 0">검색 결과 없음</div>
     </div>

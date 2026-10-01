@@ -43,7 +43,7 @@
       <h2>보관과 삭제</h2>
       <ul>
         <li>탈퇴 요청 시 계정과 글·쪽지·거래 기록 함께 삭제 (백업에서는 30일 안에 사라짐)</li>
-        <li>탈퇴·삭제 요청과 문의는 커뮤니티의 <router-link to="/community/write?cat=질문">문의</router-link>로 접수</li>
+        <li>탈퇴·삭제 요청과 문의는 커뮤니티의 <router-link to="/community/write?cat=건의">건의게시판</router-link>로 접수</li>
       </ul>
     </section>
   </div>

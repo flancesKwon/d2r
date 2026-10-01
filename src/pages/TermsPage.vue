@@ -43,7 +43,7 @@
       <ul>
         <li>운영진이 신고 확인 후 글 삭제, 기간 정지, 영구 정지 가능</li>
         <li>정지 중에는 글·댓글·판매글·구매신청·쪽지·리뷰 작성 불가 (읽기는 가능)</li>
-        <li>정지 사유는 본인에게 표시. 이의 제기는 커뮤니티의 <router-link to="/community/write?cat=질문">문의</router-link>로</li>
+        <li>정지 사유는 본인에게 표시. 이의 제기는 커뮤니티의 <router-link to="/community/write?cat=건의">건의게시판</router-link>로</li>
       </ul>
     </section>
     <section>

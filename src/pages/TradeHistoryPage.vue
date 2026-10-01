@@ -57,6 +57,8 @@ function openItem(it) {
   query.value = ''
 }
 const summaryIcon = (s) => iconUrl(s.iconKey)
+// 묶음 판매(베르 1개 + 이스트 2개)는 가격이 묶음 전체 값이라 표시해 둠. 빈 칸은 빼고 이어 붙임
+const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.itemName : '', p.amountLabel, p.ladder, p.hardcore, p.completedAt || p.date].filter(Boolean).join(' · ')
 </script>
 
 <template>
@@ -115,7 +117,7 @@ const summaryIcon = (s) => iconUrl(s.iconKey)
                   <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
                 </template>
               </span>
-              <span class="th-done-meta">{{ p.amountLabel }} · {{ p.ladder }} · {{ p.hardcore }} · {{ p.completedAt || p.date }}</span>
+              <span class="th-done-meta">{{ doneMeta(p) }}</span>
             </div>
           </div>
         </section>

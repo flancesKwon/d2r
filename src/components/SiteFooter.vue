@@ -25,7 +25,8 @@
           <router-link to="/trade">거래게시판</router-link>
           <router-link to="/community">커뮤니티</router-link>
           <router-link to="/community/write?cat=공략">가이드 제보</router-link>
-          <router-link to="/community/write?cat=질문">문의</router-link>
+          <router-link to="/community?cat=건의">건의</router-link>
+          <router-link to="/community/write?cat=버그제보">버그 제보</router-link>
           <router-link to="/terms">이용 규칙</router-link>
           <router-link to="/privacy">개인정보 처리 안내</router-link>
         </div>
