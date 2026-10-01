@@ -70,7 +70,7 @@ const itemCount = computed(() => trade.value?.itemsData.length)
           <span class="mc-tier">S TIER</span>
         </div>
         <div class="mock-card back-b">
-          <div class="mc-class">바바리안</div><div class="mc-name">웜바바</div>
+          <div class="mc-class">바바리안</div><div class="mc-name">소용돌이 바바</div>
           <div class="mc-skill"><span>전투 지시</span><b>20</b></div>
           <div class="mc-skill"><span>소용돌이</span><b>20</b></div>
           <span class="mc-tier">A TIER</span>
@@ -80,7 +80,7 @@ const itemCount = computed(() => trade.value?.itemsData.length)
           <div class="mc-skill"><span>화염구</span><b>20</b></div>
           <div class="mc-skill"><span>화염벽</span><b>20</b></div>
           <div class="mc-skill"><span>온기</span><b>1</b></div>
-          <span class="mc-tier">S TIER · 초보 추천</span>
+          <span class="mc-tier">A TIER · 초보 추천</span>
         </div>
       </div>
     </div>
