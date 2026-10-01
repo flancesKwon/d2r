@@ -11,6 +11,7 @@ import { unreadMessageCount } from '../messagesStore.js'
 import { activeDealCount } from '../dealsStore.js'
 import { authState, signIn, signOut, isStaff } from '../profileStore.js'
 import { supabase } from '../supabase.js'
+import { avatarSrc, presetOf } from '../avatars.js'
 
 const router = useRouter()
 const showDropdown = ref(false)
@@ -73,7 +74,7 @@ function openNotification(n) {
     </router-link>
     <div class="header-profile">
       <button type="button" class="header-avatar" :title="authState.profile?.nickname || '내 정보'" @click="showMenu = !showMenu" @blur="hideMenuSoon">
-        <img v-if="authState.profile?.avatar_url" :src="authState.profile.avatar_url" alt="" />
+        <img v-if="avatarSrc(authState.profile?.avatar_url)" :src="avatarSrc(authState.profile?.avatar_url)" :class="{ item: presetOf(authState.profile?.avatar_url)?.item }" alt="" />
         <svg v-else viewBox="0 0 24 24" class="hi" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1-3.5 4-5 7-5s6 1.5 7 5"/></svg>
       </button>
       <div class="header-profile-menu" v-if="showMenu">
@@ -129,6 +130,7 @@ function openNotification(n) {
 .header-profile{position:relative;}
 .header-avatar{width:34px; height:34px; border-radius:999px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--text-dim); border:1px solid var(--border);}
 .header-avatar img{width:100%; height:100%; object-fit:cover;}
+.header-avatar img.item{width:72%; height:72%; object-fit:contain; image-rendering:pixelated;}
 .header-avatar:hover{border-color:var(--gold-dim);}
 .header-profile-menu{
   position:absolute; top:calc(100% + 8px); right:0; min-width:160px; z-index:30; padding:6px;

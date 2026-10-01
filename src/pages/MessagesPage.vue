@@ -11,6 +11,7 @@ import {
   sendMessage,
 } from '../messagesStore.js'
 import { authState, signIn } from '../profileStore.js'
+import UserAvatar from '../components/UserAvatar.vue'
 
 // 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
 const route = useRoute()
@@ -81,6 +82,7 @@ async function submitMessage() {
           @click="openConversation(c.id)"
         >
           <span class="conv-dot" v-if="!isConversationRead(c)"></span>
+          <UserAvatar :src="c.avatar" :name="c.withName" :size="34" />
           <div class="conv-row-body">
             <div class="conv-row-top">
               <span class="conv-name">{{ c.withName }}</span>

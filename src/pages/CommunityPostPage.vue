@@ -6,6 +6,7 @@ import { authState, signIn } from '../profileStore.js'
 import { renderMarkdown } from '../markdown.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import ReportButton from '../components/ReportButton.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -81,7 +82,7 @@ async function onDeletePost() {
     <div class="post-card">
       <div class="d-eyebrow">{{ post.category }}</div>
       <h1 class="d-name community-post-title">{{ post.title }}</h1>
-      <div class="community-post-meta">{{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
+      <div class="community-post-meta"><UserAvatar :src="post.avatar" :name="post.author" :size="22" /> {{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
 
       <div class="post-tag-row" v-if="post.tags.length">
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
@@ -109,7 +110,7 @@ async function onDeletePost() {
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
-          <b>{{ c.author }}</b>
+          <b class="comment-author"><UserAvatar :src="c.avatar" :name="c.author" :size="22" />{{ c.author }}</b>
           <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">삭제</button></span>
         </div>
         <div class="comment-body" v-html="renderMarkdown(c.content)"></div>
@@ -146,7 +147,7 @@ async function onDeletePost() {
 .community-detail-wrap{max-width:920px;}
 .post-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:18px; padding:32px 36px; margin-bottom:24px;}
 .community-post-title{font-size:25px; margin:10px 0 10px;}
-.community-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:16px;}
+.community-post-meta{font-size:12px; color:var(--text-dim); margin-bottom:16px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
 
 .post-tag-row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px;}
 .tag-chip{
@@ -176,8 +177,9 @@ async function onDeletePost() {
 
 .comment-list{display:flex; flex-direction:column; gap:12px; margin-bottom:24px;}
 .comment-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:16px 20px;}
-.comment-top{display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;}
+.comment-top{display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px;}
 .comment-top b{color:var(--gold-dim); font-weight:600;}
+.comment-author{display:inline-flex; align-items:center; gap:7px;}
 .comment-top span{color:var(--text-dim);}
 .comment-body{font-size:13px; color:var(--text-muted); line-height:1.7; margin-bottom:10px;}
 .comment-body :deep(p){margin-bottom:4px;}
