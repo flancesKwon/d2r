@@ -34,8 +34,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       </button>
 
       <p class="login-note">
-        처음 로그인 시 계정 이름이 닉네임 - 마이페이지에서 변경 가능
-        <router-link to="/privacy" @click="close">개인정보 처리 안내</router-link>
+        처음 로그인 시 계정 이름이 닉네임 - 마이페이지에서 변경 가능<br />
+        로그인 = <router-link to="/terms" @click="close">이용 규칙</router-link> · <router-link to="/privacy" @click="close">개인정보 처리 안내</router-link> 동의
       </p>
     </div>
   </div>
