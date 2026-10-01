@@ -146,7 +146,8 @@ function submitReview() {
           <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">보내기</button>
         </div>
 
-        <div class="review-box" v-if="activeDeal.status === '거래완료' && !activeDeal.review">
+        <!-- 리뷰는 두 사람이 각자 하나씩 -->
+        <div class="review-box" v-if="activeDeal.status === '거래완료' && !activeDeal.myReview">
           <div class="d-section-title">{{ activeDeal.counterpart }}님에게 리뷰 남기기</div>
           <div class="review-stars">
             <button
@@ -157,13 +158,15 @@ function submitReview() {
           <textarea v-model="reviewComment" class="review-textarea" rows="3" placeholder="거래 후기 (예: 약속 시간 잘 지킴)"></textarea>
           <button type="button" class="btn-primary review-submit-btn" @click="submitReview">리뷰 등록</button>
         </div>
-        <div class="review-box review-done" v-else-if="activeDeal.review">
-          <div class="d-section-title">{{ activeDeal.review.fromId === authState.user?.id ? '남긴 리뷰' : '받은 리뷰' }}</div>
-          <div class="review-stars readonly">
-            <span v-for="n in 5" :key="n" class="star-btn" :class="{ filled: n <= activeDeal.review.rating }">★</span>
+        <template v-for="(rv, ri) in [activeDeal.myReview, activeDeal.theirReview]" :key="ri">
+          <div class="review-box review-done" v-if="rv">
+            <div class="d-section-title">{{ rv === activeDeal.myReview ? '남긴 리뷰' : '받은 리뷰' }}</div>
+            <div class="review-stars readonly">
+              <span v-for="n in 5" :key="n" class="star-btn" :class="{ filled: n <= rv.rating }">★</span>
+            </div>
+            <div class="review-comment-text">{{ rv.comment }}</div>
           </div>
-          <div class="review-comment-text">{{ activeDeal.review.comment }}</div>
-        </div>
+        </template>
       </div>
       <div class="deal-thread deal-thread-empty" v-else>거래 선택</div>
     </div>

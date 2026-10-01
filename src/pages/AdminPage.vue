@@ -6,7 +6,7 @@
 // 신고·정지는 supabase/002_reports_suspension.sql 을 실행해야 켜짐 - 안 돌렸으면 안내만 띄우고 나머지는 그대로 동작
 import { ref, computed, watch } from 'vue'
 import { supabase, mustReturnRows } from '../supabase.js'
-import { authState, signIn, isStaff, isAdmin, ROLE_LABEL, suspendedUntil, suspensionText } from '../profileStore.js'
+import { authState, signIn, isStaff, isAdmin, ROLE_LABEL, suspendedUntil, suspensionText, fetchSuspensionReasons } from '../profileStore.js'
 import { formatDate } from '../communityStore.js'
 import {
   REPORT_REASON_LABEL, REPORT_TARGET_LABEL, REPORT_STATUS_LABEL, isMissingSchema,
@@ -35,7 +35,8 @@ const SUSPEND_OPTIONS = [
 ]
 
 async function count(table, apply = (q) => q) {
-  const { count: n, error } = await apply(supabase.from(table).select('*', { count: 'exact', head: true }))
+  // '*' 말고 id 로 셈 - 프로필은 칸 단위 읽기 권한이라 '*' 이면 막힘
+  const { count: n, error } = await apply(supabase.from(table).select('id', { count: 'exact', head: true }))
   if (error) throw error
   return n || 0
 }
@@ -58,13 +59,16 @@ async function loadMembers() {
     if (term) q = q.ilike('nickname', `%${term}%`)
     return q
   }
-  let { data, error } = await build('id, nickname, contact, role, created_at, suspended_until, suspended_reason')
+  let { data, error } = await build('id, nickname, contact, role, created_at, suspended_until')
   if (isMissingSchema(error)) {
     schemaReady.value = false
     ;({ data, error } = await build('id, nickname, contact, role, created_at'))
   }
   if (error) throw error
-  members.value = data || []
+  // 정지 사유는 운영진만 받는 함수로 (정지된 사람만)
+  const suspendedIds = (data || []).filter((m) => suspendedUntil(m)).map((m) => m.id)
+  const reasons = await fetchSuspensionReasons(suspendedIds)
+  members.value = (data || []).map((m) => ({ ...m, suspended_reason: reasons[m.id] || null }))
 }
 async function loadReports() {
   try {
@@ -131,10 +135,10 @@ function suspend(m, option, event) {
   return run(async () => {
     const rows = await mustReturnRows(
       supabase.from('tb_profile').update({ suspended_until: until, suspended_reason: reason.trim().slice(0, 200) || null })
-        .eq('id', m.id).select('suspended_until, suspended_reason'),
+        .eq('id', m.id).select('suspended_until'),
       '정지 실패'
     )
-    Object.assign(m, rows[0])
+    Object.assign(m, rows[0], { suspended_reason: reason.trim().slice(0, 200) || null })
     syncReportAuthors(m)
   })
 }
@@ -142,10 +146,10 @@ function unsuspend(m) {
   if (!confirm(`${m.nickname} 님 정지 해제`)) return
   return run(async () => {
     const rows = await mustReturnRows(
-      supabase.from('tb_profile').update({ suspended_until: null, suspended_reason: null }).eq('id', m.id).select('suspended_until, suspended_reason'),
+      supabase.from('tb_profile').update({ suspended_until: null, suspended_reason: null }).eq('id', m.id).select('suspended_until'),
       '정지 해제 실패'
     )
-    Object.assign(m, rows[0])
+    Object.assign(m, rows[0], { suspended_reason: null })
     syncReportAuthors(m)
   })
 }
