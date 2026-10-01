@@ -29,7 +29,7 @@ export const IAS_CLASSES = [
   { key: 'm5', name: '5막 바바리안 (배쉬)', merc: true }, { key: 'm5f', name: '5막 바바리안 (프렌지)', merc: true },
 ]
 export const isMerc = (cls) => cls[0] === 'm'
-export const IAS_FORMS = [{ key: 'human', name: '사람' }, { key: 'wolf', name: '워울프' }, { key: 'bear', name: '워베어' }]
+export const IAS_FORMS = [{ key: 'human', name: '사람' }, { key: 'wolf', name: '늑대인간 (워울프)' }, { key: 'bear', name: '곰인간 (워베어)' }]
 
 // kind: std(일반 공격과 같은 동작) seq(연속 동작) roll(되감기 동작) 등 / need: 무기 조건
 // dual: 'need' 무기 둘 필수, 'can' 둘 들 수 있음
@@ -38,40 +38,40 @@ export const IAS_SKILLS = [
   S('std', '일반 공격', 'Attack', { dual: 'can' }),
   S('throw', '던지기', 'Throw', { need: 'throw', forms: ['human'] }),
   // 아마존
-  S('strafe', '스트레이프', 'Strafe', { cls: ['ama'], need: 'ranged', roll: [50, 4] }),
-  S('jab', '잽', 'Jab', { cls: ['ama'], need: 'spear', seq: true }),
-  S('impale', '임페일', 'Impale', { cls: ['ama'], need: 'spear', seq: true, sias: 30 }),
-  S('fend', '펜드', 'Fend', { cls: ['ama'], need: 'spear', roll: [30, 4] }),
+  S('strafe', '속사 (스트레이프)', 'Strafe', { cls: ['ama'], need: 'ranged', roll: [50, 4] }),
+  S('jab', '찌르기 (잽)', 'Jab', { cls: ['ama'], need: 'spear', seq: true }),
+  S('impale', '꿰뚫기 (임페일)', 'Impale', { cls: ['ama'], need: 'spear', seq: true, sias: 30 }),
+  S('fend', '난격 (펜드)', 'Fend', { cls: ['ama'], need: 'spear', roll: [30, 4] }),
   // 어쌔신
-  S('tiger', '타이거 · 코브라 · 피닉스 스트라이크', 'Tiger / Cobra / Phoenix Strike', { cls: ['ass'], same: 'std', need: 'melee' }),
-  S('fof', '피스트 오브 파이어 · 클러 오브 선더 · 블레이드 오브 아이스', 'Fists of Fire / Claws of Thunder / Blades of Ice', { cls: ['ass'], need: 'claw', seq: true, martial: true, dual: 'can' }),
-  S('dclaw', '드래곤 클러', 'Dragon Claw', { cls: ['ass'], need: 'claw', seq: true, martial: true, dual: 'need' }),
-  S('dtail', '드래곤 테일', 'Dragon Tail', { cls: ['ass'], fixed: 13, sias: -40, martial: true }),
-  S('dtalon', '드래곤 탈런', 'Dragon Talon', { cls: ['ass'], fixed: 13, roll: [100, 1], martial: true }),
+  S('tiger', '호랑이·코브라·불사조 일격 (타이거·코브라·피닉스 스트라이크)', 'Tiger / Cobra / Phoenix Strike', { cls: ['ass'], same: 'std', need: 'melee' }),
+  S('fof', '화염의 주먹·천둥의 손톱·얼음 칼날 (피스트 오브 파이어·클러 오브 선더·블레이드 오브 아이스)', 'Fists of Fire / Claws of Thunder / Blades of Ice', { cls: ['ass'], need: 'claw', seq: true, martial: true, dual: 'can' }),
+  S('dclaw', '용의 손톱 (드래곤 클러)', 'Dragon Claw', { cls: ['ass'], need: 'claw', seq: true, martial: true, dual: 'need' }),
+  S('dtail', '용의 꼬리 (드래곤 테일)', 'Dragon Tail', { cls: ['ass'], fixed: 13, sias: -40, martial: true }),
+  S('dtalon', '용의 발톱 (드래곤 탈런)', 'Dragon Talon', { cls: ['ass'], fixed: 13, roll: [100, 1], martial: true }),
   S('traps', '덫 설치 (센트리)', 'Laying Traps', { cls: ['ass'], fixed: 8 }),
   // 바바리안
-  S('bash', '배쉬 · 스턴 · 컨센트레이트 · 버서크', 'Bash / Stun / Concentrate / Berserk', { cls: ['bar'], same: 'std', need: 'melee' }),
-  S('frenzy', '프렌지', 'Frenzy', { cls: ['bar'], need: 'melee', seq: true, dual: 'need' }),
-  S('ds', '더블 스윙', 'Double Swing', { cls: ['bar'], need: 'melee', seq: true, dual: 'need', sias: 50 }),
-  S('dthrow', '더블 스로우', 'Double Throw', { cls: ['bar'], need: 'throw', seq: true, dual: 'need' }),
-  S('ww', '훨윈드', 'Whirlwind', { cls: ['bar', 'ass'], need: 'melee', dual: 'can' }),
+  S('bash', '강격·기절·집중 공격·광폭화 (배쉬·스턴·컨센트레이트·버서크)', 'Bash / Stun / Concentrate / Berserk', { cls: ['bar'], same: 'std', need: 'melee' }),
+  S('frenzy', '광분 (프렌지)', 'Frenzy', { cls: ['bar'], need: 'melee', seq: true, dual: 'need' }),
+  S('ds', '이중 타격 (더블 스윙)', 'Double Swing', { cls: ['bar'], need: 'melee', seq: true, dual: 'need', sias: 50 }),
+  S('dthrow', '이중 투척 (더블 스로우)', 'Double Throw', { cls: ['bar'], need: 'throw', seq: true, dual: 'need' }),
+  S('ww', '소용돌이 (훨윈드)', 'Whirlwind', { cls: ['bar', 'ass'], need: 'melee', dual: 'can' }),
   // 드루이드 (변신)
-  S('fury', '퓨리', 'Fury', { cls: ['dru'], forms: ['wolf'], roll: [70, 3] }),
-  S('rabies', '레이비즈', 'Rabies', { cls: ['dru'], forms: ['wolf'] }),
-  S('feral', '피어럴 레이지', 'Feral Rage', { cls: ['dru'], forms: ['wolf'], same: 'std' }),
-  S('hunger', '헝거', 'Hunger', { cls: ['dru'], forms: ['wolf', 'bear'] }),
-  S('maul', '마울', 'Maul', { cls: ['dru'], forms: ['bear'], same: 'std' }),
+  S('fury', '분노 (퓨리)', 'Fury', { cls: ['dru'], forms: ['wolf'], roll: [70, 3] }),
+  S('rabies', '광견병 (레이비즈)', 'Rabies', { cls: ['dru'], forms: ['wolf'] }),
+  S('feral', '흉포한 격노 (피어럴 레이지)', 'Feral Rage', { cls: ['dru'], forms: ['wolf'], same: 'std' }),
+  S('hunger', '굶주림 (헝거)', 'Hunger', { cls: ['dru'], forms: ['wolf', 'bear'] }),
+  S('maul', '후려치기 (마울)', 'Maul', { cls: ['dru'], forms: ['bear'], same: 'std' }),
   // 팔라딘
-  S('smite', '스마이트', 'Smite', { cls: ['pal'], fixed: 12 }),
-  S('zeal', '질', 'Zeal', { need: 'melee', roll: [100, 1] }),
-  S('sac', '세크리파이스 · 벤젠스 · 컨버젼', 'Sacrifice / Vengeance / Conversion', { cls: ['pal'], same: 'std', need: 'melee' }),
+  S('smite', '강타 (스마이트)', 'Smite', { cls: ['pal'], fixed: 12 }),
+  S('zeal', '열의 (질)', 'Zeal', { need: 'melee', roll: [100, 1] }),
+  S('sac', '희생·복수·전향 (세크리파이스·벤젠스·컨버젼)', 'Sacrifice / Vengeance / Conversion', { cls: ['pal'], same: 'std', need: 'melee' }),
   // 악마술사
   S('cleave', '가르기', 'Cleave', { cls: ['war'], need: 'melee', seq: true }),
   S('mirrored', '거울상 칼날', 'Mirrored Blades', { cls: ['war'], seq: true }),
   // 용병
-  S('mjab', '잽', 'Jab', { cls: ['m2'], seq: true }),
-  S('mbash', '배쉬 · 스턴', 'Bash / Stun', { cls: ['m5'], same: 'std' }),
-  S('mfrenzy', '프렌지', 'Frenzy', { cls: ['m5f'], seq: true, dual: 'can' }),
+  S('mjab', '찌르기 (잽)', 'Jab', { cls: ['m2'], seq: true }),
+  S('mbash', '강격·기절 (배쉬·스턴)', 'Bash / Stun', { cls: ['m5'], same: 'std' }),
+  S('mfrenzy', '광분 (프렌지)', 'Frenzy', { cls: ['m5f'], seq: true, dual: 'can' }),
   S('taunt', '도발', 'Taunt', { cls: ['m5f'], same: 'std', dual: 'can' }),
 ]
 const SKILL = Object.fromEntries(IAS_SKILLS.map((s) => [s.key, s]))
@@ -79,11 +79,11 @@ const SKILL = Object.fromEntries(IAS_SKILLS.map((s) => [s.key, s]))
 // 스킬 레벨 -> 공속 (skillcalc 의 체감 공식)
 const dim = (a, b, lvl) => (lvl > 0 ? a + Math.trunc(((b - a) * Math.trunc((110 * lvl) / (lvl + 6))) / 100) : 0)
 export const BUFFS = {
-  fana: { ko: '파나티시즘 (팔라딘 오라)', calc: (l) => dim(10, 40, l) },
-  bos: { ko: '버스트 오브 스피드', calc: (l) => dim(15, 60, l), noMerc: true },
-  frenzy: { ko: '프렌지 (공속 버프)', calc: (l) => dim(0, 50, l), cls: ['bar', 'm5f'] },
-  wolf: { ko: '워울프 스킬 레벨', calc: (l) => dim(10, 80, l), forms: ['wolf'] },
-  maul: { ko: '마울 스킬 레벨', calc: (l) => (l > 0 ? 3 * (Math.floor(l / 2) + 3) : 0), forms: ['bear'], skills: ['maul'] },
+  fana: { ko: '광신 (파나티시즘) 오라', calc: (l) => dim(10, 40, l) },
+  bos: { ko: '폭발적인 속도 (버스트 오브 스피드)', calc: (l) => dim(15, 60, l), noMerc: true },
+  frenzy: { ko: '광분 (프렌지) 공속 버프', calc: (l) => dim(0, 50, l), cls: ['bar', 'm5f'] },
+  wolf: { ko: '늑대인간 (워울프) 스킬 레벨', calc: (l) => dim(10, 80, l), forms: ['wolf'] },
+  maul: { ko: '후려치기 (마울) 스킬 레벨', calc: (l) => (l > 0 ? 3 * (Math.floor(l / 2) + 3) : 0), forms: ['bear'], skills: ['maul'] },
   purge: { ko: '주술: 처단', calc: (l) => (l > 0 ? Math.min(30, 10 + (l - 1)) : 0), cls: ['war'] },
   cleave: { ko: '가르기 스킬 레벨', calc: (l) => dim(10, 30, l), skills: ['cleave'] },
   mirrored: { ko: '거울상 칼날 스킬 레벨', calc: (l) => dim(10, 30, l), skills: ['mirrored'] },

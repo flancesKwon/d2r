@@ -5,6 +5,7 @@ import { guidesState, loadGuides, getGuide, canEditGuides, deleteGuide } from '.
 import { CLASS_ICONS } from '../icons.js'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { skillPairsIn } from '../skillAliases.js'
 
 // 추천 장비 문장 안의 아이템 이름(유니크·세트·룬워드)을 아이템 사전 링크로 - 긴 이름부터 찾아서 겹침 방지
 const LINKABLE = itemsData.filter((it) => ['unique', 'set', 'runeword'].includes(it.category) && it.name_ko.length >= 2)
@@ -31,6 +32,15 @@ const route = useRoute()
 const router = useRouter()
 loadGuides()
 const guide = computed(() => getGuide(route.params.id))
+// 가이드에 나온 스킬의 예전 이름 (눈보라 = 블리자드) - 가이드는 게임 공식 이름으로 씀
+const skillPairs = computed(() => {
+  const g = guide.value
+  if (!g) return []
+  const text = [g.summary, g.statPriority, ...g.skillOrder.map((s) => s.skill), ...g.levelingNotes, ...g.strengths, ...g.weaknesses].join(' / ')
+  return skillPairsIn(text, g.classKey)
+})
+// 단계가 숫자(1~11, 24~)일 때만 Lv 를 붙임 (소용돌이·광분·공통 같은 이름 단계는 그대로)
+const levelLabel = (lv) => (/^\d/.test(lv || '') ? 'Lv ' + lv : lv)
 async function removeGuide() {
   if (!confirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
   try {
@@ -83,9 +93,14 @@ const related = computed(() =>
         <div class="d-section-title" id="sec-skill">스킬 트리 순서</div>
         <div class="affix-list">
           <div class="affix-line skill-order-line" v-for="(s, i) in guide.skillOrder" :key="i">
-            <span class="skill-order-level">Lv {{ s.level }}</span>
+            <span class="skill-order-level">{{ levelLabel(s.level) }}</span>
             <span class="a-text">{{ s.skill }}</span>
           </div>
+        </div>
+
+        <div class="skill-alias-box" v-if="skillPairs.length">
+          <span class="skill-alias-title">스킬 이름 (게임 표기 = 예전에 많이 쓰던 이름)</span>
+          <span class="skill-alias" v-for="p in skillPairs" :key="p[0]"><b>{{ p[0] }}</b> = {{ p[1] }}</span>
         </div>
 
         <div class="d-section-title" id="sec-gear">추천 장비</div>
@@ -178,6 +193,9 @@ const related = computed(() =>
 .note-box{border-radius:12px;}
 .affix-list{border-radius:14px; overflow:hidden;}
 .skill-order-line{display:flex; gap:12px;}
+.skill-alias-box{display:flex; flex-wrap:wrap; gap:6px 14px; margin:-6px 0 22px; padding:10px 14px; border:1px dashed var(--border); border-radius:10px; font-size:12px; color:var(--text-dim);}
+.skill-alias-title{flex-basis:100%; font-size:11.5px; color:var(--text-dim);}
+.skill-alias b{color:var(--text-muted); font-weight:600;}
 .item-link{display:inline-flex; align-items:center; gap:4px; color:var(--gold); border-bottom:1px dashed var(--gold-dim);}
 .item-link.set{color:var(--green); border-bottom-color:var(--green);}
 .item-link img{width:18px; height:18px; object-fit:contain; image-rendering:pixelated;}
