@@ -83,7 +83,7 @@ export function signIn(provider) {
   try { sessionStorage.setItem(RETURN_KEY, window.location.pathname + window.location.search) } catch (e) {}
   return supabase.auth.signInWithOAuth({
     provider,
-    // 로그인 후엔 항상 사이트 첫 주소(/d2r/)로 돌아왔다가 보던 화면으로 감 - Supabase Redirect URLs 에 등록된 주소와 같아야 함
+    // 로그인 후엔 항상 사이트 첫 주소(/)로 돌아왔다가 보던 화면으로 감 - Supabase Redirect URLs 에 등록된 주소와 같아야 함
     options: { redirectTo: window.location.origin + import.meta.env.BASE_URL },
   })
 }

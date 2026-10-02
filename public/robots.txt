@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://flanceskwon.github.io/d2r/sitemap.xml
+Sitemap: https://diahub.co.kr/sitemap.xml

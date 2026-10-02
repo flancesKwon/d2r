@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(root, 'dist')
-const SITE = 'https://flanceskwon.github.io/d2r/'
+const SITE = 'https://diahub.co.kr/'
 const read = (f) => JSON.parse(fs.readFileSync(path.join(root, 'src/data', f), 'utf8'))
 const template = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
