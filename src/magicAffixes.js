@@ -49,7 +49,7 @@ const skillProc = (when) => ({
   text: ([chance, lv], m) => `${when} ${chance}% 확률로 ${lv} 레벨 ${m.skill.ko} 시전`,
 })
 const MODS = {
-  ac: simple('방어력 +#'), 'ac%': simple('방어력 +#% 증가'),
+  ac: simple('방어력 +#'), 'ac%': simple('방어력 증가 +#%'),
   'dmg%': simple('피해 증가 +#%'), 'dmg-min': simple('최소 피해 +#'), 'dmg-max': simple('최대 피해 +#'),
   att: simple('명중률 +#'), 'att%': simple('명중률 보너스 #%'),
   'dmg-to-mana': simple('받는 피해의 +#%만큼 마나 회복'), 'regen-stam': simple('지구력 회복 속도 #% 증가'),
