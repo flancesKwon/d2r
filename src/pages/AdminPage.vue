@@ -88,8 +88,44 @@ async function loadRecent() {
   recentCommunity.value = c || []
   recentTrade.value = t || []
 }
+// 운영 기록·금칙어·자동 숨김 (009 SQL 이후 - 없으면 빈 목록)
+const logs = ref([])
+const bannedWords = ref([])
+const newWord = ref('')
+const autoHidden = ref(new Set())
+async function loadOps() {
+  const [l, w, h] = await Promise.all([
+    supabase.from('tb_admin_log').select('*, actor:tb_profile!tb_admin_log_actor_id_fkey(nickname)').order('created_at', { ascending: false }).limit(50),
+    supabase.from('tb_banned_word').select('word, created_at').order('word'),
+    supabase.from('tb_auto_hidden').select('target_type, target_id'),
+  ])
+  logs.value = l.data || []
+  bannedWords.value = w.data || []
+  autoHidden.value = new Set((h.data || []).map((x) => x.target_type + ':' + x.target_id))
+}
+const isAutoHidden = (r) => autoHidden.value.has(r.target_type + ':' + r.target_id)
+function addWord() {
+  const word = newWord.value.trim()
+  if (!word) return
+  return run(async () => {
+    await mustReturnRows(supabase.from('tb_banned_word').insert({ word }).select('word, created_at'), '금칙어 추가 실패')
+    newWord.value = ''
+    await loadOps()
+  })
+}
+function removeWord(w) {
+  if (!confirm(`금칙어 삭제: ${w.word}`)) return
+  return run(async () => {
+    await mustReturnRows(supabase.from('tb_banned_word').delete().eq('word', w.word).select('word'), '금칙어 삭제 실패')
+    await loadOps()
+  })
+}
+const LOG_TARGET = { tb_community_post: '글', tb_community_comment: '댓글', tb_trade_post: '판매글', community_post: '글', community_comment: '댓글', trade_post: '판매글', profile: '회원', banned_word: '금칙어' }
+const fmtTime = (ts) => { const d = new Date(ts); const p = (n) => String(n).padStart(2, '0'); return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}` }
+
 function loadAll() {
   if (!supabase || !staff.value) return
+  loadOps().catch(() => {})
   loadStats().catch(() => {})
   loadMembers().catch(() => {})
   loadReports()
@@ -277,6 +313,7 @@ function removeTradePost(p) {
               <span class="admin-badge">{{ REPORT_TARGET_LABEL[r.target_type] }}</span>
               <span class="admin-badge reason">{{ REPORT_REASON_LABEL[r.reason] }}</span>
               <span class="admin-badge" :class="'st-' + r.status">{{ REPORT_STATUS_LABEL[r.status] }}</span>
+              <span class="admin-badge auto-hidden" v-if="isAutoHidden(r)" title="신고 3건 이상이라 자동으로 가려짐 - 기각하면 다시 보임">자동 숨김</span>
               <router-link v-if="reportTargetLink(r)" :to="reportTargetLink(r)" class="a-text admin-report-target">{{ r.target_label || '(내용 없음)' }}</router-link>
               <span v-else class="admin-report-target">{{ r.target_label }}</span>
             </div>
@@ -375,6 +412,32 @@ function removeTradePost(p) {
       </div>
       <div class="empty-state" v-if="!recentTrade.length">판매글 없음</div>
     </div>
+
+    <div class="d-section-title">금칙어</div>
+    <div class="admin-words">
+      <span class="admin-word" v-for="w in bannedWords" :key="w.word">{{ w.word }}<button type="button" @click="removeWord(w)" :aria-label="'금칙어 삭제 ' + w.word">✕</button></span>
+      <span class="empty-state" v-if="!bannedWords.length">금칙어 없음</span>
+    </div>
+    <form class="admin-word-form" @submit.prevent="addWord">
+      <input v-model="newWord" maxlength="40" placeholder="추가할 단어 (띄어쓰기 무시하고 걸림)" class="write-input" />
+      <button type="submit" class="admin-action-btn">추가</button>
+    </form>
+    <p class="admin-hint">금칙어가 들어간 글·댓글·판매글·쪽지·거래방 대화는 등록이 막힘 (운영진은 제외)</p>
+
+    <div class="d-section-title">운영 기록 <small class="admin-hint">최근 50개</small></div>
+    <div class="affix-list admin-report-list">
+      <div class="affix-line admin-report-line" v-for="l in logs" :key="'l' + l.id">
+        <div class="admin-report-info">
+          <div class="admin-report-head">
+            <span class="admin-badge">{{ l.action }}</span>
+            <span class="admin-badge" v-if="LOG_TARGET[l.target_type]">{{ LOG_TARGET[l.target_type] }}</span>
+            <span class="admin-report-target">{{ l.detail }}</span>
+          </div>
+          <span class="admin-report-meta">{{ l.actor?.nickname || '자동' }} · {{ fmtTime(l.created_at) }}</span>
+        </div>
+      </div>
+      <div class="empty-state" v-if="!logs.length">기록 없음</div>
+    </div>
   </div>
   </div>
 </template>
@@ -440,4 +503,12 @@ function removeTradePost(p) {
   .admin-stat-row{grid-template-columns:1fr 1fr;}
   .admin-stat-card:first-child{grid-column:1 / -1;}
 }
+.admin-badge.auto-hidden{color:#e0905a; border-color:#e0905a;}
+.admin-words{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+.admin-word{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:5px 10px; border:1px solid var(--border); border-radius:999px; color:var(--text-muted);}
+.admin-word button{color:var(--text-dim); font-size:11px;}
+.admin-word button:hover{color:#e0775f;}
+.admin-word-form{display:flex; gap:8px; max-width:420px;}
+.admin-word-form .write-input{flex:1;}
+.admin-hint{font-size:11.5px; color:var(--text-dim); font-weight:400; margin:6px 0 0;}
 </style>

@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete } from '../communityStore.js'
-import { authState, signIn } from '../profileStore.js'
+import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
+import { authState, signIn, isStaff } from '../profileStore.js'
 import { renderMarkdown } from '../markdown.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import ReportButton from '../components/ReportButton.vue'
@@ -14,6 +14,12 @@ const post = ref(null)
 watch(post, (p) => { if (p) document.title = `${p.title} — 커뮤니티 — 디아허브` }, { flush: 'post' })
 const loading = ref(true)
 const actionError = ref('')
+
+// 운영진: 목록 맨 위 고정
+async function togglePin() {
+  actionError.value = ''
+  try { await setPinned(post.value, !post.value.pinned) } catch (e) { actionError.value = e.message || '처리 실패' }
+}
 
 async function load() {
   loading.value = true
@@ -102,6 +108,7 @@ async function onDeletePost() {
       <div class="post-owner-row">
         <router-link class="owner-btn" v-if="canEdit(post)" :to="{ path: '/community/write', query: { edit: post.id } }">수정</router-link>
         <button type="button" class="owner-btn danger" v-if="canDelete(post)" @click="onDeletePost">삭제</button>
+        <button type="button" class="owner-btn" v-if="isStaff()" @click="togglePin">{{ post.pinned ? '고정 해제' : '맨 위 고정' }}</button>
         <ReportButton class="post-report" target-type="community_post" :target-id="post.id" :owner-id="post.authorId" label="글 신고" />
       </div>
       <div class="action-error" v-if="actionError">{{ actionError }}</div>

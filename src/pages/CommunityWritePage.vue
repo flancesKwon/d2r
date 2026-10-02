@@ -3,14 +3,14 @@
 // 목록에서 카테고리를 고른 상태로 들어오면(?cat=질문) 그 카테고리로 시작, 등록하면 방금 쓴 글로 이동
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CATEGORIES, createPost, updatePost, fetchPost, canEdit } from '../communityStore.js'
+import { writeCategories, createPost, updatePost, fetchPost, canEdit } from '../communityStore.js'
 import { authState, signIn } from '../profileStore.js'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const editId = route.query.edit ? Number(route.query.edit) : null
-const startCat = CATEGORIES.includes(route.query.cat) ? route.query.cat : CATEGORIES[0]
+const startCat = writeCategories().includes(route.query.cat) ? route.query.cat : '질문'
 // 버그 제보는 적을 칸을 미리 채워 둠 (다른 카테고리로 바꾸면서 손대지 않았으면 비움)
 const BUG_TEMPLATE = [
   '**어느 화면**: (주소나 메뉴 이름)', '',
@@ -39,7 +39,7 @@ onMounted(async () => {
 })
 
 // 카테고리 버튼 색 (질문 청록 / 거래 금색 / 잡담 초록 / 공략 적갈색 / 건의 보라 / 버그제보 주황)
-const CAT_CLASS = { 질문: 'cat-question', 거래: 'cat-trade', 잡담: 'cat-chat', 공략: 'cat-guide', 건의: 'cat-suggest', 버그제보: 'cat-bug' }
+const CAT_CLASS = { 공지: 'cat-notice', 질문: 'cat-question', 거래: 'cat-trade', 잡담: 'cat-chat', 공략: 'cat-guide', 건의: 'cat-suggest', 버그제보: 'cat-bug' }
 const catClass = (cat) => CAT_CLASS[cat] || ''
 
 function addTagFromInput() {
@@ -92,7 +92,7 @@ async function submitPost() {
 
       <div class="write-cat-pills">
         <button
-          v-for="c in CATEGORIES" :key="c" type="button" class="write-cat-pill"
+          v-for="c in writeCategories()" :key="c" type="button" class="write-cat-pill"
           :class="[catClass(c), { active: form.category === c }]" @click="form.category = c"
         >{{ c }}</button>
       </div>
@@ -140,6 +140,7 @@ async function submitPost() {
 .write-cat-pill.active.cat-trade{color:var(--gold); border-color:var(--gold-dim); background:rgba(200,163,77,0.1);}
 .write-cat-pill.active.cat-chat{color:var(--green); border-color:var(--green); background:rgba(92,138,91,0.1);}
 .write-cat-pill.active.cat-guide{color:var(--blood); border-color:var(--blood); background:rgba(162,81,63,0.1);}
+.write-cat-pill.active.cat-notice{color:var(--gold); border-color:var(--gold); background:rgba(200,163,77,0.12);}
 .write-cat-pill.active.cat-suggest{color:#a58bd0; border-color:#a58bd0; background:rgba(165,139,208,0.1);}
 .write-cat-pill.active.cat-bug{color:#e0905a; border-color:#e0905a; background:rgba(224,144,90,0.1);}
 
