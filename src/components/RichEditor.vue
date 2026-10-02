@@ -136,7 +136,7 @@ const ICON = {
 
 <template>
   <div class="rich-editor" :class="[`rich-editor--${variant}`, { 'rich-editor--compact': compact }]">
-    <div class="re-toolbar" v-if="editor">
+    <div class="re-toolbar" v-if="editor" @mousedown.prevent>
       <template v-if="!compact">
         <button type="button" class="re-text-btn" :class="{ on: is('heading', { level: 2 }) }" title="제목" @click="run((c) => c.toggleHeading({ level: 2 }))">제목</button>
         <button type="button" class="re-text-btn" :class="{ on: is('heading', { level: 3 }) }" title="소제목" @click="run((c) => c.toggleHeading({ level: 3 }))">소제목</button>
@@ -185,13 +185,14 @@ const ICON = {
 .rich-editor{border:1px solid var(--border); background:var(--panel); border-radius:10px;}
 .rich-editor:focus-within{border-color:var(--gold-dim);}
 .re-toolbar{
-  display:flex; align-items:center; flex-wrap:wrap; gap:2px; padding:6px 8px;
+  display:flex; align-items:center; gap:2px; padding:6px 8px; overflow-x:auto; scrollbar-width:none;
   border-bottom:1px solid var(--border-soft); position:sticky; top:57px; z-index:5;
   background:var(--panel); border-radius:10px 10px 0 0;
 }
+.re-toolbar::-webkit-scrollbar{display:none;}
 .re-toolbar button{
   height:32px; min-width:32px; padding:0 7px; display:flex; align-items:center; justify-content:center; gap:5px;
-  color:var(--text-muted); border-radius:6px; font-size:13px; font-weight:600;
+  color:var(--text-muted); border-radius:6px; font-size:13px; font-weight:600; flex:none; white-space:nowrap;
 }
 .re-toolbar button:hover:not(:disabled){color:var(--text); background:var(--panel-2);}
 .re-toolbar button.on{color:var(--gold); background:rgba(200,163,77,0.12);}
