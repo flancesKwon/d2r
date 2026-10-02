@@ -9,11 +9,12 @@ const params = new URLSearchParams(window.location.search)
 const fromLogin = params.has('code') || params.has('error')
 
 // 로그인 상태를 먼저 확인한 뒤 화면을 띄움 (새로고침 때 로그아웃처럼 깜빡이지 않게)
-initAuth().then(() => {
+initAuth().then(async () => {
+  const app = createApp(App).use(router)
   if (fromLogin) {
-    // 주소창의 ?code= 를 지우고 로그인 전에 보던 화면으로
-    const back = takeLoginReturn() || '#/'
-    window.history.replaceState(null, '', window.location.pathname + back)
+    // 주소창의 ?code= 를 지우고 로그인 전에 보던 화면으로 (예전 형식 '#/...' 이 남아 있으면 # 만 뗌)
+    const back = (takeLoginReturn() || '/').replace(/^#/, '') || '/'
+    await router.replace(back.startsWith('/') ? back : '/')
   }
-  createApp(App).use(router).mount('#app')
+  app.mount('#app')
 })

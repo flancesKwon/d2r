@@ -1,8 +1,9 @@
-# DB 백업 + 무료 플랜 자동 정지 방지
+# DB 백업 + 스키마 저장 + 무료 플랜 자동 정지 방지
 # - keepalive: 3일마다 사이트와 같은 공개 키로 가이드 1개를 읽음 (Supabase 무료 플랜은 7일 동안 요청이 없으면 일시정지)
 # - backup: 매주 월요일 DB(public·auth 스키마)를 pg_dump -> 암호화 -> Actions 아티팩트(30일 보관)
 #   저장소가 공개라서 반드시 암호화. 필요한 secrets: SUPABASE_DB_URL(Session pooler 주소), BACKUP_PASSPHRASE
-#   secrets 가 없으면 백업은 건너뜀
+#   secrets 가 없으면 실패(빨간 X)로 끝남 - 예전엔 조용히 건너뛰어서 백업이 없는 걸 몰랐음
+# - 같은 때 public 스키마 구조만(데이터 없이) supabase/schema.dump.sql 로 저장소에 커밋 -> DB 를 처음부터 다시 만들 때 기준
 # 복원: 아티팩트 내려받기 -> gpg -d backup.sql.gz.gpg | gunzip > backup.sql -> psql 로 실행
 name: DB backup
 
@@ -30,6 +31,8 @@ jobs:
           test "$code" = 200
 
   backup:
+    permissions:
+      contents: write
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 19 * * 0'
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +41,9 @@ jobs:
         env:
           HAS_DB: ${{ secrets.SUPABASE_DB_URL != '' && secrets.BACKUP_PASSPHRASE != '' }}
         run: |
-          if [ "$HAS_DB" = "true" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "secrets 없음 - 건너뜀"; echo "run=false" >> "$GITHUB_OUTPUT"; fi
+          if [ "$HAS_DB" = "true" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "::error::백업 안 됨 - 저장소 Settings > Secrets and variables > Actions 에 SUPABASE_DB_URL, BACKUP_PASSPHRASE 를 넣어주세요"
+          exit 1
       - name: pg_dump -> 암호화
         if: steps.when.outputs.run == 'true'
         env:
@@ -56,3 +61,25 @@ jobs:
           name: db-backup-${{ github.run_id }}
           path: backup.sql.gz.gpg
           retention-days: 30
+      - uses: actions/checkout@v4
+        if: steps.when.outputs.run == 'true'
+        with:
+          ref: main
+      - name: 스키마 구조 저장 (데이터 없음)
+        if: steps.when.outputs.run == 'true'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -o pipefail
+          # \restrict 줄은 실행할 때마다 값이 바뀌어서 뺌 (안 빼면 매주 의미 없는 커밋)
+          docker run --rm -e DB_URL postgres:17 sh -c 'pg_dump "$DB_URL" --schema-only --no-owner --no-privileges --schema=public' \
+            | grep -v -E '^\\(un)?restrict ' > supabase/schema.dump.sql
+          test "$(stat -c %s supabase/schema.dump.sql)" -gt 1000
+          if git diff --quiet -- supabase/schema.dump.sql && git ls-files --error-unmatch supabase/schema.dump.sql >/dev/null 2>&1; then
+            echo "스키마 변화 없음"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add supabase/schema.dump.sql
+          git commit -m "DB 스키마 구조 갱신 [skip ci]"
+          git push origin HEAD:main

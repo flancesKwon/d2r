@@ -1329,7 +1329,7 @@ function submitPost() {
         </select>
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="260px" />
+      <MarkdownEditor images v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="260px" />
 
       <div class="tooltip-preview" v-if="previewTooltip">
         <div class="option-editor-title">미리보기</div>

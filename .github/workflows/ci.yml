@@ -1,0 +1,60 @@
+# PR·main 푸시마다 자동 검사 - 하나라도 실패하면 PR 에 빨간 X
+# - 빌드, 아이템 데이터, 공속 계산기, 손으로 고치는 정보 날짜
+# - 002 SQL (Postgres 16 에 가짜 기본 스키마 깔고 검사)
+# - 사이트 조회문이 실제 DB 컬럼 이름과 맞는지 (secrets 있을 때만, 공개 키로 읽기만)
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 정보 날짜 검사가 git 기록을 봄
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check:items
+      - run: node scripts/check-ias.js
+      - run: npm run check:content
+      - run: npm run build
+      - name: DB 조회문 이름 확인
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ]; then echo "secrets 없음 (포크 PR 등) - 건너뜀"; exit 0; fi
+          node scripts/check-db-queries.mjs
+
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash supabase/test/run.sh
