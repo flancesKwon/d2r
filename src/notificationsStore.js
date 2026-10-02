@@ -30,6 +30,18 @@ export async function markNotificationRead(id) {
   if (!data?.length) n.read = false
 }
 
+// 알림이 가리키는 화면(/deals/3, /trade/5 ...)을 직접 열었으면 그 알림은 읽음으로
+// (알림 목록을 눌러 들어오지 않고 쪽지함·거래방 목록에서 열어도 알림 숫자가 남지 않게)
+const samePath = (a, b) => (a || '').replace(/\/+$/, '') === (b || '').replace(/\/+$/, '')
+export async function markNotificationsReadFor(path) {
+  const hits = notificationsState.items.filter((n) => !n.read && n.link && samePath(n.link, path))
+  if (!hits.length || !supabase) return
+  hits.forEach((n) => (n.read = true))
+  const { data } = await supabase.from('tb_notification').update({ read: true }).in('id', hits.map((n) => n.id)).select('id')
+  const ok = new Set((data || []).map((r) => r.id))
+  hits.forEach((n) => { if (!ok.has(n.id)) n.read = false })
+}
+
 export async function markAllNotificationsRead() {
   const unread = notificationsState.items.filter((n) => !n.read)
   if (!unread.length) return

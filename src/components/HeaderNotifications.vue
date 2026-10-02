@@ -1,10 +1,11 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import {
   notificationsState,
   unreadNotificationCount,
   markNotificationRead,
+  markNotificationsReadFor,
   markAllNotificationsRead,
 } from '../notificationsStore.js'
 import { unreadMessageCount } from '../messagesStore.js'
@@ -14,7 +15,10 @@ import { supabase } from '../supabase.js'
 import { avatarSrc, presetOf } from '../avatars.js'
 
 const router = useRouter()
+const route = useRoute()
 const showDropdown = ref(false)
+// 알림이 가리키는 화면에 들어와 있으면 그 알림은 읽음 (새 알림을 받아 왔을 때도 다시 확인)
+watch(() => [route.path, notificationsState.items.length], () => markNotificationsReadFor(route.path).catch(() => {}), { immediate: true })
 
 function toggleDropdown() {
   showDropdown.value = !showDropdown.value

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { profileState, saveProfile, authState, signIn, ROLE_LABEL } from '../profileStore.js'
 import { fetchMyTradePosts, fetchMyRequests, getTradeItem } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
@@ -11,7 +12,16 @@ import UserAvatar from '../components/UserAvatar.vue'
 import { AVATAR_PRESETS, presetValue } from '../avatars.js'
 
 const TABS = ['내가 쓴 글', '거래내역', '받은 리뷰', '저장한 빌드', '회원정보수정']
-const activeTab = ref(TABS[0])
+// 처음 가입하면 ?tab=edit&welcome=1 로 와서 프로필 수정부터 (main.js)
+const route = useRoute()
+const router = useRouter()
+const welcome = ref(route.query.welcome === '1')
+const activeTab = ref(route.query.tab === 'edit' ? '회원정보수정' : TABS[0])
+// 이미 마이페이지에 있을 때 주소만 바뀌어도 (로그인하고 돌아온 경우)
+watch(() => route.query, (q) => {
+  if (q.tab === 'edit') activeTab.value = '회원정보수정'
+  if (q.welcome === '1') welcome.value = true
+})
 
 // 받은 리뷰 (DB)
 const myReviews = ref([])
@@ -80,6 +90,8 @@ async function saveProfileForm() {
     await saveProfile({ nickname: nick, contact: contactInput.value, avatarUrl: avatarInput.value })
     savedToast.value = true
     setTimeout(() => (savedToast.value = false), 2000)
+    // 가입 직후 설정이면 저장 뒤 첫 화면으로
+    if (welcome.value) { welcome.value = false; router.replace('/') }
   } catch (e) {
     // 닉네임 중복(unique 제약) 등
     saveError.value = /duplicate|unique/i.test(e.message || '') ? '이미 사용 중인 닉네임' : e.message || '저장 실패'
@@ -184,6 +196,11 @@ async function saveProfileForm() {
     </div>
 
     <div v-else class="mypage-panel profile-panel">
+      <div class="welcome-box" v-if="welcome">
+        <b>가입 완료</b>
+        <span>닉네임·프로필 사진 설정</span>
+        <button type="button" class="welcome-skip" @click="welcome = false; router.replace('/')">나중에</button>
+      </div>
       <div class="profile-field">
         프로필 사진
         <div class="avatar-now">
@@ -222,6 +239,10 @@ async function saveProfileForm() {
 </template>
 
 <style scoped>
+.welcome-box{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 16px; border:1px solid var(--gold-dim); background:rgba(200,163,77,0.08); border-radius:12px; font-size:13.5px; color:var(--text-muted);}
+.welcome-box b{color:var(--gold); font-size:14.5px;}
+.welcome-skip{margin-left:auto; font-size:12.5px; color:var(--text-dim);}
+.welcome-skip:hover{color:var(--text);}
 .mypage-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px; text-align:center;}
 .profile-hint-public{font-size:11.5px; color:var(--text-dim); font-weight:400;}
 .profile-save-error{font-size:12.5px; color:#e0775f;}
