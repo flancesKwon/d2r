@@ -29,8 +29,9 @@ async function load() {
     const fresh = await fetchTradePost(route.params.id)
     post.value = fresh
     if (fresh) {
-      if (await countTradeView(fresh.id)) fresh.views++
-      fresh.requests = await fetchTradeRequests(fresh.id).catch(() => [])
+      // 화면이 쓰는 건 post.value (반응형) - 원본 객체(fresh)를 고치면 화면이 안 바뀌어서 구매신청이 안 보였음
+      if (await countTradeView(fresh.id)) post.value.views++
+      post.value.requests = await fetchTradeRequests(fresh.id).catch(() => [])
     }
   } catch (e) {
     // 네트워크 오류면 받아둔 글을 그대로 둠
