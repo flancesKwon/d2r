@@ -42,7 +42,11 @@ INSERT INTO public.tb_trade_request (post_id, buyer_id) SELECT id, auth.uid() FR
 SELECT test_login('aaaaaaaa-0000-0000-0000-00000000000a');
 SELECT public.accept_trade_request((SELECT id FROM public.tb_trade_request WHERE buyer_id = 'bbbbbbbb-0000-0000-0000-00000000000b'));
 UPDATE public.tb_trade_post SET status = '예약중';
-UPDATE public.tb_trade_deal SET status = '거래완료';
+-- 012 부터 거래완료는 두 사람 다
+SELECT public.d2r_deal_done(id) FROM public.tb_trade_deal;
+SELECT test_login('bbbbbbbb-0000-0000-0000-00000000000b');
+SELECT public.d2r_deal_done(id) FROM public.tb_trade_deal;
+SELECT test_login('aaaaaaaa-0000-0000-0000-00000000000a');
 SELECT h_ok('판매글 거래완료로', (SELECT status = '거래완료' FROM public.tb_trade_post));
 SELECT h_ok('다른 대기 신청은 거절', (SELECT status = 'rejected' FROM public.tb_trade_request WHERE buyer_id = 'dddddddd-0000-0000-0000-00000000000d'));
 SELECT test_login('dddddddd-0000-0000-0000-00000000000d');
@@ -64,7 +68,7 @@ SELECT test_login('aaaaaaaa-0000-0000-0000-00000000000a');
 SELECT public.accept_trade_request((SELECT r.id FROM public.tb_trade_request r JOIN public.tb_trade_post p ON p.id = r.post_id WHERE p.item_name = '조드'));
 UPDATE public.tb_trade_post SET status = '예약중' WHERE item_name = '조드';
 SELECT test_login('bbbbbbbb-0000-0000-0000-00000000000b');
-UPDATE public.tb_trade_deal SET status = '거래불발' WHERE post_title = '조드';
+SELECT public.d2r_deal_fail(id) FROM public.tb_trade_deal WHERE post_title = '조드';
 SELECT h_ok('불발이면 다시 판매중', (SELECT status = '판매중' FROM public.tb_trade_post WHERE item_name = '조드'));
 
 \echo '[V3] 정지 사유는 본인·운영진만'
