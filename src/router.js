@@ -1,4 +1,5 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
+import { PAGE_META, SITE_URL, DEFAULT_DESCRIPTION, pageTitle } from './seoMeta.js'
 import HomePage from './pages/HomePage.vue'
 const ItemsPage = () => import('./pages/ItemsPage.vue')
 const GuidesPage = () => import('./pages/GuidesPage.vue')
@@ -29,7 +30,8 @@ const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  // 주소가 /d2r/trade/1 처럼 일반 주소 (예전 #/ 주소는 index.html 이 바꿔 줌). 배포는 base /d2r/, 개발은 /
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomePage },
     { path: '/items', name: 'items', component: ItemsPage, meta: { title: '아이템 사전' } },
@@ -72,8 +74,23 @@ const router = createRouter({
   },
 })
 
+// 제목·설명·주소를 화면마다 맞춤 (자바스크립트를 읽는 검색엔진·브라우저용. 정적 HTML 은 빌드 때 따로 만듦)
+function setMeta(selector, attr, value) {
+  const el = document.head.querySelector(selector)
+  if (el) el.setAttribute(attr, value)
+}
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 정보'
+  const path = to.path.length > 1 ? to.path.replace(/\/$/, '') : to.path // Pages 가 /items/ 로 열 때도
+  const meta = PAGE_META[path] || {}
+  const title = pageTitle(meta.title || to.meta.title)
+  const description = meta.description || DEFAULT_DESCRIPTION
+  const url = SITE_URL + (path === '/' ? '/' : path)
+  document.title = title
+  setMeta('meta[name="description"]', 'content', description)
+  setMeta('link[rel="canonical"]', 'href', url)
+  setMeta('meta[property="og:title"]', 'content', title)
+  setMeta('meta[property="og:description"]', 'content', description)
+  setMeta('meta[property="og:url"]', 'content', url)
 })
 
 // 새로 배포되면 페이지 조각 파일 이름이 바뀌어서, 배포 전에 열어 둔 창에선 메뉴를 눌러도 옛 파일을 못 받아 안 넘어감
@@ -85,8 +102,8 @@ function reloadToNewVersion(path) {
     if (Date.now() - last < 60000) return false
     sessionStorage.setItem(RELOAD_KEY, String(Date.now()))
   } catch (e) {}
-  if (path) window.location.hash = path
-  window.location.reload()
+  if (path) window.location.assign(import.meta.env.BASE_URL.replace(/\/$/, '') + path)
+  else window.location.reload()
   return true
 }
 const isChunkError = (err) => /dynamically imported module|Importing a module script failed|error loading dynamically imported|Failed to fetch/i.test(err?.message || '')
