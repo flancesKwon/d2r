@@ -434,10 +434,12 @@ export const ICON_VARIANTS = {
 export function postIconKey(post) {
   if (post?.iconKey) return post.iconKey
   const item = getTradeItem(post?.itemId)
-  if (item?.icon_key) return item.icon_key
   const baseLine = (post?.options || []).find((l) => l.startsWith('베이스: '))
-  const code = (baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))?.code) ||
-    MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
+  const baseCode = baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))?.code
+  // 룬워드는 고른 베이스 모양 (예전 글은 그림 키 없이 "베이스:" 줄만 있음)
+  if (item?.category === 'runeword' && baseCode) return MISC_BASE_BY_CODE.get(baseCode)?.icon_key || magicAffixData.bases[baseCode]?.icon || item.icon_key
+  if (item?.icon_key) return item.icon_key
+  const code = baseCode || MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
   if (!code) return null
   return MISC_BASE_BY_CODE.get(code)?.icon_key || magicAffixData.bases[code]?.icon || null
 }

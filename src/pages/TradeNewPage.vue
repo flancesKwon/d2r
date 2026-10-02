@@ -750,6 +750,13 @@ function buildAllOptions() {
   ]
 }
 
+// 그림: 룬워드는 고른 베이스 모양(예전엔 사전의 대표 그림으로 고정), 사전에 없는 장비는 고른 베이스·모양, 유니크·세트는 사전 그림
+const postIcon = computed(() => {
+  if (isManualEquip.value) return iconVariant.value || (selectedBaseItem.value ? baseIconKey(selectedBaseItem.value) : null)
+  if (isRuneword.value && selectedBaseItem.value) return baseIconKey(selectedBaseItem.value)
+  return null
+})
+
 // 입력하는 동안 게임 툴팁 모양으로 바로 보여주는 미리보기 (묶음 판매·아이템 미선택이면 숨김)
 const previewTooltip = computed(() =>
   !bundleMode.value && form.value.itemName.trim()
@@ -758,8 +765,8 @@ const previewTooltip = computed(() =>
         name: form.value.itemName,
         category: form.value.category,
         quality: isManualEquip.value ? itemQuality.value : '',
-        // 사전에 없는 장비는 고른 베이스 아이콘 (반지·부적 등은 icon_key, 무기·방어구는 게임 invfile 기준 아이콘)
-        iconKey: iconVariant.value || selectedBaseItem.value?.icon_key || magicAffixData.bases[selectedBaseItem.value?.code]?.icon || null,
+        // 룬워드·사전에 없는 장비는 고른 베이스 모양 (반지·부적 등은 icon_key, 무기·방어구는 게임 invfile 기준 아이콘)
+        iconKey: postIcon.value,
         options: buildAllOptions(),
         ethereal: form.value.ethereal,
         amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
@@ -788,7 +795,7 @@ function submitPost() {
     amountLabel,
     options,
     quality: isManualEquip.value ? itemQuality.value : '',
-    iconKey: isManualEquip.value ? iconVariant.value : null,
+    iconKey: isManualEquip.value ? iconVariant.value : postIcon.value,
     price: buildPriceString(),
   })
 }

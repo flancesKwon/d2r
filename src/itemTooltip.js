@@ -96,5 +96,6 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   if (sockets) tail.push(`소켓 (${sockets})`)
   if (tail.length) push(tail.join(', '), TOOLTIP_COLORS.magic)
 
-  return { icon_key: item?.icon_key || iconKey || null, ethereal, lines }
+  // iconKey 가 있으면 우선 (룬워드는 사전의 대표 그림 대신 판매자가 고른 베이스 모양)
+  return { icon_key: iconKey || item?.icon_key || null, ethereal, lines }
 }
