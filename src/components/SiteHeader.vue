@@ -5,7 +5,7 @@
 // - 좁은 화면: 햄버거 버튼으로 전체 메뉴 펼침
 import { ref, shallowRef, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import LogoMark from './LogoMark.vue'
+const LOGO = import.meta.env.BASE_URL + 'logo.png'
 import HeaderNotifications from './HeaderNotifications.vue'
 import { ITEM_ICONS } from '../itemIcons.js'
 
@@ -113,7 +113,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 <template>
   <header class="site-header">
     <div class="site-header-inner">
-      <router-link to="/" class="site-logo"><LogoMark :size="20" />디아허브</router-link>
+      <router-link to="/" class="site-logo" aria-label="디아허브 홈"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
 
       <nav class="site-nav" aria-label="주 메뉴">
         <div class="site-nav-item" v-for="m in MENUS" :key="m.key" :class="{ active: activeKey === m.key }">
@@ -175,7 +175,8 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 <style scoped>
 .site-header{position:sticky; top:0; z-index:40; background:rgba(25,21,18,0.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--border-soft);}
 .site-header-inner{max-width:1232px; margin:0 auto; height:56px; padding:0 24px; display:flex; align-items:center; gap:22px;}
-.site-logo{font-family:'Noto Serif KR', serif; font-weight:800; font-size:18px; display:flex; align-items:center; gap:8px; white-space:nowrap; flex:none;}
+.site-logo{display:flex; align-items:center; flex:none;}
+.site-logo img{display:block; height:46px; width:auto;}
 .site-nav{display:flex; align-items:stretch; height:100%; gap:2px;}
 .site-nav-item{position:relative; display:flex;}
 .site-nav-link{display:flex; align-items:center; gap:5px; padding:0 11px; font-size:14px; color:var(--text-muted); border-bottom:2px solid transparent; white-space:nowrap;}
@@ -238,7 +239,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-search{display:none;}
   .header-notif-wrap{margin-left:auto;}
   .site-header-inner{gap:10px; padding:0 12px;}
-  .site-logo{font-size:16px;}
+  .site-logo img{height:40px;}
   .site-search-results{width:calc(100vw - 24px); right:auto; left:0;}
 }
 </style>
