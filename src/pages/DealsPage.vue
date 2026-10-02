@@ -78,7 +78,9 @@ function submitMessage() {
 
 function setStatus(status) {
   if (!activeDeal.value) return
-  const label = status === '거래완료' ? '거래완료로 변경' : '거래불발로 변경'
+  const label = status === '거래완료'
+    ? '거래완료 처리 - 판매글도 거래완료, 후기 작성 가능'
+    : '거래불발 처리 - 판매글은 다시 판매중'
   if (!confirm(label)) return
   return run(() => updateDealStatus(activeDeal.value, status))
 }
@@ -134,11 +136,17 @@ function submitReview() {
             <div class="deal-thread-title">{{ activeDeal.postTitle }}</div>
             <div class="deal-thread-sub">{{ activeDeal.iAmSeller ? '구매자' : '판매자' }}: {{ activeDeal.counterpart }} · <router-link :to="`/trade/${activeDeal.postId}`">판매글 보기</router-link></div>
           </div>
-          <div class="deal-status-actions" v-if="activeDeal.status === '거래중'">
-            <button type="button" class="deal-action-btn done" @click="setStatus('거래완료')">거래완료</button>
-            <button type="button" class="deal-action-btn fail" @click="setStatus('거래불발')">거래불발</button>
-          </div>
-          <span class="deal-status-badge" :class="'status-' + activeDeal.status" v-else>{{ activeDeal.status }}</span>
+          <span class="deal-status-badge big" :class="'status-' + activeDeal.status">{{ activeDeal.status }}</span>
+        </div>
+
+        <!-- 거래가 끝나면 여기서 결과 선택 (큰 버튼) -->
+        <div class="deal-result-bar" v-if="activeDeal.status === '거래중'">
+          <span class="deal-result-label">거래 결과</span>
+          <button type="button" class="deal-action-btn done" @click="setStatus('거래완료')">✓ 거래완료</button>
+          <button type="button" class="deal-action-btn fail" @click="setStatus('거래불발')">✕ 거래불발</button>
+        </div>
+        <div class="deal-review-cta" v-else-if="activeDeal.status === '거래완료' && !activeDeal.myReview">
+          <b>거래완료</b> · 아래에서 {{ activeDeal.counterpart }}님 후기 남기기
         </div>
 
         <div class="deal-thread-body" ref="bodyEl" @scroll="onScroll">
@@ -223,10 +231,17 @@ function submitReview() {
 .deal-thread-header{display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-soft); padding-bottom:14px; flex-wrap:wrap;}
 .deal-thread-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:15px;}
 .deal-thread-sub{font-size:11.5px; color:var(--text-dim); margin-top:2px;}
-.deal-status-actions{display:flex; gap:8px;}
-.deal-action-btn{font-size:12px; padding:8px 16px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
-.deal-action-btn.done:hover{border-color:var(--gold-dim); color:var(--gold);}
-.deal-action-btn.fail:hover{border-color:var(--blood); color:var(--blood);}
+.deal-status-badge.big{font-size:12px; padding:4px 12px;}
+/* 거래 결과: 거래완료 = 금색으로 꽉 참, 거래불발 = 빨간 테두리 */
+.deal-result-bar{display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--border); background:var(--panel-2); border-radius:12px; flex-wrap:wrap;}
+.deal-result-label{font-size:13px; color:var(--text-muted); font-weight:600; margin-right:auto;}
+.deal-action-btn{font-size:13.5px; font-weight:700; padding:10px 18px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted);}
+.deal-action-btn.done{background:var(--gold); border-color:var(--gold); color:#1a1408;}
+.deal-action-btn.done:hover{filter:brightness(1.08);}
+.deal-action-btn.fail{border-color:var(--blood); color:#e0775f;}
+.deal-action-btn.fail:hover{background:rgba(162,81,63,0.15);}
+.deal-review-cta{padding:12px 14px; border:1px solid var(--gold-dim); background:rgba(200,163,77,0.1); border-radius:12px; font-size:13px; color:var(--text-muted);}
+.deal-review-cta b{color:var(--gold);}
 
 .deal-thread-body{flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-right:4px;}
 .conv-bubble{max-width:70%; display:flex; flex-direction:column; gap:4px;}
