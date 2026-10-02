@@ -10,6 +10,7 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
 import { openConversationWith } from '../messagesStore.js'
+import { dealsState, loadDeals } from '../dealsStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -148,13 +149,25 @@ async function copyContact() {
   }
 }
 
+const RESPOND_CONFIRM = {
+  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열림`,
+  declined: (r) => `${r.buyer}님 구매신청 거절`,
+  cancelled: () => '구매신청 취소',
+}
 function respond(r, decision) {
+  if (!confirm(RESPOND_CONFIRM[decision](r))) return
   return run(async () => {
     const dealId = await respondToRequest(post.value, r, decision)
-    // 수락하면 거래방이 열림
-    if (dealId) router.push('/deals')
+    // 수락하면 거래방이 열림 - 그 거래방으로 바로
+    if (dealId) { await loadDeals().catch(() => {}); router.push(`/deals/${dealId}`) }
   })
 }
+
+// 판매자: 대기 중인 구매신청 수 (제목 아래 배너) / 수락된 신청의 거래방
+const pendingCount = computed(() => (post.value?.requests || []).filter((r) => (r.status || 'pending') === 'pending').length)
+const requestsEl = ref(null)
+const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
 
 const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
 const REQUEST_KIND_LABEL = { buy_now: '구매하기', inquiry: '문의' }
@@ -254,6 +267,12 @@ async function confirmBuy() {
       </div>
     </div>
 
+    <button type="button" class="pending-banner" v-if="canManage && pendingCount" @click="scrollToRequests">
+      <span class="pending-dot"></span>
+      <b>대기 중인 구매신청 {{ pendingCount }}건</b>
+      <span class="pending-go">수락·거절하러 가기 ↓</span>
+    </button>
+
     <div class="post-layout">
       <!-- 왼쪽: 아이템 이미지 + 판매자 설명 -->
       <div class="post-left">
@@ -330,12 +349,12 @@ async function confirmBuy() {
     </div>
 
     <!-- 구매신청 -->
-    <section class="requests-section">
+    <section class="requests-section" ref="requestsEl">
       <div class="section-head">
         <div class="section-title">{{ isOwner ? '받은 구매신청' : '내 구매신청' }} <span class="count" v-if="authState.user">{{ post.requests.length }}</span></div>
       </div>
       <div class="request-list">
-        <div class="request-item" v-for="r in post.requests" :key="r.id">
+        <div class="request-item" v-for="r in post.requests" :key="r.id" :class="{ pending: (r.status || 'pending') === 'pending' && canManage }">
           <div class="request-top">
             <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" />
             <b>{{ r.buyer }}</b>
@@ -355,11 +374,14 @@ async function confirmBuy() {
           <div class="request-bottom">
             <span class="request-contact" v-if="r.contact">연락처 {{ r.contact }}</span>
             <div class="request-actions" v-if="(r.status || 'pending') === 'pending' && canManage">
-              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락</button>
+              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락 · 거래방 열기</button>
               <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
             </div>
             <div class="request-actions" v-else-if="(r.status || 'pending') === 'pending' && r.buyerId === authState.user?.id">
-              <button type="button" class="request-action-btn decline" @click="respond(r, 'cancelled')">신청 취소</button>
+              <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">신청 취소</button>
+            </div>
+            <div class="request-actions" v-else-if="r.status === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
+              <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : '/deals'">거래방 열기 →</router-link>
             </div>
           </div>
         </div>
@@ -623,9 +645,24 @@ async function confirmBuy() {
 .request-bottom{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;}
 .request-contact{font-size:11.5px; color:var(--text-dim);}
 .request-actions{display:flex; gap:8px; margin-left:auto;}
-.request-action-btn{font-size:12px; padding:6px 16px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
-.request-action-btn.accept:hover{border-color:var(--gold-dim); color:var(--gold);}
-.request-action-btn.decline:hover{border-color:var(--blood); color:var(--blood);}
+/* 수락·거절은 큰 버튼 (수락 = 금색으로 꽉 참, 거절 = 빨간 테두리) */
+.request-action-btn{font-size:13.5px; font-weight:700; padding:10px 20px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); display:inline-flex; align-items:center;}
+.request-action-btn.accept{background:var(--gold); border-color:var(--gold); color:#1a1408;}
+.request-action-btn.accept:hover{filter:brightness(1.08);}
+.request-action-btn.decline{border-color:var(--blood); color:#e0775f;}
+.request-action-btn.decline:hover{background:rgba(162,81,63,0.15);}
+.request-action-btn.cancel:hover{border-color:var(--text-dim); color:var(--text);}
+.request-item.pending{border-color:var(--gold-dim); box-shadow:0 0 0 1px rgba(200,163,77,0.25);}
+.pending-banner{
+  display:flex; align-items:center; gap:10px; width:100%; margin:0 0 16px; padding:14px 18px; text-align:left;
+  border:1px solid var(--gold-dim); background:rgba(200,163,77,0.1); border-radius:14px; color:var(--text); font-size:14px;
+}
+.pending-banner:hover{background:rgba(200,163,77,0.16);}
+.pending-banner b{color:var(--gold);}
+.pending-dot{width:9px; height:9px; border-radius:999px; background:var(--gold); flex:none; animation:pending-pulse 1.4s ease-in-out infinite;}
+@keyframes pending-pulse{50%{opacity:.35;}}
+.pending-go{margin-left:auto; font-size:13px; color:var(--gold);}
+@media (max-width:640px){ .request-actions{width:100%;} .request-action-btn{flex:1; justify-content:center;} .pending-go{display:none;} }
 .request-empty{padding:26px 0; font-size:12.5px; border:1px dashed var(--border); border-radius:14px;}
 
 .request-form{display:flex; flex-direction:column; gap:10px;}
