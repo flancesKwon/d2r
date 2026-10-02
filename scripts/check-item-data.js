@@ -274,7 +274,7 @@ for (const [, names] of iconByKey) {
   expect(fam('rin', 'rare', /^시전 속도/)?.slotRanges[0][1] === 10, '레어 반지 시전 속도 10')
   expect(!R.affixFamiliesFor(data, B('cm3'), 'rare').length, '부적은 레어 불가')
   // 같은 그룹(반지 접미사 "시야+명중률" / "시야+명중률 보너스")은 한 아이템에 같이 못 붙고,
-  // 그룹이 다른 인핸스드 데미지 두 종류(Jagged / Sharp)는 레어에 같이 붙을 수 있음
+  // 그룹이 다른 피해 증가 두 종류(Jagged / Sharp)는 레어에 같이 붙을 수 있음
   const pickOf = (f) => ({ fam: f, values: f.slotRanges.map((r) => r[0]) })
   const lightAr = fam('rin', 'rare', /^시야 \+[\d~]+, 명중률 \+/)
   const lightArPct = fam('rin', 'rare', /^시야 \+[\d~]+, 명중률 보너스/)
@@ -283,9 +283,9 @@ for (const [, names] of iconByKey) {
     const errs = R.validateAffixPicks(data, B('rin'), 'rare', [pickOf(lightAr), pickOf(lightArPct)])
     expect(errs.length === 1, `같은 그룹 두 개가 통과됨 (${errs.join(' / ')})`)
   }
-  const ed = fam('7cr', 'rare', /^인핸스드 데미지 \+[\d~]+%$/)
-  const edAr = fam('7cr', 'rare', /^명중률 \+[\d~]+, 인핸스드 데미지/)
-  expect(ed && edAr && !R.validateAffixPicks(data, B('7cr'), 'rare', [pickOf(ed), pickOf(edAr)]).length, '레어 무기 인핸스드 데미지 두 종류는 같이 가능')
+  const ed = fam('7cr', 'rare', /^피해 증가 \+[\d~]+%$/)
+  const edAr = fam('7cr', 'rare', /^명중률 \+[\d~]+, 피해 증가/)
+  expect(ed && edAr && !R.validateAffixPicks(data, B('7cr'), 'rare', [pickOf(ed), pickOf(edAr)]).length, '레어 무기 피해 증가 두 종류는 같이 가능')
   // 수치가 한 단계 안에서 안 나오는 조합 (Sharp 단계: 명중률 10~20 + 인핸스드 10~20 -> 명중률 10 + 인핸스드 30 불가)
   if (edAr) expect(R.validateAffixPicks(data, B('7cr'), 'rare', [{ fam: edAr, values: [10, 30] }]).length === 1, '단계가 다른 수치 조합이 통과됨')
   // 크래프트: 제작법 고정 옵션 문구, 제작법마다 재료 베이스가 있는지, 알려진 제작법 내용

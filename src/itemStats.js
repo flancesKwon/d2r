@@ -1,5 +1,6 @@
 import skillIdMap from './data/skillIdMap.json'
 import { SKILL_TAB_BY_ID, CLASS_CODE_TO_KEY } from './data/skillTabIds.js'
+import { itemDamage } from './itemDamage.js'
 
 export const SLOT_DEFS = [
   { key: 'weapon', label: '무기' },
@@ -135,7 +136,7 @@ export function aggregateItemStats(equippedItems, classKey, extraItems = [], run
     classSkills: 0, // 현재 클래스에 해당하는 item_addclassskills 합
     tabBonus: {}, // tabName -> 합
     singleSkill: {}, // 스킬 한국어 이름 -> 합
-    weaponDamage: null, // {min, max} 장착 무기 물리 데미지 (2handmindam 우선)
+    weaponDamage: null, // {min, max} 장착 무기 물리 피해 (피해 증가 적용, 양손 피해 우선)
   }
 
   function applyAffixes(affixes) {
@@ -202,14 +203,13 @@ export function aggregateItemStats(equippedItems, classKey, extraItems = [], run
 
   function applyItem(item) {
     if (!item) return
-    if (item.base_stats && item.base_stats.category === 'weapon') {
-      const min = item.base_stats['2handmindam'] ?? item.base_stats.mindam
-      const max = item.base_stats['2handmaxdam'] ?? item.base_stats.maxdam
-      if (min != null && max != null) {
-        result.weaponDamage = result.weaponDamage || { min: 0, max: 0 }
-        result.weaponDamage.min += min
-        result.weaponDamage.max += max
-      }
+    // 무기 피해: 피해 증가·추가 피해 적용 (범위로 굴러가는 옵션은 중간값), 양손 피해 우선
+    const dmg = itemDamage(item)
+    const d = dmg && (dmg.two || dmg.one)
+    if (d) {
+      result.weaponDamage = result.weaponDamage || { min: 0, max: 0 }
+      result.weaponDamage.min += (d.min[0] + d.min[1]) / 2
+      result.weaponDamage.max += (d.max[0] + d.max[1]) / 2
     }
     if (item.base_stats && item.base_stats.minac != null) {
       result.acFlat += avg({ min: item.base_stats.minac, max: item.base_stats.maxac })

@@ -5,6 +5,7 @@
 // - 독 피해 pois-min·pois-max·pois-len 은 한 줄: "3초 동안 독 피해 5-9 추가" (값 × 프레임 ÷ 256, 25프레임 = 1초)
 // - 게임 툴팁에 안 나오는 값은 숨김(hidden): cold-len(냉기 지속), pois-len(독 지속 - 위 줄에 합쳐짐), fade(흐려지는 겉모습)
 // - 대상 빙결은 2 이상이면 "대상 빙결 +N" (게임 표기)
+// - 물리 피해: 인핸스드 데미지 -> "피해 증가 +N%", 최소·최대 공격력 -> "최소·최대 피해 +N" (둘 다 고정값이면 "피해 a-b 추가")
 // - 세트 전체 보너스 문구 오류: 모든 저항(res-all)이 "화염 저항"으로, 악마술사 기술(war)이 "아마존 기술"로 적혀 있던 것
 import fs from 'fs'
 import path from 'path'
@@ -16,6 +17,7 @@ const items = JSON.parse(raw)
 
 const ELEM = { fire: '화염', ltng: '번개', cold: '냉기', mag: '마법' }
 const fixed = (a) => a && a.min !== '' && a.min != null && String(a.min) === String(a.max)
+const range = (a) => (String(a.min) === String(a.max) ? a.min : `${a.min}~${a.max}`)
 let changed = 0
 
 function fixList(list) {
@@ -44,6 +46,21 @@ function fixList(list) {
     pmax.hidden = true
     plen.hidden = true
   }
+  // 물리 피해 문구: 인핸스드 데미지 -> 피해 증가, 최소·최대 공격력 -> 최소·최대 피해 (둘 다 고정값이면 한 줄)
+  const setText = (a, text) => { if (a.text !== text) { a.text = text; changed++ } }
+  const dmn = find('dmg-min')
+  const dmx = find('dmg-max')
+  const dmgPair = dmn && dmx && fixed(dmn) && fixed(dmx)
+  if (dmgPair) {
+    setText(dmn, `피해 ${dmn.min}-${dmx.min} 추가`)
+    if (!dmx.hidden) { dmx.hidden = true; changed++ }
+  }
+  for (const a of list) {
+    if (a.prop === 'dmg%') setText(a, `피해 증가 +${range(a)}%`)
+    if (a.prop === 'dmg-min' && !dmgPair) setText(a, `최소 피해 +${range(a)}`)
+    if (a.prop === 'dmg-max' && !dmgPair) setText(a, `최대 피해 +${range(a)}`)
+    if (a.prop === 'dmg') setText(a, `피해 ${a.min}-${a.max} 추가`) // item_normaldamage: min 은 최소, max 는 최대 피해에 더함
+  }
   for (const a of list) {
     if (['cold-len', 'fade'].includes(a.prop) && !a.hidden) { a.hidden = true; changed++ }
     if (a.prop === 'freeze' && Number(a.max) > 1 && a.text !== `대상 빙결 +${a.max}`) { a.text = `대상 빙결 +${a.max}`; changed++ }
@@ -59,5 +76,16 @@ for (const it of items) {
   for (const g of e.set_partial_bonus || []) fixList(g.affixes)
   for (const g of e.set_item_bonus || []) fixList(g.affixes)
 }
+// 룬 소켓 옵션(in_weapon 등)·무작위 옵션 묶음처럼 다른 곳에 있는 피해 증가 문구도
+;(function walk(o) {
+  if (Array.isArray(o)) return o.forEach(walk)
+  if (!o || typeof o !== 'object') return
+  if (o.prop === 'dmg%' && typeof o.text === 'string') {
+    const text = `피해 증가 +${range(o)}%`
+    if (o.text !== text) { o.text = text; changed++ }
+  }
+  if (typeof o.text === 'string' && o.text.includes('인핸스드 데미지')) { o.text = o.text.replaceAll('인핸스드 데미지', '피해 증가'); changed++ }
+  Object.values(o).forEach(walk)
+})(items)
 fs.writeFileSync(file, JSON.stringify(items) + (raw.endsWith('\n') ? '\n' : ''))
 console.log('바뀐 줄', changed)

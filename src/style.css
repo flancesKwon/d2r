@@ -157,6 +157,7 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .d-meta-row{display:flex; gap:26px; padding:14px 0; margin-bottom:20px; border-top:1px solid var(--border-soft); border-bottom:1px solid var(--border-soft); flex-wrap:wrap;}
 .d-meta-item .label{font-size:11px; color:var(--text-dim); margin-bottom:4px;}
 .d-meta-item .value{font-size:15px; color:var(--text); font-weight:600;}
+.d-meta-item .d-meta-sub{font-size:11px; color:var(--text-dim); margin-top:3px;}
 
 .d-section-title{font-size:13px; color:var(--text-muted); margin-bottom:10px; font-weight:600;}
 .affix-list{border:1px solid var(--border-soft); margin-bottom:20px;}
