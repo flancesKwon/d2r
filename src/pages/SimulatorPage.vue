@@ -416,7 +416,7 @@ async function removeSavedBuild(b) {
 async function shareLink() {
   const code = encodeShareCode(buildSharePayload())
   router.replace({ path: '/simulator', query: { b: code } }).catch(() => {})
-  shareUrl.value = `${window.location.origin}${window.location.pathname}#/simulator?b=${code}`
+  shareUrl.value = `${window.location.origin}${import.meta.env.BASE_URL}simulator?b=${code}`
   shareCopied.value = false
   try {
     await navigator.clipboard.writeText(shareUrl.value)

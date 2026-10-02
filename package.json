@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender-routes.js",
     "preview": "vite preview",
     "check:items": "node scripts/check-item-data.js"
   },
