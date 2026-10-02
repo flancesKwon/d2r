@@ -37,7 +37,7 @@ import {
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, squashText } from '../itemSearch.js'
-import MarkdownEditor from '../components/MarkdownEditor.vue'
+import RichEditor from '../components/RichEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 import AffixPicker from '../components/AffixPicker.vue'
@@ -1329,7 +1329,7 @@ function submitPost() {
         </select>
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="260px" />
+      <RichEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="220px" />
 
       <div class="tooltip-preview" v-if="previewTooltip">
         <div class="option-editor-title">미리보기</div>

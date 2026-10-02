@@ -329,3 +329,20 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
   @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
 .d-history-link{display:block; margin-top:24px; padding:12px 16px; text-align:center; font-size:13px; color:var(--gold); border:1px solid var(--gold-dim); border-radius:10px;}
 .d-history-link:hover{background:rgba(200,163,77,0.08);}
+
+/* 글 본문 (에디터 안과 글 보기 화면 공통) */
+.rich-content h2{font-family:'Noto Serif KR', serif; font-size:1.35em; font-weight:800; color:var(--text); margin:1.2em 0 .5em; line-height:1.4;}
+.rich-content h3{font-size:1.12em; font-weight:700; color:var(--text); margin:1em 0 .4em; line-height:1.45;}
+.rich-content h2:first-child, .rich-content h3:first-child{margin-top:0;}
+.rich-content p{margin:0 0 .55em;}
+.rich-content ul, .rich-content ol{margin:.4em 0 .8em 1.4em;}
+.rich-content ul{list-style:disc;}
+.rich-content ol{list-style:decimal;}
+.rich-content li{margin-bottom:.2em;}
+.rich-content li p{margin:0;}
+.rich-content blockquote{border-left:3px solid var(--gold-dim); padding:2px 0 2px 14px; color:var(--text-muted); margin:.6em 0;}
+.rich-content hr{border:none; border-top:1px solid var(--border); margin:1.2em 0;}
+.rich-content a{color:var(--gold); text-decoration:underline; text-underline-offset:2px;}
+.rich-content code{background:var(--panel-2); padding:1px 6px; font-size:.88em; color:var(--gold); border-radius:5px;}
+.rich-content img{display:block; max-width:100%; height:auto; border-radius:8px; margin:.7em 0; border:1px solid var(--border-soft);}
+.rich-content u{text-underline-offset:3px;}
