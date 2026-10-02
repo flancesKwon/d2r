@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute } from 'vue-router'
 import {
   tradeState,
@@ -20,18 +21,9 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
-// 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 1분마다, 다른 탭에 갔다 돌아왔을 때 새로 받음
-const refreshList = () => { if (!document.hidden) loadTradePosts() }
-let listTimer = 0
-onMounted(() => {
-  loadTradePosts()
-  listTimer = setInterval(() => { if (!document.hidden) loadTradePosts(true) }, 60000)
-  document.addEventListener('visibilitychange', refreshList)
-})
-onUnmounted(() => {
-  clearInterval(listTimer)
-  document.removeEventListener('visibilitychange', refreshList)
-})
+// 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
+onMounted(() => loadTradePosts())
+useAutoRefresh(() => loadTradePosts(true))
 const activeCat = ref(null)
 const activeStatus = ref(null)
 const activeLadder = ref(null)

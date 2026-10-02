@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
@@ -37,6 +38,14 @@ async function load() {
 watch(() => route.params.id, load, { immediate: true })
 // 로그인/로그아웃하면 내 추천 표시·버튼을 다시 맞춤
 watch(() => authState.user?.id, () => { if (post.value) load() })
+async function refreshQuiet() {
+  const id = route.params.id
+  const fresh = await fetchPost(id)
+  if (!fresh || String(route.params.id) !== String(id)) return
+  fresh.views = Math.max(fresh.views || 0, post.value?.views || 0)
+  post.value = fresh
+}
+useAutoRefresh(refreshQuiet)
 
 const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
 
