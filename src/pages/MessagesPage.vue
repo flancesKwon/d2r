@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   messagesState,
@@ -44,6 +44,16 @@ watch(activeConversation, (c) => {
   timer = setInterval(() => refresh(), 5000)
 }, { immediate: true })
 onUnmounted(() => clearInterval(timer))
+
+// 대화창은 화면 높이에 고정, 새 메시지가 오면 맨 아래로 (위로 올려 읽는 중이면 그대로)
+const bodyEl = ref(null)
+let stick = true
+const onScroll = (e) => { const el = e.target; stick = el.scrollHeight - el.scrollTop - el.clientHeight < 60 }
+watch(() => [activeId.value, activeConversation.value?.messages.length], ([id], [prevId] = []) => {
+  if (id !== prevId) stick = true
+  if (!stick) return
+  nextTick(() => { if (bodyEl.value) bodyEl.value.scrollTop = bodyEl.value.scrollHeight })
+})
 
 function openConversation(id) {
   activeId.value = id
@@ -118,7 +128,7 @@ async function submitMessage() {
           <span>{{ activeConversation.withName }}</span>
           <button type="button" class="conv-leave" @click="leave">나가기</button>
         </div>
-        <div class="conv-thread-body">
+        <div class="conv-thread-body" ref="bodyEl" @scroll="onScroll">
           <div
             class="conv-bubble" v-for="m in activeConversation.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
@@ -167,13 +177,13 @@ async function submitMessage() {
 
 .conv-thread{
   background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:20px 22px;
-  display:flex; flex-direction:column; gap:16px; min-height:480px;
+  display:flex; flex-direction:column; gap:16px; height:clamp(420px, calc(100dvh - 240px), 820px);
 }
 .conv-thread-empty{align-items:center; justify-content:center; color:var(--text-dim); font-size:13px;}
 .conv-thread-header{font-family:'Noto Serif KR', serif; font-weight:700; font-size:15px; border-bottom:1px solid var(--border-soft); padding-bottom:14px; display:flex; align-items:center; justify-content:space-between;}
 .conv-leave{font-family:'Noto Sans KR', sans-serif; font-weight:400; font-size:12px; color:var(--text-dim); border:1px solid var(--border); border-radius:8px; padding:5px 10px;}
 .conv-leave:hover{color:#e0775f; border-color:#e0775f;}
-.conv-thread-body{flex:1; display:flex; flex-direction:column; gap:10px; overflow-y:auto;}
+.conv-thread-body{flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-right:4px;}
 .conv-bubble{max-width:70%; display:flex; flex-direction:column; gap:4px;}
 .conv-bubble.theirs{align-self:flex-start;}
 .conv-bubble.mine{align-self:flex-end; align-items:flex-end;}
@@ -196,7 +206,8 @@ async function submitMessage() {
 
 @media (max-width:760px){
   .messages-layout{grid-template-columns:minmax(0,1fr);}
-  .conv-thread{min-height:360px; padding:16px;}
+  .conv-thread{height:calc(100dvh - 150px); min-height:360px; padding:16px;}
+  .conv-thread-empty{height:auto; min-height:160px;}
   .conv-bubble{max-width:85%;}
 }
 .messages-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}

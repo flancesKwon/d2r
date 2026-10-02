@@ -73,6 +73,9 @@ export async function loadMessages(conv) {
   const visible = data.filter((m) => !hiddenForMe(m, uid))
   conv.messages = visible.map(mapMessage)
   if (visible.length) conv.last = mapMessage(visible[visible.length - 1])
+  // 안 읽은 수도 여기서 다시 셈 - 대화를 열어 둔 채 새 쪽지가 오면 바로 읽음 처리되게
+  // (예전엔 30초마다 도는 목록 갱신에서만 세서, 그 사이에 온 쪽지는 상대 화면에 1 이 남았음)
+  conv.unread = visible.filter((m) => m.sender_id !== uid && !m.read_at).length
 }
 
 // 상대가 보낸 안 읽은 쪽지를 읽음으로 (0건이어도 정상이라 결과 행 확인 안 함)

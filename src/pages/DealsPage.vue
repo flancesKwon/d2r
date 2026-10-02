@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { dealsState, loadDeals, loadDealMessages, sendDealMessage, updateDealStatus, addReview } from '../dealsStore.js'
 import { getTradeItem } from '../tradeStore.js'
 import { authState, signIn } from '../profileStore.js'
+import { markNotificationsReadFor, notificationsState } from '../notificationsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 // 거래방 - 판매자·구매자만 보임. 알림 링크(/deals/:id)로 들어오면 그 거래를 바로 엶
@@ -33,6 +34,18 @@ watch(activeDeal, (d) => {
   timer = setInterval(() => refreshMessages(), 5000)
 }, { immediate: true })
 onUnmounted(() => clearInterval(timer))
+// 목록에서 거래방을 열어도 이 거래방 알림(/deals/번호)은 읽음 (알림을 늦게 받아 와도)
+watch(() => [activeId.value, notificationsState.items.length], ([id]) => { if (id) markNotificationsReadFor(`/deals/${id}`).catch(() => {}) }, { immediate: true })
+
+// 대화창은 화면 높이에 고정, 새 메시지가 오면 맨 아래로 (위로 올려 읽는 중이면 그대로)
+const bodyEl = ref(null)
+let stick = true
+const onScroll = (e) => { const el = e.target; stick = el.scrollHeight - el.scrollTop - el.clientHeight < 60 }
+watch(() => [activeId.value, activeDeal.value?.messages.length], ([id], [prevId] = []) => {
+  if (id !== prevId) stick = true
+  if (!stick) return
+  nextTick(() => { if (bodyEl.value) bodyEl.value.scrollTop = bodyEl.value.scrollHeight })
+})
 
 function openDeal(id) {
   activeId.value = id
@@ -128,7 +141,7 @@ function submitReview() {
           <span class="deal-status-badge" :class="'status-' + activeDeal.status" v-else>{{ activeDeal.status }}</span>
         </div>
 
-        <div class="deal-thread-body">
+        <div class="deal-thread-body" ref="bodyEl" @scroll="onScroll">
           <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율</div>
           <div
             class="conv-bubble" v-for="m in activeDeal.messages" :key="m.id"
@@ -204,7 +217,7 @@ function submitReview() {
 
 .deal-thread{
   background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:20px 22px;
-  display:flex; flex-direction:column; gap:16px; min-height:520px;
+  display:flex; flex-direction:column; gap:16px; height:clamp(460px, calc(100dvh - 240px), 860px);
 }
 .deal-thread-empty{align-items:center; justify-content:center; color:var(--text-dim); font-size:13px;}
 .deal-thread-header{display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-soft); padding-bottom:14px; flex-wrap:wrap;}
@@ -215,7 +228,7 @@ function submitReview() {
 .deal-action-btn.done:hover{border-color:var(--gold-dim); color:var(--gold);}
 .deal-action-btn.fail:hover{border-color:var(--blood); color:var(--blood);}
 
-.deal-thread-body{flex:1; display:flex; flex-direction:column; gap:10px; overflow-y:auto;}
+.deal-thread-body{flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-right:4px;}
 .conv-bubble{max-width:70%; display:flex; flex-direction:column; gap:4px;}
 .conv-bubble.theirs{align-self:flex-start;}
 .conv-bubble.mine{align-self:flex-end; align-items:flex-end;}
@@ -246,8 +259,8 @@ function submitReview() {
 
 @media (max-width:760px){
   .deals-layout{grid-template-columns:minmax(0,1fr);}
-  .deal-thread{min-height:360px; padding:16px;}
-  .deal-thread-empty{min-height:160px;}
+  .deal-thread{height:calc(100dvh - 150px); min-height:400px; padding:16px;}
+  .deal-thread-empty{height:auto; min-height:160px;}
   .conv-bubble{max-width:85%;}
 }
 .deals-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}

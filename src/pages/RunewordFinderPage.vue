@@ -75,7 +75,8 @@ const upgradable = computed(() => evaluated.value.filter((x) => x.e.status === '
 const MAX_MISSING = 2
 const almost = computed(() =>
   evaluated.value
-    .filter((x) => x.e.status === 'missing' && x.e.missingTotal <= MAX_MISSING)
+    // 담은 룬을 하나도 안 쓰는 룬워드는 뺌 (베르만 담았는데 티르+랄 잎새가 "2개 부족"으로 나오던 것)
+    .filter((x) => x.e.status === 'missing' && x.e.missingTotal <= MAX_MISSING && x.e.missingTotal < x.rw.runes.length)
     .sort((a, b) => a.e.missingTotal - b.e.missingTotal || byValue(a, b))
 )
 
