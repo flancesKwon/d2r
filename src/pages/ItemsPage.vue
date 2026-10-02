@@ -6,6 +6,7 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
+import { itemDamage, formatDamage } from '../itemDamage.js'
 
 const items = itemsData
 const icons = ITEM_ICONS
@@ -29,7 +30,20 @@ function runewordFullAffixes(item) {
 const shown = (list) => (list || []).filter((a) => !a.hidden)
 // min~max 범위로 굴러가는(주사위 판정) 옵션인지 - 고정값 옵션과 구분해서 색으로 표시하려고 씀
 // 원소·물리 추가 피해(예: 화염 피해 15-35 추가)는 min~max가 굴림 범위가 아니라 고정된 피해 범위
-const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg-pois'])
+const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg', 'dmg-pois'])
+
+// 무기 실제 피해 (피해 증가·추가 피해 적용) - 레벨당 최대 피해 옵션이 있으면 99레벨 기준도
+const damageInfo = computed(() => {
+  const it = selected.value
+  const d = it && itemDamage(it)
+  if (!d) return null
+  const d99 = d.perLevel ? itemDamage(it, { level: 99 }) : null
+  const b = it.base_stats
+  const rows = []
+  if (d.one) rows.push({ label: d.two ? '한손 피해' : '피해', value: formatDamage(d.one), at99: d99 && formatDamage(d99.one), base: `${b.mindam}~${b.maxdam}` })
+  if (d.two) rows.push({ label: '양손 피해', value: formatDamage(d.two), at99: d99 && formatDamage(d99.two), base: `${b['2handmindam']}~${b['2handmaxdam']}` })
+  return rows
+})
 function isVariable(a) {
   if (FIXED_RANGE_PROPS.has(a.prop)) return false
   return a.min !== undefined && a.max !== undefined && a.min !== '' && a.max !== '' && String(a.min) !== String(a.max)
@@ -195,7 +209,7 @@ const optionHits = computed(() => {
       </div>
       <div class="quality-row">
         <b>우수한 (Superior)</b>
-        <span>무기: 인핸스드 데미지 +5~15% (또는 최대데미지 +1) · 방어구: 인핸스드 방어력 +15% · 공격력/내구도 추가 보너스 가능</span>
+        <span>무기: 피해 증가 +5~15% (또는 최대 피해 +1) · 방어구: 인핸스드 방어력 +15% · 공격력/내구도 추가 보너스 가능</span>
       </div>
     </div>
   </div>
@@ -266,13 +280,10 @@ const optionHits = computed(() => {
             <div class="label">아이템 레벨</div>
             <div class="value">{{ selected.level || '—' }}</div>
           </div>
-          <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.category === 'weapon'">
-            <div class="label">기본 피해</div>
-            <div class="value">
-              {{ (selected.base_stats.mindam ?? selected.base_stats['2handmindam']) ?? '—' }}~{{
-                (selected.base_stats.maxdam ?? selected.base_stats['2handmaxdam']) ?? '—'
-              }}
-            </div>
+          <div class="d-meta-item" v-for="row in damageInfo || []" :key="row.label">
+            <div class="label">{{ row.label }}</div>
+            <div class="value">{{ row.value }}</div>
+            <div class="d-meta-sub">기본 {{ row.base }}<template v-if="row.at99"> · 99레벨 {{ row.at99 }}</template></div>
           </div>
           <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.category === 'armor'">
             <div class="label">기본 방어력</div>

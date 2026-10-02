@@ -157,7 +157,7 @@ export function tradeCategoryForItem(item) {
 }
 
 // 룬워드·유니크·세트는 베이스가 무기인지 방어구인지에 따라 실제로 붙을 수 있는 옵션이
-// 갈려서(방어력은 방어구에만, 인핸스드 데미지는 무기에만 등), "옵션 직접 추가" 목록을
+// 갈려서(방어력은 방어구에만, 피해 증가는 무기에만 등), "옵션 직접 추가" 목록을
 // 그 아이템에 맞는 것만 보여주려고 구분함. 판단 불가능하면(우버 재료·자유입력 등) null
 const ARMOR_TYPE_SUBS = ['방패', '투구', '갑옷', '장갑', '신발', '벨트']
 export function itemBaseKind(item) {
@@ -251,7 +251,7 @@ export function baseForItem(item) {
 // 상급(Superior) 흰 베이스에 붙는 옵션 - 게임 qualityitems.txt의 8가지 조합 중 하나만 붙음
 // (무기: 데미지%·명중률·내구도% 중 1~2개 / 방어구: 방어력%·내구도% 중 1~2개)
 export const SUPERIOR_MODS = {
-  'dmg%': { text: '증가된 데미지 +{v}%', min: 5, max: 15 },
+  'dmg%': { text: '피해 증가 +{v}%', min: 5, max: 15 },
   att: { text: '명중률 +{v}', min: 1, max: 3 },
   'ac%': { text: '증가된 방어력 +{v}%', min: 5, max: 15 },
   'dur%': { text: '최대 내구도 +{v}%', min: 10, max: 15 },
@@ -342,7 +342,7 @@ export const TRADE_STAT_FILTERS = [
   { key: 'ias', label: '공격 속도(%)', pattern: `^공격 속도(?: 증가)? ${N}` },
   { key: 'fhr', label: '타격 회복 속도(%)', pattern: `^(?:타격 회복 속도|재빠른 히트 회복) ${N}` },
   { key: 'frw', label: '달리기/걷기 속도(%)', pattern: `^(?:달리기/걷기 속도|이동/공격 속도 증가) ${N}` },
-  { key: 'ed', label: '인핸스드 데미지(%)', pattern: `^(?:인핸스드 데미지|증가된 데미지) ${N}` },
+  { key: 'ed', label: '피해 증가(%)', pattern: `^(?:피해 증가|인핸스드 데미지|증가된 데미지) ${N}` },
   { key: 'edef', label: '방어력 증가(%)', pattern: `^(?:방어력|증가된 방어력) ${N}%` },
   { key: 'sockets', label: '소켓 개수', pattern: '^소켓 (\\d+)개' },
   { key: 'lifesteal', label: '생명력 흡수(%)', pattern: `^(?:적중당 생명력|공격 시 생명력 흡수) ${N}` },
