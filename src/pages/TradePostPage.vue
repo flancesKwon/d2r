@@ -316,8 +316,9 @@ async function confirmBuy() {
           <div class="seller-row">
             <span class="seller-avatar" aria-hidden="true"><img v-if="avatarSrc(post.avatar)" :src="avatarSrc(post.avatar)" alt="" /><template v-else>{{ (post.author || '?').slice(0, 1) }}</template></span>
             <div class="seller-name-block">
-              <div class="seller-name">{{ post.author }}</div>
+              <router-link :to="'/users/' + post.authorId" class="seller-name user-link">{{ post.author }}</router-link>
               <div class="seller-sub">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
+              <router-link :to="'/users/' + post.authorId" class="seller-profile-link">프로필·받은 리뷰 보기 →</router-link>
             </div>
           </div>
           <div class="contact-row">
@@ -595,7 +596,9 @@ async function confirmBuy() {
 }
 .seller-avatar.small{width:26px; height:26px; font-size:12px;}
 .seller-name-block{min-width:0;}
-.seller-name{font-size:15px; font-weight:700; color:var(--text);}
+.seller-name{font-size:15px; font-weight:700; color:var(--text); display:block;}
+.seller-profile-link{display:inline-block; margin-top:4px; font-size:12px; color:var(--gold);}
+.seller-profile-link:hover{text-decoration:underline;}
 .seller-sub{font-size:11.5px; color:var(--text-dim);}
 .contact-row{display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px; padding:9px 10px 9px 12px;}
 .contact-label{font-size:11px; color:var(--text-dim); flex:none;}

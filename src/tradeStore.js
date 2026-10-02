@@ -737,9 +737,14 @@ export function tradedItemSummaries() {
 // 마이페이지: 내가 쓴 판매글 / 내가 구매신청 보낸 글
 export async function fetchMyTradePosts() {
   if (!supabase || !authState.user) return []
+  return fetchTradePostsBy(authState.user.id)
+}
+// 한 회원의 판매글 (회원 프로필 화면) - 판매글은 누구나 볼 수 있음
+export async function fetchTradePostsBy(userId) {
+  if (!supabase || !userId) return []
   const { data, error } = await supabase
     .from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
-    .eq('author_id', authState.user.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(100)
+    .eq('author_id', userId).is('deleted_at', null).order('created_at', { ascending: false }).limit(100)
   if (error) throw error
   return data.map(mapTradePost)
 }

@@ -125,7 +125,8 @@ async function submitMessage() {
 
       <div class="conv-thread" v-if="activeConversation">
         <div class="conv-thread-header">
-          <span>{{ activeConversation.withName }}</span>
+          <router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }} <small>프로필 →</small></router-link>
+          <span v-else>{{ activeConversation.withName }}</span>
           <button type="button" class="conv-leave" @click="leave">나가기</button>
         </div>
         <div class="conv-thread-body" ref="bodyEl" @scroll="onScroll">
@@ -181,6 +182,7 @@ async function submitMessage() {
 }
 .conv-thread-empty{align-items:center; justify-content:center; color:var(--text-dim); font-size:13px;}
 .conv-thread-header{font-family:'Noto Serif KR', serif; font-weight:700; font-size:15px; border-bottom:1px solid var(--border-soft); padding-bottom:14px; display:flex; align-items:center; justify-content:space-between;}
+.conv-profile-link small{font-family:'Noto Sans KR', sans-serif; font-weight:400; font-size:11.5px; color:var(--gold-dim); margin-left:4px;}
 .conv-leave{font-family:'Noto Sans KR', sans-serif; font-weight:400; font-size:12px; color:var(--text-dim); border:1px solid var(--border); border-radius:8px; padding:5px 10px;}
 .conv-leave:hover{color:#e0775f; border-color:#e0775f;}
 .conv-thread-body{flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-right:4px;}

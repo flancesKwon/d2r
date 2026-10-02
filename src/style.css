@@ -347,3 +347,7 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .rich-content code{background:var(--panel-2); padding:1px 6px; font-size:.88em; color:var(--gold); border-radius:5px;}
 .rich-content img{display:block; max-width:100%; height:auto; border-radius:8px; margin:.7em 0; border:1px solid var(--border-soft);}
 .rich-content u{text-underline-offset:3px;}
+
+/* 닉네임 -> 회원 프로필 링크 */
+.user-link{color:inherit; display:inline-flex; align-items:center; gap:6px;}
+.user-link:hover{color:var(--gold);}
