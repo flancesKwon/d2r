@@ -16,7 +16,7 @@ initAuth().then(() => {
   createApp(App).use(router).mount('#app')
   if (fromLogin) {
     // 주소창의 ?code= 를 지우고 로그인 전에 보던 화면으로 - 라우터가 이미 주소를 읽었으니 라우터로 이동
-    // (저장된 값은 /d2r/mypage 같은 전체 경로 -> 라우터 경로 /mypage 로)
+    // (저장된 값은 /mypage?tab=x 같은 전체 경로)
     const back = takeLoginReturn() || BASE
     router.replace(back.startsWith(BASE) ? '/' + back.slice(BASE.length) : '/')
   }
