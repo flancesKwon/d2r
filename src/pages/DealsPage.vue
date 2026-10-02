@@ -7,6 +7,7 @@ import { getTradeItem } from '../tradeStore.js'
 import { authState, signIn } from '../profileStore.js'
 import { markNotificationsReadFor, notificationsState } from '../notificationsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 
 // 거래방 - 판매자·구매자만 보임. 알림 링크(/deals/:id)로 들어오면 그 거래를 바로 엶
 const route = useRoute()
@@ -77,14 +78,29 @@ function submitMessage() {
   return run(() => sendDealMessage(activeDeal.value, text))
 }
 
+// 상대가 완료를 눌렀는지 등 거래 상태도 15초마다 새로 (거래방 메시지는 5초)
+useAutoRefresh(() => loadDeals(), 15000)
+
+// 거래완료는 두 사람 다 눌러야 완료 (한쪽만 누르고 3일 지나면 자동), 불발은 한 명이 눌러도 바로
 async function setStatus(status) {
-  if (!activeDeal.value) return
-  const label = status === '거래완료'
-    ? '거래완료 처리 - 판매글도 거래완료, 후기 작성 가능'
-    : '거래불발 처리 - 판매글은 다시 판매중'
+  const d = activeDeal.value
+  if (!d) return
+  const label = status === '거래불발'
+    ? '거래불발 처리 - 판매글은 다시 판매중'
+    : d.theirDoneAt
+      ? '거래완료 - 상대도 완료를 눌러서 바로 끝남. 판매글도 거래완료, 후기 작성 가능'
+      : `거래완료 - ${d.counterpart}님도 완료를 누르면 끝남 (안 누르면 3일 뒤 자동 완료)`
   if (!await askConfirm(label, status === '거래완료' ? { confirmText: '거래완료' } : undefined)) return
-  return run(() => updateDealStatus(activeDeal.value, status))
+  return run(() => updateDealStatus(d, status))
 }
+// 남은 자동 완료 시간 (먼저 누른 쪽 기준 3일)
+function autoLeft(d) {
+  const first = [d.myDoneAt, d.theirDoneAt].filter(Boolean).sort()[0]
+  if (!first) return ''
+  const h = Math.max(0, Math.ceil((new Date(first).getTime() + 3 * 86400000 - Date.now()) / 3600000))
+  return h >= 24 ? `${Math.floor(h / 24)}일 ${h % 24}시간` : `${h}시간`
+}
+const waitLabel = (d) => (d.status === '거래중' && (d.myDoneAt || d.theirDoneAt) ? '확인 대기' : d.status)
 
 const reviewRating = ref(5)
 const reviewComment = ref('')
@@ -123,7 +139,7 @@ function submitReview() {
           <div class="deal-row-body">
             <div class="deal-row-top">
               <span class="deal-row-title">{{ d.postTitle }}</span>
-              <span class="deal-status-badge" :class="'status-' + d.status">{{ d.status }}</span>
+              <span class="deal-status-badge" :class="'status-' + waitLabel(d)">{{ waitLabel(d) }}</span>
             </div>
             <div class="deal-row-sub">{{ d.iAmSeller ? '구매자' : '판매자' }} {{ d.counterpart }} · {{ d.date }}</div>
           </div>
@@ -141,9 +157,17 @@ function submitReview() {
         </div>
 
         <!-- 거래가 끝나면 여기서 결과 선택 (큰 버튼) -->
-        <div class="deal-result-bar" v-if="activeDeal.status === '거래중'">
-          <span class="deal-result-label">거래 결과</span>
-          <button type="button" class="deal-action-btn done" @click="setStatus('거래완료')">✓ 거래완료</button>
+        <div class="deal-result-bar" v-if="activeDeal.status === '거래중'" :class="{ waiting: activeDeal.myDoneAt, asked: !activeDeal.myDoneAt && activeDeal.theirDoneAt }">
+          <span class="deal-result-label" v-if="activeDeal.myDoneAt">
+            <b>✓ 거래완료 누름</b> · {{ activeDeal.counterpart }}님 확인 대기
+            <small>{{ autoLeft(activeDeal) }} 뒤 자동 완료</small>
+          </span>
+          <span class="deal-result-label" v-else-if="activeDeal.theirDoneAt">
+            <b>{{ activeDeal.counterpart }}님이 거래완료 누름</b> · 받았으면 거래완료
+            <small>{{ autoLeft(activeDeal) }} 뒤 자동 완료</small>
+          </span>
+          <span class="deal-result-label" v-else>거래 결과 <small>두 사람 다 거래완료를 누르면 끝</small></span>
+          <button type="button" class="deal-action-btn done" v-if="!activeDeal.myDoneAt" @click="setStatus('거래완료')">✓ 거래완료</button>
           <button type="button" class="deal-action-btn fail" @click="setStatus('거래불발')">✕ 거래불발</button>
         </div>
         <div class="deal-review-cta" v-else-if="activeDeal.status === '거래완료' && !activeDeal.myReview">
@@ -235,7 +259,14 @@ function submitReview() {
 .deal-status-badge.big{font-size:12px; padding:4px 12px;}
 /* 거래 결과: 거래완료 = 금색으로 꽉 참, 거래불발 = 빨간 테두리 */
 .deal-result-bar{display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--border); background:var(--panel-2); border-radius:12px; flex-wrap:wrap;}
-.deal-result-label{font-size:13px; color:var(--text-muted); font-weight:600; margin-right:auto;}
+.deal-result-label{font-size:13px; color:var(--text-muted); font-weight:600; margin-right:auto; display:flex; flex-direction:column; gap:2px;}
+.deal-result-label b{color:var(--text);}
+.deal-result-label small{font-size:11.5px; font-weight:400; color:var(--text-dim);}
+.deal-result-bar.waiting{border-color:var(--teal);}
+.deal-result-bar.waiting b{color:var(--teal);}
+.deal-result-bar.asked{border-color:var(--gold-dim); background:rgba(200,163,77,0.1);}
+.deal-result-bar.asked b{color:var(--gold);}
+.deal-status-badge.status-확인.대기, .deal-status-badge[class*="확인"]{color:var(--gold); border-color:var(--gold-dim);}
 .deal-action-btn{font-size:13.5px; font-weight:700; padding:10px 18px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted);}
 .deal-action-btn.done{background:var(--gold); border-color:var(--gold); color:#1a1408;}
 .deal-action-btn.done:hover{filter:brightness(1.08);}

@@ -70,8 +70,10 @@ SELECT f_ok('제3자는 거래 대화 안 보임', (SELECT count(*) = 0 FROM pub
 \echo '[F5] 거래완료 전엔 리뷰 불가 -> 완료 -> 리뷰'
 SELECT test_login('bbbbbbbb-0000-0000-0000-00000000000b');
 SELECT f_denied('완료 전 리뷰', $$INSERT INTO public.tb_trade_deal_review (deal_id, from_id, to_id, rating) SELECT id, auth.uid(), seller_id, 5 FROM public.tb_trade_deal$$);
+-- 012 부터 거래완료는 두 사람 다 눌러야 함 (구매자 먼저, 판매자 나중 -> 구매자에게 완료 알림)
+SELECT public.d2r_deal_done(id) FROM public.tb_trade_deal;
 SELECT test_login('aaaaaaaa-0000-0000-0000-00000000000a');
-UPDATE public.tb_trade_deal SET status = '거래완료';
+SELECT public.d2r_deal_done(id) FROM public.tb_trade_deal;
 SELECT test_login('bbbbbbbb-0000-0000-0000-00000000000b');
 SELECT f_ok('구매자 알림: 거래완료 - 리뷰 작성 가능', (SELECT count(*) = 1 FROM public.tb_notification WHERE text LIKE '%거래완료 - 리뷰 작성 가능'));
 INSERT INTO public.tb_trade_deal_review (deal_id, from_id, to_id, rating, comment) SELECT id, auth.uid(), seller_id, 5, '빠른 거래' FROM public.tb_trade_deal;
