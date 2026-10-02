@@ -112,7 +112,8 @@ function resetFilters() {
 const filteredPosts = computed(() => {
   let list = tradeState.posts
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
-  if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
+  // 판매중 필터에선 기간 만료 글은 뺌
+  if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value && !(activeStatus.value === '판매중' && p.expired))
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -240,7 +241,7 @@ const filteredPosts = computed(() => {
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
-            <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span>
+            <span class="trade-status-badge" :class="p.expired ? 'status-만료' : 'status-' + p.status">{{ p.expired ? '기간 만료' : p.status }}</span>
           </div>
           <div class="trade-meta">
             {{ p.amountLabel }} ·
@@ -270,7 +271,7 @@ const filteredPosts = computed(() => {
           :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
-        <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
+        <span class="trade-status-badge trade-card-status" :class="p.expired ? 'status-만료' : 'status-' + p.status">{{ p.expired ? '기간 만료' : p.status }}</span>
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -398,6 +399,7 @@ const filteredPosts = computed(() => {
 .trade-status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
 .trade-status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}
 .trade-status-badge.status-거래완료{color:var(--text-dim); border-color:var(--border);}
+.trade-status-badge.status-만료{color:var(--text-dim); border-color:var(--border); border-style:dashed;}
 .trade-meta{font-size:12.5px; color:var(--text-muted); margin-bottom:6px;}
 .price-icon{display:inline-flex; width:15px; height:15px; vertical-align:-3px; margin:0 2px 0 3px;}
 .price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}

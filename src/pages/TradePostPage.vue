@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
+  getTradePost, fetchTradePost, bumpTradePost, EXPIRE_DAYS, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
   getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderMarkdown } from '../markdown.js'
@@ -95,6 +95,15 @@ function submitRequest() {
     reqMessage.value = ''
     showRequestSent.value = true
     setTimeout(() => (showRequestSent.value = false), 2500)
+  })
+}
+
+// 끌어올리기 - 목록 맨 위로, 기간 만료도 풀림
+const bumped = ref(false)
+function bump() {
+  return run(async () => {
+    await bumpTradePost(post.value)
+    bumped.value = true
   })
 }
 
@@ -228,7 +237,7 @@ async function confirmBuy() {
         <div class="title-block">
           <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
           <div class="title-badges">
-            <span class="status-pill" :class="'status-' + post.status">{{ post.status }}</span>
+            <span class="status-pill" :class="post.expired ? 'status-만료' : 'status-' + post.status">{{ post.expired ? '기간 만료' : post.status }}</span>
             <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
             <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
           </div>
@@ -309,6 +318,11 @@ async function confirmBuy() {
               :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
             >{{ s }}</button>
           </div>
+          <template v-if="isOwner && post.status !== '거래완료'">
+            <button type="button" class="owner-bump" @click="bump">끌어올리기</button>
+            <small class="owner-bump-done" v-if="bumped">끌어올림 - 목록 맨 위로</small>
+            <small class="owner-bump-note">하루 한 번 · 끌어올린 지 {{ EXPIRE_DAYS }}일 지나면 기간 만료</small>
+          </template>
           <button type="button" class="owner-delete" @click="removePost">판매글 삭제</button>
         </section>
         <div class="action-error" v-if="actionError">{{ actionError }}</div>
@@ -715,6 +729,11 @@ async function confirmBuy() {
 }
 .history-link{color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
 .history-link:hover{color:var(--gold);}
+.owner-bump{margin-top:12px; font-size:12.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:7px 14px; border-radius:999px;}
+.owner-bump:hover{background:rgba(200,163,77,0.1);}
+.owner-bump-note{display:block; margin-top:6px; font-size:11px; color:var(--text-dim);}
+.owner-bump-done{display:block; margin-top:6px; font-size:11.5px; color:var(--gold);}
+.status-pill.status-만료{color:var(--text-dim); border-style:dashed;}
 .owner-delete{margin-top:12px; font-size:12px; color:var(--text-dim); border:1px solid var(--border-soft); padding:6px 12px; border-radius:999px;}
 .owner-delete:hover{color:#e0775f; border-color:#e0775f;}
 .action-error{font-size:12.5px; color:#e0775f; margin-top:10px;}

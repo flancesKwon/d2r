@@ -473,6 +473,10 @@ function unpackOptions(o) {
   return o && typeof o === 'object' ? o : { lines: [] }
 }
 
+// 판매중인데 끌어올린 지(없으면 올린 지) 30일 지나면 기간 만료로 보여줌 - 판매자가 끌어올리면 다시 판매중
+export const EXPIRE_DAYS = 30
+const isExpired = (status, bumpedAt) => status === '판매중' && !!bumpedAt && Date.now() - new Date(bumpedAt) > EXPIRE_DAYS * 86400000
+
 function mapTradePost(r) {
   const o = unpackOptions(r.options)
   return {
@@ -499,6 +503,8 @@ function mapTradePost(r) {
     avatar: r.author?.avatar_url || null,
     date: fmtDate(r.created_at),
     createdAt: r.created_at,
+    bumpedAt: r.bumped_at || r.created_at,
+    expired: isExpired(r.status, r.bumped_at || r.created_at),
     // 아이템별 거래내역의 "팔린 날" - 거래완료로 바꾼 마지막 수정 시각
     completedAt: r.status === '거래완료' ? fmtDate(r.updated_at) : null,
     requests: [],
@@ -517,9 +523,11 @@ export async function loadTradePosts(force = false) {
   tradeState.loading = true
   tradeState.error = ''
   try {
-    const { data, error } = await supabase
-      .from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
-      .is('deleted_at', null).order('created_at', { ascending: false }).limit(LIST_LIMIT)
+    // 끌어올린 순서로 (bumped_at 은 009 SQL 이후 생긴 칸 - 없으면 올린 순서로)
+    const list = (col) => supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
+      .is('deleted_at', null).order(col, { ascending: false }).limit(LIST_LIMIT)
+    let { data, error } = await list('bumped_at')
+    if (error) ({ data, error } = await list('created_at'))
     if (error) throw error
     tradeState.posts = data.map(mapTradePost)
     tradeState.loaded = true
@@ -584,6 +592,17 @@ export async function addTradePost({
   const post = mapTradePost(rows[0])
   tradeState.posts.unshift(post)
   return post
+}
+
+// 끌어올리기 (내 판매글, 하루 한 번 - DB 함수가 확인)
+export async function bumpTradePost(post) {
+  needUser()
+  const { data, error } = await supabase.rpc('d2r_bump_trade_post', { p_post: post.id })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '준비 중 (DB 업데이트 필요)' : error.message || '끌어올리기 실패')
+  post.bumpedAt = data
+  post.expired = false
+  const cached = getTradePost(post.id)
+  if (cached && cached !== post) Object.assign(cached, { bumpedAt: data, expired: false })
 }
 
 export async function updateTradeStatus(postId, status) {
