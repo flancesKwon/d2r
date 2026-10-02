@@ -134,7 +134,7 @@ function submitReview() {
         <div class="deal-thread-header">
           <div>
             <div class="deal-thread-title">{{ activeDeal.postTitle }}</div>
-            <div class="deal-thread-sub">{{ activeDeal.iAmSeller ? '구매자' : '판매자' }}: {{ activeDeal.counterpart }} · <router-link :to="`/trade/${activeDeal.postId}`">판매글 보기</router-link></div>
+            <div class="deal-thread-sub">{{ activeDeal.iAmSeller ? '구매자' : '판매자' }}: <router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }}</router-link> · <router-link :to="`/trade/${activeDeal.postId}`">판매글 보기</router-link></div>
           </div>
           <span class="deal-status-badge big" :class="'status-' + activeDeal.status">{{ activeDeal.status }}</span>
         </div>

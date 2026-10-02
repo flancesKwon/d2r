@@ -27,6 +27,7 @@ const TradeHistoryPage = () => import('./pages/TradeHistoryPage.vue')
 const PrivacyPage = () => import('./pages/PrivacyPage.vue')
 const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
+const UserProfilePage = () => import('./pages/UserProfilePage.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -65,6 +66,7 @@ const router = createRouter({
     { path: '/deals', name: 'deals', component: DealsPage, meta: { title: '거래중인 품목' } },
     // 거래 시작 알림 링크 (DB 함수가 /deals/거래번호 로 만듦)
     { path: '/deals/:id', name: 'deal', component: DealsPage, meta: { title: '거래중인 품목' } },
+    { path: '/users/:id', name: 'user', component: UserProfilePage, meta: { title: '회원 정보' } },
     { path: '/privacy', name: 'privacy', component: PrivacyPage, meta: { title: '개인정보 처리 안내' } },
     { path: '/terms', name: 'terms', component: TermsPage, meta: { title: '이용 규칙' } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage, meta: { title: '페이지를 찾을 수 없음' } },

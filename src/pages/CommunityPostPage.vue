@@ -89,7 +89,7 @@ async function onDeletePost() {
     <div class="post-card">
       <div class="d-eyebrow">{{ post.category }}</div>
       <h1 class="d-name community-post-title">{{ post.title }}</h1>
-      <div class="community-post-meta"><UserAvatar :src="post.avatar" :name="post.author" :size="22" /> {{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
+      <div class="community-post-meta"><router-link :to="'/users/' + post.authorId" class="user-link"><UserAvatar :src="post.avatar" :name="post.author" :size="22" /> {{ post.author }}</router-link> · {{ post.date }} · 조회 {{ post.views }}</div>
 
       <div class="post-tag-row" v-if="post.tags.length">
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
@@ -120,7 +120,7 @@ async function onDeletePost() {
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
-          <b class="comment-author"><UserAvatar :src="c.avatar" :name="c.author" :size="22" />{{ c.author }}</b>
+          <router-link :to="'/users/' + c.authorId" class="comment-author user-link"><UserAvatar :src="c.avatar" :name="c.author" :size="22" />{{ c.author }}</router-link>
           <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">삭제</button></span>
         </div>
         <div class="comment-body rich-content" v-html="renderContent(c.content)"></div>
