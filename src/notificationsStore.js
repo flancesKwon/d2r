@@ -1,10 +1,13 @@
 import { reactive, computed, watch } from 'vue'
 import { supabase } from './supabase.js'
 import { authState } from './profileStore.js'
+import { playChime } from './notifySound.js'
 
 // 알림 - tb_notification. 내 알림만 보임(RLS). 알림은 화면에서 만들 수 없고 DB 함수만 만듦
 // (예: 판매자가 구매신청을 수락하면 accept_trade_request 가 구매자에게 알림)
 export const notificationsState = reactive({ items: [] })
+// 이미 본 알림 id - 새로 받은 것 중 처음 보는 안 읽은 알림이 있으면 소리 (처음 불러올 때는 소리 없음)
+let seen = null
 
 function fmtDate(ts) {
   const d = new Date(ts)
@@ -15,11 +18,14 @@ function fmtDate(ts) {
 export async function loadNotifications() {
   if (!supabase || !authState.user) {
     notificationsState.items = []
+    seen = null
     return
   }
   const { data, error } = await supabase.from('tb_notification').select('*').order('created_at', { ascending: false }).limit(30)
   if (error) throw error
   notificationsState.items = data.map((n) => ({ id: n.id, text: n.text, link: n.link, read: n.read, date: fmtDate(n.created_at) }))
+  if (seen && data.some((n) => !n.read && !seen.has(n.id))) playChime()
+  seen = new Set(data.map((n) => n.id))
 }
 
 export async function markNotificationRead(id) {
@@ -52,10 +58,11 @@ export async function markAllNotificationsRead() {
 
 export const unreadNotificationCount = computed(() => notificationsState.items.filter((n) => !n.read).length)
 
-// 로그인하면 불러오고, 30초마다 새 알림 확인 (창이 보일 때만)
+// 로그인하면 불러오고, 20초마다 새 알림 확인 - 다른 탭을 보고 있어도 (새 알림 소리가 나게)
 let timer = 0
 watch(() => authState.user?.id, (uid) => {
   clearInterval(timer)
+  seen = null
   loadNotifications().catch(() => {})
-  if (uid) timer = setInterval(() => { if (!document.hidden) loadNotifications().catch(() => {}) }, 30000)
+  if (uid) timer = setInterval(() => loadNotifications().catch(() => {}), 20000)
 }, { immediate: true })
