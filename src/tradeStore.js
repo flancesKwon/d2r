@@ -520,8 +520,12 @@ function needUser() {
 }
 
 // 목록 - 최근 글 LIST_LIMIT 개까지 받아서 화면에서 거름 (옵션 수치 필터가 화면 쪽 계산이라)
+// 화면에 들어올 때마다 부르면 됨: 받아 둔 목록은 그대로 보여주고, 10초 넘게 지났으면 뒤에서 새로 받음
+// (예전엔 처음 한 번만 받아서 다른 메뉴에 갔다 와도 새 글이 안 보였음 - 새로고침 필요)
+let lastLoadedAt = 0
 export async function loadTradePosts(force = false) {
-  if (!supabase || tradeState.loading || (tradeState.loaded && !force)) return
+  if (!supabase || tradeState.loading) return
+  if (tradeState.loaded && !force && Date.now() - lastLoadedAt < 10000) return
   tradeState.loading = true
   tradeState.error = ''
   try {
@@ -533,6 +537,7 @@ export async function loadTradePosts(force = false) {
     if (error) throw error
     tradeState.posts = data.map(mapTradePost)
     tradeState.loaded = true
+    lastLoadedAt = Date.now()
   } catch (e) {
     tradeState.error = '판매글 불러오기 실패 - 잠시 뒤 다시 시도'
   } finally {

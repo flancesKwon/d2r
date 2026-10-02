@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
+import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
@@ -66,7 +67,7 @@ async function submitComment() {
 const onVotePost = (dir) => run(() => votePost(post.value, dir))
 const onVoteComment = (c, dir) => run(() => voteComment(c, dir))
 async function onDeleteComment(c) {
-  if (!confirm('댓글 삭제')) return
+  if (!await askConfirm('댓글 삭제')) return
   await run(async () => {
     await deleteComment(c.id)
     post.value.comments = post.value.comments.filter((x) => x.id !== c.id)
@@ -74,7 +75,7 @@ async function onDeleteComment(c) {
   })
 }
 async function onDeletePost() {
-  if (!confirm('글 삭제 - 되돌릴 수 없음')) return
+  if (!await askConfirm('글 삭제 - 되돌릴 수 없음')) return
   await run(async () => {
     await deletePost(post.value.id)
     router.replace('/community')

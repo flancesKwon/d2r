@@ -5,6 +5,7 @@
 // - 최근 글: 커뮤니티·거래 글 삭제
 // 신고·정지는 supabase/002_reports_suspension.sql 을 실행해야 켜짐 - 안 돌렸으면 안내만 띄우고 나머지는 그대로 동작
 import { ref, computed, watch } from 'vue'
+import { askConfirm, askPrompt } from '../dialog.js'
 import { supabase, mustReturnRows } from '../supabase.js'
 import { authState, signIn, isStaff, isAdmin, ROLE_LABEL, suspendedUntil, suspensionText, fetchSuspensionReasons } from '../profileStore.js'
 import { formatDate } from '../communityStore.js'
@@ -113,8 +114,8 @@ function addWord() {
     await loadOps()
   })
 }
-function removeWord(w) {
-  if (!confirm(`금칙어 삭제: ${w.word}`)) return
+async function removeWord(w) {
+  if (!await askConfirm(`금칙어 삭제: ${w.word}`)) return
   return run(async () => {
     await mustReturnRows(supabase.from('tb_banned_word').delete().eq('word', w.word).select('word'), '금칙어 삭제 실패')
     await loadOps()
@@ -154,18 +155,18 @@ async function setRole(m, role, event) {
   // 취소·실패하면 셀렉트를 원래 등급으로 되돌림
   const revert = () => { if (event) event.target.value = m.role }
   if (role === m.role) return
-  if (m.id === authState.user?.id && role !== 'admin' && !confirm('내 최고관리자 권한 해제 - 되돌리려면 다른 최고관리자 필요')) return revert()
+  if (m.id === authState.user?.id && role !== 'admin' && !await askConfirm('내 최고관리자 권한 해제 - 되돌리려면 다른 최고관리자 필요')) return revert()
   await run(async () => {
     const rows = await mustReturnRows(supabase.from('tb_profile').update({ role }).eq('id', m.id).select('role'), '등급 변경 실패')
     m.role = rows[0].role
   })
   revert()
 }
-function suspend(m, option, event) {
+async function suspend(m, option, event) {
   if (event) event.target.value = ''
   if (!option) return
   const label = SUSPEND_OPTIONS.find((o) => o.value === option)?.label
-  const reason = prompt(`${m.nickname} 님을 ${label} 정지 - 사유 입력 (본인에게 보임)`, '')
+  const reason = await askPrompt(`${m.nickname} 님을 ${label} 정지 - 사유 입력 (본인에게 보임)`, '')
   if (reason === null) return
   const until = option === 'forever' ? 'infinity' : new Date(Date.now() + Number(option) * 86400000).toISOString()
   return run(async () => {
@@ -178,8 +179,8 @@ function suspend(m, option, event) {
     syncReportAuthors(m)
   })
 }
-function unsuspend(m) {
-  if (!confirm(`${m.nickname} 님 정지 해제`)) return
+async function unsuspend(m) {
+  if (!await askConfirm(`${m.nickname} 님 정지 해제`)) return
   return run(async () => {
     const rows = await mustReturnRows(
       supabase.from('tb_profile').update({ suspended_until: null, suspended_reason: null }).eq('id', m.id).select('suspended_until'),
@@ -203,8 +204,8 @@ function changeReport(r, status) {
     if (reportFilter.value && reportFilter.value !== status) reports.value = reports.value.filter((x) => x.id !== r.id)
   })
 }
-function removeReportTarget(r) {
-  if (!confirm(`신고된 ${REPORT_TARGET_LABEL[r.target_type]}삭제 후 신고 처리함으로 변경`)) return
+async function removeReportTarget(r) {
+  if (!await askConfirm(`신고된 ${REPORT_TARGET_LABEL[r.target_type]}삭제 후 신고 처리함으로 변경`)) return
   return run(async () => {
     await deleteReportTarget(r)
     await changeReport(r, 'resolved')
@@ -216,8 +217,8 @@ function suspendReportAuthor(r, option, event) {
   const m = members.value.find((x) => x.id === a.id) || { ...a }
   return suspend(m, option, event)?.then(() => { a.suspended_until = m.suspended_until })
 }
-function removeReport(r) {
-  if (!confirm('신고 기록 삭제')) return
+async function removeReport(r) {
+  if (!await askConfirm('신고 기록 삭제')) return
   return run(async () => {
     await deleteReport(r.id)
     reports.value = reports.value.filter((x) => x.id !== r.id)
@@ -233,16 +234,16 @@ const reportFilters = [
 const canSuspendAuthor = (r) => r.target_author && canSuspend(r.target_author)
 
 // ── 최근 글
-function removeCommunityPost(p) {
-  if (!confirm(`"${p.title}" 글 삭제`)) return
+async function removeCommunityPost(p) {
+  if (!await askConfirm(`"${p.title}" 글 삭제`)) return
   return run(async () => {
     await mustReturnRows(supabase.from('tb_community_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentCommunity.value = recentCommunity.value.filter((x) => x.id !== p.id)
     stats.value.communityPosts--
   })
 }
-function removeTradePost(p) {
-  if (!confirm(`"${p.item_name}" 판매글 삭제`)) return
+async function removeTradePost(p) {
+  if (!await askConfirm(`"${p.item_name}" 판매글 삭제`)) return
   return run(async () => {
     await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentTrade.value = recentTrade.value.filter((x) => x.id !== p.id)
