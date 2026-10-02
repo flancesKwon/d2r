@@ -5,7 +5,7 @@ import {
   getTradePost, fetchTradePost, bumpTradePost, EXPIRE_DAYS, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
   getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
-import { renderMarkdown } from '../markdown.js'
+import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
@@ -55,7 +55,7 @@ async function run(fn) {
     actionError.value = e.message || '처리 실패'
   }
 }
-const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
+const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
 const linkedItem = computed(() => (post.value ? getTradeItem(post.value.itemId) : null))
 
 // 게임 툴팁 모양 아이템 카드 (이미지로 저장 가능)
@@ -266,7 +266,7 @@ async function confirmBuy() {
 
         <section class="side-card desc-card" v-if="post.content && post.content.trim()">
           <div class="card-title">판매자 설명</div>
-          <div class="trade-post-content" v-html="contentHtml"></div>
+          <div class="trade-post-content rich-content" v-html="contentHtml"></div>
         </section>
       </div>
 

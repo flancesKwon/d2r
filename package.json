@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "@tiptap/extension-image": "^3.31.4",
+    "@tiptap/extensions": "^3.31.4",
+    "@tiptap/pm": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
+    "@tiptap/vue-3": "^3.31.4",
+    "dompurify": "^3.4.16",
     "vue": "^3.4.21",
     "vue-router": "^4.6.4"
   },

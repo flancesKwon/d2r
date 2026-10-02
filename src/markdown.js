@@ -22,21 +22,34 @@ export function renderMarkdown(raw) {
   if (!raw) return ''
   const lines = escapeHtml(raw).split('\n')
   const out = []
-  let inList = false
+  let inList = null // 'ul' | 'ol'
 
   for (const line of lines) {
     const listMatch = line.match(/^[-*]\s+(.*)$/)
-    if (listMatch) {
+    const olMatch = line.match(/^\d+\.\s+(.*)$/)
+    const kind = listMatch ? 'ul' : olMatch ? 'ol' : null
+    if (inList && inList !== kind) {
+      out.push(`</${inList}>`)
+      inList = null
+    }
+    if (kind) {
       if (!inList) {
-        out.push('<ul>')
-        inList = true
+        out.push(`<${kind}>`)
+        inList = kind
       }
-      out.push('<li>' + renderInline(listMatch[1]) + '</li>')
+      out.push('<li>' + renderInline((listMatch || olMatch)[1]) + '</li>')
       continue
     }
-    if (inList) {
-      out.push('</ul>')
-      inList = false
+
+    const headMatch = line.match(/^(#{2,3})\s+(.*)$/)
+    if (headMatch) {
+      const tag = headMatch[1].length === 2 ? 'h2' : 'h3'
+      out.push(`<${tag}>${renderInline(headMatch[2])}</${tag}>`)
+      continue
+    }
+    if (/^-{3,}$/.test(line.trim())) {
+      out.push('<hr>')
+      continue
     }
 
     const quoteMatch = line.match(/^&gt;\s?(.*)$/)
@@ -50,6 +63,6 @@ export function renderMarkdown(raw) {
     }
     out.push('<p>' + renderInline(line) + '</p>')
   }
-  if (inList) out.push('</ul>')
+  if (inList) out.push(`</${inList}>`)
   return out.join('')
 }

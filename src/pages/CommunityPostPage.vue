@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
-import { renderMarkdown } from '../markdown.js'
-import MarkdownEditor from '../components/MarkdownEditor.vue'
+import { renderContent } from '../richText.js'
 import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+const RichEditor = defineAsyncComponent(() => import('../components/RichEditor.vue')) // 댓글 에디터는 나중에 받아도 됨
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +37,7 @@ watch(() => route.params.id, load, { immediate: true })
 // 로그인/로그아웃하면 내 추천 표시·버튼을 다시 맞춤
 watch(() => authState.user?.id, () => { if (post.value) load() })
 
-const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
+const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
 
 async function run(fn) {
   actionError.value = ''
@@ -95,7 +95,7 @@ async function onDeletePost() {
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
       </div>
 
-      <div class="community-post-content" v-html="contentHtml"></div>
+      <div class="community-post-content rich-content" v-html="contentHtml"></div>
 
       <div class="vote-row">
         <button class="vote-btn up" :class="{ active: post.myVote === 'up' }" @click="onVotePost('up')">
@@ -123,7 +123,7 @@ async function onDeletePost() {
           <b class="comment-author"><UserAvatar :src="c.avatar" :name="c.author" :size="22" />{{ c.author }}</b>
           <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">삭제</button></span>
         </div>
-        <div class="comment-body" v-html="renderMarkdown(c.content)"></div>
+        <div class="comment-body rich-content" v-html="renderContent(c.content)"></div>
         <div class="comment-vote-row">
           <button class="vote-btn mini up" :class="{ active: c.myVote === 'up' }" @click="onVoteComment(c, 'up')">👍 {{ c.likes }}</button>
           <button class="vote-btn mini down" :class="{ active: c.myVote === 'down' }" @click="onVoteComment(c, 'down')">👎 {{ c.dislikes }}</button>
@@ -134,7 +134,7 @@ async function onDeletePost() {
     </div>
 
     <div class="comment-form" v-if="authState.user">
-      <MarkdownEditor v-model="commentDraft" placeholder="댓글" min-height="110px" />
+      <RichEditor v-model="commentDraft" placeholder="댓글" min-height="90px" compact />
       <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">댓글 등록</button>
     </div>
     <div class="comment-login" v-else>
