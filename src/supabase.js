@@ -13,11 +13,15 @@ export const supabase = url && key
 if (!supabase) console.warn('Supabase 설정(VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)없음 - 로그인·게시판 꺼짐')
 
 // RLS에 걸린 UPDATE/DELETE는 에러 없이 0건으로 조용히 끝남 -> 쓰기는 항상 .select() 로 돌아온 행을 확인
+// 이용 정지 중이면 막힌 이유를 그걸로 보여줌 (profileStore 가 정지 여부 확인 함수를 넣어 둠)
+let blockedReason = () => null
+export function setBlockedReason(fn) { blockedReason = fn }
+
 export async function mustReturnRows(query, message = '권한 없음') {
   const { data, error } = await query
   // RLS 에 걸린 INSERT 는 영어 에러로 옴 (예: 이용 정지 중) -> 화면에 보여줄 말로
-  if (error?.code === '42501' && /row-level security/i.test(error.message)) throw new Error(message)
+  if (error?.code === '42501' && /row-level security/i.test(error.message)) throw new Error(blockedReason() || message)
   if (error) throw error
-  if (!data?.length) throw new Error(message)
+  if (!data?.length) throw new Error(blockedReason() || message)
   return data
 }
