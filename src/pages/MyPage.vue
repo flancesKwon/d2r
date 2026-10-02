@@ -244,8 +244,9 @@ async function saveProfileForm() {
 .my-profile-stats b{color:var(--gold);}
 .my-profile-edit{font-size:12.5px; color:var(--gold-dim); border:1px solid var(--border); border-radius:10px; padding:8px 14px;}
 .my-profile-edit:hover{color:var(--gold); border-color:var(--gold-dim);}
-.mypage-tabs{display:flex; border:1px solid var(--border); border-radius:10px; overflow-x:auto; width:fit-content; max-width:100%; margin-bottom:20px;}
-.mypage-tabs button{font-size:13px; padding:10px 20px; color:var(--text-dim); background:var(--panel); white-space:nowrap; flex:none;}
+/* 탭 줄은 위 프로필 카드와 같은 폭, 탭은 같은 너비로 나눔 (폰에서 좁으면 옆으로 밀어서 봄) */
+.mypage-tabs{display:flex; border:1px solid var(--border); border-radius:12px; overflow-x:auto; width:100%; margin-bottom:20px;}
+.mypage-tabs button{font-size:13px; padding:11px 16px; color:var(--text-dim); background:var(--panel); white-space:nowrap; flex:1 0 auto;}
 @media (max-width:560px){ .mypage-tabs button{padding:10px 14px;} }
 .mypage-tabs button + button{border-left:1px solid var(--border);}
 .mypage-tabs button.active{color:var(--gold); background:var(--panel-2);}
