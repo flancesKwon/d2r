@@ -286,7 +286,7 @@ for (const [, names] of iconByKey) {
   const ed = fam('7cr', 'rare', /^피해 증가 \+[\d~]+%$/)
   const edAr = fam('7cr', 'rare', /^명중률 \+[\d~]+, 피해 증가/)
   expect(ed && edAr && !R.validateAffixPicks(data, B('7cr'), 'rare', [pickOf(ed), pickOf(edAr)]).length, '레어 무기 피해 증가 두 종류는 같이 가능')
-  // 수치가 한 단계 안에서 안 나오는 조합 (Sharp 단계: 명중률 10~20 + 인핸스드 10~20 -> 명중률 10 + 인핸스드 30 불가)
+  // 수치가 한 단계 안에서 안 나오는 조합 (Sharp 단계: 명중률 10~20 + 피해 증가 10~20 -> 명중률 10 + 피해 증가 30 불가)
   if (edAr) expect(R.validateAffixPicks(data, B('7cr'), 'rare', [{ fam: edAr, values: [10, 30] }]).length === 1, '단계가 다른 수치 조합이 통과됨')
   // 크래프트: 제작법 고정 옵션 문구, 제작법마다 재료 베이스가 있는지, 알려진 제작법 내용
   const craftMissing = new Set(data.crafts.flatMap((c) => c.mods.map((m) => m.code)).filter((c) => !R.AFFIX_MOD_CODES.includes(c)))

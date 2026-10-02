@@ -209,7 +209,7 @@ const optionHits = computed(() => {
       </div>
       <div class="quality-row">
         <b>우수한 (Superior)</b>
-        <span>무기: 피해 증가 +5~15% (또는 최대 피해 +1) · 방어구: 인핸스드 방어력 +15% · 공격력/내구도 추가 보너스 가능</span>
+        <span>무기: 피해 증가 +5~15% (또는 최대 피해 +1) · 방어구: 방어력 증가 +15% · 공격력/내구도 추가 보너스 가능</span>
       </div>
     </div>
   </div>

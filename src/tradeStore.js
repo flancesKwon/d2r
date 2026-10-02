@@ -253,7 +253,7 @@ export function baseForItem(item) {
 export const SUPERIOR_MODS = {
   'dmg%': { text: '피해 증가 +{v}%', min: 5, max: 15 },
   att: { text: '명중률 +{v}', min: 1, max: 3 },
-  'ac%': { text: '증가된 방어력 +{v}%', min: 5, max: 15 },
+  'ac%': { text: '방어력 증가 +{v}%', min: 5, max: 15 },
   'dur%': { text: '최대 내구도 +{v}%', min: 10, max: 15 },
 }
 const SUPERIOR_COMBOS = {
@@ -343,7 +343,7 @@ export const TRADE_STAT_FILTERS = [
   { key: 'fhr', label: '타격 회복 속도(%)', pattern: `^(?:타격 회복 속도|재빠른 히트 회복) ${N}` },
   { key: 'frw', label: '달리기/걷기 속도(%)', pattern: `^(?:달리기/걷기 속도|이동/공격 속도 증가) ${N}` },
   { key: 'ed', label: '피해 증가(%)', pattern: `^(?:피해 증가|인핸스드 데미지|증가된 데미지) ${N}` },
-  { key: 'edef', label: '방어력 증가(%)', pattern: `^(?:방어력|증가된 방어력) ${N}%` },
+  { key: 'edef', label: '방어력 증가(%)', pattern: `^(?:방어력 증가|방어력|증가된 방어력) ${N}%` },
   { key: 'sockets', label: '소켓 개수', pattern: '^소켓 (\\d+)개' },
   { key: 'lifesteal', label: '생명력 흡수(%)', pattern: `^(?:적중당 생명력|공격 시 생명력 흡수) ${N}` },
   { key: 'manasteal', label: '마나 흡수(%)', pattern: `^(?:적중당 마나|공격 시 마나 흡수) ${N}` },
