@@ -1,6 +1,7 @@
 <script setup>
 // 메인 - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
 import { computed, shallowRef, ref } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRouter } from 'vue-router'
 import { guidesState, loadGuides } from '../guideStore.js'
 import patchNotes from '../data/patchNotes.json'
@@ -62,9 +63,14 @@ const topGuides = computed(() =>
 // ── 오른쪽: 공지 / 거래 / 커뮤니티 / 패치
 const byDate = (a, b) => (b.date || '').localeCompare(a.date || '')
 const notice = ref(null)
-fetchPinnedPosts().then((list) => (notice.value = list[0] || null))
 const latestCommunity = ref([])
-fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})
+function loadSide() {
+  fetchPinnedPosts().then((list) => (notice.value = list[0] || null)).catch(() => {})
+  fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})
+}
+loadSide()
+// 보고 있는 동안 30초마다 공지·최신 글·최신 매물 새로
+useAutoRefresh(() => { loadSide(); trade.value?.loadTradePosts(true) })
 const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
 // 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
 const trade = shallowRef(null)

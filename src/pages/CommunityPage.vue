@@ -1,5 +1,6 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute } from 'vue-router'
 import { CATEGORIES, fetchPosts, fetchPinnedPosts } from '../communityStore.js'
 
@@ -42,10 +43,8 @@ let searchTimer = 0
 watch(searchQuery, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => load(), 300) })
 watch([activeCat, activeTag, sortBy], () => load())
 onMounted(() => load())
-// 다른 탭에 갔다 돌아오면 새 글 받기 ("더 보기"로 더 펼쳐 둔 상태면 그대로)
-const onVisible = () => { if (!document.hidden && page.value === 0 && !loading.value) load() }
-document.addEventListener('visibilitychange', onVisible)
-onUnmounted(() => document.removeEventListener('visibilitychange', onVisible))
+// 보고 있는 동안 30초마다 새 글 ("더 보기"로 더 펼쳐 둔 상태면 그대로)
+useAutoRefresh(() => { if (page.value === 0 && !loading.value) return load() })
 
 // 고정 글(공지)은 전체·공지 목록 맨 위에. 아래 목록에선 중복으로 안 보이게 뺌
 const pinnedPosts = ref([])

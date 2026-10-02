@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import marketTiers from '../data/marketTiers.json'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -20,6 +21,7 @@ const activeCount = computed(() => {
   return m
 })
 loadTradePosts()
+useAutoRefresh(() => loadTradePosts(true))
 const tiers = computed(() =>
   marketTiers.map((t) => ({
     ...t,

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -43,6 +44,15 @@ async function load() {
 }
 watch(() => route.params.id, () => { post.value = getTradePost(route.params.id) || null; loading.value = !post.value; load() }, { immediate: true })
 watch(() => authState.user?.id, () => { if (post.value) load() })
+async function refreshQuiet() {
+  const id = route.params.id
+  const fresh = await fetchTradePost(id)
+  if (!fresh || String(route.params.id) !== String(id)) return
+  fresh.requests = await fetchTradeRequests(fresh.id).catch(() => post.value?.requests || [])
+  fresh.views = Math.max(fresh.views || 0, post.value?.views || 0)
+  post.value = fresh
+}
+useAutoRefresh(refreshQuiet)
 // 판매자 본인(또는 관리자)만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS
 const isOwner = computed(() => !!authState.user && post.value?.authorId === authState.user.id)
 const canManage = computed(() => isOwner.value || authState.profile?.role === 'admin')

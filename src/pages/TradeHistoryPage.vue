@@ -3,6 +3,7 @@
 // 판매중·예약중·거래완료까지 전부 모아서 최근 거래 가격과 함께 보여줌.
 // ?item=<사전 id> 또는 ?name=<판매글 제목>, 둘 다 없으면 거래가 있는 아이템 목록
 import { ref, computed, watch } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradeItem,
@@ -20,6 +21,7 @@ import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
 loadTradePosts()
+useAutoRefresh(() => loadTradePosts(true))
 const router = useRouter()
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
 
