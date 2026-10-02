@@ -80,11 +80,11 @@ export function signIn(provider) {
   }
   authState.loginOpen = false
   // 로그인 후 원래 보던 화면으로 돌아오게
-  try { sessionStorage.setItem(RETURN_KEY, window.location.hash || '#/') } catch (e) {}
+  try { sessionStorage.setItem(RETURN_KEY, window.location.pathname + window.location.search) } catch (e) {}
   return supabase.auth.signInWithOAuth({
     provider,
-    // vite base 가 './' 라서 BASE_URL 을 쓰면 주소가 깨짐 -> 지금 페이지 경로(/d2r/) 그대로. Supabase Redirect URLs 에 등록된 주소와 같아야 함
-    options: { redirectTo: window.location.origin + window.location.pathname },
+    // 로그인 후엔 항상 사이트 첫 주소(/d2r/)로 돌아왔다가 보던 화면으로 감 - Supabase Redirect URLs 에 등록된 주소와 같아야 함
+    options: { redirectTo: window.location.origin + import.meta.env.BASE_URL },
   })
 }
 export function takeLoginReturn() {

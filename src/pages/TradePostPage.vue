@@ -20,6 +20,7 @@ const route = useRoute()
 const router = useRouter()
 // 판매글 (목록에서 받아둔 게 있으면 바로 보여주고 DB에서 최신으로) + 구매신청(당사자만)
 const post = ref(getTradePost(route.params.id) || null)
+watch(post, (p) => { if (p) document.title = `${p.itemName} — 거래게시판 — 디아허브` }, { immediate: true, flush: 'post' })
 const loading = ref(!post.value)
 const actionError = ref('')
 async function load() {

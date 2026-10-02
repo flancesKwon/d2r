@@ -1,3 +1,4 @@
+import './legacyHash.js'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router.js'
@@ -5,6 +6,9 @@ import { initAuth, takeLoginReturn } from './profileStore.js'
 import './style.css'
 
 // 디스코드·구글 로그인에서 돌아온 경우 주소에 ?code= (실패면 ?error=) 가 붙어 옴 - Supabase 가 읽고 지우기 전에 확인
+const BASE = import.meta.env.BASE_URL
+
+
 const params = new URLSearchParams(window.location.search)
 const fromLogin = params.has('code') || params.has('error')
 
@@ -12,8 +16,12 @@ const fromLogin = params.has('code') || params.has('error')
 initAuth().then(() => {
   if (fromLogin) {
     // 주소창의 ?code= 를 지우고 로그인 전에 보던 화면으로
-    const back = takeLoginReturn() || '#/'
-    window.history.replaceState(null, '', window.location.pathname + back)
+    const back = takeLoginReturn() || BASE
+    window.history.replaceState(null, '', back)
   }
   createApp(App).use(router).mount('#app')
+  // 이미 열린 화면에서 예전 #/ 주소로 바뀌어도 새 주소로
+  window.addEventListener('hashchange', () => {
+    if (window.location.hash.startsWith('#/')) router.replace(window.location.hash.slice(1))
+  })
 })

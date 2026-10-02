@@ -11,6 +11,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 const route = useRoute()
 const router = useRouter()
 const post = ref(null)
+watch(post, (p) => { if (p) document.title = `${p.title} — 커뮤니티 — 디아허브` }, { flush: 'post' })
 const loading = ref(true)
 const actionError = ref('')
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { guidesState, loadGuides, getGuide, canEditGuides, deleteGuide } from '../guideStore.js'
 import { CLASS_ICONS } from '../icons.js'
@@ -32,6 +32,7 @@ const route = useRoute()
 const router = useRouter()
 loadGuides()
 const guide = computed(() => getGuide(route.params.id))
+watch(guide, (g) => { if (g) document.title = `${g.title} — 디아허브` }, { immediate: true, flush: 'post' })
 // 가이드에 나온 스킬의 예전 이름 (눈보라 = 블리자드) - 가이드는 게임 공식 이름으로 씀
 const skillPairs = computed(() => {
   const g = guide.value
@@ -108,7 +109,7 @@ const related = computed(() =>
           <div class="affix-line" v-for="(item, i) in guide.keyItems" :key="i">
             <span class="a-text">
               <template v-for="(seg, k) in linkSegments(item)" :key="k">
-                <router-link v-if="seg.item" class="item-link" :class="seg.item.category" :to="{ path: '/items', query: { q: seg.item.name_ko, id: seg.item.id } }">
+                <router-link v-if="seg.item" class="item-link" :class="seg.item.category" :to="{ path: `/items/${seg.item.id}`, query: { q: seg.item.name_ko } }">
                   <img v-if="iconUrl(seg.item)" :src="iconUrl(seg.item)" alt="" />{{ seg.text }}
                 </router-link>
                 <template v-else>{{ seg.text }}</template>

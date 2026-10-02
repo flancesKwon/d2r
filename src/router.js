@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from './pages/HomePage.vue'
 const ItemsPage = () => import('./pages/ItemsPage.vue')
 const GuidesPage = () => import('./pages/GuidesPage.vue')
@@ -29,10 +29,12 @@ const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomePage },
     { path: '/items', name: 'items', component: ItemsPage, meta: { title: '아이템 사전' } },
+    // 아이템 하나 (검색엔진·공유용 주소) - 사전 화면에서 그 아이템 상세를 열어 둠
+    { path: '/items/:id', name: 'item', component: ItemsPage, meta: { title: '아이템 사전' } },
     { path: '/guides', name: 'guides', component: GuidesPage, meta: { title: '빌드 가이드' } },
     // /guides/:id 보다 먼저 - 안 그러면 'new'가 가이드 주소로 잡힘
     { path: '/guides/new', name: 'guide-new', component: GuideEditPage, meta: { title: '가이드 쓰기' } },
@@ -85,8 +87,8 @@ function reloadToNewVersion(path) {
     if (Date.now() - last < 60000) return false
     sessionStorage.setItem(RELOAD_KEY, String(Date.now()))
   } catch (e) {}
-  if (path) window.location.hash = path
-  window.location.reload()
+  if (path) window.location.assign(import.meta.env.BASE_URL.replace(/\/$/, '') + path)
+  else window.location.reload()
   return true
 }
 const isChunkError = (err) => /dynamically imported module|Importing a module script failed|error loading dynamically imported|Failed to fetch/i.test(err?.message || '')

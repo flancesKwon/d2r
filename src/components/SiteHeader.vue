@@ -90,7 +90,7 @@ const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 function goItem(it) {
   searchOpen.value = false
   query.value = ''
-  router.push({ path: '/items', query: { q: it.name_ko, id: it.id } })
+  router.push({ path: `/items/${it.id}`, query: { q: it.name_ko } })
 }
 function goPage(p) {
   searchOpen.value = false

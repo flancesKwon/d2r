@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from '../itemSearch.js'
@@ -10,6 +10,8 @@ import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } f
 const items = itemsData
 const icons = ITEM_ICONS
 const route = useRoute()
+const router = useRouter()
+
 const runeLookup = buildRuneLookup(itemsData)
 
 // 룬워드는 실제 게임에서도 전용 아이콘이 없고(꽂힌 베이스 아이템 모양을 그대로 씀),
@@ -50,12 +52,25 @@ const searchBy = ref(route.query.by === 'option' ? 'option' : 'name')
 // 상단 메뉴의 유니크·세트·룬워드 등(?cat=)도 이미 사전 페이지에 있을 때 주소만 바뀌어서, 탭도 주소를 따라가게 함
 // (예전엔 처음 들어올 때만 읽어서 유니크 -> 세트로 메뉴를 옮겨도 탭이 안 바뀌었음)
 const URL_CATS = ['unique', 'set', 'runeword', 'gem']
-function applyRouteQuery(q) {
+// 아이템 하나는 /items/아이템id (예전 주소 ?id= 도 그대로 됨)
+function applyRouteQuery() {
+  const q = route.query
+  const id = route.params.id || q.id
   if (typeof q.q === 'string') searchQuery.value = q.q
   if (q.by === 'option' || q.by === 'name') searchBy.value = q.by
-  selected.value = (q.id && items.find((it) => it.id === q.id)) || null
+  selected.value = (id && items.find((it) => it.id === id)) || null
   const cat = URL_CATS.includes(q.cat) ? q.cat : 'all'
-  if (cat !== activeCat.value && !q.id) setCat(cat)
+  if (cat !== activeCat.value && !id) setCat(cat)
+}
+// 카드를 열고 닫을 때 주소도 바꿈 (그 아이템 주소를 그대로 공유할 수 있게)
+function openItem(it) {
+  const { id, ...rest } = route.query
+  router.replace({ path: `/items/${it.id}`, query: rest })
+}
+function closeItem() {
+  const { id, ...rest } = route.query
+  if (route.params.id || id) router.replace({ path: '/items', query: rest })
+  else selected.value = null
 }
 const showQualityInfo = ref(false)
 
@@ -74,8 +89,10 @@ const groupOptions = computed(() => {
   const pool = items.filter((it) => it.category === activeCat.value)
   return [...new Set(pool.map((it) => it.type_group))]
 })
-applyRouteQuery(route.query)
-watch(() => route.query, applyRouteQuery)
+applyRouteQuery()
+watch(() => [route.query, route.params.id], applyRouteQuery)
+// 열린 아이템 이름을 창 제목으로 (검색엔진·탭 제목)
+watch(selected, (it) => (document.title = it ? `${it.name_ko} (${it.name_en}) — 디아허브` : '아이템 사전 — 디아허브'), { immediate: true, flush: 'post' })
 
 const subOptions = computed(() => {
   if (!activeGroup.value) return []
@@ -190,7 +207,7 @@ const optionHits = computed(() => {
         :key="it.id"
         class="item-card"
         :class="it.category"
-        @click="selected = it"
+        @click="openItem(it)"
       >
         <span class="card-icon" :class="[it.category]" v-if="it.category === 'runeword' && iconUrl(it)">
           <span class="rw-icon">
@@ -220,9 +237,9 @@ const optionHits = computed(() => {
     </div>
   </div>
 
-  <div class="modal-overlay" v-if="selected" @click.self="selected = null">
+  <div class="modal-overlay" v-if="selected" @click.self="closeItem">
     <div class="modal-panel">
-      <button class="modal-close" @click="selected = null">✕</button>
+      <button class="modal-close" @click="closeItem">✕</button>
 
       <template v-if="selected.category === 'unique' || selected.category === 'set'">
         <div class="d-eyebrow">{{ selected.category_label }} · {{ selected.subtitle || '' }}</div>
