@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { supabase, mustReturnRows } from './supabase.js'
+import { supabase, mustReturnRows, setBlockedReason } from './supabase.js'
 
 // 로그인(디스코드·구글) 상태. 글의 주인은 로그인 유저의 uuid(author_id)로 판단하고, 닉네임은 보여주기용.
 // profile = tb_profile 한 줄 (가입할 때 DB 트리거가 자동으로 만들어 둠)
@@ -135,3 +135,6 @@ export async function saveProfile({ nickname, contact, avatarUrl }) {
   profileState.contact = rows[0].contact || ''
   return rows[0]
 }
+
+// 정지 중에 글·댓글 등을 쓰려다 막히면 '이용 정지 중'으로 보여줌
+setBlockedReason(() => (suspendedUntil() ? '이용 정지 중 (' + suspensionText(suspendedUntil()) + ')' : null))
