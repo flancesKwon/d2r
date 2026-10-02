@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { askConfirm } from '../dialog.js'
 import { useRoute } from 'vue-router'
 import { dealsState, loadDeals, loadDealMessages, sendDealMessage, updateDealStatus, addReview } from '../dealsStore.js'
 import { getTradeItem } from '../tradeStore.js'
@@ -76,12 +77,12 @@ function submitMessage() {
   return run(() => sendDealMessage(activeDeal.value, text))
 }
 
-function setStatus(status) {
+async function setStatus(status) {
   if (!activeDeal.value) return
   const label = status === '거래완료'
     ? '거래완료 처리 - 판매글도 거래완료, 후기 작성 가능'
     : '거래불발 처리 - 판매글은 다시 판매중'
-  if (!confirm(label)) return
+  if (!await askConfirm(label, status === '거래완료' ? { confirmText: '거래완료' } : undefined)) return
   return run(() => updateDealStatus(activeDeal.value, status))
 }
 

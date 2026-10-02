@@ -1,5 +1,6 @@
 <script setup>
 import { computed, watch } from 'vue'
+import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import { guidesState, loadGuides, getGuide, canEditGuides, deleteGuide } from '../guideStore.js'
 import { CLASS_ICONS } from '../icons.js'
@@ -43,12 +44,12 @@ const skillPairs = computed(() => {
 // 단계가 숫자(1~11, 24~)일 때만 Lv 를 붙임 (소용돌이·광분·공통 같은 이름 단계는 그대로)
 const levelLabel = (lv) => (/^\d/.test(lv || '') ? 'Lv ' + lv : lv)
 async function removeGuide() {
-  if (!confirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
+  if (!await askConfirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
   try {
     await deleteGuide(guide.value)
     router.replace('/guides')
   } catch (e) {
-    alert(e.message || '삭제 실패')
+    await showAlert(e.message || '삭제 실패')
   }
 }
 // 목차 - 해시 라우터라 #앵커 링크 대신 버튼으로 스크롤

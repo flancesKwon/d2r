@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, bumpTradePost, EXPIRE_DAYS, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
@@ -122,7 +123,7 @@ function messageSeller() {
   })
 }
 async function removePost() {
-  if (!confirm('판매글 삭제 - 되돌릴 수 없음')) return
+  if (!await askConfirm('판매글 삭제 - 되돌릴 수 없음')) return
   await run(async () => {
     await deleteTradePost(post.value.id)
     router.replace('/trade')
@@ -150,12 +151,12 @@ async function copyContact() {
 }
 
 const RESPOND_CONFIRM = {
-  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열림`,
-  declined: (r) => `${r.buyer}님 구매신청 거절`,
+  accepted: (r) => `${r.buyer}님 구매신청 수락 - 수락하면 거래방이 열리고 판매글은 예약중으로 바뀜`,
+  declined: (r) => `${r.buyer}님 구매신청 거절 - 신청자에게 거절 알림이 감`,
   cancelled: () => '구매신청 취소',
 }
-function respond(r, decision) {
-  if (!confirm(RESPOND_CONFIRM[decision](r))) return
+async function respond(r, decision) {
+  if (!await askConfirm(RESPOND_CONFIRM[decision](r), decision === 'accepted' ? { confirmText: '수락' } : undefined)) return
   return run(async () => {
     const dealId = await respondToRequest(post.value, r, decision)
     // 수락하면 거래방이 열림 - 그 거래방으로 바로

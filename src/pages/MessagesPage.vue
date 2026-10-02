@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { askConfirm } from '../dialog.js'
 import { useRoute } from 'vue-router'
 import {
   messagesState,
@@ -61,12 +62,12 @@ function openConversation(id) {
 
 // 내 쪽지 삭제 / 대화방 나가기
 async function removeMessage(m) {
-  if (!confirm('쪽지 삭제 - 내 화면에서만 사라짐 (상대 화면엔 남음)')) return
+  if (!await askConfirm('쪽지 삭제 - 내 화면에서만 사라짐 (상대 화면엔 남음)')) return
   sendError.value = ''
   try { await deleteMessage(activeConversation.value, m) } catch (e) { sendError.value = e.message || '삭제 실패' }
 }
 async function leave() {
-  if (!confirm('대화방 나가기 - 내 목록에서만 사라지고, 상대가 새 쪽지를 보내면 다시 보임')) return
+  if (!await askConfirm('대화방 나가기 - 내 목록에서만 사라지고, 상대가 새 쪽지를 보내면 다시 보임')) return
   sendError.value = ''
   try {
     await leaveConversation(activeConversation.value)

@@ -46,8 +46,11 @@ function mapGuide(r) {
   }
 }
 
+// 화면에 들어올 때마다 불러도 됨 - 1분 안에 받았으면 그대로 (새 가이드가 새로고침 없이 보이게)
+let guidesAt = 0
 export async function loadGuides(force = false) {
-  if (!supabase || (guidesState.loaded && !force)) return
+  if (!supabase || (guidesState.loaded && !force && Date.now() - guidesAt < 60000)) return
+  guidesAt = Date.now()
   const { data, error } = await supabase.from('tb_guide').select('*').order('created_at', { ascending: false })
   guidesState.loaded = true
   // 표가 없거나(003 전) 비어 있으면 사이트에 들어 있던 가이드 그대로

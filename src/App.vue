@@ -3,6 +3,7 @@ import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import SuspendedBanner from './components/SuspendedBanner.vue'
 import LoginModal from './components/LoginModal.vue'
+import AppDialog from './components/AppDialog.vue'
 </script>
 
 <template>
@@ -11,4 +12,5 @@ import LoginModal from './components/LoginModal.vue'
   <router-view />
   <SiteFooter />
   <LoginModal />
+  <AppDialog />
 </template>

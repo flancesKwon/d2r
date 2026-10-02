@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import classStats from '../data/classStats.json'
 import rawSkillData from '../data/skills.json'
@@ -404,7 +405,7 @@ async function loadSavedBuild(b) {
   flashBuild(`"${b.name}" 불러옴`)
 }
 async function removeSavedBuild(b) {
-  if (!confirm(`"${b.name}" 빌드 삭제`)) return
+  if (!await askConfirm(`"${b.name}" 빌드 삭제`)) return
   try {
     await deleteBuild(b)
     if (currentBuildId.value === b.id) currentBuildId.value = null
