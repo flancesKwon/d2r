@@ -1,6 +1,7 @@
 import { reactive, computed, watch } from 'vue'
 import { supabase, mustReturnRows } from './supabase.js'
 import { authState } from './profileStore.js'
+import { playChime } from './notifySound.js'
 
 // 거래방 - tb_trade_deal / _message / _review
 // 판매자가 구매신청을 수락하면 DB 함수(accept_trade_request)가 거래방을 만듦 (직접 만들 수 없음)
@@ -83,15 +84,21 @@ export function getDeal(dealId) {
   return dealsState.deals.find((d) => String(d.id) === String(dealId))
 }
 
-export async function loadDealMessages(deal) {
+// 거래방마다 이미 본 상대 메시지 id 중 가장 큰 것 - 더 새 메시지가 오면 소리 (처음 열 때는 소리 없음)
+const dealSeen = new Map()
+// markRead: 창이 보일 때만 읽음 처리 (다른 탭을 보는 중이면 소리만)
+export async function loadDealMessages(deal, { markRead = true } = {}) {
   if (!supabase || !deal) return
   const { data, error } = await supabase
     .from('tb_trade_deal_message').select('*').eq('deal_id', deal.id).order('created_at', { ascending: true })
   if (error) throw error
   const uid = authState.user?.id
+  const top = Math.max(0, ...data.filter((m) => m.sender_id !== uid).map((m) => m.id))
+  if (dealSeen.has(deal.id) && top > dealSeen.get(deal.id)) playChime()
+  if (!dealSeen.has(deal.id) || top > dealSeen.get(deal.id)) dealSeen.set(deal.id, top)
   deal.messages = data.map((m) => ({ id: m.id, from: m.sender_id === uid ? 'me' : 'them', text: m.text, date: fmtTime(m.created_at), readAt: m.read_at || null }))
   // 상대가 보낸 안 읽은 메시지를 읽음으로 (DB 함수가 아직 없으면 조용히 넘어감)
-  if (data.some((m) => m.sender_id !== uid && !m.read_at)) await supabase.rpc('d2r_mark_deal_read', { p_deal: deal.id }).then(() => {}, () => {})
+  if (markRead && data.some((m) => m.sender_id !== uid && !m.read_at)) await supabase.rpc('d2r_mark_deal_read', { p_deal: deal.id }).then(() => {}, () => {})
 }
 
 export async function sendDealMessage(deal, text) {

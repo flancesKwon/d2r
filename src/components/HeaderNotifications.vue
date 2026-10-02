@@ -13,6 +13,7 @@ import { activeDealCount } from '../dealsStore.js'
 import { authState, signIn, signOut, isStaff } from '../profileStore.js'
 import { supabase } from '../supabase.js'
 import { avatarSrc, presetOf } from '../avatars.js'
+import { soundState, setSound } from '../notifySound.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -85,6 +86,7 @@ function openNotification(n) {
         <div class="header-profile-name">{{ authState.profile?.nickname }}</div>
         <router-link to="/mypage" class="header-profile-link" @mousedown.prevent="showMenu = false; router.push('/mypage')">마이페이지</router-link>
         <router-link to="/admin" class="header-profile-link" v-if="isStaff()" @mousedown.prevent="showMenu = false; router.push('/admin')">관리자</router-link>
+        <button type="button" class="header-profile-link" @mousedown.prevent="setSound(!soundState.on)">알림 소리 {{ soundState.on ? '끄기' : '켜기' }}</button>
         <button type="button" class="header-profile-link" @mousedown.prevent="logout">로그아웃</button>
       </div>
     </div>

@@ -20,12 +20,12 @@ watch(() => dealsState.deals.length, () => {
   if (!activeDeal.value && dealsState.deals.length) activeId.value = dealsState.deals[0].id
 }, { immediate: true })
 
-// 열린 거래방 메시지 - 5초마다 새로 받음 (창이 보일 때만)
+// 열린 거래방 메시지 - 5초마다 새로 받음 (다른 탭을 보는 중이면 새 메시지 소리만, 읽음 처리는 안 함)
 let timer = 0
 // force: 거래방을 처음 열 때는 창이 안 보여도 불러옴
 async function refreshMessages(force = false) {
-  if (!activeDeal.value || (document.hidden && !force)) return
-  await loadDealMessages(activeDeal.value).catch(() => {})
+  if (!activeDeal.value) return
+  await loadDealMessages(activeDeal.value, { markRead: !document.hidden || force }).catch(() => {})
 }
 watch(activeDeal, (d) => {
   clearInterval(timer)
