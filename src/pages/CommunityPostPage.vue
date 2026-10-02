@@ -126,7 +126,7 @@ async function onDeletePost() {
     </div>
 
     <div class="comment-form" v-if="authState.user">
-      <MarkdownEditor v-model="commentDraft" placeholder="댓글" min-height="110px" />
+      <MarkdownEditor images v-model="commentDraft" placeholder="댓글" min-height="110px" />
       <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">댓글 등록</button>
     </div>
     <div class="comment-login" v-else>

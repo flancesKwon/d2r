@@ -111,7 +111,7 @@ async function submitPost() {
         <button v-for="(t, i) in formTags" :key="t" class="tag-chip" @click="removeFormTag(i)">#{{ t }} ✕</button>
       </div>
 
-      <MarkdownEditor v-model="form.content" placeholder="내용" size="lg" variant="plain" min-height="420px" />
+      <MarkdownEditor images v-model="form.content" placeholder="내용" size="lg" variant="plain" min-height="420px" />
 
       <div class="write-action-bar">
         <span class="write-error" v-if="formError">{{ formError }}</span>

@@ -88,8 +88,28 @@ async function loadRecent() {
   recentCommunity.value = c || []
   recentTrade.value = t || []
 }
+// 로그인 기록 (009 SQL) - 안 돌렸으면 칸을 숨김
+const logins = ref([])
+const loginLogReady = ref(true)
+const PROVIDER_LABEL = { discord: '디스코드', google: '구글' }
+async function loadLogins() {
+  const { data, error } = await supabase.from('tb_login_log')
+    .select('id, provider, created_at, user:tb_profile!tb_login_log_user_id_fkey(nickname)')
+    .order('created_at', { ascending: false }).limit(30)
+  if (error) {
+    loginLogReady.value = false
+    return
+  }
+  logins.value = data || []
+}
+const formatDateTime = (ts) => {
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${formatDate(ts)} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 function loadAll() {
   if (!supabase || !staff.value) return
+  loadLogins().catch(() => { loginLogReady.value = false })
   loadStats().catch(() => {})
   loadMembers().catch(() => {})
   loadReports()
@@ -352,6 +372,23 @@ function removeTradePost(p) {
       </table>
     </div>
 
+    <template v-if="loginLogReady">
+      <div class="d-section-title">최근 로그인</div>
+      <div class="admin-table-wrap">
+        <table class="admin-table admin-login-table">
+          <thead><tr><th>닉네임</th><th>방식</th><th>시각</th></tr></thead>
+          <tbody>
+            <tr v-for="l in logins" :key="l.id">
+              <td class="admin-nick">{{ l.user?.nickname || '탈퇴한 회원' }}</td>
+              <td class="admin-dim">{{ PROVIDER_LABEL[l.provider] || l.provider || '-' }}</td>
+              <td class="admin-dim">{{ formatDateTime(l.created_at) }}</td>
+            </tr>
+            <tr v-if="!logins.length"><td colspan="3" class="admin-dim">기록 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
     <div class="d-section-title">최근 커뮤니티 글</div>
     <div class="affix-list admin-report-list">
       <div class="affix-line admin-report-line" v-for="p in recentCommunity" :key="'c' + p.id">
@@ -394,6 +431,7 @@ function removeTradePost(p) {
 .admin-search{width:100%; max-width:280px; margin-bottom:10px; background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px; padding:8px 12px; border-radius:10px;}
 .admin-table-wrap{overflow-x:auto; margin-bottom:32px; border:1px solid var(--border-soft);}
 .admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:560px;}
+.admin-login-table{min-width:0;}
 .admin-table th{
   text-align:left; padding:11px 14px; font-size:11.5px; color:var(--text-dim); font-weight:600;
   background:var(--panel-2); border-bottom:1px solid var(--border-soft); white-space:nowrap;

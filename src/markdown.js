@@ -7,7 +7,14 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
+// 이미지는 우리 Storage 버킷(community-images) 주소만 그림 - 다른 사이트 이미지는 추적용일 수 있어서 안 그림
+const IMAGE_PREFIX = `${import.meta.env.VITE_SUPABASE_URL || ''}/storage/v1/object/public/community-images/`
+const IMAGE_RE = new RegExp('!\\[([^\\]]*)\\]\\((' + IMAGE_PREFIX.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '[A-Za-z0-9_./-]+)\\)', 'g')
+
 function renderInline(s) {
+  if (import.meta.env.VITE_SUPABASE_URL) {
+    s = s.replace(IMAGE_RE, '<img class="md-image" src="$2" alt="$1" loading="lazy" decoding="async">')
+  }
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>')
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>')

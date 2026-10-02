@@ -1,4 +1,5 @@
 <script setup>
+import contentMeta from '../data/contentMeta.json'
 import { computed } from 'vue'
 import marketTiers from '../data/marketTiers.json'
 import itemsData from '../data/items.json'
@@ -35,6 +36,7 @@ const CAT_KO = { unique: '유니크', set: '세트', runeword: '룬워드', gem:
     <div class="patch-hero-inner">
       <div class="eyebrow">거래 참고 자료</div>
       <h1>시세 게시판</h1>
+      <div class="content-updated">정보 갱신 {{ contentMeta.marketTiers.updated }}</div>
     </div>
   </div>
 
