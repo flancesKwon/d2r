@@ -57,7 +57,18 @@ for (const it of read('items.json')) {
   })
 }
 
-function render({ p, title, desc, body }) {
+// 로그인해서 쓰는 화면 - 바로 들어와도 404 대신 200 으로 열리게 HTML 은 만들되, 검색에는 안 나오게(noindex, sitemap 제외)
+const privatePages = [
+  { p: 'messages', title: '쪽지함' },
+  { p: 'deals', title: '거래중인 품목' },
+  { p: 'mypage', title: '마이페이지' },
+  { p: 'admin', title: '관리자' },
+  { p: 'community/write', title: '글쓰기' },
+  { p: 'trade/new', title: '판매글 등록' },
+  { p: 'guides/new', title: '가이드 쓰기' },
+].map((pg) => ({ ...pg, noindex: true }))
+
+function render({ p, title, desc, body, noindex }) {
   const url = SITE + (p ? p + '/' : '')
   const fullTitle = p ? `${title} — 디아허브` : title
   let html = template
@@ -70,6 +81,7 @@ function render({ p, title, desc, body }) {
       .replace(/(<meta name="description" content=")[^"]*/, `$1${esc(desc)}`)
       .replace(/(<meta property="og:description" content=")[^"]*/, `$1${esc(desc)}`)
   }
+  if (noindex) html = html.replace('</head>', '<meta name="robots" content="noindex">\n</head>')
   if (body?.length) {
     const text = `<noscript><h1>${esc(title)}</h1>${body.filter(Boolean).map((l) => `<p>${esc(l)}</p>`).join('')}</noscript>`
     html = html.replace('<div id="app"></div>', `<div id="app"></div>${text}`)
@@ -78,7 +90,7 @@ function render({ p, title, desc, body }) {
 }
 
 let n = 0
-for (const page of pages) {
+for (const page of [...pages, ...privatePages]) {
   const dir = path.join(dist, page.p)
   fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(path.join(dir, 'index.html'), render(page))
