@@ -53,9 +53,10 @@ async function refreshQuiet() {
   post.value = fresh
 }
 useAutoRefresh(refreshQuiet)
-// 판매자 본인(또는 관리자)만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS
+// 판매자 본인만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS·DB 함수
+// (예전엔 관리자에게도 보여서, 관리자 계정으로 구매신청하면 내 신청에 수락/거절이 뜨고 "신청 취소"가 가려졌음)
 const isOwner = computed(() => !!authState.user && post.value?.authorId === authState.user.id)
-const canManage = computed(() => isOwner.value || authState.profile?.role === 'admin')
+const canManage = isOwner
 // 운영진은 상태 변경은 못 하고 삭제만 (DB 정책 d2r_staff_delete)
 const canDelete = computed(() => isOwner.value || isStaff())
 async function run(fn) {
