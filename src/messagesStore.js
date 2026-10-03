@@ -141,11 +141,12 @@ export const lastMessageOf = (conv) => conv.last
 export const isConversationRead = (conv) => !conv.unread
 export const unreadMessageCount = computed(() => messagesState.conversations.filter((c) => c.unread > 0).length)
 
-// 로그인하면 불러오고, 20초마다 새 쪽지 확인 - 다른 탭을 보고 있어도 (새 쪽지 소리가 나게)
+// 로그인하면 불러오고, 30초마다 새 쪽지 확인 - 다른 탭을 보고 있어도 (새 쪽지 소리가 나게)
+// 보통은 실시간(realtime.js)으로 바로 오고, 이건 실시간 연결이 끊겼을 때 뒤를 받침
 let timer = 0
 watch(() => authState.user?.id, (uid) => {
   clearInterval(timer)
   lastSeenId = null
   loadConversations().catch(() => {})
-  if (uid) timer = setInterval(() => loadConversations().catch(() => {}), 20000)
+  if (uid) timer = setInterval(() => loadConversations().catch(() => {}), 30000)
 }, { immediate: true })

@@ -8,6 +8,7 @@ import { authState, signIn } from '../profileStore.js'
 import { markNotificationsReadFor, notificationsState } from '../notificationsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { useAutoRefresh } from '../useAutoRefresh.js'
+import { realtimeTick } from '../realtime.js'
 
 // 거래방 - 판매자·구매자만 보임. 알림 링크(/deals/:id)로 들어오면 그 거래를 바로 엶
 const route = useRoute()
@@ -33,9 +34,11 @@ watch(activeDeal, (d) => {
   clearInterval(timer)
   if (!d) return
   refreshMessages(true)
-  timer = setInterval(() => refreshMessages(), 5000)
+  timer = setInterval(() => refreshMessages(), 10000)
 }, { immediate: true })
 onUnmounted(() => clearInterval(timer))
+// 거래방 새 메시지·읽음이 실시간으로 오면 바로 (주기 확인 10초는 실시간이 끊겼을 때용)
+watch(() => realtimeTick.deal, () => refreshMessages())
 // 목록에서 거래방을 열어도 이 거래방 알림(/deals/번호)은 읽음 (알림을 늦게 받아 와도)
 watch(() => [activeId.value, notificationsState.items.length], ([id]) => { if (id) markNotificationsReadFor(`/deals/${id}`).catch(() => {}) }, { immediate: true })
 
