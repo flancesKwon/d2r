@@ -29,14 +29,16 @@ SELECT k_ok('받은 사람은 읽음 표시 가능', (SELECT read_at IS NOT NULL
 DELETE FROM public.tb_dm_message;
 SELECT k_ok('남의 쪽지는 안 지워짐', (SELECT count(*) = 1 FROM public.tb_dm_message));
 INSERT INTO public.tb_dm_message (conversation_id, sender_id, text) VALUES (:cid, auth.uid(), '내 쪽지');
+-- 008 부터 쪽지는 지우지 않고 내 화면에서만 숨김 (d2r_hide_message) - 직접 삭제는 막힘, 숨김은 tests_008 에서
 DELETE FROM public.tb_dm_message WHERE text = '내 쪽지';
-SELECT k_ok('내 쪽지는 지워짐', (SELECT count(*) = 1 FROM public.tb_dm_message));
+SELECT k_ok('직접 삭제는 막힘 (008)', (SELECT count(*) = 2 FROM public.tb_dm_message));
+SELECT public.d2r_hide_message((SELECT id FROM public.tb_dm_message WHERE text = '내 쪽지'));
 
 \echo '[K3] 나가기는 나에게만'
 SELECT public.d2r_leave_conversation(:cid);
 SELECT k_ok('내 나간 시각 기록', (SELECT b_left_at IS NOT NULL AND a_left_at IS NULL FROM public.tb_dm_conversation));
 SELECT test_login('aaaaaaaa-0000-0000-0000-00000000000a');
-SELECT k_ok('상대 방은 그대로 보임', (SELECT count(*) = 1 FROM public.tb_dm_message));
+SELECT k_ok('상대 방은 그대로 보임 (내가 숨긴 쪽지도 상대에겐 남음)', (SELECT count(*) = 2 FROM public.tb_dm_message));
 
 \echo '[K4] 거래방 읽음'
 INSERT INTO public.tb_trade_post (author_id, category, item_name, price, realm, ladder, hardcore)
