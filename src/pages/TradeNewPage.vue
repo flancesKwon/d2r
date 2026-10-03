@@ -748,7 +748,8 @@ function submitBundle() {
 // 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
 function buildAllOptions() {
   if (isUnidentified.value) {
-    return ['미확인', ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...customOptions.value]
+    // 옵션 수치는 안 받음 (사전 범위 그대로). 소켓 수는 미확인이어도 게임에서 보이니 남김
+    return ['미확인', ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
   }
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
