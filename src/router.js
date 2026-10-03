@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { trackVisit } from './visitTracker.js'
 import HomePage from './pages/HomePage.vue'
 const ItemsPage = () => import('./pages/ItemsPage.vue')
 const GuidesPage = () => import('./pages/GuidesPage.vue')
@@ -29,6 +30,7 @@ const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
 const UserProfilePage = () => import('./pages/UserProfilePage.vue')
 const ProfileEditPage = () => import('./pages/ProfileEditPage.vue')
+const AdminStatsPage = () => import('./pages/AdminStatsPage.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -57,6 +59,7 @@ const router = createRouter({
     // 회원가입은 디스코드·구글 로그인으로 대신함 (예전 주소는 마이페이지로)
     { path: '/signup', redirect: '/mypage' },
     { path: '/admin', name: 'admin', component: AdminPage, meta: { title: '관리자' } },
+    { path: '/admin/stats', name: 'admin-stats', component: AdminStatsPage, meta: { title: '방문 통계' } },
     { path: '/cube', name: 'cube', component: CubeRecipesPage, meta: { title: '큐브 레시피' } },
     { path: '/runewords', name: 'runewords', component: RunewordFinderPage, meta: { title: '룬워드 찾기' } },
     { path: '/craft-sim', name: 'craft-sim', component: CraftSimPage, meta: { title: '크래프트 시뮬레이터' } },
@@ -80,6 +83,8 @@ const router = createRouter({
 
 router.afterEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 정보'
+  // 방문 통계 (013 SQL) - 화면 옮길 때마다
+  trackVisit(to.path)
 })
 
 // 새로 배포되면 페이지 조각 파일 이름이 바뀌어서, 배포 전에 열어 둔 창에선 메뉴를 눌러도 옛 파일을 못 받아 안 넘어감

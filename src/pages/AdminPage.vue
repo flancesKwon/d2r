@@ -16,7 +16,7 @@ import {
 
 const staff = computed(() => isStaff())
 const admin = computed(() => isAdmin())
-const stats = ref({ members: 0, newToday: 0, communityPosts: 0, tradePosts: 0, openReports: 0 })
+const stats = ref({ members: 0, newToday: 0, communityPosts: 0, tradePosts: 0, openReports: 0, visitorsToday: null })
 const members = ref([])
 const memberQuery = ref('')
 const recentCommunity = ref([])
@@ -51,7 +51,9 @@ async function loadStats() {
     count('tb_trade_post', (q) => q.is('deleted_at', null)),
   ])
   const openReports = await countOpenReports().catch(() => 0)
-  stats.value = { members: m, newToday: t, communityPosts: c, tradePosts: tr, openReports }
+  // 오늘 방문자 (013 SQL 전이면 비워 둠)
+  const v = await supabase.rpc('d2r_visit_stats', { p_days: 1 }).then((r) => (r.error ? null : r.data?.[0]?.visitors ?? 0), () => null)
+  stats.value = { members: m, newToday: t, communityPosts: c, tradePosts: tr, openReports, visitorsToday: v }
 }
 async function loadMembers() {
   const build = (cols) => {
@@ -276,6 +278,10 @@ async function removeTradePost(p) {
     </div>
 
     <div class="admin-stat-row">
+      <router-link to="/admin/stats" class="admin-stat-card visit">
+        <div class="label">오늘 방문자 <span class="go">통계 →</span></div>
+        <div class="value accent">{{ stats.visitorsToday == null ? '-' : stats.visitorsToday.toLocaleString() }}</div>
+      </router-link>
       <div class="admin-stat-card">
         <div class="label">처리 대기 신고</div>
         <div class="value" :class="{ warn: stats.openReports > 0 }">{{ stats.openReports }}</div>
@@ -447,7 +453,10 @@ async function removeTradePost(p) {
 .admin-wrap{max-width:1000px;}
 .admin-gate{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
 
-.admin-stat-row{display:grid; grid-template-columns:repeat(5, 1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); margin-bottom:32px;}
+.admin-stat-card.visit{display:block; color:inherit;}
+.admin-stat-card.visit:hover{background:var(--panel-2);}
+.admin-stat-card .label .go{color:var(--gold); margin-left:4px;}
+.admin-stat-row{display:grid; grid-template-columns:repeat(6, 1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); margin-bottom:32px;}
 .admin-stat-card{background:var(--panel); padding:18px 16px;}
 .admin-stat-card .label{font-size:11.5px; color:var(--text-dim); margin-bottom:8px;}
 .admin-stat-card .value{font-size:22px; font-weight:700; color:var(--text); font-family:'Noto Serif KR', serif;}
