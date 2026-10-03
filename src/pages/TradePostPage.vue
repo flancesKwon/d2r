@@ -395,7 +395,7 @@ async function confirmBuy() {
               <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">신청 취소</button>
             </div>
             <div class="request-actions" v-else-if="r.status === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
-              <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : '/deals'">거래방 열기 →</router-link>
+              <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : `/deals?post=${post.id}&buyer=${r.buyerId}`">거래방 열기 →</router-link>
             </div>
           </div>
         </div>

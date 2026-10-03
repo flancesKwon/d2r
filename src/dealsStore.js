@@ -47,6 +47,7 @@ function mapDeal(r) {
     // 나 말고 상대방
     counterpartId: iAmSeller ? r.buyer_id : r.seller_id,
     counterpart: (iAmSeller ? r.buyer?.nickname : r.seller?.nickname) || '알 수 없음',
+    counterpartAvatar: (iAmSeller ? r.buyer?.avatar_url : r.seller?.avatar_url) || null,
     iAmSeller,
     // 거래완료는 두 사람 다 눌러야 (012 SQL) - 누른 시각
     myDoneAt: (iAmSeller ? r.seller_done_at : r.buyer_done_at) || null,

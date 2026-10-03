@@ -70,6 +70,27 @@ const activeKey = computed(() => {
   return MENUS.find((m) => m.match.some((pre) => p === pre || p.startsWith(pre + '/')))?.key || (p === '/' ? 'home' : '')
 })
 
+// 지금 화면에 해당하는 하위 메뉴 하나 (드롭다운·모바일 메뉴에 표시)
+// 주소가 가장 길게 겹치는 링크, 같으면 ?cat= 같은 조건까지 맞는 링크 (/community?cat=공지 → 공지사항)
+function linkScore(to) {
+  const [lp, qs = ''] = to.split('?')
+  const p = route.path
+  if (p !== lp && !p.startsWith(lp + '/')) return -1
+  const q = [...new URLSearchParams(qs)]
+  if (q.some(([k, v]) => route.query[k] !== v)) return -1
+  return lp.length * 10 + q.length
+}
+const activeLink = computed(() => {
+  let best = null
+  let top = -1
+  for (const m of MENUS) for (const l of m.links) {
+    if (!l.to) continue
+    const s = linkScore(l.to)
+    if (s > top) { top = s; best = l.to }
+  }
+  return best
+})
+
 // 통합 검색
 const PAGES = MENUS.flatMap((m) => m.links.filter((l) => l.to).map((l) => ({ ...l, section: m.label })))
 const query = ref('')
@@ -121,7 +142,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           <div class="site-dropdown" :class="{ wide: m.key === 'tools' }">
             <template v-for="(l, i) in m.links" :key="i">
               <div class="site-dropdown-group" v-if="l.group">{{ l.group }}</div>
-              <router-link v-else :to="l.to" class="site-dropdown-link">
+              <router-link v-else :to="l.to" class="site-dropdown-link" :class="{ here: activeLink === l.to }" :aria-current="activeLink === l.to ? 'page' : null">
                 <span>{{ l.label }}</span>
                 <small v-if="l.desc">{{ l.desc }}</small>
               </router-link>
@@ -165,7 +186,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
       <div class="site-mobile-group" v-for="m in MENUS" :key="m.key">
         <div class="site-mobile-title">{{ m.label }}</div>
         <div class="site-mobile-links">
-          <router-link v-for="l in m.links.filter((x) => x.to)" :key="l.to" :to="l.to">{{ l.label }}</router-link>
+          <router-link v-for="l in m.links.filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ l.label }}</router-link>
         </div>
       </div>
     </div>
@@ -193,6 +214,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-dropdown-link{display:flex; flex-direction:column; padding:8px 12px; border-radius:8px; font-size:13px; color:var(--text-muted);}
 .site-dropdown-link small{font-size:11px; color:var(--text-dim);}
 .site-dropdown-link:hover{background:var(--panel); color:var(--gold);}
+.site-dropdown-link.here{background:rgba(200,163,77,0.12); color:var(--gold); font-weight:600; box-shadow:inset 3px 0 0 var(--gold);}
 .site-dropdown-group{padding:8px 12px 2px; font-size:10.5px; color:var(--text-dim); border-top:1px solid var(--border-soft); margin-top:4px;}
 
 .site-search{position:relative; margin-left:auto; width:240px; flex:none;}
@@ -222,6 +244,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-mobile-title{font-size:12px; color:var(--gold-dim); font-weight:600; margin-bottom:6px;}
 .site-mobile-links{display:flex; flex-wrap:wrap; gap:6px;}
 .site-mobile-links a{font-size:13px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
+.site-mobile-links a.here{color:#1a1408; background:var(--gold); border-color:var(--gold); font-weight:600;}
 
 @media (max-width:1100px){
   .site-search{width:180px;}

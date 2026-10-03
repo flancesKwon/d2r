@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { askConfirm } from '../dialog.js'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   messagesState,
   loadConversations,
@@ -19,6 +19,7 @@ import { realtimeTick } from '../realtime.js'
 
 // 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
 const route = useRoute()
+const router = useRouter()
 const activeId = ref(route.query.c ? Number(route.query.c) : null)
 if (activeId.value) messagesState.keepId = activeId.value
 const activeConversation = computed(() => messagesState.conversations.find((c) => c.id === activeId.value) || null)
@@ -59,8 +60,10 @@ watch(() => [activeId.value, activeConversation.value?.messages.length], ([id], 
   nextTick(() => { if (bodyEl.value) bodyEl.value.scrollTop = bodyEl.value.scrollHeight })
 })
 
+// 대화 고르기 = 주소(?c=번호)도 바꿈 - 새로고침·뒤로 가기해도 그 대화
 function openConversation(id) {
   activeId.value = id
+  router.replace({ query: { ...route.query, c: id } })
 }
 
 // 내 쪽지 삭제 / 대화방 나가기
@@ -129,8 +132,10 @@ async function submitMessage() {
 
       <div class="conv-thread" v-if="activeConversation">
         <div class="conv-thread-header">
-          <router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }} <small>프로필 →</small></router-link>
-          <span v-else>{{ activeConversation.withName }}</span>
+          <div class="conv-thread-who">
+            <UserAvatar :src="activeConversation.avatar" :name="activeConversation.withName" :size="34" />
+            <span><router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }}</router-link><template v-else>{{ activeConversation.withName }}</template>님과의 대화</span>
+          </div>
           <button type="button" class="conv-leave" @click="leave">나가기</button>
         </div>
         <div class="conv-thread-body" ref="bodyEl" @scroll="onScroll">
@@ -171,7 +176,12 @@ async function submitMessage() {
   font-family:'Noto Sans KR', sans-serif;
 }
 .conv-row:hover{background:rgba(255,255,255,0.04);}
-.conv-row.active{background:var(--panel-2); border:1px solid var(--gold-dim);}
+.conv-row{border:1px solid transparent; position:relative;}
+.conv-row.active{background:rgba(200,163,77,0.1); border-color:var(--gold-dim);}
+.conv-row.active::before{content:''; position:absolute; left:-1px; top:10px; bottom:10px; width:3px; border-radius:3px; background:var(--gold);}
+.conv-row.active .conv-name{color:var(--gold); font-weight:700;}
+.conv-thread-who{display:flex; align-items:center; gap:10px; min-width:0;}
+.conv-thread-who .user-link{color:var(--gold);}
 .conv-dot{width:7px; height:7px; border-radius:999px; background:var(--gold); flex:none; margin-top:6px;}
 .conv-row-body{flex:1; min-width:0;}
 .conv-row-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
