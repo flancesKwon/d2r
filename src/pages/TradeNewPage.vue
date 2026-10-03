@@ -63,6 +63,8 @@ const emptyForm = () => ({
   quantity: '',
   ethereal: false,
   negotiable: false,
+  // 유니크·세트를 미확인으로 팜 - 옵션 수치 입력 없이 사전 범위로
+  unidentified: false,
   realm: TRADE_REALMS[0],
   ladder: TRADE_LADDERS[0],
   hardcore: TRADE_HARDCORE[0],
@@ -308,6 +310,8 @@ const baseItemQuery = ref('')
 const showBaseItemDropdown = ref(false)
 const isRuneword = computed(() => selectedItem.value?.category === 'runeword')
 const isUniqueOrSet = computed(() => ['unique', 'set'].includes(selectedItem.value?.category))
+// 미확인 판매 (유니크·세트만)
+const isUnidentified = computed(() => isUniqueOrSet.value && form.value.unidentified)
 // 이 아이템의 실제 베이스 - 룬워드·매직/레어는 판매자가 고른 베이스, 유니크·세트는 고정 베이스
 const itemBase = computed(() => selectedBaseItem.value || baseForItem(selectedItem.value))
 
@@ -510,12 +514,14 @@ function buildBaseStatOptions() {
 const invalidInputs = computed(() => {
   const bad = []
   itemAffixes.value.forEach((a, i) => {
+    if (isUnidentified.value) return
     if ((isRollRangeAffix(a) || isRandomClassSkillAffix(a)) && !isAllowedValue(rolledValues.value[i], a)) {
       // 옵션 문구에 이미 범위가 들어 있으면("방어력 750~775") 그대로, 아니면 범위를 붙여서
       bad.push(a.text.includes(`${a.min}~${a.max}`) ? a.text : `${a.text} (${Math.min(a.min, a.max)}~${Math.max(a.min, a.max)})`)
     }
   })
   randomGroups.value.forEach((g, gi) => {
+    if (isUnidentified.value) return
     const o = g[groupChoice.value[gi]]
     if (o && !isAllowedValue(groupValues.value[gi], o)) bad.push(`${o.text} (${o.min}~${o.max})`)
   })
@@ -741,6 +747,9 @@ function submitBundle() {
 
 // 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
 function buildAllOptions() {
+  if (isUnidentified.value) {
+    return ['미확인', ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...customOptions.value]
+  }
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
@@ -1158,6 +1167,11 @@ function submitPost() {
         </div>
       </div>
 
+      <label class="unid-check" v-if="isUniqueOrSet">
+        <input type="checkbox" v-model="form.unidentified" />
+        미확인 아이템 <small>옵션 확인 전 - 수치 입력 없이 사전 범위로 표시</small>
+      </label>
+
       <label class="ethereal-check" v-if="hasEthereal">
         <input type="checkbox" v-model="form.ethereal" />
         에테리얼(Ethereal) 아이템
@@ -1172,7 +1186,7 @@ function submitPost() {
         </template>
       </template>
 
-      <div class="option-editor" v-if="itemAffixes.length">
+      <div class="option-editor" v-if="itemAffixes.length && !isUnidentified">
         <div class="option-editor-title">실제 옵션 값 입력</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
@@ -1200,7 +1214,7 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="option-editor" v-if="randomGroups.length">
+      <div class="option-editor" v-if="randomGroups.length && !isUnidentified">
         <div class="option-editor-title">제작 시 붙은 무작위 옵션</div>
         <div class="option-row" v-for="(g, gi) in randomGroups" :key="gi">
           <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="`${gi + 1}그룹 옵션`">
@@ -1453,6 +1467,9 @@ function submitPost() {
 .random-group-select{flex:1; min-width:0; padding:6px 8px !important; font-size:12.5px !important; border-radius:8px !important;}
 .option-value-select{width:110px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 
+.unid-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:#e0775f; cursor:pointer; flex-wrap:wrap;}
+.unid-check input{accent-color:#e0775f;}
+.unid-check small{color:var(--text-dim); font-size:11.5px;}
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
 .ethereal-check input{accent-color:var(--teal);}
 

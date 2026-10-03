@@ -263,6 +263,7 @@ async function confirmBuy() {
           <div class="title-badges">
             <span class="status-pill" :class="post.expired ? 'status-만료' : 'status-' + post.status">{{ post.expired ? '기간 만료' : post.status }}</span>
             <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
+            <span class="unid-badge" v-if="post.unidentified">미확인</span>
             <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
           </div>
         </div>
@@ -549,6 +550,7 @@ async function confirmBuy() {
 .status-pill.status-판매중{color:#1f1a10; background:var(--gold); border-color:var(--gold);}
 .status-pill.status-예약중{color:var(--teal); border-color:var(--teal);}
 .ethereal-badge{font-size:11px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); border-radius:999px;}
+.unid-badge{font-size:11px; padding:3px 11px; border:1px solid var(--blood); color:#e0775f; border-radius:999px;}
 .negotiable-badge{font-size:11px; padding:3px 11px; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:999px;}
 
 .favorite-star{
