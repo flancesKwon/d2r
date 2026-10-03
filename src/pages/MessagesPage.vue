@@ -15,6 +15,7 @@ import {
 } from '../messagesStore.js'
 import { authState, signIn } from '../profileStore.js'
 import UserAvatar from '../components/UserAvatar.vue'
+import { realtimeTick } from '../realtime.js'
 
 // 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
 const route = useRoute()
@@ -42,9 +43,11 @@ watch(activeConversation, (c) => {
   clearInterval(timer)
   if (!c) return
   refresh(true)
-  timer = setInterval(() => refresh(), 5000)
+  timer = setInterval(() => refresh(), 10000)
 }, { immediate: true })
 onUnmounted(() => clearInterval(timer))
+// 새 쪽지·상대가 읽음이 실시간으로 오면 바로 (주기 확인 10초는 실시간이 끊겼을 때용)
+watch(() => realtimeTick.dm, () => refresh())
 
 // 대화창은 화면 높이에 고정, 새 메시지가 오면 맨 아래로 (위로 올려 읽는 중이면 그대로)
 const bodyEl = ref(null)

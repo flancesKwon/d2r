@@ -58,11 +58,12 @@ export async function markAllNotificationsRead() {
 
 export const unreadNotificationCount = computed(() => notificationsState.items.filter((n) => !n.read).length)
 
-// 로그인하면 불러오고, 20초마다 새 알림 확인 - 다른 탭을 보고 있어도 (새 알림 소리가 나게)
+// 로그인하면 불러오고, 30초마다 새 알림 확인 - 다른 탭을 보고 있어도 (새 알림 소리가 나게)
+// 보통은 실시간(realtime.js)으로 바로 오고, 이건 실시간 연결이 끊겼을 때 뒤를 받침
 let timer = 0
 watch(() => authState.user?.id, (uid) => {
   clearInterval(timer)
   seen = null
   loadNotifications().catch(() => {})
-  if (uid) timer = setInterval(() => loadNotifications().catch(() => {}), 20000)
+  if (uid) timer = setInterval(() => loadNotifications().catch(() => {}), 30000)
 }, { immediate: true })

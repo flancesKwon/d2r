@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router.js'
 import { initAuth, takeLoginReturn, authState } from './profileStore.js'
 import './style.css'
+import './realtime.js'
 
 // 디스코드·구글 로그인에서 돌아온 경우 주소에 ?code= (실패면 ?error=) 가 붙어 옴 - Supabase 가 읽고 지우기 전에 확인
 const BASE = import.meta.env.BASE_URL
