@@ -181,7 +181,9 @@ const requestsEl = ref(null)
 const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발' }
+// 수락했지만 거래방에서 거래불발이 된 신청은 '불발' (거래방 열기 버튼 없음)
+const reqStatus = (r) => (r.status === 'accepted' && dealFor(r)?.status === '거래불발' ? 'failed' : r.status || 'pending')
 const REQUEST_KIND_LABEL = { buy_now: '구매하기', inquiry: '문의' }
 
 // "구매하기" 팝업 흐름: 흥정 가능한 글이면 룬/보석 제안 선택 단계(offer)를 거치고,
@@ -374,7 +376,7 @@ async function confirmBuy() {
             <b>{{ r.buyer }}</b>
             <span class="request-kind" v-if="r.kind === 'buy_now'">{{ REQUEST_KIND_LABEL.buy_now }}</span>
             <span class="request-qty">{{ r.qty }}개</span>
-            <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+            <span class="request-status" :class="'status-' + reqStatus(r)">{{ REQUEST_STATUS_LABEL[reqStatus(r)] }}</span>
             <span class="request-date">{{ r.date }}</span>
           </div>
           <div class="request-offer-row" v-if="r.offerItems && r.offerItems.length">
@@ -394,7 +396,7 @@ async function confirmBuy() {
             <div class="request-actions" v-else-if="(r.status || 'pending') === 'pending' && r.buyerId === authState.user?.id">
               <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">신청 취소</button>
             </div>
-            <div class="request-actions" v-else-if="r.status === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
+            <div class="request-actions" v-else-if="reqStatus(r) === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
               <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : `/deals?post=${post.id}&buyer=${r.buyerId}`">거래방 열기 →</router-link>
             </div>
           </div>
@@ -648,7 +650,7 @@ async function confirmBuy() {
 .request-qty{color:var(--teal); font-size:11px; border:1px solid var(--teal); padding:2px 9px; border-radius:999px;}
 .request-status{font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
-.request-status.status-declined{color:var(--blood); border-color:var(--blood);}
+.request-status.status-declined, .request-status.status-failed{color:var(--blood); border-color:var(--blood);}
 .request-date{color:var(--text-dim); margin-left:auto;}
 .request-offer-row{display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
 .request-offer-label{font-size:11px; color:var(--text-dim); flex:none;}
