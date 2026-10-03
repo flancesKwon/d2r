@@ -15,6 +15,7 @@ export const TOOLTIP_COLORS = {
   set: '#00C400',
   unique: '#C7B377',
   orange: '#FFA800',
+  red: '#FF4D4D',
 }
 
 // 판매글 옵션 중 툴팁에서 따로 다루는 줄 (베이스 이름·방어력·데미지·소켓 등)
@@ -24,6 +25,7 @@ const META = [
   { key: 'defense', re: /^기본 방어력 (.+)$/ },
   { key: 'damage', re: /^기본 데미지 (.+)$/ },
   { key: 'sockets', re: /^소켓 (\d+)개$/ },
+  { key: 'unid', re: /^미확인$/ },
 ]
 
 function nameColor(item, category, name, quality) {
@@ -76,6 +78,8 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   if (amountLabel && amountLabel !== '1개') push(`수량: ${amountLabel}`)
   const lv = itemLevelReq(item)
   if (lv) push(`요구 레벨: ${lv}`)
+  // 미확인 판매 - 게임처럼 빨간 '미확인', 아래 옵션은 사전 범위
+  if (meta.unid) push('미확인 (옵션은 확인 전 범위)', TOOLTIP_COLORS.red)
 
   // 룬·보석은 게임처럼 박는 부위별 효과를 보여줌 (무기 / 갑옷·투구 / 방패)
   if (item?.category === 'gem' && !mods.length) {

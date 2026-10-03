@@ -29,6 +29,7 @@ const activeStatus = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
+const unidOnly = ref(false)
 const favoritesOnly = ref(false)
 // 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
 const route = useRoute()
@@ -93,7 +94,7 @@ const levelMax = ref('')
 const hasActiveFilters = computed(
   () =>
     activeCat.value !== null || activeStatus.value !== null || activeLadder.value !== null ||
-    activeHardcore.value !== null || etherealOnly.value || favoritesOnly.value ||
+    activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
     levelMin.value !== '' || levelMax.value !== ''
 )
@@ -103,6 +104,7 @@ function resetFilters() {
   activeLadder.value = null
   activeHardcore.value = null
   etherealOnly.value = false
+  unidOnly.value = false
   favoritesOnly.value = false
   searchQuery.value = ''
   statConditions.value = []
@@ -119,6 +121,7 @@ const filteredPosts = computed(() => {
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
+  if (unidOnly.value) list = list.filter((p) => p.unidentified)
   if (favoritesOnly.value) list = list.filter((p) => isFavorite(p.id))
   const q = searchQuery.value.trim()
   if (q) {
@@ -196,6 +199,10 @@ const filteredPosts = computed(() => {
           <input type="checkbox" v-model="etherealOnly" />
           에테리얼만
         </label>
+        <label class="ethereal-filter-check unid-filter-check">
+          <input type="checkbox" v-model="unidOnly" />
+          미확인만
+        </label>
         <label class="ethereal-filter-check favorite-filter-check">
           <input type="checkbox" v-model="favoritesOnly" />
           찜한 글만
@@ -242,7 +249,7 @@ const filteredPosts = computed(() => {
         <div class="trade-body">
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
-            <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
+            <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
             <span class="trade-status-badge" :class="p.expired ? 'status-만료' : 'status-' + p.status">{{ p.expired ? '기간 만료' : p.status }}</span>
           </div>
           <div class="trade-meta">
@@ -280,7 +287,7 @@ const filteredPosts = computed(() => {
         </span>
         <span class="trade-cat trade-card-cat">{{ p.category }}</span>
         <span class="trade-card-title">{{ p.itemName }}</span>
-        <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span>
+        <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
         <span class="trade-card-price">
           {{ p.amountLabel }} ·
           <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
@@ -396,6 +403,9 @@ const filteredPosts = computed(() => {
 .trade-body{flex:1; min-width:0;}
 .trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
 .trade-title{font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.unid-badge{font-size:10px; padding:2px 10px; border:1px solid var(--blood); color:#e0775f; flex:none; border-radius:999px;}
+.unid-filter-check{color:#e0775f !important;}
+.unid-filter-check input{accent-color:#e0775f;}
 .ethereal-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
 .trade-status-badge{font-size:10px; padding:2px 10px; border:1px solid var(--border); flex:none; color:var(--text-dim); border-radius:999px;}
 .trade-status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}

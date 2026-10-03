@@ -491,6 +491,7 @@ function mapTradePost(r) {
     quality: o.quality || '',
     iconKey: o.iconKey || null,
     negotiable: !!o.negotiable,
+    unidentified: !!o.unidentified,
     ethereal: !!r.ethereal,
     price: r.price,
     realm: r.realm,
@@ -574,7 +575,7 @@ export async function countTradeView(postId) {
 
 export async function addTradePost({
   category, itemId, itemName, amountLabel, price, realm, ladder, hardcore,
-  contact, content, options, quality, ethereal, negotiable, iconKey,
+  contact, content, options, quality, ethereal, negotiable, iconKey, unidentified,
 }) {
   const uid = needUser()
   const rows = await mustReturnRows(
@@ -585,7 +586,8 @@ export async function addTradePost({
       item_name: itemName,
       amount_label: amountLabel || null,
       // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
-      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable },
+      // unidentified: 유니크·세트를 미확인 상태로 파는 글 (옵션은 사전 범위)
+      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable, unidentified: !!unidentified },
       ethereal: !!ethereal,
       price,
       realm,
