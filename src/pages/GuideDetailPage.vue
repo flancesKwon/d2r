@@ -147,7 +147,7 @@ const related = computed(() =>
           <div class="guide-toc-title">이 빌드에 쓰는 도구</div>
           <router-link to="/simulator">스킬·스탯 시뮬레이터로 찍어보기</router-link>
           <router-link to="/breakpoints">브레이크포인트 확인하기</router-link>
-          <router-link to="/runewords">가진 룬으로 룬워드 찾기</router-link>
+          <router-link to="/runewords">룬워드 찾기</router-link>
         </div>
         <div class="side-block tool-box">
           <h3>이 빌드의 아이템이 궁금하다면</h3>

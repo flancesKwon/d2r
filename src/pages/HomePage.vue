@@ -31,7 +31,7 @@ const SUGGEST = [
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
 const SHORTCUTS = [
   { to: '/items', title: '아이템 사전', desc: '유니크·세트·룬워드 옵션', icon: 'invcap__armor' },
-  { to: '/runewords', title: '룬워드 찾기', desc: '가진 룬으로 만들기', icon: 'invrjah__rune' },
+  { to: '/runewords', title: '룬워드 찾기', desc: '룬으로 룬워드 검색', icon: 'invrjah__rune' },
   { to: '/breakpoints', title: '속도 계산기', desc: '공속·패캐·패힛·패블', icon: 'invamu__amulet' },
   { to: '/trade', title: '거래게시판', desc: '아시아 서버 매물', icon: 'invrber' },
 ]
