@@ -18,7 +18,7 @@ const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 const pages = [
   { p: '', title: '디아허브 — 디아블로 2 레저렉션 정보', desc: null },
   { p: 'items', title: '아이템 사전', desc: '디아블로 2 레저렉션 유니크·세트·룬워드·보석·룬 전체 옵션. 이름·옵션(패캐·올스 등)으로 검색' },
-  { p: 'runewords', title: '룬워드 찾기', desc: '가진 룬으로 만들 수 있는 룬워드 찾기 - 디아블로 2 레저렉션' },
+  { p: 'runewords', title: '룬워드 찾기', desc: '룬을 고르면 그 룬이 들어가는 룬워드와 더 필요한 룬 - 디아블로 2 레저렉션' },
   { p: 'simulator', title: '스킬·스탯 시뮬레이터', desc: '8개 직업 스킬 트리·시너지·스탯 시뮬레이터, 빌드 공유' },
   { p: 'breakpoints', title: '브레이크포인트 계산기', desc: '시전 속도·타격 회복·막기 브레이크포인트와 공격 속도(IAS) 프레임 계산기, 용병 포함' },
   { p: 'sockets', title: '소켓 계산기', desc: '큐브 소켓 뚫기 확률 계산 - 베이스·아이템 레벨별 소켓 수' },
