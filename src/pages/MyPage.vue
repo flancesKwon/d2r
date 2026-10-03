@@ -120,7 +120,8 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
       <div class="my-trade-row" v-for="p in myTradePosts" :key="p.id">
         <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
         <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
-        <span class="status-badge" :class="'status-' + p.status">{{ p.status }}</span>
+        <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : p.status }}</span>
+        <router-link v-if="p.expired" :to="`/trade/${p.id}/relist`" class="my-relist">재등록</router-link>
         <span class="my-trade-date">{{ p.date }}</span>
       </div>
       <div class="empty-state" v-if="!myTradePosts.length">판매글 없음</div>
@@ -217,6 +218,8 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 .status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
 .status-badge.status-예약중{color:var(--teal); border-color:var(--teal);}
 .status-badge.status-거래완료{color:var(--text-dim); border-color:var(--border);}
+.status-badge.status-만료{color:#e0775f; border-color:var(--blood);}
+.my-relist{font-size:11.5px; font-weight:700; color:#1a1408; background:var(--gold); padding:3px 12px; border-radius:999px; flex:none;}
 
 .request-status{font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); flex:none;}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}

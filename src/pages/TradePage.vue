@@ -16,7 +16,10 @@ import {
   postLevelReq,
   postIconKey,
   postRarity,
+  saleLeftMs,
+  fmtSaleLeft,
 } from '../tradeStore.js'
+import { useNow } from '../useNow.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -113,11 +116,14 @@ function resetFilters() {
   levelMax.value = ''
 }
 
+// 판매 기간(48시간)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
+const now = useNow(60000)
+const leftLabel = (p) => fmtSaleLeft(saleLeftMs(p, now.value))
+const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
-  let list = tradeState.posts
+  let list = tradeState.posts.filter((p) => { const ms = saleLeftMs(p, now.value); return ms === null || ms > 0 })
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
-  // 판매중 필터에선 기간 만료 글은 뺌
-  if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value && !(activeStatus.value === '판매중' && p.expired))
+  if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -250,7 +256,7 @@ const filteredPosts = computed(() => {
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
-            <span class="trade-status-badge" :class="p.expired ? 'status-만료' : 'status-' + p.status">{{ p.expired ? '기간 만료' : p.status }}</span>
+            <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
           </div>
           <div class="trade-meta">
             {{ p.amountLabel }} ·
@@ -280,7 +286,7 @@ const filteredPosts = computed(() => {
           :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
-        <span class="trade-status-badge trade-card-status" :class="p.expired ? 'status-만료' : 'status-' + p.status">{{ p.expired ? '기간 만료' : p.status }}</span>
+        <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -294,6 +300,7 @@ const filteredPosts = computed(() => {
             <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
           </template>
         </span>
+        <span class="sale-left card-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
         <span class="stat-match-row" v-if="statConditions.length">
           <span class="stat-match" v-for="c in statConditions" :key="c.key">
             {{ statLabel(c.key) }} {{ postStatValue(p, c.key) }}{{ statUnit(c.key) }}
@@ -416,6 +423,8 @@ const filteredPosts = computed(() => {
 .price-icon{display:inline-flex; width:15px; height:15px; vertical-align:-3px; margin:0 2px 0 3px;}
 .price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
+.sale-left{font-size:10.5px; color:var(--text-dim); flex:none; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.sale-left.soon{color:#e0775f;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
 .view-mode-toggle button{
