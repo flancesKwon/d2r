@@ -41,6 +41,7 @@ import RichEditor from '../components/RichEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 import AffixPicker from '../components/AffixPicker.vue'
+import RangeInput from '../components/RangeInput.vue'
 import magicAffixData from '../data/magicAffixes.json'
 import {
   affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
@@ -254,7 +255,7 @@ const pickerLimits = computed(() => {
   const lim = affixLimitsNow.value
   return socketSource.value === 'affix' ? { ...lim, p: lim.p - 1, total: lim.total - 1 } : lim
 })
-const emptyAffixPicks = () => ({ p: [{ key: '', values: [] }], s: [{ key: '', values: [] }] })
+const emptyAffixPicks = () => ({ p: [], s: [] })
 const affixPicks = ref(emptyAffixPicks())
 function resetAffixPicks() {
   affixPicks.value = emptyAffixPicks()
@@ -273,8 +274,23 @@ const pickedAffixes = computed(() => {
 const affixErrors = computed(() =>
   isAffixQuality.value ? validateAffixPicks(magicAffixData, selectedBaseItem.value, itemQuality.value, pickedAffixes.value) : []
 )
-function buildAffixOptions() {
-  return pickedAffixes.value.flatMap(({ fam, values }) => familyLinesOrRange(fam, values))
+// 접사 줄 + 어느 칸(p 접두사 / s 접미사)에서 왔는지
+function buildAffixEntries() {
+  return pickedAffixes.value.flatMap(({ fam, values }) => familyLinesOrRange(fam, values).map((text) => ({ text, slot: fam.slot })))
+}
+// 그림에 나오는 순서: 스킬 레벨 -> 시전 속도 -> 접두사(크래프트 고정 옵션 포함) -> 접미사
+// "냉기 기술 피해 +15%"는 스킬 레벨이 아님 (기술 바로 뒤가 +숫자인 줄만)
+const SKILL_LINE = /(^모든 기술 \+)|(기술 (?:레벨 )?\+\d)|( \+\d+ \((?:\S+) 전용\)$)/
+const lineRank = ({ text, slot }) => (SKILL_LINE.test(text) ? 0 : /^시전 속도/.test(text) ? 1 : slot === 's' ? 3 : 2)
+// lead: 상급·베이스 자체 옵션 (스킬 줄이면 맨 위로, 아니면 접두사보다 앞)
+function orderedCraftAffixLines(lead = []) {
+  const entries = [...lead.map((text) => ({ text, slot: 'b' })), ...buildCraftOptions().map((text) => ({ text, slot: 'c' })), ...buildAffixEntries()]
+  const merged = mergeSameStatLines(entries.map((e) => e.text))
+  // 합쳐진 줄은 처음 나온 쪽의 칸을 따름
+  const slotOf = (line) => entries.find((e) => e.text === line || e.text.replace(/\d+/g, '#') === line.replace(/\d+/g, '#'))?.slot || 'p'
+  return merged.map((text, i) => ({ text, slot: slotOf(text), i }))
+    .sort((a, b) => lineRank(a) - lineRank(b) || a.i - b.i)
+    .map((e) => e.text)
 }
 
 // 영혼(검·방패)·인내(무기·갑옷)처럼 무기와 방어구 둘 다에 만들 수 있는 룬워드는 아이템만
@@ -505,7 +521,7 @@ function buildBaseStatOptions() {
     const exp = expectedWeaponDamage.value
     if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
   }
-  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...mergeSameStatLines([...buildCraftOptions(), ...buildAffixOptions()]))
+  out.push(...orderedCraftAffixLines([...buildSuperiorOptions(), ...buildBaseModOptions()]))
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
 }
@@ -981,19 +997,13 @@ function submitPost() {
               <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
                 <span class="option-text fixed">{{ line.text }}</span>
                 <template v-for="s in craftInputSlots.filter((c) => line.slots.includes(c.i))" :key="s.i">
-                  <select
-                    v-model.number="craftPick.values[s.i]"
-                    class="write-select option-value-select" :aria-label="`${line.text} 수치 ${s.lo}~${s.hi}`"
-                  >
-                    <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
-                    <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
-                  </select>
+                  <RangeInput v-model="craftPick.values[s.i]" :min="s.lo" :max="s.hi" :label="`${line.text} 수치 ${s.lo}~${s.hi}`" />
                 </template>
               </div>
             </div>
           </template>
           <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
-          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개</span></div>
+          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개 · 접두사·접미사 한 목록</span></div>
         </template>
         <template v-if="isAffixQuality">
           <AffixPicker :families="affixFamilies" :limits="pickerLimits" v-model="affixPicks" />
@@ -1073,12 +1083,7 @@ function submitPost() {
           </div>
           <div class="option-row" v-for="k in pickedSuperiorCombo || []" :key="k">
             <span class="option-text">{{ SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`) }}</span>
-            <select v-model="superiorPick.values[k]" class="write-select option-value-select" :aria-label="`${SUPERIOR_MODS[k].text} 수치`">
-              <option :value="undefined">수치</option>
-              <option v-for="n in SUPERIOR_MODS[k].max - SUPERIOR_MODS[k].min + 1" :key="n" :value="SUPERIOR_MODS[k].min + n - 1">
-                {{ SUPERIOR_MODS[k].min + n - 1 }}
-              </option>
-            </select>
+            <RangeInput v-model="superiorPick.values[k]" :min="SUPERIOR_MODS[k].min" :max="SUPERIOR_MODS[k].max" :label="`${SUPERIOR_MODS[k].text} 수치`" />
           </div>
         </div>
 
@@ -1092,10 +1097,7 @@ function submitPost() {
           </div>
           <div class="option-row" v-if="hasSockets">
             <span class="option-text">소켓 개수 (1~{{ uniqueMaxSockets }})</span>
-            <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
-              <option value="">개수</option>
-              <option v-for="n in uniqueMaxSockets" :key="n" :value="n">{{ n }}개</option>
-            </select>
+            <RangeInput v-model="uniqueSockets" :min="1" :max="uniqueMaxSockets" label="소켓 개수" />
           </div>
         </div>
 
@@ -1113,17 +1115,11 @@ function submitPost() {
           <div class="option-editor-hint" v-if="socketSource === 'affix'">소켓 옵션이 접두사 한 칸 차지</div>
           <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
             <span class="option-text">소켓 개수 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
-            <select v-model.number="socketAffixCount" class="write-select option-value-select" aria-label="소켓 개수">
-              <option value="">개수</option>
-              <option v-for="n in socketAffixRange[1] - socketAffixRange[0] + 1" :key="n" :value="socketAffixRange[0] + n - 1">{{ socketAffixRange[0] + n - 1 }}개</option>
-            </select>
+            <RangeInput v-model="socketAffixCount" :min="socketAffixRange[0]" :max="socketAffixRange[1]" label="소켓 개수" />
           </div>
           <div class="option-row" v-if="socketSource === 'larzuk'">
             <span class="option-text">소켓 개수 (1~{{ larzukMax }})</span>
-            <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
-              <option value="">개수</option>
-              <option v-for="n in larzukMax" :key="n" :value="n">{{ n }}개</option>
-            </select>
+            <RangeInput v-model="uniqueSockets" :min="1" :max="larzukMax" label="소켓 개수" />
           </div>
         </div>
 
@@ -1151,10 +1147,7 @@ function submitPost() {
                 <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
                 <option v-for="s in classSkillOptionsFor(i)" :key="s.en" :value="s.en">{{ skillLabel(s) }}</option>
               </select>
-              <select v-if="p.skill" v-model="p.level" class="write-select option-value-select" :aria-label="`스킬 ${i + 1} 레벨`">
-                <option value="">+?</option>
-                <option v-for="n in 3" :key="n" :value="n">+{{ n }}</option>
-              </select>
+              <RangeInput v-if="p.skill" v-model="p.level" :min="1" :max="3" prefix="+" :label="`스킬 ${i + 1} 레벨 1~3`" />
               <button
                 type="button" class="class-skill-remove" v-if="classSkillPicks.length > 1 || p.skill"
                 :aria-label="`스킬 ${i + 1} 삭제`" @click="removeClassSkillRow(i)"
