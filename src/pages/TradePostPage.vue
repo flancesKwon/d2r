@@ -358,7 +358,7 @@ async function confirmBuy() {
             <small class="owner-bump-done" v-if="bumped">끌어올림 - 목록 맨 위로</small>
             <small class="owner-bump-note">하루 한 번 · 끌어올린 지 {{ EXPIRE_DAYS }}일 지나면 기간 만료</small>
           </template>
-          <button type="button" class="owner-delete" @click="removePost">판매글 삭제</button>
+          <button type="button" class="owner-delete" @click="removePost">✕ 판매글 삭제</button>
         </section>
         <div class="action-error" v-if="actionError">{{ actionError }}</div>
       </aside>
@@ -642,7 +642,8 @@ async function confirmBuy() {
 .section-head{display:flex; align-items:center; justify-content:space-between;}
 .section-title{font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
 .section-title .count{font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:1px 9px; border-radius:999px;}
-.request-list{display:flex; flex-direction:column; gap:10px;}
+/* 신청이 많으면 목록 안에서 스크롤 */
+.request-list{display:flex; flex-direction:column; gap:10px; max-height:min(640px, 75vh); overflow-y:auto; padding-right:6px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent;}
 .request-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:14px 18px;}
 .request-top{display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; flex-wrap:wrap;}
 .request-top b{color:var(--text); font-weight:600; font-size:13px;}
@@ -785,13 +786,15 @@ async function confirmBuy() {
 }
 .history-link{color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
 .history-link:hover{color:var(--gold);}
-.owner-bump{margin-top:12px; font-size:12.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:7px 14px; border-radius:999px;}
+.owner-bump{display:block; width:100%; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--gold); border:1px solid var(--gold-dim); padding:10px 0; border-radius:10px;}
 .owner-bump:hover{background:rgba(200,163,77,0.1);}
 .owner-bump-note{display:block; margin-top:6px; font-size:11px; color:var(--text-dim);}
 .owner-bump-done{display:block; margin-top:6px; font-size:11.5px; color:var(--gold);}
 .status-pill.status-만료{color:var(--text-dim); border-style:dashed;}
-.owner-delete{margin-top:12px; font-size:12px; color:var(--text-dim); border:1px solid var(--border-soft); padding:6px 12px; border-radius:999px;}
-.owner-delete:hover{color:#e0775f; border-color:#e0775f;}
+/* 삭제는 맨 아래 따로, 빨간 테두리로 눈에 띄게 */
+.owner-delete{display:block; width:100%; margin-top:14px; padding:10px 0; font-size:13.5px; font-weight:600; color:#e0775f; border:1px solid var(--blood); border-radius:10px; position:relative;}
+.owner-delete::before{content:''; position:absolute; left:0; right:0; top:-8px; border-top:1px solid var(--border-soft);}
+.owner-delete:hover{background:rgba(162,81,63,0.15);}
 .action-error{font-size:12.5px; color:#e0775f; margin-top:10px;}
 .request-login{font-size:13px; color:var(--text-muted); margin:6px 0 12px;}
 .seller-avatar img{width:100%; height:100%; object-fit:cover; border-radius:inherit;}
