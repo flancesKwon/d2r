@@ -93,6 +93,12 @@ for (const it of items) {
   if (o.prop === 'ac' && typeof o.text === 'string' && num(o.min) >= 0 && o.min !== '') set(`방어력 +${range(o)}`)
   // 레벨당 방어력인데 par 없이 min 에 값이 있는 것 (잎새: 16 -> 레벨당 +2)
   if (o.prop === 'ac/lvl' && o.par == null && o.min !== '' && o.min != null) set(`캐릭터 레벨당 방어력 +${num(o.min) / 8}`)
+  // "힘 20~30", "모든 저항 10~20%", "투창과 창 기술 1~3" 처럼 이름 뒤 숫자로 끝나는 더하기 옵션은 + 를 붙여 통일
+  // (문장으로 된 "적중당 생명력 6% 훔침"·"피해 3 감소" 는 그대로, 감속은 더하기가 아니라 뺌)
+  if (o.prop && o.prop !== 'slow' && typeof o.text === 'string' && !(num(o.min) < 0)) {
+    const m = o.text.match(/^(.*\S) (\d+(?:\.\d+)?(?:~\d+(?:\.\d+)?)?%?)$/)
+    if (m && !/[+-]\d/.test(o.text)) set(`${m[1]} +${m[2]}`)
+  }
   Object.values(o).forEach(walk)
 })(items)
 fs.writeFileSync(file, JSON.stringify(items) + (raw.endsWith('\n') ? '\n' : ''))
