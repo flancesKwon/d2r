@@ -30,7 +30,7 @@ initAuth().then(() => {
     // 주소창의 ?code= 를 지우고 로그인 전에 보던 화면으로 - 라우터가 이미 주소를 읽었으니 라우터로 이동
     // (저장된 값은 /mypage?tab=x 같은 전체 경로)
     const back = takeLoginReturn() || BASE
-    if (isFirstLogin()) router.replace({ path: '/mypage', query: { tab: 'edit', welcome: '1' } })
+    if (isFirstLogin()) router.replace({ path: '/mypage/edit', query: { welcome: '1' } })
     else router.replace(back.startsWith(BASE) ? '/' + back.slice(BASE.length) : '/')
   }
   // 이미 열린 화면에서 예전 #/ 주소로 바뀌어도 새 주소로

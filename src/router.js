@@ -28,6 +28,7 @@ const PrivacyPage = () => import('./pages/PrivacyPage.vue')
 const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
 const UserProfilePage = () => import('./pages/UserProfilePage.vue')
+const ProfileEditPage = () => import('./pages/ProfileEditPage.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -63,6 +64,7 @@ const router = createRouter({
     { path: '/breakpoints', name: 'breakpoints', component: BreakpointsPage, meta: { title: '브레이크포인트 계산기' } },
     { path: '/messages', name: 'messages', component: MessagesPage, meta: { title: '쪽지함' } },
     { path: '/mypage', name: 'mypage', component: MyPage, meta: { title: '마이페이지' } },
+    { path: '/mypage/edit', name: 'profile-edit', component: ProfileEditPage, meta: { title: '프로필 수정' } },
     { path: '/deals', name: 'deals', component: DealsPage, meta: { title: '거래중인 품목' } },
     // 거래 시작 알림 링크 (DB 함수가 /deals/거래번호 로 만듦)
     { path: '/deals/:id', name: 'deal', component: DealsPage, meta: { title: '거래중인 품목' } },

@@ -62,6 +62,7 @@ const privatePages = [
   { p: 'messages', title: '쪽지함' },
   { p: 'deals', title: '거래중인 품목' },
   { p: 'mypage', title: '마이페이지' },
+  { p: 'mypage/edit', title: '프로필 수정' },
   { p: 'admin', title: '관리자' },
   { p: 'community/write', title: '글쓰기' },
   { p: 'trade/new', title: '판매글 등록' },
