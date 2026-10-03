@@ -4,7 +4,7 @@ import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, bumpTradePost, EXPIRE_DAYS, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
+  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
   getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
@@ -18,6 +18,7 @@ import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import { avatarSrc } from '../avatars.js'
 import { buildTooltip } from '../itemTooltip.js'
+import { useNow } from '../useNow.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,14 +112,21 @@ function submitRequest() {
   })
 }
 
-// 끌어올리기 - 목록 맨 위로, 기간 만료도 풀림
-const bumped = ref(false)
-function bump() {
-  return run(async () => {
-    await bumpTradePost(post.value)
-    bumped.value = true
-  })
-}
+// 판매 기간 카운트다운 (올린 때부터 48시간) - 끝나면 목록에서 내려가고, 판매자는 판매가만 고쳐 재등록
+const now = useNow(1000)
+const saleLeft = computed(() => saleLeftMs(post.value, now.value))
+const saleExpired = computed(() => saleLeft.value !== null && saleLeft.value <= 0)
+const saleClock = computed(() => {
+  const ms = saleLeft.value
+  if (ms === null || ms <= 0) return ''
+  const t = Math.floor(ms / 1000)
+  const p = (n) => String(n).padStart(2, '0')
+  const d = Math.floor(t / 86400)
+  return `${d ? d + '일 ' : ''}${p(Math.floor((t % 86400) / 3600))}:${p(Math.floor((t % 3600) / 60))}:${p(t % 60)}`
+})
+const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.min(100, (saleLeft.value / (SALE_HOURS * 3600000)) * 100))))
+// 거래완료된 글: 상태 변경·삭제 없음 (거래내역·후기가 이 글을 가리킴)
+const isDone = computed(() => post.value?.status === '거래완료')
 
 function setStatus(status) {
   return run(async () => {
@@ -181,9 +189,11 @@ const requestsEl = ref(null)
 const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
 // 수락했지만 거래방에서 거래불발이 된 신청은 '불발' (거래방 열기 버튼 없음)
-const reqStatus = (r) => (r.status === 'accepted' && dealFor(r)?.status === '거래불발' ? 'failed' : r.status || 'pending')
+// 거래완료된 신청은 '거래완료' (역시 거래방 열기 없음)
+const DEAL_TO_REQ = { 거래불발: 'failed', 거래완료: 'done' }
+const reqStatus = (r) => (r.status === 'accepted' && DEAL_TO_REQ[dealFor(r)?.status]) || r.status || 'pending'
 const REQUEST_KIND_LABEL = { buy_now: '구매하기', inquiry: '문의' }
 
 // "구매하기" 팝업 흐름: 흥정 가능한 글이면 룬/보석 제안 선택 단계(offer)를 거치고,
@@ -264,7 +274,7 @@ async function confirmBuy() {
         <div class="title-block">
           <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
           <div class="title-badges">
-            <span class="status-pill" :class="post.expired ? 'status-만료' : 'status-' + post.status">{{ post.expired ? '기간 만료' : post.status }}</span>
+            <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? '기간 만료' : post.status }}</span>
             <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
             <span class="unid-badge" v-if="post.unidentified">미확인</span>
             <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
@@ -280,6 +290,19 @@ async function confirmBuy() {
         {{ post.author }} · {{ post.date }} 등록 · 조회 {{ post.views }} ·
         <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">이 아이템 거래내역</router-link>
       </div>
+    </div>
+
+    <!-- 판매 기간 (판매중일 때만) -->
+    <div class="sale-timer" v-if="saleLeft !== null" :class="{ expired: saleExpired, soon: !saleExpired && saleLeft < 6 * 3600000 }">
+      <template v-if="!saleExpired">
+        <span class="sale-timer-label">판매 종료까지</span>
+        <b class="sale-timer-clock">{{ saleClock }}</b>
+        <span class="sale-timer-bar"><span :style="{ width: salePct + '%' }"></span></span>
+      </template>
+      <template v-else>
+        <span class="sale-timer-label">판매 기간 만료 · 목록에서 내려감</span>
+        <router-link v-if="isOwner" class="sale-relist-btn" :to="`/trade/${post.id}/relist`">재등록 →</router-link>
+      </template>
     </div>
 
     <button type="button" class="pending-banner" v-if="canManage && pendingCount" @click="scrollToRequests">
@@ -345,7 +368,11 @@ async function confirmBuy() {
           <div class="seller-report" v-if="!isOwner"><ReportButton target-type="trade_post" :target-id="post.id" :owner-id="post.authorId" label="판매글 신고" /></div>
         </section>
 
-        <section class="side-card owner-card" v-if="canManage || canDelete">
+        <section class="side-card owner-card done-card" v-if="isOwner && isDone">
+          <div class="card-title">거래완료 <span class="owner-tag">판매자 전용</span></div>
+          <small class="owner-bump-note">거래가 끝난 글 · 상태 변경·삭제 불가</small>
+        </section>
+        <section class="side-card owner-card" v-if="(canManage || canDelete) && !isDone">
           <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
           <div class="status-segment" role="radiogroup" aria-label="판매 상태" v-if="canManage">
             <button
@@ -353,10 +380,9 @@ async function confirmBuy() {
               :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
             >{{ s }}</button>
           </div>
-          <template v-if="isOwner && post.status !== '거래완료'">
-            <button type="button" class="owner-bump" @click="bump">끌어올리기</button>
-            <small class="owner-bump-done" v-if="bumped">끌어올림 - 목록 맨 위로</small>
-            <small class="owner-bump-note">하루 한 번 · 끌어올린 지 {{ EXPIRE_DAYS }}일 지나면 기간 만료</small>
+          <template v-if="isOwner && post.status === '판매중'">
+            <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">재등록 (판매가 수정)</router-link>
+            <small class="owner-bump-note">판매 기간 {{ SALE_HOURS }}시간 · 끝나면 판매가만 고쳐 재등록</small>
           </template>
           <button type="button" class="owner-delete" @click="removePost">✕ 판매글 삭제</button>
         </section>
@@ -652,6 +678,7 @@ async function confirmBuy() {
 .request-status{font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
 .request-status.status-declined, .request-status.status-failed{color:var(--blood); border-color:var(--blood);}
+.request-status.status-done{color:#1a1408; background:var(--gold); border-color:var(--gold);}
 .request-date{color:var(--text-dim); margin-left:auto;}
 .request-offer-row{display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
 .request-offer-label{font-size:11px; color:var(--text-dim); flex:none;}
@@ -788,6 +815,22 @@ async function confirmBuy() {
 .history-link:hover{color:var(--gold);}
 .owner-bump{display:block; width:100%; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--gold); border:1px solid var(--gold-dim); padding:10px 0; border-radius:10px;}
 .owner-bump:hover{background:rgba(200,163,77,0.1);}
+a.owner-bump{text-align:center; background:var(--gold); color:#1a1408;}
+a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
+.done-card .owner-bump-note{margin-top:0;}
+
+/* 판매 기간 카운트다운 */
+.sale-timer{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 16px; padding:12px 18px; border:1px solid var(--gold-dim); border-radius:14px; background:rgba(200,163,77,0.07);}
+.sale-timer-label{font-size:13px; color:var(--text-muted);}
+.sale-timer-clock{font-family:'Noto Serif KR', serif; font-size:20px; color:var(--gold); font-variant-numeric:tabular-nums; letter-spacing:.5px;}
+.sale-timer-bar{flex:1; min-width:120px; height:6px; border-radius:999px; background:var(--panel-2); overflow:hidden;}
+.sale-timer-bar span{display:block; height:100%; background:var(--gold); border-radius:999px; transition:width .9s linear;}
+.sale-timer.soon{border-color:#e0775f; background:rgba(162,81,63,0.08);}
+.sale-timer.soon .sale-timer-clock{color:#e0775f;}
+.sale-timer.soon .sale-timer-bar span{background:#e0775f;}
+.sale-timer.expired{border-color:var(--border); background:var(--panel);}
+.sale-relist-btn{margin-left:auto; font-size:13.5px; font-weight:700; color:#1a1408; background:var(--gold); padding:8px 18px; border-radius:10px;}
+.sale-relist-btn:hover{filter:brightness(1.08);}
 .owner-bump-note{display:block; margin-top:6px; font-size:11px; color:var(--text-dim);}
 .owner-bump-done{display:block; margin-top:6px; font-size:11.5px; color:var(--gold);}
 .status-pill.status-만료{color:var(--text-dim); border-style:dashed;}

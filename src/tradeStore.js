@@ -475,9 +475,22 @@ function unpackOptions(o) {
   return o && typeof o === 'object' ? o : { lines: [] }
 }
 
-// 판매중인데 끌어올린 지(없으면 올린 지) 30일 지나면 기간 만료로 보여줌 - 판매자가 끌어올리면 다시 판매중
-export const EXPIRE_DAYS = 30
-const isExpired = (status, bumpedAt) => status === '판매중' && !!bumpedAt && Date.now() - new Date(bumpedAt) > EXPIRE_DAYS * 86400000
+// 판매 기간: 올린(재등록한) 때부터 48시간 - 지나면 목록에서 내려감(기간 만료). 판매자는 판매가만 고쳐 재등록 (016 SQL)
+// 예약중·거래완료 글은 기간과 상관없음. bumped_at = 판매 시작 시각
+export const SALE_HOURS = 48
+const SALE_MS = SALE_HOURS * 3600000
+export const saleEndsAt = (post) => (post?.bumpedAt ? new Date(post.bumpedAt).getTime() + SALE_MS : 0)
+// 남은 판매 시간(ms) - 판매중이 아니면 null
+export const saleLeftMs = (post, now = Date.now()) => (post?.status === '판매중' && post.bumpedAt ? saleEndsAt(post) - now : null)
+export const isSaleExpired = (post, now = Date.now()) => { const left = saleLeftMs(post, now); return left !== null && left <= 0 }
+// "1일 3시간", "5시간 12분", "12분" (목록용 짧은 표시)
+export function fmtSaleLeft(ms) {
+  if (ms === null || ms <= 0) return ''
+  const m = Math.ceil(ms / 60000)
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60
+  return d ? `${d}일 ${h}시간` : h ? `${h}시간 ${mm}분` : `${mm}분`
+}
+const isExpired = (status, bumpedAt) => isSaleExpired({ status, bumpedAt })
 
 function mapTradePost(r) {
   const o = unpackOptions(r.options)
@@ -603,7 +616,19 @@ export async function addTradePost({
   return post
 }
 
-// 끌어올리기 (내 판매글, 하루 한 번 - DB 함수가 확인)
+// 재등록: 판매 기간이 끝난 내 판매중 글을 판매가만 바꿔서 다시 48시간 (DB 함수가 기간·주인 확인)
+export async function relistTradePost(post, price) {
+  needUser()
+  const { data, error } = await supabase.rpc('d2r_relist_trade_post', { p_post: Number(post.id), p_price: price })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '재등록 준비 중 (DB 업데이트 필요)' : error.message || '재등록 실패')
+  const patch = { price: price.trim(), bumpedAt: data, expired: false }
+  Object.assign(post, patch)
+  const cached = getTradePost(post.id)
+  if (cached && cached !== post) Object.assign(cached, patch)
+  lastLoadedAt = 0
+}
+
+// 끌어올리기 (예전 기능 - 화면에선 안 씀. 판매 기간 48시간 + 재등록으로 바뀜)
 export async function bumpTradePost(post) {
   needUser()
   const { data, error } = await supabase.rpc('d2r_bump_trade_post', { p_post: post.id })
