@@ -177,7 +177,7 @@ function submitReview() {
       <!-- 2) 채팅 -->
       <div class="deal-thread" v-if="activeDeal">
         <div class="deal-thread-header">
-          <UserAvatar :src="activeDeal.counterpartAvatar" :name="activeDeal.counterpart" :size="36" />
+          <UserAvatar :src="activeDeal.counterpartAvatar" :name="activeDeal.counterpart" :size="36" :user-id="activeDeal.counterpartId" />
           <div class="deal-thread-who">
             <div class="deal-thread-title"><router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }}</router-link>님과의 거래방</div>
             <div class="deal-thread-sub">{{ activeDeal.postTitle }} · 상대는 {{ activeDeal.iAmSeller ? '구매자' : '판매자' }}</div>

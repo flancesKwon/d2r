@@ -5,7 +5,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, relistTradePost, isSaleExpired, saleLeftMs, fmtSaleLeft, SALE_HOURS,
-  CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens,
+  CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens, OFFER_ONLY_PRICE,
 } from '../tradeStore.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -57,10 +57,12 @@ const error = ref('')
 const saving = ref(false)
 async function submit() {
   error.value = ''
-  if (!newPrice.value) { error.value = '판매가(룬·보석·재료) 하나 이상'; return }
+  // 제안만 받기 글은 판매가를 비워 두면 그대로 제안만 받음
+  const price = newPrice.value || (post.value.offerOnly ? OFFER_ONLY_PRICE : '')
+  if (!price) { error.value = '판매가(룬·보석·재료) 하나 이상'; return }
   saving.value = true
   try {
-    await relistTradePost(post.value, newPrice.value)
+    await relistTradePost(post.value, price)
     router.replace(`/trade/${post.value.id}`)
   } catch (e) {
     error.value = e.message || '재등록 실패'
@@ -130,6 +132,7 @@ async function submit() {
           </div>
 
           <div class="relist-new" v-if="newPrice"><span>새 판매가</span><b>{{ newPrice }}</b></div>
+          <div class="relist-new" v-else-if="post.offerOnly"><span>판매가</span><b>비워 두면 계속 제안만 받기</b></div>
           <div class="relist-error" v-if="error">{{ error }}</div>
           <div class="relist-actions">
             <router-link :to="`/trade/${post.id}`" class="relist-cancel">취소</router-link>

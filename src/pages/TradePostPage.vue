@@ -16,9 +16,9 @@ import { dealsState, loadDeals } from '../dealsStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
-import { avatarSrc } from '../avatars.js'
 import { buildTooltip } from '../itemTooltip.js'
 import { useNow } from '../useNow.js'
+import { isOnline } from '../presence.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -194,7 +194,9 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 // 거래완료된 신청은 '거래완료' (역시 거래방 열기 없음)
 const DEAL_TO_REQ = { 거래불발: 'failed', 거래완료: 'done' }
 const reqStatus = (r) => (r.status === 'accepted' && DEAL_TO_REQ[dealFor(r)?.status]) || r.status || 'pending'
-const REQUEST_KIND_LABEL = { buy_now: '구매하기', inquiry: '문의' }
+const REQUEST_KIND_LABEL = { buy_now: '구매하기', offer: '가격 제안', inquiry: '문의' }
+// 제안만 받기 글: 받은 가격 제안 수 (취소된 것 빼고)
+const offerCount = computed(() => (post.value?.requests || []).filter((r) => r.offerItems?.length && r.status !== 'cancelled').length)
 
 // "구매하기" 팝업 흐름: 흥정 가능한 글이면 룬/보석 제안 선택 단계(offer)를 거치고,
 // 아니면 바로 확인 단계(confirm)로 감. 어느 쪽이든 마지막엔 판매 아이템 + 제안
@@ -244,7 +246,7 @@ async function confirmBuy() {
       qty: 1,
       // 제안 내용은 메시지 한 줄로 저장 (보여줄 때 칩으로 다시 만듦)
       message: post.value.negotiable
-        ? `구매하기 - 제안: ${offerItems.value.map((o) => `${o.item.name_ko} ${o.qty}개`).join(' + ')}`
+        ? `${post.value.offerOnly ? '가격 제안' : '구매하기'} - 제안: ${offerItems.value.map((o) => `${o.item.name_ko} ${o.qty}개`).join(' + ')}`
         : '구매하기 (즉시 구매 신청)',
     })
     post.value.requests.push(r)
@@ -277,7 +279,8 @@ async function confirmBuy() {
             <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? '기간 만료' : post.status }}</span>
             <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
             <span class="unid-badge" v-if="post.unidentified">미확인</span>
-            <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
+            <span class="negotiable-badge" v-if="post.offerOnly">제안만 받기</span>
+            <span class="negotiable-badge" v-else-if="post.negotiable">흥정 가능</span>
           </div>
         </div>
         <button
@@ -330,8 +333,12 @@ async function confirmBuy() {
       <!-- 오른쪽: 가격·구매 / 판매자 / 판매자 전용 (넓은 화면에선 스크롤해도 따라옴) -->
       <aside class="post-side">
         <section class="side-card price-card">
-          <div class="card-title">희망 가격</div>
-          <div class="price-parts">
+          <div class="card-title">{{ post.offerOnly ? '가격 제안 받는 중' : '희망 가격' }}</div>
+          <div class="offer-only-box" v-if="post.offerOnly">
+            <b>판매가 없음 · 제안만 받음</b>
+            <button type="button" class="offer-count-link" @click="scrollToRequests">받은 제안 {{ offerCount }}건 보기 ↓</button>
+          </div>
+          <div class="price-parts" v-else>
             <span class="price-part" v-for="(p, i) in priceParts" :key="i">
               <span class="price-part-icon" :class="{ empty: !p.item }"><img v-if="p.item && iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
               <span class="price-part-text">{{ p.text }}</span>
@@ -345,17 +352,17 @@ async function confirmBuy() {
           <button
             type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
             @click="openBuyModal"
-          >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
-          <p class="buy-now-hint">{{ post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
+          >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
+          <p class="buy-now-hint">{{ post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
         </section>
 
         <section class="side-card seller-card">
           <div class="card-title">판매자</div>
           <div class="seller-row">
-            <span class="seller-avatar" aria-hidden="true"><img v-if="avatarSrc(post.avatar)" :src="avatarSrc(post.avatar)" alt="" /><template v-else>{{ (post.author || '?').slice(0, 1) }}</template></span>
+            <UserAvatar :src="post.avatar" :name="post.author" :size="40" :user-id="post.authorId" />
             <div class="seller-name-block">
               <router-link :to="'/users/' + post.authorId" class="seller-name user-link">{{ post.author }}</router-link>
-              <div class="seller-sub">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
+              <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">● 접속 중 · </span>{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
               <router-link :to="'/users/' + post.authorId" class="seller-profile-link">프로필·받은 리뷰 보기 →</router-link>
             </div>
           </div>
@@ -393,14 +400,16 @@ async function confirmBuy() {
     <!-- 구매신청 -->
     <section class="requests-section" ref="requestsEl">
       <div class="section-head">
-        <div class="section-title">{{ isOwner ? '받은 구매신청' : '내 구매신청' }} <span class="count" v-if="authState.user">{{ post.requests.length }}</span></div>
+        <div class="section-title">{{ isOwner ? '받은 구매신청·제안' : '구매신청·가격 제안 내역' }} <span class="count">{{ post.requests.length }}</span></div>
+        <small class="section-note" v-if="!isOwner">다른 사람의 신청·제안도 공개 · 연락처는 판매자만</small>
       </div>
       <div class="request-list">
         <div class="request-item" v-for="r in post.requests" :key="r.id" :class="{ pending: (r.status || 'pending') === 'pending' && canManage }">
-          <div class="request-top">
-            <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" />
+          <div class="request-top" :class="{ mine: r.buyerId === authState.user?.id }">
+            <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" :user-id="r.buyerId" />
             <b>{{ r.buyer }}</b>
-            <span class="request-kind" v-if="r.kind === 'buy_now'">{{ REQUEST_KIND_LABEL.buy_now }}</span>
+            <span class="request-kind" v-if="REQUEST_KIND_LABEL[r.kind] && r.kind !== 'inquiry'">{{ REQUEST_KIND_LABEL[r.kind] }}</span>
+            <span class="request-mine" v-if="r.buyerId === authState.user?.id">내 신청</span>
             <span class="request-qty">{{ r.qty }}개</span>
             <span class="request-status" :class="'status-' + reqStatus(r)">{{ REQUEST_STATUS_LABEL[reqStatus(r)] }}</span>
             <span class="request-date">{{ r.date }}</span>
@@ -414,7 +423,7 @@ async function confirmBuy() {
           </div>
           <div class="request-message">{{ r.message }}</div>
           <div class="request-bottom">
-            <span class="request-contact" v-if="r.contact">연락처 {{ r.contact }}</span>
+            <span class="request-contact" v-if="r.contact && (canManage || r.buyerId === authState.user?.id)">연락처 {{ r.contact }}</span>
             <div class="request-actions" v-if="(r.status || 'pending') === 'pending' && canManage">
               <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락 · 거래방 열기</button>
               <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
@@ -427,8 +436,7 @@ async function confirmBuy() {
             </div>
           </div>
         </div>
-        <div class="empty-state request-empty" v-if="!authState.user">구매신청은 판매자·신청자만 볼 수 있음</div>
-        <div class="empty-state request-empty" v-else-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '보낸 구매신청 없음' }}</div>
+        <div class="empty-state request-empty" v-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '아직 구매신청·제안 없음' }}</div>
       </div>
 
       <div class="side-card request-form" v-if="!authState.user">
@@ -507,7 +515,7 @@ async function confirmBuy() {
             {{ post.itemName }}
           </span>
         </div>
-        <div class="confirm-row">
+        <div class="confirm-row" v-if="!post.offerOnly">
           <span class="k">희망 가격</span>
           <span class="v">
             <template v-for="(t, i) in parsePriceTokens(post.price)" :key="i">
@@ -665,7 +673,7 @@ async function confirmBuy() {
 
 /* 구매신청 */
 .requests-section{display:flex; flex-direction:column; gap:14px; max-width:calc(100% - 362px);}
-.section-head{display:flex; align-items:center; justify-content:space-between;}
+.section-head{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 12px;}
 .section-title{font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
 .section-title .count{font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:1px 9px; border-radius:999px;}
 /* 신청이 많으면 목록 안에서 스크롤 */
@@ -844,4 +852,10 @@ a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
 .dm-btn{margin-top:12px; width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); font-size:13px;}
 .seller-report{display:flex; justify-content:flex-end; margin-top:10px;}
 .dm-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+.online-now{color:#3ecf5a; font-weight:600;}
+.offer-only-box{display:flex; flex-direction:column; gap:6px; padding:4px 0 10px; font-size:13.5px; color:var(--gold);}
+.offer-count-link{align-self:flex-start; font-size:12px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:4px 11px;}
+.offer-count-link:hover{color:var(--gold); border-color:var(--gold-dim);}
+.section-note{font-size:11.5px; color:var(--text-dim);}
+.request-mine{font-size:10.5px; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:1px 7px;}
 </style>

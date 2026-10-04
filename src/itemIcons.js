@@ -7,3 +7,6 @@ for (const [path, url] of Object.entries(files)) {
   ITEM_ICONS[path.slice(path.lastIndexOf('/') + 1, -'.png'.length)] = url
 }
 
+// 골드 판매글 아이콘 - 게임 그림 파일이 없어서 직접 그린 금화 더미
+import goldIcon from './assets/gold.svg?url'
+ITEM_ICONS.gold = goldIcon

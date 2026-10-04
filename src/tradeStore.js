@@ -38,7 +38,9 @@ export const ESSENCE_MATERIALS = [
   essence('token', '면죄의 징표', 'Token of Absolution', 'invtoa__uber', ['토큰', '면죄', '용서의 증표']),
 ]
 export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS]
-const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS]
+// 골드 - 게임 골드를 룬·보석 등을 받고 파는 글. 수량 = 골드 액수
+export const GOLD_ITEM = { id: 'gold', category: 'gold', category_label: '골드', name_ko: '골드', name_en: 'Gold', icon_key: 'gold', aliases: ['금화', '골드 판매', 'gold'] }
+const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS, GOLD_ITEM]
 
 // 희망 가격이 대부분 룬·보석 이름으로 적히는데("이스트 룬 2개" 등) 그냥 텍스트라
 // 뭔지 한눈에 안 들어옴 - 가격 문자열에서 룬·보석 이름을 찾아서 아이콘을 붙여주려고
@@ -124,12 +126,14 @@ export function runewordMaterials(item) {
 
 // 룬·퍼펙트 보석·우버보스 재료(소환 재료)는 여러 개를 묶어 파는 경우가 많아서 개수를
 // 입력받고, 장비(유니크·세트·룬워드·매직/레어/일반)나 기타는 낱개(1개)로 고정
-export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표']
+export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '골드']
 export function categoryHasQuantity(category) {
   return QUANTITY_CATEGORIES.includes(category)
 }
 
-export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
+export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '골드', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
+// 제안만 받기 글의 판매가 자리 (DB price 칸은 비울 수 없어서 이 문구로 채움)
+export const OFFER_ONLY_PRICE = '가격 제안 받음'
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
 // 아시아 서버 유저 대상 게시판이라 서버 선택 자체를 없앰 - 항상 아시아로 고정
 export const TRADE_REALMS = ['아시아']
@@ -153,6 +157,7 @@ export function tradeCategoryForItem(item) {
   if (item.category === 'runeword') return '룬워드'
   if (item.category === 'uber') return '우버보스 재료'
   if (item.category === 'essence') return '정수·징표'
+  if (item.category === 'gold') return '골드'
   return null
 }
 
@@ -360,6 +365,9 @@ export const TRADE_STAT_FILTERS = [
   { key: 'classskill', label: '클래스 스킬 (가장 높은 수치)', pattern: `^(?!(?:${TAB_NAMES_RE}) \\+).+ \\+(\\d+) \\((?:${CLASS_NAMES_RE}) 전용\\)$`, agg: 'max' },
   // 스킬 트리 옵션 (매직/레어 "번개 기술 +1 (소서리스 전용)", 아마존 무기 자동 옵션 등)
   { key: 'skilltab', label: '스킬 트리 (가장 높은 수치)', pattern: `^(?:${TAB_NAMES_RE}) \\+(\\d+) \\((?:${CLASS_NAMES_RE}) 전용\\)$`, agg: 'max' },
+  // 판매자가 입력한 방어력·데미지 (샤코 방어력 등) - 범위로 남은 글("98~141")은 빠짐
+  { key: 'defense', label: '방어력 (입력값)', pattern: '^기본 방어력 (\\d+)$', agg: 'max' },
+  { key: 'maxdmg', label: '최대 데미지 (입력값)', pattern: '^기본 데미지 \\d+~(\\d+)$', agg: 'max' },
 ].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
 const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
 
@@ -377,6 +385,20 @@ export function postStatValue(post, key) {
     total = total === null ? v : stat.agg === 'max' ? Math.max(total, v) : total + v
   }
   return total
+}
+
+// 키워드 옵션 검색 ("블리자드", "시전 속도" 처럼 옵션 문구 일부) - 맞는 옵션 줄의 첫 숫자를 값으로 (여러 줄이면 가장 큰 값)
+// { hit: 맞는 줄이 있는지, value: 그 숫자 (숫자 없는 줄뿐이면 null) }. matches = 화면의 검색 함수 (textMatchesQuery)
+export function postKeywordValue(post, keyword, matches) {
+  let hit = false
+  let value = null
+  for (const line of post.options || []) {
+    if (!matches(line, keyword)) continue
+    hit = true
+    const m = /\d+/.exec(line)
+    if (m) value = value === null ? Number(m[0]) : Math.max(value, Number(m[0]))
+  }
+  return { hit, value }
 }
 
 // 아이템 사전의 룬·룬워드는 level_req가 비어 있어서(유니크·세트만 채워짐) 룬 요구
@@ -406,9 +428,11 @@ export function postLevelReq(post) {
 }
 
 // 콤보박스 없이 숫자만 입력받아서 "N개"로 만듦
-export function buildAmountLabel(count) {
+// 골드는 액수("2,500,000 골드"), 나머지는 개수("5개")
+export function buildAmountLabel(count, category = '') {
   const n = Number(count) || 0
-  return n > 0 ? `${n}개` : ''
+  if (n <= 0) return ''
+  return category === '골드' ? `${n.toLocaleString('ko-KR')} 골드` : `${n}개`
 }
 
 export function getTradeItem(itemId) {
@@ -511,7 +535,9 @@ function mapTradePost(r) {
     options: o.lines || [],
     quality: o.quality || '',
     iconKey: o.iconKey || null,
-    negotiable: !!o.negotiable,
+    // 제안만 받기 = 판매가 자리가 OFFER_ONLY_PRICE (재등록 때 가격을 정하면 보통 글이 됨). 늘 가격 제안 흐름
+    offerOnly: r.price === OFFER_ONLY_PRICE,
+    negotiable: !!o.negotiable || r.price === OFFER_ONLY_PRICE,
     unidentified: !!o.unidentified,
     ethereal: !!r.ethereal,
     price: r.price,
@@ -596,7 +622,7 @@ export async function countTradeView(postId) {
 
 export async function addTradePost({
   category, itemId, itemName, amountLabel, price, realm, ladder, hardcore,
-  contact, content, options, quality, ethereal, negotiable, iconKey, unidentified,
+  contact, content, options, quality, ethereal, negotiable, iconKey, unidentified, offerOnly,
 }) {
   const uid = needUser()
   const rows = await mustReturnRows(
@@ -608,7 +634,7 @@ export async function addTradePost({
       amount_label: amountLabel || null,
       // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
       // unidentified: 유니크·세트를 미확인 상태로 파는 글 (옵션은 사전 범위)
-      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable, unidentified: !!unidentified },
+      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable || !!offerOnly, offerOnly: !!offerOnly, unidentified: !!unidentified },
       ethereal: !!ethereal,
       price,
       realm,
@@ -688,16 +714,16 @@ function mapRequest(r) {
     buyerAvatar: r.buyer?.avatar_url || null,
     qty: r.qty,
     message: r.message || '',
-    kind: (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
+    kind: (r.message || '').startsWith('가격 제안 - ') ? 'offer' : (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
     offerItems: offerItemsFromMessage(r.message),
     status: REQUEST_STATUS_FROM_DB[r.status] || r.status,
     date: fmtDateTime(r.created_at),
   }
 }
 
-// 이 글의 구매신청 - 판매자는 전부, 구매자는 자기 것만 내려옴(RLS), 비로그인은 없음
+// 이 글의 구매신청·가격 제안 - 017 SQL 이후 누구나 볼 수 있음 (그 전엔 RLS 대로 판매자는 전부, 구매자는 자기 것만)
 export async function fetchTradeRequests(postId) {
-  if (!supabase || !authState.user) return []
+  if (!supabase) return []
   const { data, error } = await supabase
     .from('tb_trade_request').select(`*, ${REQUEST_BUYER}`)
     .eq('post_id', postId).order('created_at', { ascending: true })
