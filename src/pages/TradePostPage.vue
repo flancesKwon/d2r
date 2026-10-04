@@ -135,8 +135,10 @@ async function removePost() {
 }
 
 // 희망 가격 "베르 룬 1개 + 미라의 눈물"을 항목별 칩으로 (룬·보석이면 아이콘과 함께)
+// 거래완료 글은 실제 거래가(023), 아니면 희망 가격
+const showSoldPrice = computed(() => post.value?.status === '거래완료' && !!post.value?.soldPrice)
 const priceParts = computed(() =>
-  (post.value?.price || '')
+  ((showSoldPrice.value ? post.value.soldPrice : post.value?.price) || '')
     .split(/\s*\+\s*/)
     .filter(Boolean)
     .map((part) => ({ text: part, item: parsePriceTokens(part).find((t) => t.item)?.item || null }))
@@ -324,8 +326,8 @@ async function confirmBuy() {
       <!-- 오른쪽: 가격·구매 / 판매자 / 판매자 전용 (넓은 화면에선 스크롤해도 따라옴) -->
       <aside class="post-side">
         <section class="side-card price-card">
-          <div class="card-title">{{ post.offerOnly ? '가격 제안 받는 중' : '희망 가격' }}</div>
-          <div class="offer-only-box" v-if="post.offerOnly">
+          <div class="card-title">{{ showSoldPrice ? '거래가' : post.offerOnly ? '가격 제안 받는 중' : '희망 가격' }}</div>
+          <div class="offer-only-box" v-if="post.offerOnly && !showSoldPrice">
             <b>판매가 없음 · 제안만 받음</b>
             <button type="button" class="offer-count-link" @click="scrollToRequests">받은 제안 {{ offerCount }}건 보기 ↓</button>
           </div>
@@ -336,6 +338,7 @@ async function confirmBuy() {
               <span class="price-or" v-if="i < priceParts.length - 1">+</span>
             </span>
           </div>
+          <div class="sold-was" v-if="showSoldPrice && post.price !== post.soldPrice">희망 가격 {{ post.price }}</div>
           <div class="price-meta">
             <span>수량 <b>{{ post.amountLabel }}</b><template v-if="isLot"> · 한 번에 판매</template></span>
             <span v-if="post.negotiable" class="nego">흥정 가능</span>
@@ -853,4 +856,5 @@ a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
 .status-segment button:disabled{opacity:.35; cursor:not-allowed;}
 .status-now{display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
 .status-now small{font-size:11.5px; color:var(--text-dim); line-height:1.5;}
+.sold-was{font-size:11.5px; color:var(--text-dim); margin:-6px 0 10px; text-decoration:line-through;}
 </style>

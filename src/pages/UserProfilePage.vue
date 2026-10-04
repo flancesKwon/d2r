@@ -5,7 +5,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../supabase.js'
 import { authState, signIn, ROLE_LABEL } from '../profileStore.js'
-import { fetchTradePostsBy, getTradeItem, statusLabel } from '../tradeStore.js'
+import { fetchTradePostsBy, getTradeItem, statusLabel, tradePriceOf } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor } from '../dealsStore.js'
 import { openConversationWith } from '../messagesStore.js'
@@ -145,7 +145,7 @@ async function sendMessage() {
         <router-link :to="`/trade/${p.id}`" class="post-row" v-for="p in tradePosts" :key="p.id">
           <span class="post-icon"><img v-if="iconUrl(p)" :src="iconUrl(p)" alt="" /></span>
           <span class="post-title">{{ p.itemName }}</span>
-          <span class="post-price">{{ p.price }}</span>
+          <span class="post-price">{{ tradePriceOf(p) || '거래가 미기록' }}</span>
           <span class="post-status" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : statusLabel(p.status) }}</span>
           <span class="post-date">{{ p.date }}</span>
         </router-link>

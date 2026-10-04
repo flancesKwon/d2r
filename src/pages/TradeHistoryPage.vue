@@ -8,6 +8,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getTradeItem,
   statusLabel,
+  tradePriceOf,
   parsePriceTokens,
   postIconKey,
   postRarity,
@@ -221,7 +222,7 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
               <span class="th-group-n done">{{ g.done }}</span>
               <span class="th-group-price">
                 <template v-if="g.lastDone">
-                  <template v-for="(t, i) in parsePriceTokens(g.lastDone.price)" :key="i">
+                  <template v-for="(t, i) in parsePriceTokens(tradePriceOf(g.lastDone) || '거래가 미기록')" :key="i">
                     <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
                   </template>
                 </template>
@@ -237,7 +238,7 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
           <div class="th-done-list">
             <div class="th-done" v-for="p in completed" :key="p.id">
               <span class="th-price">
-                <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
+                <template v-for="(t, i) in parsePriceTokens(tradePriceOf(p) || '거래가 미기록')" :key="i">
                   <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
                 </template>
               </span>
@@ -261,8 +262,8 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
               <div class="th-row-body">
                 <div class="th-row-title">{{ p.itemName }}<span class="ethereal-badge" v-if="p.ethereal">에테리얼</span></div>
                 <div class="th-row-price">
-                  {{ p.amountLabel }} ·
-                  <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
+                  {{ p.amountLabel }} ·<template v-if="p.status === '거래완료'"> 거래가</template>
+                  <template v-for="(t, i) in parsePriceTokens(tradePriceOf(p) || '거래가 미기록')" :key="i">
                     <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
                   </template>
                 </div>
