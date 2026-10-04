@@ -63,7 +63,7 @@ const summary = computed(() => {
   return { posts: myTradePosts.value.length + myCommunityPosts.value.length, done, reviews: n, avg }
 })
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
 
 </script>
 
@@ -228,6 +228,7 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 .request-status{font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); flex:none;}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
 .request-status.status-declined{color:var(--blood); border-color:var(--blood);}
+.request-status.status-held{color:var(--teal); border-color:var(--teal); border-style:dashed;}
 
 .my-review-row{background:var(--panel); border:1px solid var(--border-soft); padding:14px 18px; border-radius:12px; display:flex; flex-direction:column; gap:8px;}
 .my-review-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}

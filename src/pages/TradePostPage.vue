@@ -4,8 +4,8 @@ import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
-  getTradeItem, TRADE_STATUSES, tradeEditBlockReason, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
+  getTradeItem, tradeEditBlockReason, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -132,12 +132,6 @@ const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.m
 const editBlocked = computed(() => tradeEditBlockReason(post.value, post.value?.requests || []))
 const isDone = computed(() => post.value?.status === '거래완료')
 
-function setStatus(status) {
-  return run(async () => {
-    const p = await updateTradeStatus(post.value.id, status)
-    post.value.status = p.status
-  })
-}
 // 판매자에게 쪽지 - 대화방을 열고(없으면 만들고) 쪽지함으로
 function messageSeller() {
   return run(async () => {
@@ -174,7 +168,7 @@ async function copyContact() {
 }
 
 const RESPOND_CONFIRM = {
-  accepted: (r) => `${r.buyer}님 구매신청 수락 - 수락하면 거래방이 열리고 판매글은 예약중으로 바뀜`,
+  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열리고 판매글은 예약중, 다른 대기 신청은 보류로 바뀜 (거래가 불발되면 다시 대기)`,
   declined: (r) => `${r.buyer}님 구매신청 거절 - 신청자에게 거절 알림이 감`,
   cancelled: () => '구매신청 취소',
 }
@@ -193,7 +187,13 @@ const requestsEl = ref(null)
 const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
+// 판매 상태는 거래 흐름으로만 바뀜 (020·021 SQL) - 판매자에겐 지금 상태와 다음 단계만 보여줌
+const activeDeal = computed(() => dealsState.deals.find((d) => d.postId === post.value?.id && d.status === '거래중') || null)
+const STATUS_HELP = {
+  판매중: '구매신청을 수락하면 예약중(거래중)으로 바뀜',
+  예약중: '거래방에서 둘 다 거래완료를 누르면 거래완료, 거래불발이면 다시 판매중',
+}
 // 수락했지만 거래방에서 거래불발이 된 신청은 '불발' (거래방 열기 버튼 없음)
 // 거래완료된 신청은 '거래완료' (역시 거래방 열기 없음)
 const DEAL_TO_REQ = { 거래불발: 'failed', 거래완료: 'done' }
@@ -357,7 +357,8 @@ async function confirmBuy() {
             type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
             @click="openBuyModal"
           >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
-          <p class="buy-now-hint">{{ post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
+          <p class="buy-now-hint" v-if="post.status === '예약중'">다른 구매자와 거래중 - 지금 신청하면 보류됐다가, 그 거래가 불발되면 대기로 바뀜</p>
+          <p class="buy-now-hint" v-else>{{ post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
         </section>
 
         <section class="side-card seller-card">
@@ -385,12 +386,12 @@ async function confirmBuy() {
         </section>
         <section class="side-card owner-card" v-if="(canManage || canDelete) && !isDone">
           <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
-          <div class="status-segment" role="radiogroup" aria-label="판매 상태" v-if="canManage">
-            <button
-              v-for="s in TRADE_STATUSES" :key="s" type="button" role="radio" :aria-checked="post.status === s"
-              :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
-            >{{ s }}</button>
+          <!-- 판매 상태는 직접 못 바꿈 (021): 신청 수락 → 예약중, 거래방에서 거래완료 / 거래불발 → 판매중 -->
+          <div class="status-now" v-if="canManage">
+            <span class="status-pill" :class="'status-' + post.status">{{ post.status }}</span>
+            <small>{{ STATUS_HELP[post.status] }}</small>
           </div>
+          <router-link v-if="isOwner && activeDeal" class="owner-bump" :to="`/deals/${activeDeal.id}`">거래방 열기 →</router-link>
           <template v-if="isOwner && post.status === '판매중'">
             <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">✎ 판매글 수정 (가격·옵션 수치)</router-link>
             <small v-else class="owner-bump-note">{{ editBlocked }}</small>
@@ -434,7 +435,11 @@ async function confirmBuy() {
               <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락 · 거래방 열기</button>
               <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
             </div>
-            <div class="request-actions" v-else-if="(r.status || 'pending') === 'pending' && r.buyerId === authState.user?.id">
+            <div class="request-actions" v-else-if="r.status === 'held' && canManage">
+              <span class="request-held-note">다른 구매자와 거래중 · 불발되면 다시 대기</span>
+              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
+            </div>
+            <div class="request-actions" v-else-if="['pending', 'held'].includes(r.status || 'pending') && r.buyerId === authState.user?.id">
               <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">신청 취소</button>
             </div>
             <div class="request-actions" v-else-if="reqStatus(r) === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
@@ -865,4 +870,9 @@ a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
 .section-note{font-size:11.5px; color:var(--text-dim);}
 .request-mine{font-size:10.5px; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:1px 7px;}
 .owner-edit{margin-bottom:6px;}
+.request-status.status-held{color:var(--teal); border-color:var(--teal); border-style:dashed;}
+.request-held-note{font-size:11.5px; color:var(--text-dim); margin-right:6px;}
+.status-segment button:disabled{opacity:.35; cursor:not-allowed;}
+.status-now{display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
+.status-now small{font-size:11.5px; color:var(--text-dim); line-height:1.5;}
 </style>

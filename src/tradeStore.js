@@ -826,8 +826,9 @@ export async function respondToRequest(post, request, decision) {
     const { data: dealId, error } = await supabase.rpc('accept_trade_request', { p_request_id: request.id })
     if (error) throw new Error(error.message || '수락 실패')
     request.status = 'accepted'
-    // 수락하면 판매중이던 글은 예약중으로
-    if (post.status === '판매중') await updateTradeStatus(post.id, '예약중').then((p) => (post.status = p.status)).catch(() => {})
+    // 판매글 예약중·다른 대기 신청 보류는 DB 함수가 같이 함 (020 SQL) - 화면도 맞춰 둠
+    if (post.status === '판매중') post.status = '예약중'
+    for (const r of post.requests || []) if (r !== request && (r.status || 'pending') === 'pending') r.status = 'held'
     return dealId
   }
   const status = decision === 'cancelled' ? 'cancelled' : 'rejected'
