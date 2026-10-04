@@ -118,7 +118,7 @@ async function submitMessage() {
           @click="openConversation(c.id)"
         >
           <span class="conv-dot" v-if="!isConversationRead(c)"></span>
-          <UserAvatar :src="c.avatar" :name="c.withName" :size="34" />
+          <UserAvatar :src="c.avatar" :name="c.withName" :size="34" :user-id="c.otherId" />
           <div class="conv-row-body">
             <div class="conv-row-top">
               <span class="conv-name">{{ c.withName }}</span>
@@ -133,7 +133,7 @@ async function submitMessage() {
       <div class="conv-thread" v-if="activeConversation">
         <div class="conv-thread-header">
           <div class="conv-thread-who">
-            <UserAvatar :src="activeConversation.avatar" :name="activeConversation.withName" :size="34" />
+            <UserAvatar :src="activeConversation.avatar" :name="activeConversation.withName" :size="34" :user-id="activeConversation.otherId" />
             <span><router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }}</router-link><template v-else>{{ activeConversation.withName }}</template>님과의 대화</span>
           </div>
           <button type="button" class="conv-leave" @click="leave">나가기</button>

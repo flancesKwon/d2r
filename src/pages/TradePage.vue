@@ -6,13 +6,13 @@ import {
   tradeState,
   loadTradePosts,
   TRADE_CATEGORIES,
-  TRADE_STATUSES,
   TRADE_LADDERS,
   TRADE_HARDCORE,
   getTradeItem,
   parsePriceTokens,
   TRADE_STAT_FILTERS,
   postStatValue,
+  postKeywordValue,
   postLevelReq,
   postIconKey,
   postRarity,
@@ -20,6 +20,7 @@ import {
   fmtSaleLeft,
 } from '../tradeStore.js'
 import { useNow } from '../useNow.js'
+import { isOnline } from '../presence.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
@@ -28,7 +29,6 @@ import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 onMounted(() => loadTradePosts())
 useAutoRefresh(() => loadTradePosts(true))
 const activeCat = ref(null)
-const activeStatus = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -70,20 +70,55 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-// 옵션 조건: "모든 저항 20 이상"처럼 옵션 종류 + 최솟값을 여러 개 걸 수 있고 전부
-// 만족하는 글만 남김(AND). 최솟값을 비우면 그 옵션이 붙어 있기만 하면 통과
+// 옵션 조건: "모든 저항 20~40"처럼 옵션 종류 + 수치 범위를 여러 개 걸 수 있고 전부
+// 만족하는 글만 남김(AND). 범위를 비우면 그 옵션이 붙어 있기만 하면 통과.
+// 종류 목록에 없는 옵션은 "키워드"로 옵션 문구 일부를 직접 적음 (예: 블리자드, 시전 속도) - 그 줄의 숫자로 범위 비교
+const KEYWORD_KEY = '__keyword'
 const statConditions = ref([])
 const statPickKey = ref(TRADE_STAT_FILTERS[0].key)
 const statPickMin = ref('')
+const statPickMax = ref('')
+const statPickKeyword = ref('')
 // 드롭다운 라벨의 "(%)"는 칩·배지에선 떼고 수치 뒤에 %로 붙임 ("모든 저항 20% 이상")
-const statLabel = (key) => (TRADE_STAT_FILTERS.find((s) => s.key === key)?.label || key).replace('(%)', '')
-const statUnit = (key) => (TRADE_STAT_FILTERS.find((s) => s.key === key)?.label.includes('(%)') ? '%' : '')
+const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : (TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label || c.key).replace('(%)', ''))
+const statUnit = (c) => (!c.keyword && TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label.includes('(%)') ? '%' : '')
+function rangeText(c) {
+  const u = statUnit(c)
+  if (c.min === null && c.max === null) return ' 있음'
+  if (c.max === null) return ` ${c.min}${u} 이상`
+  if (c.min === null) return ` ${c.max}${u} 이하`
+  return c.min === c.max ? ` ${c.min}${u}` : ` ${c.min}~${c.max}${u}`
+}
+const condId = (c) => (c.keyword ? 'kw:' + c.keyword : c.key)
 function addStatCondition() {
-  const min = statPickMin.value === '' ? null : Number(statPickMin.value)
-  const existing = statConditions.value.find((c) => c.key === statPickKey.value)
-  if (existing) existing.min = min
-  else statConditions.value.push({ key: statPickKey.value, min })
+  const num = (v) => (v === '' || v === null ? null : Number(v))
+  let min = num(statPickMin.value), max = num(statPickMax.value)
+  if (min !== null && max !== null && min > max) [min, max] = [max, min]
+  const keyword = statPickKey.value === KEYWORD_KEY ? statPickKeyword.value.trim() : ''
+  if (statPickKey.value === KEYWORD_KEY && !keyword) return
+  const cond = keyword ? { key: KEYWORD_KEY, keyword, min, max } : { key: statPickKey.value, min, max }
+  const existing = statConditions.value.find((c) => condId(c) === condId(cond))
+  if (existing) Object.assign(existing, cond)
+  else statConditions.value.push(cond)
   statPickMin.value = ''
+  statPickMax.value = ''
+  statPickKeyword.value = ''
+}
+// 글이 조건을 만족하는지 + 배지에 보여줄 값
+function condValue(p, c) {
+  if (c.keyword) {
+    const r = postKeywordValue(p, c.keyword, textMatchesQuery)
+    return r.hit ? r.value : undefined
+  }
+  const v = postStatValue(p, c.key)
+  return v === null ? undefined : v
+}
+function condMatches(p, c) {
+  const v = condValue(p, c)
+  if (v === undefined) return false
+  if (c.min === null && c.max === null) return true
+  if (v === null) return false
+  return (c.min === null || v >= c.min) && (c.max === null || v <= c.max)
 }
 function removeStatCondition(i) {
   statConditions.value.splice(i, 1)
@@ -96,14 +131,13 @@ const levelMax = ref('')
 
 const hasActiveFilters = computed(
   () =>
-    activeCat.value !== null || activeStatus.value !== null || activeLadder.value !== null ||
+    activeCat.value !== null || activeLadder.value !== null ||
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
     levelMin.value !== '' || levelMax.value !== ''
 )
 function resetFilters() {
   activeCat.value = null
-  activeStatus.value = null
   activeLadder.value = null
   activeHardcore.value = null
   etherealOnly.value = false
@@ -112,6 +146,8 @@ function resetFilters() {
   searchQuery.value = ''
   statConditions.value = []
   statPickMin.value = ''
+  statPickMax.value = ''
+  statPickKeyword.value = ''
   levelMin.value = ''
   levelMax.value = ''
 }
@@ -121,9 +157,9 @@ const now = useNow(60000)
 const leftLabel = (p) => fmtSaleLeft(saleLeftMs(p, now.value))
 const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
-  let list = tradeState.posts.filter((p) => { const ms = saleLeftMs(p, now.value); return ms === null || ms > 0 })
+  // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
+  let list = tradeState.posts.filter((p) => p.status === '판매중' && saleLeftMs(p, now.value) > 0)
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
-  if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -141,12 +177,7 @@ const filteredPosts = computed(() => {
         (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), searchQuery.value))
     )
   }
-  for (const c of statConditions.value) {
-    list = list.filter((p) => {
-      const v = postStatValue(p, c.key)
-      return v !== null && (c.min === null || v >= c.min)
-    })
-  }
+  for (const c of statConditions.value) list = list.filter((p) => condMatches(p, c))
   if (levelMin.value !== '' || levelMax.value !== '') {
     const lo = levelMin.value === '' ? -Infinity : Number(levelMin.value)
     const hi = levelMax.value === '' ? Infinity : Number(levelMax.value)
@@ -181,10 +212,6 @@ const filteredPosts = computed(() => {
         <div class="search-input-wrap">
           <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="아이템명·옵션·내용 검색" aria-label="거래글 검색" />
         </div>
-        <select v-model="activeStatus" class="sort-select">
-          <option :value="null">전체 상태</option>
-          <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
-        </select>
         <span class="result-count">{{ filteredPosts.length }}개</span>
         <div class="view-mode-toggle">
           <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" @click="setViewMode('list')">☰</button>
@@ -224,22 +251,34 @@ const filteredPosts = computed(() => {
       <div class="filter-row stat-filter-row">
         <span class="stat-filter-label">옵션 조건</span>
         <select v-model="statPickKey" class="sort-select" aria-label="옵션 종류">
+          <option :value="KEYWORD_KEY">키워드 직접 입력</option>
           <option v-for="s in TRADE_STAT_FILTERS" :key="s.key" :value="s.key">{{ s.label }}</option>
         </select>
         <input
-          type="number" v-model="statPickMin" class="stat-min-input" placeholder="최솟값 (비우면 옵션 있기만 하면)"
+          v-if="statPickKey === KEYWORD_KEY" type="text" v-model="statPickKeyword" class="stat-min-input stat-keyword-input"
+          placeholder="키워드 (예: 블리자드)" aria-label="옵션 키워드" @keydown.enter.prevent="addStatCondition"
+        />
+        <input
+          type="number" v-model="statPickMin" class="stat-min-input stat-num-input" placeholder="최소"
           aria-label="최솟값" @keydown.enter.prevent="addStatCondition"
         />
-        <button type="button" class="stat-add-btn" @click="addStatCondition">조건 추가</button>
-        <span class="stat-chip" v-for="(c, i) in statConditions" :key="c.key">
-          {{ statLabel(c.key) }}{{ c.min === null ? ' 있음' : ` ${c.min}${statUnit(c.key)} 이상` }}
-          <button type="button" :aria-label="`${statLabel(c.key)} 조건 삭제`" @click="removeStatCondition(i)">✕</button>
+        <span class="level-range-sep">~</span>
+        <input
+          type="number" v-model="statPickMax" class="stat-min-input stat-num-input" placeholder="최대"
+          aria-label="최댓값" @keydown.enter.prevent="addStatCondition"
+        />
+        <button type="button" class="stat-add-btn" :disabled="statPickKey === KEYWORD_KEY && !statPickKeyword.trim()" @click="addStatCondition">조건 추가</button>
+        <span class="stat-hint" v-if="!statConditions.length">범위를 비우면 옵션이 붙어 있기만 하면 됨 · 조건 여러 개 = 모두 만족</span>
+        <span class="stat-chip" v-for="(c, i) in statConditions" :key="condId(c)">
+          {{ statLabel(c) }}{{ rangeText(c) }}
+          <button type="button" :aria-label="`${statLabel(c)} 조건 삭제`" @click="removeStatCondition(i)">✕</button>
         </span>
       </div>
     </div>
   </div>
 
   <div class="grid-wrap trade-list-wrap">
+    <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 예약중·거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
@@ -256,7 +295,7 @@ const filteredPosts = computed(() => {
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
-            <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
+            <span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
           </div>
           <div class="trade-meta">
             {{ p.amountLabel }} ·
@@ -265,18 +304,18 @@ const filteredPosts = computed(() => {
             </template>
           </div>
           <div class="trade-sub-meta">
-            {{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · {{ p.author }} · {{ p.date }}
+            {{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · <span v-if="isOnline(p.authorId)" class="online-dot" title="판매자 접속 중">●</span>{{ p.author }} · {{ p.date }}
           </div>
           <div class="stat-match-row" v-if="statConditions.length">
-            <span class="stat-match" v-for="c in statConditions" :key="c.key">
-              {{ statLabel(c.key) }} {{ postStatValue(p, c.key) }}{{ statUnit(c.key) }}
+            <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
+              {{ statLabel(c) }}{{ condValue(p, c) !== null ? ` ${condValue(p, c)}${statUnit(c)}` : '' }}
             </span>
           </div>
         </div>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매글 없음</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
     </div>
 
     <div class="trade-grid" v-else>
@@ -286,7 +325,6 @@ const filteredPosts = computed(() => {
           :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
-        <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -302,17 +340,17 @@ const filteredPosts = computed(() => {
         </span>
         <span class="sale-left card-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
         <span class="stat-match-row" v-if="statConditions.length">
-          <span class="stat-match" v-for="c in statConditions" :key="c.key">
-            {{ statLabel(c.key) }} {{ postStatValue(p, c.key) }}{{ statUnit(c.key) }}
+          <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
+            {{ statLabel(c) }}{{ condValue(p, c) !== null ? ` ${condValue(p, c)}${statUnit(c)}` : '' }}
           </span>
         </span>
         <span class="trade-card-footer">
-          {{ p.author }} · {{ p.date }}
+          <span v-if="isOnline(p.authorId)" class="online-dot" title="판매자 접속 중">●</span>{{ p.author }} · {{ p.date }}
         </span>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매글 없음</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
     </div>
   </div>
   </div>
@@ -462,4 +500,12 @@ const filteredPosts = computed(() => {
 .trade-card-footer{
   font-size:10.5px; color:var(--text-dim); display:flex; align-items:center; gap:6px; margin-top:4px;
 }
+.online-dot{color:#3ecf5a; margin-right:3px; font-size:10px;}
+.stat-num-input{width:76px;}
+.stat-keyword-input{width:210px; max-width:100%;}
+.stat-hint{font-size:11.5px; color:var(--text-dim);}
+.stat-add-btn:disabled{opacity:.5; cursor:default;}
+.board-note{font-size:12px; color:var(--text-dim); margin:0 0 12px;}
+.board-note a{color:var(--gold-dim);}
+.board-note a:hover{color:var(--gold);}
 </style>

@@ -35,6 +35,7 @@ function nameColor(item, category, name, quality) {
   if (item?.category === 'unique') return TOOLTIP_COLORS.unique
   if (item?.category === 'set') return TOOLTIP_COLORS.set
   if (item?.category === 'runeword') return TOOLTIP_COLORS.unique
+  if (item?.category === 'gold') return TOOLTIP_COLORS.unique
   if (item?.type_sub === '룬' || category === '우버보스 재료' || category === '정수·징표') return TOOLTIP_COLORS.orange
   if (category === '매직/레어/일반') {
     if (/레어/.test(name)) return TOOLTIP_COLORS.rare

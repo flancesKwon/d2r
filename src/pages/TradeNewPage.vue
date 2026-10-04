@@ -6,6 +6,8 @@ import {
   TRADE_LADDERS,
   TRADE_HARDCORE,
   buildAmountLabel,
+  OFFER_ONLY_PRICE,
+  uniqueDefenseRange as uniqueDefenseRangeFor,
   optionPresetsFor,
   addTradePost,
   searchAllItems,
@@ -65,6 +67,8 @@ const emptyForm = () => ({
   quantity: '',
   ethereal: false,
   negotiable: false,
+  // 제안만 받기 - 희망 가격 없이 구매자들이 룬·보석·재료로 가격을 제안함
+  offerOnly: false,
   // 유니크·세트를 미확인으로 팜 - 옵션 수치 입력 없이 사전 범위로
   unidentified: false,
   realm: TRADE_REALMS[0],
@@ -104,6 +108,13 @@ function hideBundleDropdownSoon() {
 }
 
 const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
+// 골드 판매 - 수량칸이 골드 액수. 큰 수라 "250만 골드"처럼 읽기 쉽게도 보여줌
+const isGold = computed(() => form.value.category === '골드')
+function goldReadable(v) {
+  const n = Math.floor(Number(v) || 0)
+  const eok = Math.floor(n / 100000000), man = Math.floor((n % 100000000) / 10000), rest = n % 10000
+  return '= ' + [eok && `${eok}억`, man && `${man}만`, rest && `${rest}`].filter(Boolean).join(' ') + ' 골드'
+}
 const showItemModal = ref(false)
 // 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
 // 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
@@ -417,21 +428,10 @@ const expectedWeaponDamage = computed(() => {
   const mul = form.value.ethereal ? 1.5 : 1
   return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
 })
-// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 - 베이스 방어력(에테리얼 1.5배) × 방어력 증가% + 추가 방어력.
-// 방어력 증가가 붙으면 베이스가 최대값+1로 고정돼서 위쪽은 그걸로, 레벨당 방어력은 99레벨까지 넉넉하게 잡음
-const uniqueDefenseRange = computed(() => {
-  const it = selectedItem.value
-  const b = it?.base_stats
-  if (!isUniqueOrSet.value || b?.category !== 'armor') return null
-  const affixes = it.affixes || []
-  const sum = (prop, i) => affixes.filter((a) => a.prop === prop).reduce((t, a) => t + (Number(i ? a.max : a.min) || 0), 0)
-  const perLevel = affixes.filter((a) => a.prop === 'ac/lvl').reduce((t, a) => t + (Number(a.par) || 0) / 8, 0)
-  const mul = form.value.ethereal ? 1.5 : 1
-  const edLo = sum('ac%', 0), edHi = sum('ac%', 1)
-  const min = Math.floor((Math.floor(b.minac * mul) * (100 + edLo)) / 100) + sum('ac', 0)
-  const max = Math.floor((Math.floor((b.maxac + (edHi > 0 ? 1 : 0)) * mul) * (100 + edHi)) / 100) + sum('ac', 1) + Math.floor(perLevel * 99)
-  return { min, max }
-})
+// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 (tradeStore - 판매글 수정 화면도 같이 씀)
+const uniqueDefenseRange = computed(() =>
+  isUniqueOrSet.value ? uniqueDefenseRangeFor(selectedItem.value, form.value.ethereal) : null
+)
 // 유니크·세트 무기 데미지 범위 (한손·양손 중 아무 쪽이나 맞으면 됨, 레벨당 데미지는 99레벨까지)
 const uniqueDamageRange = computed(() => {
   if (!isUniqueOrSet.value || selectedItem.value?.base_stats?.category !== 'weapon') return null
@@ -778,6 +778,7 @@ function removePriceItem(i) {
   priceItems.value.splice(i, 1)
 }
 function buildPriceString() {
+  if (form.value.offerOnly) return OFFER_ONLY_PRICE
   return priceItems.value.map((p) => `${p.item.name_ko} ${p.qty}개`).join(' + ')
 }
 
@@ -802,7 +803,7 @@ async function savePost(payload) {
 
 function submitBundle() {
   if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담을 것'; return }
-  if (!priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택'; return }
+  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -851,21 +852,21 @@ const previewTooltip = computed(() =>
         iconKey: postIcon.value,
         options: buildAllOptions(),
         ethereal: form.value.ethereal,
-        amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
+        amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity, form.value.category) : '1개',
       })
     : null
 )
 
 function submitPost() {
   if (bundleMode.value) return submitBundle()
-  const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
+  const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity, form.value.category) : '1개'
   if (!form.value.itemName.trim()) { formError.value = '아이템 검색·선택 또는 이름 입력'; return }
   if (!amountLabel.trim()) { formError.value = '개수 입력'; return }
   if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
     formError.value = '룬워드는 베이스 아이템 선택 필수'
     return
   }
-  if (!priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택'; return }
+  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'; return }
   if (invalidInputs.value.length) {
     formError.value = `게임에서 나올 수 없는 수치: ${invalidInputs.value[0]}`
     return
@@ -920,7 +921,7 @@ function submitPost() {
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
         <button v-else type="button" class="item-picker-trigger" @click="showItemModal = true">
-          아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)
+          아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)
         </button>
       </div>
 
@@ -929,7 +930,7 @@ function submitPost() {
           <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
           <div class="d-section-title">아이템 선택</div>
           <input
-            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
+            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)"
             class="write-input" v-focus
           />
           <div class="item-modal-list">
@@ -1267,9 +1268,10 @@ function submitPost() {
       <template v-if="selectedItem || form.category">
         <template v-if="hasQuantity">
           <input
-            type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
+            type="number" min="1" v-model="form.quantity" :placeholder="isGold ? '골드 액수 (예: 2500000)' : '개수 (예: 5)'"
             class="write-input trade-quantity-input"
           />
+          <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0">{{ goldReadable(form.quantity) }}</div>
         </template>
       </template>
 
@@ -1385,12 +1387,16 @@ function submitPost() {
       </div>
       </template>
 
-      <label class="negotiable-check">
+      <label class="negotiable-check offer-only-check">
+        <input type="checkbox" v-model="form.offerOnly" />
+        제안만 받기 <small>희망 가격 없이 구매자들의 가격 제안을 받음</small>
+      </label>
+      <label class="negotiable-check" v-if="!form.offerOnly">
         <input type="checkbox" v-model="form.negotiable" />
         흥정 가능
       </label>
 
-      <div class="price-picker">
+      <div class="price-picker" v-if="!form.offerOnly">
         <div class="option-editor-title">희망 가격</div>
         <div class="bundle-chip-row" v-if="priceItems.length">
           <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
@@ -1562,6 +1568,7 @@ function submitPost() {
 
 .negotiable-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--gold-dim); cursor:pointer;}
 .negotiable-check input{accent-color:var(--gold-dim);}
+.offer-only-check small{color:var(--text-dim); font-size:11.5px;}
 
 .custom-option-chip{
   display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);

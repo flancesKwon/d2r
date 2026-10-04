@@ -17,6 +17,10 @@ begin
   if old.status = '예약중' and new.status = '판매중' then new.bumped_at := now(); end if;
   return new;
 end $$;
+-- 트리거는 009 에서 만들었지만, 없을 때를 대비해 여기서도 다시 연결
+drop trigger if exists trg_trade_bump_guard on public.tb_trade_post;
+create trigger trg_trade_bump_guard before insert or update on public.tb_trade_post
+  for each row execute function public.d2r_trade_bump_guard();
 
 -- 2) 재등록 - 판매가만 바꿀 수 있음
 create or replace function public.d2r_relist_trade_post(p_post bigint, p_price text)
@@ -49,3 +53,16 @@ end $$;
 drop trigger if exists trg_trade_done_delete_guard on public.tb_trade_post;
 create trigger trg_trade_done_delete_guard before delete on public.tb_trade_post
   for each row execute function public.d2r_trade_done_delete_guard();
+
+-- PostgREST(사이트가 쓰는 API)가 새 함수를 바로 알아보게
+notify pgrst, 'reload schema';
+
+-- 확인: 3줄 나오면 정상 (재등록 함수 / 판매 기간 트리거 / 거래완료 삭제 막기)
+select '재등록 함수' as 항목, proname as 이름 from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'd2r_relist_trade_post'
+union all
+select '판매 기간 트리거', tgname from pg_trigger
+ where tgrelid = 'public.tb_trade_post'::regclass and tgname = 'trg_trade_bump_guard'
+union all
+select '거래완료 삭제 막기', tgname from pg_trigger
+ where tgrelid = 'public.tb_trade_post'::regclass and tgname = 'trg_trade_done_delete_guard';

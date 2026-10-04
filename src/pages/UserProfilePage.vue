@@ -11,6 +11,7 @@ import { fetchReviewsFor } from '../dealsStore.js'
 import { openConversationWith } from '../messagesStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import UserAvatar from '../components/UserAvatar.vue'
+import { isOnline } from '../presence.js'
 import ReportButton from '../components/ReportButton.vue'
 
 const route = useRoute()
@@ -96,14 +97,14 @@ async function sendMessage() {
 
     <div class="grid-wrap user-wrap" v-else-if="profile">
       <section class="user-card">
-        <UserAvatar :src="profile.avatar_url" :name="profile.nickname" :size="72" />
+        <UserAvatar :src="profile.avatar_url" :name="profile.nickname" :size="72" :user-id="profile.id" />
         <div class="user-main">
           <div class="user-name">
             {{ profile.nickname }}
             <span class="user-role" v-if="profile.role && profile.role !== 'user'">{{ ROLE_LABEL[profile.role] || profile.role }}</span>
             <span class="user-suspended" v-if="suspended">이용 정지 중</span>
           </div>
-          <div class="user-meta">가입 {{ fmtDay(profile.created_at) }} · 마지막 활동 {{ ago(profile.last_seen_at) }}</div>
+          <div class="user-meta">가입 {{ fmtDay(profile.created_at) }} · <span v-if="isOnline(profile.id)" class="online-now">● 접속 중</span><template v-else>마지막 활동 {{ ago(profile.last_seen_at) }}</template></div>
           <div class="user-stats">
             <span class="user-stat"><b>{{ summary.avg ? '★ ' + summary.avg : '-' }}</b><small>평점</small></span>
             <span class="user-stat"><b>{{ summary.reviews }}</b><small>받은 리뷰</small></span>
@@ -216,4 +217,5 @@ async function sendMessage() {
   .user-stats{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px;}
   .user-stat{min-width:0; padding:8px 4px;}
 }
+.online-now{color:#3ecf5a; font-weight:600;}
 </style>
