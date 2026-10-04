@@ -15,6 +15,7 @@ const MarketPage = () => import('./pages/MarketPage.vue')
 const TradePage = () => import('./pages/TradePage.vue')
 const TradeNewPage = () => import('./pages/TradeNewPage.vue')
 const TradeRelistPage = () => import('./pages/TradeRelistPage.vue')
+const TradeEditPage = () => import('./pages/TradeEditPage.vue')
 const TradePostPage = () => import('./pages/TradePostPage.vue')
 const AdminPage = () => import('./pages/AdminPage.vue')
 const CubeRecipesPage = () => import('./pages/CubeRecipesPage.vue')
@@ -57,6 +58,7 @@ const router = createRouter({
     { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
     { path: '/trade/:id/relist', name: 'trade-relist', component: TradeRelistPage, meta: { title: '재등록' } },
+    { path: '/trade/:id/edit', name: 'trade-edit', component: TradeEditPage, meta: { title: '판매글 수정' } },
     { path: '/trade/:id', name: 'trade-post', component: TradePostPage, meta: { title: '거래게시판' } },
     // 회원가입은 디스코드·구글 로그인으로 대신함 (예전 주소는 마이페이지로)
     { path: '/signup', redirect: '/mypage' },

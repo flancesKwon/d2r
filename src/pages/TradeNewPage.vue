@@ -7,6 +7,7 @@ import {
   TRADE_HARDCORE,
   buildAmountLabel,
   OFFER_ONLY_PRICE,
+  uniqueDefenseRange as uniqueDefenseRangeFor,
   optionPresetsFor,
   addTradePost,
   searchAllItems,
@@ -427,21 +428,10 @@ const expectedWeaponDamage = computed(() => {
   const mul = form.value.ethereal ? 1.5 : 1
   return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
 })
-// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 - 베이스 방어력(에테리얼 1.5배) × 방어력 증가% + 추가 방어력.
-// 방어력 증가가 붙으면 베이스가 최대값+1로 고정돼서 위쪽은 그걸로, 레벨당 방어력은 99레벨까지 넉넉하게 잡음
-const uniqueDefenseRange = computed(() => {
-  const it = selectedItem.value
-  const b = it?.base_stats
-  if (!isUniqueOrSet.value || b?.category !== 'armor') return null
-  const affixes = it.affixes || []
-  const sum = (prop, i) => affixes.filter((a) => a.prop === prop).reduce((t, a) => t + (Number(i ? a.max : a.min) || 0), 0)
-  const perLevel = affixes.filter((a) => a.prop === 'ac/lvl').reduce((t, a) => t + (Number(a.par) || 0) / 8, 0)
-  const mul = form.value.ethereal ? 1.5 : 1
-  const edLo = sum('ac%', 0), edHi = sum('ac%', 1)
-  const min = Math.floor((Math.floor(b.minac * mul) * (100 + edLo)) / 100) + sum('ac', 0)
-  const max = Math.floor((Math.floor((b.maxac + (edHi > 0 ? 1 : 0)) * mul) * (100 + edHi)) / 100) + sum('ac', 1) + Math.floor(perLevel * 99)
-  return { min, max }
-})
+// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 (tradeStore - 판매글 수정 화면도 같이 씀)
+const uniqueDefenseRange = computed(() =>
+  isUniqueOrSet.value ? uniqueDefenseRangeFor(selectedItem.value, form.value.ethereal) : null
+)
 // 유니크·세트 무기 데미지 범위 (한손·양손 중 아무 쪽이나 맞으면 됨, 레벨당 데미지는 99레벨까지)
 const uniqueDamageRange = computed(() => {
   if (!isUniqueOrSet.value || selectedItem.value?.base_stats?.category !== 'weapon') return null

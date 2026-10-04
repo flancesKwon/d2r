@@ -5,7 +5,7 @@ import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
-  getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+  getTradeItem, TRADE_STATUSES, tradeEditBlockReason, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -34,8 +34,10 @@ async function load() {
     post.value = fresh
     if (fresh) {
       // 화면이 쓰는 건 post.value (반응형) - 원본 객체(fresh)를 고치면 화면이 안 바뀌어서 구매신청이 안 보였음
-      if (await countTradeView(fresh.id)) post.value.views++
-      post.value.requests = await fetchTradeRequests(fresh.id).catch(() => [])
+      // 조회수 올리기와 구매신청 받기를 같이 (조회수 요청이 느리면 신청 목록·수정 버튼까지 늦게 떴음)
+      const [counted, reqs] = await Promise.all([countTradeView(fresh.id), fetchTradeRequests(fresh.id).catch(() => [])])
+      post.value.requests = reqs
+      if (counted) post.value.views++
     }
   } catch (e) {
     // 네트워크 오류면 받아둔 글을 그대로 둠
@@ -126,6 +128,8 @@ const saleClock = computed(() => {
 })
 const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.min(100, (saleLeft.value / (SALE_HOURS * 3600000)) * 100))))
 // 거래완료된 글: 상태 변경·삭제 없음 (거래내역·후기가 이 글을 가리킴)
+// 판매글 수정 - 판매중 + 대기·수락된 구매신청 없을 때만 (019 SQL)
+const editBlocked = computed(() => tradeEditBlockReason(post.value, post.value?.requests || []))
 const isDone = computed(() => post.value?.status === '거래완료')
 
 function setStatus(status) {
@@ -290,7 +294,7 @@ async function confirmBuy() {
         >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">
-        {{ post.author }} · {{ post.date }} 등록 · 조회 {{ post.views }} ·
+        {{ post.author }} · {{ post.date }} 등록<template v-if="post.editedAt"> · 수정됨</template> · 조회 {{ post.views }} ·
         <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">이 아이템 거래내역</router-link>
       </div>
     </div>
@@ -388,6 +392,8 @@ async function confirmBuy() {
             >{{ s }}</button>
           </div>
           <template v-if="isOwner && post.status === '판매중'">
+            <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">✎ 판매글 수정 (가격·옵션 수치)</router-link>
+            <small v-else class="owner-bump-note">{{ editBlocked }}</small>
             <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">재등록 (판매가 수정)</router-link>
             <small class="owner-bump-note">판매 기간 {{ SALE_HOURS }}시간 · 끝나면 판매가만 고쳐 재등록</small>
           </template>
@@ -858,4 +864,5 @@ a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
 .offer-count-link:hover{color:var(--gold); border-color:var(--gold-dim);}
 .section-note{font-size:11.5px; color:var(--text-dim);}
 .request-mine{font-size:10.5px; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:1px 7px;}
+.owner-edit{margin-bottom:6px;}
 </style>

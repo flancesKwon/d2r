@@ -467,6 +467,34 @@ export function postIconKey(post) {
   if (!code) return null
   return MISC_BASE_BY_CODE.get(code)?.icon_key || magicAffixData.bases[code]?.icon || null
 }
+// 판매글의 베이스 아이템 - 유니크·세트는 사전 베이스, 룬워드·매직/레어는 "베이스: ..." 줄, 반지·부적 등은 이름으로
+// (반지·목걸이·주얼·부적은 무기·방어구 목록에 없어서 판매글 등록 화면과 같은 모양으로 만들어 줌)
+export function postBaseItem(post) {
+  const item = getTradeItem(post?.itemId)
+  if (item && (item.category === 'unique' || item.category === 'set')) return baseForItem(item)
+  const baseLine = (post?.options || []).find((l) => l.startsWith('베이스: '))
+  const b = baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))
+  const code = b ? b.code : !item && MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
+  if (b?.base_stats) return b
+  const misc = code && MISC_BASE_BY_CODE.get(code)
+  return misc ? { ...misc, type_sub: misc.name_ko, tier: '', sockets: 0, can_eth: false, base_stats: { category: 'misc' } } : null
+}
+
+// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 - 베이스 방어력(에테리얼 1.5배) × 방어력 증가% + 추가 방어력.
+// 방어력 증가가 붙으면 베이스가 최대값+1로 고정돼서 위쪽은 그걸로, 레벨당 방어력은 99레벨까지 넉넉하게 잡음
+export function uniqueDefenseRange(item, ethereal = false) {
+  const b = item?.base_stats
+  if (!['unique', 'set'].includes(item?.category) || b?.category !== 'armor') return null
+  const affixes = item.affixes || []
+  const sum = (prop, i) => affixes.filter((a) => a.prop === prop).reduce((t, a) => t + (Number(i ? a.max : a.min) || 0), 0)
+  const perLevel = affixes.filter((a) => a.prop === 'ac/lvl').reduce((t, a) => t + (Number(a.par) || 0) / 8, 0)
+  const mul = ethereal ? 1.5 : 1
+  const edLo = sum('ac%', 0), edHi = sum('ac%', 1)
+  const min = Math.floor((Math.floor(b.minac * mul) * (100 + edLo)) / 100) + sum('ac', 0)
+  const max = Math.floor((Math.floor((b.maxac + (edHi > 0 ? 1 : 0)) * mul) * (100 + edHi)) / 100) + sum('ac', 1) + Math.floor(perLevel * 99)
+  return { min, max }
+}
+
 // 아이콘 테두리 색 - 사전 아이템은 카테고리, 사전에 없는 장비는 고른 품질(예전 글은 이름의 매직/레어)
 export function postRarity(post) {
   const item = getTradeItem(post?.itemId)
@@ -557,6 +585,8 @@ function mapTradePost(r) {
     expired: isExpired(r.status, r.bumped_at || r.created_at),
     // 아이템별 거래내역의 "팔린 날" - 거래완료로 바꾼 마지막 수정 시각
     completedAt: r.status === '거래완료' ? fmtDate(r.updated_at) : null,
+    // 판매자가 등록 뒤 옵션·가격 등을 고친 시각 (판매글 수정)
+    editedAt: o.editedAt || null,
     requests: [],
   }
 }
@@ -648,6 +678,46 @@ export async function addTradePost({
   const post = mapTradePost(rows[0])
   tradeState.posts.unshift(post)
   return post
+}
+
+// 판매글 수정 - 판매중이고 대기·수락된 구매신청이 없을 때만 (019 SQL 이 다시 확인). 아이템은 못 바꿈
+// patch: { price, options(줄 목록), amountLabel, negotiable, offerOnly, ladder, hardcore, contact, content }
+// 판매 기간(bumped_at)은 그대로 - 수정해도 시간이 늘어나지 않음
+export async function updateTradePost(post, patch) {
+  needUser()
+  const { data: cur, error: e1 } = await supabase.from('tb_trade_post').select('options').eq('id', post.id).single()
+  if (e1) throw e1
+  const o = unpackOptions(cur.options)
+  const options = {
+    ...o,
+    lines: (patch.options || o.lines || []).filter(Boolean),
+    negotiable: !!patch.negotiable || !!patch.offerOnly,
+    offerOnly: !!patch.offerOnly,
+    editedAt: new Date().toISOString(),
+  }
+  const { data, error } = await supabase.from('tb_trade_post').update({
+    price: patch.offerOnly ? OFFER_ONLY_PRICE : patch.price,
+    options,
+    amount_label: patch.amountLabel || null,
+    ladder: patch.ladder,
+    hardcore: patch.hardcore,
+    contact: patch.contact || null,
+    content: patch.content || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', post.id).select(`*, ${POST_AUTHOR}`)
+  if (error) throw new Error(error.message || '수정 실패')
+  if (!data?.length) throw new Error('수정 권한 없음')
+  const fresh = mapTradePost(data[0])
+  const i = tradeState.posts.findIndex((p) => String(p.id) === String(post.id))
+  if (i >= 0) tradeState.posts[i] = fresh
+  return fresh
+}
+// 수정할 수 있는 글인지 (화면용 - 실제 확인은 DB). requests: 이 글의 구매신청 목록
+export function tradeEditBlockReason(post, requests = []) {
+  if (!post) return '판매글 없음'
+  if (post.status !== '판매중') return `${post.status} 글은 수정 불가`
+  if (requests.some((r) => ['pending', 'accepted'].includes(r.status || 'pending'))) return '구매신청이 들어온 글은 수정 불가 (신청을 거절하거나 취소되면 가능)'
+  return ''
 }
 
 // 재등록: 판매 기간이 끝난 내 판매중 글을 판매가만 바꿔서 다시 48시간 (DB 함수가 기간·주인 확인)
