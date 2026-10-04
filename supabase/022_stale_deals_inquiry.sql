@@ -67,7 +67,8 @@ declare n integer := 0; k integer;
 begin
   -- 거래방마다 마지막 활동 (만든 때·거래완료 누른 때·마지막 메시지)
   create temporary table if not exists d2r_tmp_deal_act (id bigint primary key, last_at timestamptz) on commit drop;
-  delete from d2r_tmp_deal_act;
+  -- Supabase 는 API 로 들어온 요청에서 WHERE 없는 DELETE 를 막음(safeupdate) -> where true
+  delete from d2r_tmp_deal_act where true;
   insert into d2r_tmp_deal_act
   select d.id, greatest(d.created_at, coalesce(d.seller_done_at, d.created_at), coalesce(d.buyer_done_at, d.created_at),
                         coalesce((select max(m.created_at) from public.tb_trade_deal_message m where m.deal_id = d.id), d.created_at))
