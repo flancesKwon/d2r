@@ -25,3 +25,19 @@ export async function mustReturnRows(query, message = '권한 없음') {
   if (!data?.length) throw new Error(blockedReason() || message)
   return data
 }
+
+// 멈춘 거래방 자동 불발·자동 완료 알림·오래된 신청 정리 (022 SQL d2r_settle_stale) - 누가 부르든 전체를 정리하는
+// DB 함수라, 거래게시판·거래방 목록을 열 때 브라우저마다 10분에 한 번만 부름 (함수가 아직 없으면 조용히 넘어감)
+let settledAt = 0
+export function settleStaleSoon() {
+  if (!supabase) return
+  const now = Date.now()
+  try {
+    if (now - Number(localStorage.getItem('d2r-settle-at') || 0) < 600000) return
+    localStorage.setItem('d2r-settle-at', String(now))
+  } catch {
+    if (now - settledAt < 600000) return
+  }
+  settledAt = now
+  supabase.rpc('d2r_settle_stale').then(() => {}, () => {})
+}

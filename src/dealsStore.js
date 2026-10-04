@@ -1,5 +1,5 @@
 import { reactive, computed, watch } from 'vue'
-import { supabase, mustReturnRows } from './supabase.js'
+import { supabase, mustReturnRows, settleStaleSoon } from './supabase.js'
 import { authState } from './profileStore.js'
 import { playChime } from './notifySound.js'
 
@@ -73,6 +73,7 @@ export async function loadDeals() {
   dealsState.loading = true
   try {
     // 한쪽만 완료를 누르고 3일 지난 내 거래는 먼저 완료로 (012 SQL 전이면 조용히 넘어감)
+    settleStaleSoon()
     await supabase.rpc('d2r_settle_deals').then(() => {}, () => {})
     const { data, error } = await supabase.from('tb_trade_deal').select(DEAL_SELECT).order('created_at', { ascending: false })
     if (error) throw error

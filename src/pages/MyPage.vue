@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authState, signIn, ROLE_LABEL } from '../profileStore.js'
-import { fetchMyTradePosts, fetchMyRequests, getTradeItem } from '../tradeStore.js'
+import { fetchMyTradePosts, fetchMyRequests, getTradeItem, statusLabel } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor, dealsState } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -121,7 +121,7 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '
         <div class="my-trade-row" v-for="p in myTradePosts" :key="p.id">
           <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
           <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
-          <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : p.status }}</span>
+          <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : statusLabel(p.status) }}</span>
           <router-link v-if="p.expired" :to="`/trade/${p.id}/relist`" class="my-relist">재등록</router-link>
           <span class="my-trade-date">{{ p.date }}</span>
         </div>

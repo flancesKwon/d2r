@@ -1273,6 +1273,7 @@ function submitPost() {
             type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="isGold ? '골드 액수 (예: 2500000, 최대 1500만)' : '개수 (예: 5)'"
             class="write-input trade-quantity-input" :class="{ invalid: isGold && Number(form.quantity) > GOLD_MAX }"
           />
+          <div class="unit-hint" v-if="!isGold">여러 개는 한 번에 통째로 판매 - 나눠 팔려면 글을 따로 올리기</div>
           <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0" :class="{ 'affix-error': Number(form.quantity) > GOLD_MAX }">
             {{ goldReadable(form.quantity) }}{{ Number(form.quantity) > GOLD_MAX ? ' - 최대 1500만 골드까지' : '' }}
           </div>

@@ -8,7 +8,7 @@ import skillTextData from './data/skill_text.json'
 import { buildSkillNameLookup } from './skillNames.js'
 import { SKILL_TAB_NAMES } from './magicAffixes.js'
 import magicAffixData from './data/magicAffixes.json'
-import { supabase, mustReturnRows } from './supabase.js'
+import { supabase, mustReturnRows, settleStaleSoon } from './supabase.js'
 import { authState } from './profileStore.js'
 
 export { itemsData }
@@ -137,6 +137,8 @@ export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료
 // 제안만 받기 글의 판매가 자리 (DB price 칸은 비울 수 없어서 이 문구로 채움)
 export const OFFER_ONLY_PRICE = '가격 제안 받음'
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
+// 화면에 보이는 상태 이름 - DB 값 '예약중'은 거래방이 거래중인 상태라 "거래중"으로 보여줌 (거래방 상태와 같은 말로)
+export const statusLabel = (s) => (s === '예약중' ? '거래중' : s)
 // 아시아 서버 유저 대상 게시판이라 서버 선택 자체를 없앰 - 항상 아시아로 고정
 export const TRADE_REALMS = ['아시아']
 export const TRADE_LADDERS = ['레더', '논레더']
@@ -606,6 +608,7 @@ let lastLoadedAt = 0
 export async function loadTradePosts(force = false) {
   if (!supabase || tradeState.loading) return
   if (tradeState.loaded && !force && Date.now() - lastLoadedAt < 10000) return
+  settleStaleSoon()
   tradeState.loading = true
   tradeState.error = ''
   try {

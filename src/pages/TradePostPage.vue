@@ -5,7 +5,7 @@ import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
-  getTradeItem, tradeEditBlockReason, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+  getTradeItem, tradeEditBlockReason, statusLabel, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -98,22 +98,6 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-const reqQty = ref(1)
-const reqMessage = ref('')
-const showRequestSent = ref(false)
-
-function submitRequest() {
-  if (!reqMessage.value.trim()) return
-  return run(async () => {
-    const r = await addTradeRequest(post.value.id, { qty: reqQty.value, message: reqMessage.value.trim() })
-    post.value.requests.push(r)
-    reqQty.value = 1
-    reqMessage.value = ''
-    showRequestSent.value = true
-    setTimeout(() => (showRequestSent.value = false), 2500)
-  })
-}
-
 // 판매 기간 카운트다운 (올린 때부터 48시간) - 끝나면 목록에서 내려가고, 판매자는 판매가만 고쳐 재등록
 const now = useNow(1000)
 const saleLeft = computed(() => saleLeftMs(post.value, now.value))
@@ -130,13 +114,16 @@ const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.m
 // 거래완료된 글: 상태 변경·삭제 없음 (거래내역·후기가 이 글을 가리킴)
 // 판매글 수정 - 판매중 + 대기·수락된 구매신청 없을 때만 (019 SQL)
 const editBlocked = computed(() => tradeEditBlockReason(post.value, post.value?.requests || []))
+// 여러 개·골드·묶음은 한 번에 통째로 파는 글 (나눠 팔려면 글을 따로)
+const isLot = computed(() => !!post.value && post.value.amountLabel && post.value.amountLabel !== '1개')
 const isDone = computed(() => post.value?.status === '거래완료')
 
 // 판매자에게 쪽지 - 대화방을 열고(없으면 만들고) 쪽지함으로
+// 문의는 구매신청이 아니라 쪽지로 - 쪽지창에 이 판매글이 붙어서 첫 메시지에 링크됨 (MessagesPage ?post=)
 function messageSeller() {
   return run(async () => {
     const convId = await openConversationWith(post.value.authorId)
-    router.push({ path: '/messages', query: { c: convId } })
+    router.push({ path: '/messages', query: { c: convId, post: post.value.id } })
   })
 }
 async function removePost() {
@@ -168,7 +155,7 @@ async function copyContact() {
 }
 
 const RESPOND_CONFIRM = {
-  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열리고 판매글은 예약중, 다른 대기 신청은 보류로 바뀜 (거래가 불발되면 다시 대기)`,
+  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열리고 판매글은 거래중, 다른 대기 신청은 보류로 바뀜 (거래가 불발되면 다시 대기)`,
   declined: (r) => `${r.buyer}님 구매신청 거절 - 신청자에게 거절 알림이 감`,
   cancelled: () => '구매신청 취소',
 }
@@ -191,7 +178,7 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '
 // 판매 상태는 거래 흐름으로만 바뀜 (020·021 SQL) - 판매자에겐 지금 상태와 다음 단계만 보여줌
 const activeDeal = computed(() => dealsState.deals.find((d) => d.postId === post.value?.id && d.status === '거래중') || null)
 const STATUS_HELP = {
-  판매중: '구매신청을 수락하면 예약중(거래중)으로 바뀜',
+  판매중: '구매신청을 수락하면 거래중으로 바뀜',
   예약중: '거래방에서 둘 다 거래완료를 누르면 거래완료, 거래불발이면 다시 판매중',
 }
 // 수락했지만 거래방에서 거래불발이 된 신청은 '불발' (거래방 열기 버튼 없음)
@@ -280,7 +267,7 @@ async function confirmBuy() {
         <div class="title-block">
           <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
           <div class="title-badges">
-            <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? '기간 만료' : post.status }}</span>
+            <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? '기간 만료' : statusLabel(post.status) }}</span>
             <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
             <span class="unid-badge" v-if="post.unidentified">미확인</span>
             <span class="negotiable-badge" v-if="post.offerOnly">제안만 받기</span>
@@ -350,7 +337,7 @@ async function confirmBuy() {
             </span>
           </div>
           <div class="price-meta">
-            <span>수량 <b>{{ post.amountLabel }}</b></span>
+            <span>수량 <b>{{ post.amountLabel }}</b><template v-if="isLot"> · 한 번에 판매</template></span>
             <span v-if="post.negotiable" class="nego">흥정 가능</span>
           </div>
           <button
@@ -376,7 +363,7 @@ async function confirmBuy() {
             <span class="contact-value">{{ post.contact || '구매신청으로 문의' }}</span>
             <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ copied ? '복사됨' : '복사' }}</button>
           </div>
-          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지 보내기</button>
+          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지로 문의하기</button>
           <div class="seller-report" v-if="!isOwner"><ReportButton target-type="trade_post" :target-id="post.id" :owner-id="post.authorId" label="판매글 신고" /></div>
         </section>
 
@@ -388,7 +375,7 @@ async function confirmBuy() {
           <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
           <!-- 판매 상태는 직접 못 바꿈 (021): 신청 수락 → 예약중, 거래방에서 거래완료 / 거래불발 → 판매중 -->
           <div class="status-now" v-if="canManage">
-            <span class="status-pill" :class="'status-' + post.status">{{ post.status }}</span>
+            <span class="status-pill" :class="'status-' + post.status">{{ statusLabel(post.status) }}</span>
             <small>{{ STATUS_HELP[post.status] }}</small>
           </div>
           <router-link v-if="isOwner && activeDeal" class="owner-bump" :to="`/deals/${activeDeal.id}`">거래방 열기 →</router-link>
@@ -450,24 +437,11 @@ async function confirmBuy() {
         <div class="empty-state request-empty" v-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '아직 구매신청·제안 없음' }}</div>
       </div>
 
-      <div class="side-card request-form" v-if="!authState.user">
-        <div class="card-title">판매자에게 문의·구매신청</div>
-        <p class="request-login">로그인 후 문의·구매신청</p>
-        <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
-      </div>
-      <div class="side-card request-form" v-else-if="!isOwner">
-        <div class="card-title">판매자에게 문의·구매신청</div>
-        <div class="request-form-row">
-          <input type="number" min="1" v-model="reqQty" placeholder="수량" class="write-input request-qty-input" aria-label="신청 수량" />
-        </div>
-        <textarea
-          v-model="reqMessage" class="request-textarea" rows="4" aria-label="메시지"
-          placeholder="판매자에게 전할 메시지 (예: 2개 구매 희망, 지금 거래 가능?)"
-        ></textarea>
-        <div class="request-form-actions">
-          <span class="request-sent-toast" v-if="showRequestSent">신청 완료</span>
-          <button class="btn-primary write-submit" :disabled="!reqMessage.trim()" @click="submitRequest">보내기</button>
-        </div>
+      <!-- 문의는 쪽지로 (구매신청 목록엔 구매하기·가격 제안만) -->
+      <div class="side-card request-form" v-if="!isOwner">
+        <div class="card-title">판매자에게 문의</div>
+        <p class="request-login">거래 시간·옵션 확인 같은 문의는 쪽지로 - 이 판매글이 쪽지에 같이 붙음. 사려면 위의 "{{ post.offerOnly ? '가격 제안하기' : '구매하기' }}"</p>
+        <button type="button" class="btn-primary write-submit" @click="authState.user ? messageSeller() : signIn()">{{ authState.user ? '문의하기 (쪽지)' : '로그인 후 문의하기' }}</button>
       </div>
     </section>
   </div>
@@ -525,6 +499,10 @@ async function confirmBuy() {
             </span>
             {{ post.itemName }}
           </span>
+        </div>
+        <div class="confirm-row" v-if="isLot">
+          <span class="k">수량</span>
+          <span class="v">{{ post.amountLabel }} 한 번에 (나눠 사기 없음)</span>
         </div>
         <div class="confirm-row" v-if="!post.offerOnly">
           <span class="k">희망 가격</span>
