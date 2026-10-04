@@ -97,7 +97,7 @@ async function sendMessage() {
 
     <div class="grid-wrap user-wrap" v-else-if="profile">
       <section class="user-card">
-        <UserAvatar :src="profile.avatar_url" :name="profile.nickname" :size="72" :user-id="profile.id" />
+        <UserAvatar :src="profile.avatar_url" :name="profile.nickname" :size="72" :user-id="profile.id" :clickable="false" />
         <div class="user-main">
           <div class="user-name">
             {{ profile.nickname }}

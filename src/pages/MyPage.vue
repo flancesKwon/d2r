@@ -117,21 +117,25 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 
     <div v-else-if="activeTab === '거래내역'" class="mypage-panel">
       <div class="d-section-title">내가 등록한 판매글</div>
-      <div class="my-trade-row" v-for="p in myTradePosts" :key="p.id">
-        <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
-        <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
-        <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : p.status }}</span>
-        <router-link v-if="p.expired" :to="`/trade/${p.id}/relist`" class="my-relist">재등록</router-link>
-        <span class="my-trade-date">{{ p.date }}</span>
+      <div class="my-scroll">
+        <div class="my-trade-row" v-for="p in myTradePosts" :key="p.id">
+          <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
+          <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
+          <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : p.status }}</span>
+          <router-link v-if="p.expired" :to="`/trade/${p.id}/relist`" class="my-relist">재등록</router-link>
+          <span class="my-trade-date">{{ p.date }}</span>
+        </div>
       </div>
       <div class="empty-state" v-if="!myTradePosts.length">판매글 없음</div>
 
       <div class="d-section-title" style="margin-top:26px;">내가 구매신청 보낸 거래</div>
-      <div class="my-trade-row" v-for="r in myRequests" :key="'buy-' + r.id">
-        <span class="my-trade-icon"><img v-if="tradeIconUrl(r.post)" :src="tradeIconUrl(r.post)" alt="" /></span>
-        <router-link :to="`/trade/${r.post.id}`" class="my-trade-name">{{ r.post.itemName }}</router-link>
-        <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
-        <span class="my-trade-date">{{ r.date }}</span>
+      <div class="my-scroll">
+        <div class="my-trade-row" v-for="r in myRequests" :key="'buy-' + r.id">
+          <span class="my-trade-icon"><img v-if="tradeIconUrl(r.post)" :src="tradeIconUrl(r.post)" alt="" /></span>
+          <router-link :to="`/trade/${r.post.id}`" class="my-trade-name">{{ r.post.itemName }}</router-link>
+          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+          <span class="my-trade-date">{{ r.date }}</span>
+        </div>
       </div>
       <div class="empty-state" v-if="!myRequests.length">보낸 구매신청 없음</div>
     </div>
@@ -234,4 +238,6 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', decl
 .my-review-date{font-size:11px; color:var(--text-dim);}
 .my-review-comment{font-size:13px; color:var(--text-muted); line-height:1.7;}
 
+/* 판매글·구매신청이 많아도 끝없이 늘어나지 않게 목록 안에서 스크롤 */
+.my-scroll{max-height:min(420px, 60vh); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent; padding-right:4px;}
 </style>

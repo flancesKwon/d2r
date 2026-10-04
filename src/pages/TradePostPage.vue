@@ -683,7 +683,7 @@ async function confirmBuy() {
 .section-title{font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
 .section-title .count{font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:1px 9px; border-radius:999px;}
 /* 신청이 많으면 목록 안에서 스크롤 */
-.request-list{display:flex; flex-direction:column; gap:10px; max-height:min(640px, 75vh); overflow-y:auto; padding-right:6px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent;}
+.request-list{display:flex; flex-direction:column; gap:10px; max-height:min(440px, 60vh); overflow-y:auto; padding-right:6px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent;}
 .request-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:14px 18px;}
 .request-top{display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; flex-wrap:wrap;}
 .request-top b{color:var(--text); font-weight:600; font-size:13px;}
