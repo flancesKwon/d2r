@@ -5,6 +5,7 @@ import SuspendedBanner from './components/SuspendedBanner.vue'
 import LoginModal from './components/LoginModal.vue'
 import AppDialog from './components/AppDialog.vue'
 import UserProfileCard from './components/UserProfileCard.vue'
+import TradeGuideModal from './components/TradeGuideModal.vue'
 </script>
 
 <template>
@@ -15,4 +16,5 @@ import UserProfileCard from './components/UserProfileCard.vue'
   <LoginModal />
   <AppDialog />
   <UserProfileCard />
+  <TradeGuideModal />
 </template>

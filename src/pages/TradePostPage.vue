@@ -19,6 +19,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 import { buildTooltip } from '../itemTooltip.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
+import { openTradeGuide } from '../tradeGuide.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -399,6 +400,7 @@ async function confirmBuy() {
       <div class="section-head">
         <div class="section-title">{{ isOwner ? '받은 구매신청·제안' : '구매신청·가격 제안 내역' }} <span class="count">{{ post.requests.length }}</span></div>
         <small class="section-note" v-if="!isOwner">다른 사람의 신청·제안도 공개 · 연락처는 판매자만</small>
+        <button type="button" class="guide-link" @click="openTradeGuide('flow')">거래는 어떻게 진행돼요?</button>
       </div>
       <div class="request-list">
         <div class="request-item" v-for="r in post.requests" :key="r.id" :class="{ pending: (r.status || 'pending') === 'pending' && canManage }">
@@ -857,4 +859,6 @@ a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
 .status-now{display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
 .status-now small{font-size:11.5px; color:var(--text-dim); line-height:1.5;}
 .sold-was{font-size:11.5px; color:var(--text-dim); margin:-6px 0 10px; text-decoration:line-through;}
+.guide-link{font-size:11.5px; color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
+.guide-link:hover{color:var(--gold);}
 </style>
