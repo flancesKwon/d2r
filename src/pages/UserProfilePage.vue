@@ -5,7 +5,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../supabase.js'
 import { authState, signIn, ROLE_LABEL } from '../profileStore.js'
-import { fetchTradePostsBy, getTradeItem } from '../tradeStore.js'
+import { fetchTradePostsBy, getTradeItem, statusLabel } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor } from '../dealsStore.js'
 import { openConversationWith } from '../messagesStore.js'
@@ -146,7 +146,7 @@ async function sendMessage() {
           <span class="post-icon"><img v-if="iconUrl(p)" :src="iconUrl(p)" alt="" /></span>
           <span class="post-title">{{ p.itemName }}</span>
           <span class="post-price">{{ p.price }}</span>
-          <span class="post-status" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : p.status }}</span>
+          <span class="post-status" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : statusLabel(p.status) }}</span>
           <span class="post-date">{{ p.date }}</span>
         </router-link>
         <div class="empty-state" v-if="!tradePosts.length">판매글 없음</div>

@@ -7,6 +7,7 @@ import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradeItem,
+  statusLabel,
   parsePriceTokens,
   postIconKey,
   postRarity,
@@ -205,7 +206,7 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
         <div class="th-stats">
           <div class="th-stat"><b>{{ counts.total }}</b><span>전체 판매글</span></div>
           <div class="th-stat"><b>{{ counts.selling }}</b><span>판매중</span></div>
-          <div class="th-stat"><b>{{ counts.reserved }}</b><span>예약중</span></div>
+          <div class="th-stat"><b>{{ counts.reserved }}</b><span>거래중</span></div>
           <div class="th-stat"><b>{{ counts.done }}</b><span>거래완료</span></div>
           <div class="th-stat"><b>{{ counts.requests }}</b><span>구매신청</span></div>
         </div>
@@ -251,12 +252,12 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
             <div class="d-section-title">판매글</div>
             <div class="th-tabs" role="tablist" aria-label="판매 상태">
               <button type="button" role="tab" :aria-selected="!status" :class="{ on: !status }" @click="status = ''">전체 {{ posts.length }}</button>
-              <button type="button" role="tab" v-for="t in STATUS_TABS" :key="t" :aria-selected="status === t" :class="{ on: status === t }" @click="status = t">{{ t }} {{ statusCount(t) }}</button>
+              <button type="button" role="tab" v-for="t in STATUS_TABS" :key="t" :aria-selected="status === t" :class="{ on: status === t }" @click="status = t">{{ statusLabel(t) }} {{ statusCount(t) }}</button>
             </div>
           </div>
           <div class="th-list">
             <router-link class="th-row" v-for="p in shownPosts" :key="p.id" :to="`/trade/${p.id}`">
-              <span class="trade-status-badge" :class="'status-' + statusOf(p)">{{ statusOf(p) }}</span>
+              <span class="trade-status-badge" :class="'status-' + statusOf(p)">{{ statusLabel(statusOf(p)) }}</span>
               <div class="th-row-body">
                 <div class="th-row-title">{{ p.itemName }}<span class="ethereal-badge" v-if="p.ethereal">에테리얼</span></div>
                 <div class="th-row-price">

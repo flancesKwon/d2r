@@ -186,7 +186,7 @@ function submitReview() {
         </div>
 
         <div class="deal-thread-body" ref="bodyEl" @scroll="onScroll">
-          <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율</div>
+          <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율<br><small>7일 동안 대화가 없으면 자동 거래불발 · 한쪽만 거래완료를 누르면 3일 뒤 자동 완료</small></div>
           <div
             class="conv-bubble" v-for="m in activeDeal.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"

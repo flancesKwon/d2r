@@ -16,6 +16,8 @@ import {
 import { authState, signIn } from '../profileStore.js'
 import UserAvatar from '../components/UserAvatar.vue'
 import { realtimeTick } from '../realtime.js'
+import { getTradePost, fetchTradePost, postIconKey, postRarity, parsePriceTokens } from '../tradeStore.js'
+import { ITEM_ICONS } from '../itemIcons.js'
 
 // 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
 const route = useRoute()
@@ -81,13 +83,41 @@ async function leave() {
   } catch (e) { sendError.value = e.message || '나가기 실패' }
 }
 
+// 판매글의 "문의하기"로 들어오면(?post=번호) 그 판매글을 입력창 위에 붙여 두고, 보내는 첫 메시지 앞에
+// "[판매글 #번호 아이템명]" 을 넣음 -> 대화창에선 그 부분이 판매글 링크 카드로 보임
+const attachedPost = ref(null)
+async function loadAttached(id) {
+  attachedPost.value = null
+  if (!id) return
+  attachedPost.value = getTradePost(id) || (await fetchTradePost(id).catch(() => null))
+}
+watch(() => route.query.post, loadAttached, { immediate: true })
+function detachPost() {
+  attachedPost.value = null
+  const { post, ...rest } = route.query
+  router.replace({ query: rest })
+}
+const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
+const priceText = (p) => parsePriceTokens(p.price).map((t) => t.text).join('')
+
+// 메시지 앞의 "[판매글 #12 이스트 룬]" -> { postId, name, rest }
+const POST_TAG = /^\[판매글 #(\d+) ([^\]]{1,80})\]\s*/
+function splitPostTag(text) {
+  const m = POST_TAG.exec(text || '')
+  return m ? { postId: m[1], name: m[2], rest: text.slice(m[0].length) } : { postId: null, name: '', rest: text }
+}
+const previewText = (text) => { const t = splitPostTag(text); return t.postId ? `[${t.name}] ${t.rest}` : text }
+
 async function submitMessage() {
   const text = draft.value.trim()
   if (!text || !activeConversation.value) return
+  const p = attachedPost.value
+  const body = p ? `[판매글 #${p.id} ${p.itemName.replace(/[\[\]]/g, '').slice(0, 60)}] ${text}` : text
   sendError.value = ''
   draft.value = ''
   try {
-    await sendMessage(activeConversation.value, text)
+    await sendMessage(activeConversation.value, body)
+    if (p) detachPost()
   } catch (e) {
     draft.value = text
     sendError.value = e.message || '전송 실패'
@@ -124,7 +154,7 @@ async function submitMessage() {
               <span class="conv-name">{{ c.withName }}</span>
               <span class="conv-date">{{ lastMessageOf(c)?.date }}</span>
             </div>
-            <div class="conv-preview">{{ lastMessageOf(c)?.text }}</div>
+            <div class="conv-preview">{{ previewText(lastMessageOf(c)?.text) }}</div>
           </div>
         </button>
         <div class="empty-state" v-if="!messagesState.conversations.length">쪽지 없음 (판매글의 "쪽지 보내기"로 시작)</div>
@@ -143,13 +173,25 @@ async function submitMessage() {
             class="conv-bubble" v-for="m in activeConversation.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
           >
-            <div class="conv-bubble-text">{{ m.text }}</div>
+            <router-link v-if="splitPostTag(m.text).postId" :to="`/trade/${splitPostTag(m.text).postId}`" class="conv-post-chip">
+              <span class="conv-post-label">판매글 문의</span>{{ splitPostTag(m.text).name }} →
+            </router-link>
+            <div class="conv-bubble-text" v-if="splitPostTag(m.text).rest">{{ splitPostTag(m.text).rest }}</div>
             <div class="conv-bubble-date">
               <span class="conv-unread" v-if="m.from === 'me' && !m.readAt" title="상대가 아직 안 읽음">1</span>
               {{ m.date }}
               <button type="button" class="conv-del" @click="removeMessage(m)" aria-label="내 화면에서 쪽지 삭제">삭제</button>
             </div>
           </div>
+        </div>
+        <div class="conv-attached" v-if="attachedPost">
+          <span class="conv-attached-icon" :class="postRarity(attachedPost)"><img v-if="iconUrl(postIconKey(attachedPost))" :src="iconUrl(postIconKey(attachedPost))" alt="" /></span>
+          <span class="conv-attached-body">
+            <small>이 판매글 문의 - 보내는 메시지에 링크로 붙음</small>
+            <router-link :to="`/trade/${attachedPost.id}`">{{ attachedPost.itemName }}</router-link>
+            <small>{{ attachedPost.amountLabel }} · {{ priceText(attachedPost) }}</small>
+          </span>
+          <button type="button" class="conv-attached-x" aria-label="판매글 떼기" @click="detachPost">✕</button>
         </div>
         <div class="conv-thread-input">
           <input
@@ -228,4 +270,15 @@ async function submitMessage() {
 }
 .messages-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
 .send-error{font-size:12.5px; color:#e0775f; padding:0 16px 12px;}
+.conv-attached{display:flex; align-items:center; gap:10px; margin:0 0 8px; padding:9px 12px; background:var(--panel-2); border:1px solid var(--gold-dim); border-radius:12px;}
+.conv-attached-icon{width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center; background:var(--panel); border:1px solid var(--border); border-radius:8px;}
+.conv-attached-icon img{max-width:100%; max-height:100%; image-rendering:pixelated;}
+.conv-attached-body{display:flex; flex-direction:column; gap:1px; min-width:0; flex:1;}
+.conv-attached-body a{color:var(--gold); font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.conv-attached-body small{font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.conv-attached-x{color:var(--text-dim); padding:4px 8px; flex:none;}
+.conv-attached-x:hover{color:var(--text);}
+.conv-post-chip{display:inline-flex; align-items:center; gap:6px; margin-bottom:4px; padding:5px 10px; border-radius:10px; background:rgba(200,163,77,0.12); border:1px solid var(--gold-dim); color:var(--gold); font-size:12.5px; font-weight:600;}
+.conv-post-chip:hover{background:rgba(200,163,77,0.2);}
+.conv-post-label{font-size:10.5px; color:var(--text-dim); font-weight:400;}
 </style>
