@@ -1,4 +1,4 @@
--- 020 검사: 수락 시 다른 신청 보류 → 불발되면 다시 대기 → 다시 수락, 직접 거래완료 막기, 골드 한도
+-- 020·021 검사: 수락 시 다른 신청 보류 → 불발되면 다시 대기 → 다시 수락, 직접 거래완료 막기, 골드 한도
 -- 실행 순서: test/base_stub.sql → 002 → test/prep_017.sql → 이 파일 (016·020 을 \ir 로 불러옴)
 \set ON_ERROR_STOP on
 -- 준비: 실제 스키마 흉내 (판매글 칸, 거래방, 알림, 대기 신청 한 사람당 하나)
@@ -19,6 +19,8 @@ grant select, insert, update on public.tb_trade_post, public.tb_trade_request to
 \ir ../017_public_requests_gold.sql
 \ir ../020_trade_flow.sql
 \ir ../020_trade_flow.sql
+\ir ../021_no_manual_hold.sql
+\ir ../021_no_manual_hold.sql
 
 create or replace function z_ok(label text, cond boolean) returns void language plpgsql as $$
 begin if cond then raise notice '  OK   %', label; else raise exception '실패: %', label; end if; end $$;
@@ -84,12 +86,10 @@ select z_as('00000000-0000-0000-0000-00000000000a');
 select z_err('거래완료 글 상태 변경 막힘', $$update public.tb_trade_post set status = '판매중' where item_name = '흐름 글'$$);
 select z_as('00000000-0000-0000-0000-00000000000b');
 select z_err('거래완료 글에 신청 막힘', $$insert into public.tb_trade_request (post_id, buyer_id) values ('40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000b')$$);
--- 판매자가 거래방 없는 글을 예약중↔판매중 으로 바꾸는 건 됨
+-- 021: 판매자가 직접 예약중(홀드)으로 바꾸는 건 막힘
 select z_as('00000000-0000-0000-0000-00000000000a');
 insert into public.tb_trade_post (author_id, item_name, category, status) values ('00000000-0000-0000-0000-00000000000a', '수동 글', '룬', '판매중');
-update public.tb_trade_post set status = '예약중' where item_name = '수동 글';
-update public.tb_trade_post set status = '판매중' where item_name = '수동 글';
-select z_ok('거래방 없는 글 예약중↔판매중은 됨', (select status from public.tb_trade_post where item_name = '수동 글') = '판매중');
+select z_err('직접 예약중(홀드) 막힘 (021)', $$update public.tb_trade_post set status = '예약중' where item_name = '수동 글'$$);
 -- 골드 한도
 insert into public.tb_trade_post (author_id, item_name, category, amount_label) values ('00000000-0000-0000-0000-00000000000a', '골드 OK', '골드', '15,000,000 골드');
 select z_ok('골드 1500만 등록됨', exists (select 1 from public.tb_trade_post where item_name = '골드 OK'));

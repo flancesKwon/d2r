@@ -4,8 +4,8 @@ import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
-  getTradeItem, TRADE_STATUSES, tradeEditBlockReason, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
+  getTradeItem, tradeEditBlockReason, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -132,12 +132,6 @@ const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.m
 const editBlocked = computed(() => tradeEditBlockReason(post.value, post.value?.requests || []))
 const isDone = computed(() => post.value?.status === '거래완료')
 
-function setStatus(status) {
-  return run(async () => {
-    const p = await updateTradeStatus(post.value.id, status)
-    post.value.status = p.status
-  })
-}
 // 판매자에게 쪽지 - 대화방을 열고(없으면 만들고) 쪽지함으로
 function messageSeller() {
   return run(async () => {
@@ -194,15 +188,12 @@ const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smo
 const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
 
 const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
-// 판매 상태 버튼 - 거래완료는 거래방에서만(020 SQL), 거래중인 거래방이 있으면 판매중으로 못 돌림
+// 판매 상태는 거래 흐름으로만 바뀜 (020·021 SQL) - 판매자에겐 지금 상태와 다음 단계만 보여줌
 const activeDeal = computed(() => dealsState.deals.find((d) => d.postId === post.value?.id && d.status === '거래중') || null)
-function statusLockReason(s) {
-  if (s === post.value?.status) return ''
-  if (s === '거래완료') return '거래방에서 둘 다 거래완료를 누르면 자동으로 바뀜'
-  if (s === '판매중' && activeDeal.value) return '거래중인 거래방이 있음 - 거래방에서 거래불발 처리하면 판매중으로 돌아감'
-  return ''
+const STATUS_HELP = {
+  판매중: '구매신청을 수락하면 예약중(거래중)으로 바뀜',
+  예약중: '거래방에서 둘 다 거래완료를 누르면 거래완료, 거래불발이면 다시 판매중',
 }
-const statusLocked = (s) => !!statusLockReason(s)
 // 수락했지만 거래방에서 거래불발이 된 신청은 '불발' (거래방 열기 버튼 없음)
 // 거래완료된 신청은 '거래완료' (역시 거래방 열기 없음)
 const DEAL_TO_REQ = { 거래불발: 'failed', 거래완료: 'done' }
@@ -395,13 +386,12 @@ async function confirmBuy() {
         </section>
         <section class="side-card owner-card" v-if="(canManage || canDelete) && !isDone">
           <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
-          <div class="status-segment" role="radiogroup" aria-label="판매 상태" v-if="canManage">
-            <button
-              v-for="s in TRADE_STATUSES" :key="s" type="button" role="radio" :aria-checked="post.status === s"
-              :class="['status-' + s, { active: post.status === s }]" :disabled="statusLocked(s)" :title="statusLockReason(s)" @click="setStatus(s)"
-            >{{ s }}</button>
+          <!-- 판매 상태는 직접 못 바꿈 (021): 신청 수락 → 예약중, 거래방에서 거래완료 / 거래불발 → 판매중 -->
+          <div class="status-now" v-if="canManage">
+            <span class="status-pill" :class="'status-' + post.status">{{ post.status }}</span>
+            <small>{{ STATUS_HELP[post.status] }}</small>
           </div>
-          <small class="owner-bump-note">거래완료는 거래방에서 판매자·구매자가 둘 다 확인하면 자동으로 바뀜</small>
+          <router-link v-if="isOwner && activeDeal" class="owner-bump" :to="`/deals/${activeDeal.id}`">거래방 열기 →</router-link>
           <template v-if="isOwner && post.status === '판매중'">
             <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">✎ 판매글 수정 (가격·옵션 수치)</router-link>
             <small v-else class="owner-bump-note">{{ editBlocked }}</small>
@@ -883,4 +873,6 @@ a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
 .request-status.status-held{color:var(--teal); border-color:var(--teal); border-style:dashed;}
 .request-held-note{font-size:11.5px; color:var(--text-dim); margin-right:6px;}
 .status-segment button:disabled{opacity:.35; cursor:not-allowed;}
+.status-now{display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
+.status-now small{font-size:11.5px; color:var(--text-dim); line-height:1.5;}
 </style>
