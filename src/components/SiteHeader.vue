@@ -7,6 +7,7 @@ import { ref, shallowRef, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 const LOGO = import.meta.env.BASE_URL + 'logo.png'
 import HeaderNotifications from './HeaderNotifications.vue'
+import { useNow } from '../useNow.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
@@ -127,6 +128,19 @@ function submitSearch() {
 const hideSearchSoon = () => window.setTimeout(() => (searchOpen.value = false), 150)
 
 // 모바일 메뉴
+// 지금 시각 - 어느 페이지에서든 헤더에서 보이게 (구매신청·알림 시각과 비교하기 쉽게 시:분:초까지)
+const now = useNow(1000)
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+const pad2 = (n) => String(n).padStart(2, '0')
+const clockTime = computed(() => {
+  const d = new Date(now.value)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+})
+const clockDate = computed(() => {
+  const d = new Date(now.value)
+  return `${d.getMonth() + 1}.${pad2(d.getDate())} (${WEEKDAYS[d.getDay()]})`
+})
+
 const mobileOpen = ref(false)
 watch(() => route.fullPath, () => (mobileOpen.value = false))
 </script>
@@ -169,6 +183,10 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
         </div>
       </div>
 
+      <div class="site-clock" :title="`현재 시각 ${clockDate} ${clockTime}`" aria-label="현재 시각">
+        <span class="site-clock-date">{{ clockDate }}</span>
+        <span class="site-clock-time">{{ clockTime }}</span>
+      </div>
       <HeaderNotifications />
       <button type="button" class="site-burger" :aria-expanded="mobileOpen" aria-label="메뉴 열기" @click="mobileOpen = !mobileOpen">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -237,6 +255,10 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-search-name.unique, .site-search-name.runeword{color:var(--gold);}
 .site-search-name.set{color:var(--green);}
 
+.site-clock{flex:none; display:flex; flex-direction:column; align-items:flex-end; line-height:1.15; font-variant-numeric:tabular-nums; margin-right:-8px;}
+.site-clock-date{font-size:10.5px; color:var(--text-dim);}
+.site-clock-time{font-size:13px; color:var(--text-muted); font-weight:600; letter-spacing:.02em;}
+
 .site-burger{display:none; width:36px; height:36px; border-radius:10px; align-items:center; justify-content:center; flex:none;}
 .site-burger svg{width:20px; height:20px; stroke:var(--text-muted); stroke-width:2; stroke-linecap:round;}
 .site-burger:hover{background:var(--panel-2);}
@@ -246,11 +268,17 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-mobile-links a{font-size:13px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
 .site-mobile-links a.here{color:#1a1408; background:var(--gold); border-color:var(--gold); font-weight:600;}
 
-@media (max-width:1100px){
+@media (max-width:1180px){
   .site-search{width:180px;}
+}
+@media (max-width:1100px){
+  .site-search{width:150px;}
+  .site-header-inner{gap:14px;}
+  .site-clock-date{display:none;}
   .site-nav-link{padding:0 8px; font-size:13.5px;}
 }
-@media (max-width:960px){
+/* 헤더 시계가 들어가면서 1040px 아래에선 메뉴가 한 줄에 안 들어가서 햄버거로 바꿈 */
+@media (max-width:1040px){
   .site-nav{display:none;}
   .site-burger{display:flex;}
   .site-search{width:auto; flex:1; max-width:320px;}
@@ -260,9 +288,15 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-mobile-hits button{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:4px 11px;}
 @media (max-width:560px){
   .site-search{display:none;}
-  .header-notif-wrap{margin-left:auto;}
+  .site-clock{margin-left:auto; margin-right:-4px;}
+  .site-clock-time{font-size:12px; letter-spacing:0;}
   .site-header-inner{gap:10px; padding:0 12px;}
   .site-logo img{height:40px;}
   .site-search-results{width:calc(100vw - 24px); right:auto; left:0;}
+}
+/* 아주 좁은 폰: 시계까지 한 줄에 들어가게 (위 560px 규칙보다 뒤에 있어야 이김) */
+@media (max-width:400px){
+  .site-header-inner{gap:6px;}
+  .site-logo img{height:34px;}
 }
 </style>
