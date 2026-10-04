@@ -158,7 +158,8 @@ const leftLabel = (p) => fmtSaleLeft(saleLeftMs(p, now.value))
 const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
-  let list = tradeState.posts.filter((p) => p.status === '판매중' && saleLeftMs(p, now.value) > 0)
+  // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
+  let list = tradeState.posts.filter((p) => (p.status === '판매중' && saleLeftMs(p, now.value) > 0) || (p.status === '예약중' && isFavorite(p.id)))
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
@@ -278,7 +279,7 @@ const filteredPosts = computed(() => {
   </div>
 
   <div class="grid-wrap trade-list-wrap">
-    <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 예약중·거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
+    <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 찜한 글은 거래중이어도 보임 · 거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
@@ -295,7 +296,7 @@ const filteredPosts = computed(() => {
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
-            <span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
+            <span class="dealing-badge" v-if="p.status === '예약중'">거래중</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
           </div>
           <div class="trade-meta">
             {{ p.amountLabel }} ·
@@ -330,6 +331,7 @@ const filteredPosts = computed(() => {
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <span class="trade-cat trade-card-cat">{{ p.category }}</span>
+        <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">거래중</span>
         <span class="trade-card-title">{{ p.itemName }}</span>
         <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
         <span class="trade-card-price">
@@ -508,4 +510,7 @@ const filteredPosts = computed(() => {
 .board-note{font-size:12px; color:var(--text-dim); margin:0 0 12px;}
 .board-note a{color:var(--gold-dim);}
 .board-note a:hover{color:var(--gold);}
+.dealing-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); border-radius:999px; flex:none;}
+.trade-card-dealing{align-self:center;}
+.trade-row:has(.dealing-badge), .trade-card:has(.dealing-badge){opacity:.75;}
 </style>

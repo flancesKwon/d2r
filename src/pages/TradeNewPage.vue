@@ -7,6 +7,7 @@ import {
   TRADE_HARDCORE,
   buildAmountLabel,
   OFFER_ONLY_PRICE,
+  GOLD_MAX,
   uniqueDefenseRange as uniqueDefenseRangeFor,
   optionPresetsFor,
   addTradePost,
@@ -861,7 +862,8 @@ function submitPost() {
   if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity, form.value.category) : '1개'
   if (!form.value.itemName.trim()) { formError.value = '아이템 검색·선택 또는 이름 입력'; return }
-  if (!amountLabel.trim()) { formError.value = '개수 입력'; return }
+  if (!amountLabel.trim()) { formError.value = isGold.value ? '골드 액수 입력' : '개수 입력'; return }
+  if (isGold.value && Number(form.value.quantity) > GOLD_MAX) { formError.value = `골드는 한 글에 최대 ${GOLD_MAX.toLocaleString('ko-KR')} (1500만) 골드까지`; return }
   if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
     formError.value = '룬워드는 베이스 아이템 선택 필수'
     return
@@ -1268,10 +1270,12 @@ function submitPost() {
       <template v-if="selectedItem || form.category">
         <template v-if="hasQuantity">
           <input
-            type="number" min="1" v-model="form.quantity" :placeholder="isGold ? '골드 액수 (예: 2500000)' : '개수 (예: 5)'"
-            class="write-input trade-quantity-input"
+            type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="isGold ? '골드 액수 (예: 2500000, 최대 1500만)' : '개수 (예: 5)'"
+            class="write-input trade-quantity-input" :class="{ invalid: isGold && Number(form.quantity) > GOLD_MAX }"
           />
-          <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0">{{ goldReadable(form.quantity) }}</div>
+          <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0" :class="{ 'affix-error': Number(form.quantity) > GOLD_MAX }">
+            {{ goldReadable(form.quantity) }}{{ Number(form.quantity) > GOLD_MAX ? ' - 최대 1500만 골드까지' : '' }}
+          </div>
         </template>
       </template>
 

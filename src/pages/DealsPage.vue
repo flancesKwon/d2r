@@ -268,7 +268,7 @@ function submitReview() {
 .deals-wrap{max-width:1440px;}
 .deals-layout{display:grid; grid-template-columns:300px minmax(0, 1fr) 300px; gap:16px; align-items:start;}
 
-.deal-list{display:flex; flex-direction:column; gap:6px; background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:10px;}
+.deal-list{display:flex; flex-direction:column; gap:6px; background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:10px; max-height:min(620px, 75vh); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent;}
 .deal-list-title{font-size:12.5px; color:var(--text-dim); padding:4px 6px 6px;}
 .deal-list-title span{color:var(--gold); margin-left:4px;}
 .deal-row{

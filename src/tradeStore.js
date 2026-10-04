@@ -38,6 +38,8 @@ export const ESSENCE_MATERIALS = [
   essence('token', '면죄의 징표', 'Token of Absolution', 'invtoa__uber', ['토큰', '면죄', '용서의 증표']),
 ]
 export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS]
+// 골드 판매글 한 건 최대 액수
+export const GOLD_MAX = 15000000
 // 골드 - 게임 골드를 룬·보석 등을 받고 파는 글. 수량 = 골드 액수
 export const GOLD_ITEM = { id: 'gold', category: 'gold', category_label: '골드', name_ko: '골드', name_en: 'Gold', icon_key: 'gold', aliases: ['금화', '골드 판매', 'gold'] }
 const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS, GOLD_ITEM]

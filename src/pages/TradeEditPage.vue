@@ -7,7 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, fetchTradeRequests, updateTradePost, tradeEditBlockReason,
   CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, getTradeItem,
-  TRADE_LADDERS, TRADE_HARDCORE, categoryHasQuantity, buildAmountLabel,
+  TRADE_LADDERS, TRADE_HARDCORE, categoryHasQuantity, buildAmountLabel, GOLD_MAX,
 } from '../tradeStore.js'
 import { editableOptionLines, buildEditedLines } from '../tradeEdit.js'
 import { buildTooltip } from '../itemTooltip.js'
@@ -92,6 +92,7 @@ async function submit() {
   error.value = ''
   if (edited.value.errors.length) { error.value = `게임에서 나올 수 없는 수치: ${edited.value.errors[0]}`; return }
   if (hasQty.value && !(Number(form.value.qty) > 0)) { error.value = post.value.category === '골드' ? '골드 액수 입력' : '개수 입력'; return }
+  if (post.value.category === '골드' && Number(form.value.qty) > GOLD_MAX) { error.value = '골드는 한 글에 최대 1500만 골드까지'; return }
   if (!form.value.offerOnly && !newPrice.value) { error.value = '판매가(룬·보석·재료) 하나 이상 (또는 제안만 받기)'; return }
   saving.value = true
   try {
@@ -164,7 +165,7 @@ async function submit() {
             <div class="relist-title">판매 정보</div>
             <label class="edit-field" v-if="hasQty">
               <span>{{ post.category === '골드' ? '골드 액수' : '개수' }}</span>
-              <input type="number" min="1" v-model="form.qty" class="write-input" />
+              <input type="number" min="1" :max="post.category === '골드' ? GOLD_MAX : null" v-model="form.qty" class="write-input" />
             </label>
             <div class="edit-row">
               <select v-model="form.ladder" class="write-input" aria-label="레더">
