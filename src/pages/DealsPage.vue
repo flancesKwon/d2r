@@ -216,6 +216,7 @@ function submitReview() {
             <span class="info-item-name">{{ activeDeal.postTitle }}<small>판매글 보기 →</small></span>
           </router-link>
           <div class="info-line"><span>{{ activeDeal.iAmSeller ? '구매자' : '판매자' }}</span><router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }} · 프로필</router-link></div>
+          <div class="info-line" v-if="activeDeal.agreedPrice"><span>거래가</span><b>{{ activeDeal.agreedPrice }}</b></div>
           <div class="info-line"><span>시작</span><b>{{ activeDeal.date }}</b></div>
         </section>
 

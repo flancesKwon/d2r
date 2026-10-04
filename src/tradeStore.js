@@ -139,6 +139,12 @@ export const OFFER_ONLY_PRICE = '가격 제안 받음'
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
 // 화면에 보이는 상태 이름 - DB 값 '예약중'은 거래방이 거래중인 상태라 "거래중"으로 보여줌 (거래방 상태와 같은 말로)
 export const statusLabel = (s) => (s === '예약중' ? '거래중' : s)
+// 거래내역·시세에 쓸 가격 - 거래완료된 글은 실제 거래가, 아니면 판매가. 거래가를 모르는 예전 제안만 받기 글은 ''
+export function tradePriceOf(post) {
+  if (post?.status !== '거래완료') return post?.price || ''
+  if (post.soldPrice) return post.soldPrice
+  return post.price === OFFER_ONLY_PRICE ? '' : post.price || ''
+}
 // 아시아 서버 유저 대상 게시판이라 서버 선택 자체를 없앰 - 항상 아시아로 고정
 export const TRADE_REALMS = ['아시아']
 export const TRADE_LADDERS = ['레더', '논레더']
@@ -589,6 +595,8 @@ function mapTradePost(r) {
     expired: isExpired(r.status, r.bumped_at || r.created_at),
     // 아이템별 거래내역의 "팔린 날" - 거래완료로 바꾼 마지막 수정 시각
     completedAt: r.status === '거래완료' ? fmtDate(r.updated_at) : null,
+    // 실제 거래가 (023 SQL) - 거래완료 때 수락한 신청의 제안 내용(즉시 구매면 판매가)
+    soldPrice: r.sold_price || null,
     // 판매자가 등록 뒤 옵션·가격 등을 고친 시각 (판매글 수정)
     editedAt: o.editedAt || null,
     requests: [],

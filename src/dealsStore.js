@@ -38,6 +38,8 @@ function mapDeal(r) {
     postId: r.post_id,
     itemId: r.item_id,
     postTitle: r.post_title,
+    // 합의한 거래가 (023 SQL) - 수락한 신청의 제안 내용, 즉시 구매면 판매가
+    agreedPrice: r.agreed_price || '',
     status: r.status,
     date: fmtDate(r.created_at),
     sellerId: r.seller_id,
