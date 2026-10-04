@@ -6,7 +6,6 @@ import {
   tradeState,
   loadTradePosts,
   TRADE_CATEGORIES,
-  TRADE_STATUSES,
   TRADE_LADDERS,
   TRADE_HARDCORE,
   getTradeItem,
@@ -30,7 +29,6 @@ import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 onMounted(() => loadTradePosts())
 useAutoRefresh(() => loadTradePosts(true))
 const activeCat = ref(null)
-const activeStatus = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -133,14 +131,13 @@ const levelMax = ref('')
 
 const hasActiveFilters = computed(
   () =>
-    activeCat.value !== null || activeStatus.value !== null || activeLadder.value !== null ||
+    activeCat.value !== null || activeLadder.value !== null ||
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
     levelMin.value !== '' || levelMax.value !== ''
 )
 function resetFilters() {
   activeCat.value = null
-  activeStatus.value = null
   activeLadder.value = null
   activeHardcore.value = null
   etherealOnly.value = false
@@ -160,9 +157,9 @@ const now = useNow(60000)
 const leftLabel = (p) => fmtSaleLeft(saleLeftMs(p, now.value))
 const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
-  let list = tradeState.posts.filter((p) => { const ms = saleLeftMs(p, now.value); return ms === null || ms > 0 })
+  // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
+  let list = tradeState.posts.filter((p) => p.status === '판매중' && saleLeftMs(p, now.value) > 0)
   if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
-  if (activeStatus.value) list = list.filter((p) => p.status === activeStatus.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -215,10 +212,6 @@ const filteredPosts = computed(() => {
         <div class="search-input-wrap">
           <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="아이템명·옵션·내용 검색" aria-label="거래글 검색" />
         </div>
-        <select v-model="activeStatus" class="sort-select">
-          <option :value="null">전체 상태</option>
-          <option v-for="s in TRADE_STATUSES" :key="s" :value="s">{{ s }}</option>
-        </select>
         <span class="result-count">{{ filteredPosts.length }}개</span>
         <div class="view-mode-toggle">
           <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" @click="setViewMode('list')">☰</button>
@@ -285,6 +278,7 @@ const filteredPosts = computed(() => {
   </div>
 
   <div class="grid-wrap trade-list-wrap">
+    <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 예약중·거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
@@ -301,7 +295,7 @@ const filteredPosts = computed(() => {
           <div class="trade-title-row">
             <span class="trade-title">{{ p.itemName }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
-            <span class="trade-status-badge" :class="'status-' + p.status">{{ p.status }}</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
+            <span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
           </div>
           <div class="trade-meta">
             {{ p.amountLabel }} ·
@@ -321,7 +315,7 @@ const filteredPosts = computed(() => {
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매글 없음</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
     </div>
 
     <div class="trade-grid" v-else>
@@ -331,7 +325,6 @@ const filteredPosts = computed(() => {
           :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
-        <span class="trade-status-badge trade-card-status" :class="'status-' + p.status">{{ p.status }}</span>
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -357,7 +350,7 @@ const filteredPosts = computed(() => {
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매글 없음</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
     </div>
   </div>
   </div>
@@ -512,4 +505,7 @@ const filteredPosts = computed(() => {
 .stat-keyword-input{width:210px; max-width:100%;}
 .stat-hint{font-size:11.5px; color:var(--text-dim);}
 .stat-add-btn:disabled{opacity:.5; cursor:default;}
+.board-note{font-size:12px; color:var(--text-dim); margin:0 0 12px;}
+.board-note a{color:var(--gold-dim);}
+.board-note a:hover{color:var(--gold);}
 </style>

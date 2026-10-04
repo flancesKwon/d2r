@@ -75,7 +75,7 @@ const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
 // 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
 const trade = shallowRef(null)
 import('../tradeStore.js').then((m) => { trade.value = m; m.loadTradePosts() })
-const latestTrades = computed(() => (trade.value ? trade.value.tradeState.posts.filter((p) => p.status !== '거래완료' && !p.expired).slice(0, 5) : []))
+const latestTrades = computed(() => (trade.value ? trade.value.tradeState.posts.filter((p) => p.status === '판매중' && !p.expired).slice(0, 5) : []))
 const postIconKey = (p) => trade.value.postIconKey(p)
 // 히어로 오른쪽 숫자 (사전은 거래 데이터와 같이 늦게 받음)
 const stats = computed(() => [
