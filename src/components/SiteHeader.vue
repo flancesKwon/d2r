@@ -7,6 +7,8 @@ import { ref, shallowRef, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 const LOGO = import.meta.env.BASE_URL + 'logo.png'
 import HeaderNotifications from './HeaderNotifications.vue'
+import HeaderOnlineUsers from './HeaderOnlineUsers.vue'
+import { isStaff } from '../profileStore.js'
 import { useNow } from '../useNow.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
@@ -147,7 +149,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 
 <template>
   <header class="site-header">
-    <div class="site-header-inner">
+    <div class="site-header-inner" :class="{ staff: isStaff() }">
       <router-link to="/" class="site-logo" aria-label="디아허브 홈"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
 
       <nav class="site-nav" aria-label="주 메뉴">
@@ -187,6 +189,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
         <span class="site-clock-date">{{ clockDate }}</span>
         <span class="site-clock-time">{{ clockTime }}</span>
       </div>
+      <HeaderOnlineUsers />
       <HeaderNotifications />
       <button type="button" class="site-burger" :aria-expanded="mobileOpen" aria-label="메뉴 열기" @click="mobileOpen = !mobileOpen">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -201,6 +204,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           <button type="button" v-for="it in itemHits" :key="it.id" @click="goItem(it)">{{ it.name_ko }}</button>
         </div>
       </div>
+      <HeaderOnlineUsers inline class="site-mobile-online" />
       <div class="site-mobile-group" v-for="m in MENUS" :key="m.key">
         <div class="site-mobile-title">{{ m.label }}</div>
         <div class="site-mobile-links">
@@ -298,5 +302,15 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 @media (max-width:400px){
   .site-header-inner{gap:6px;}
   .site-logo img{height:34px;}
+}
+/* 운영진은 헤더에 접속자 버튼이 하나 더 있어서 더 일찍 햄버거 메뉴로 (일반 회원은 그대로) */
+@media (max-width:1240px){
+  .site-header-inner.staff .site-nav{display:none;}
+  .site-header-inner.staff .site-burger{display:flex;}
+  .site-header-inner.staff .site-search{width:auto; flex:1; max-width:320px;}
+}
+/* 폰에선 접속자 버튼을 펼침 메뉴 안으로 */
+@media (max-width:560px){
+  .site-header-inner :deep(.online-wrap){display:none;}
 }
 </style>
