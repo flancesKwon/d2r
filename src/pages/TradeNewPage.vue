@@ -40,6 +40,7 @@ import { itemMatchesQuery, squashText } from '../itemSearch.js'
 import RichEditor from '../components/RichEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
+import { itemDamage, formatDamage } from '../itemDamage.js'
 import AffixPicker from '../components/AffixPicker.vue'
 import RangeInput from '../components/RangeInput.vue'
 import magicAffixData from '../data/magicAffixes.json'
@@ -307,7 +308,7 @@ const needsManualBaseStats = computed(() => {
   // 베이스를 고른 매직/레어/일반 장비: 품질을 고른 뒤에, 적을 게 있을 때만 (방어구 기본 방어력, 일반이면 상급 옵션, 직업 베이스 옵션)
   if (lockedEquipBase.value) {
     if (!itemQuality.value) return false
-    return effectiveBaseKind.value === 'armor' || superiorCombos.value.length > 0 || uniqueMaxSockets.value > 0 ||
+    return effectiveBaseKind.value === 'armor' || effectiveBaseKind.value === 'weapon' || superiorCombos.value.length > 0 || uniqueMaxSockets.value > 0 ||
       !!socketAffixFam.value || larzukMax.value > 0 ||
       !!baseClassSkills.value || baseAutoMods.value.length > 0
   }
@@ -317,7 +318,10 @@ const needsManualBaseStats = computed(() => {
 })
 
 // (증가된 방어력·데미지는 매직/레어 접사로, 추가 내구도는 상급 옵션으로만 입력받음)
-const armorStats = ref({ baseDefense: '' })
+// 무기 데미지(dmgMin~dmgMax)는 비워두면 베이스 고정값, 입력하면 게임에 보이는 값 그대로 저장.
+// 유니크·세트도 같은 칸을 씀 - 샤코처럼 방어력을 보고 사는 아이템이 있어서 실제 수치를 적게 함
+const armorStats = ref({ baseDefense: '', dmgMin: '', dmgMax: '' })
+const filled = (v) => v !== '' && v !== null && v !== undefined
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
 // 고르면 그 베이스가 원래 갖고 있는 방어력/데미지·내구도가 자동으로 채워짐
@@ -413,6 +417,45 @@ const expectedWeaponDamage = computed(() => {
   const mul = form.value.ethereal ? 1.5 : 1
   return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
 })
+// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 - 베이스 방어력(에테리얼 1.5배) × 방어력 증가% + 추가 방어력.
+// 방어력 증가가 붙으면 베이스가 최대값+1로 고정돼서 위쪽은 그걸로, 레벨당 방어력은 99레벨까지 넉넉하게 잡음
+const uniqueDefenseRange = computed(() => {
+  const it = selectedItem.value
+  const b = it?.base_stats
+  if (!isUniqueOrSet.value || b?.category !== 'armor') return null
+  const affixes = it.affixes || []
+  const sum = (prop, i) => affixes.filter((a) => a.prop === prop).reduce((t, a) => t + (Number(i ? a.max : a.min) || 0), 0)
+  const perLevel = affixes.filter((a) => a.prop === 'ac/lvl').reduce((t, a) => t + (Number(a.par) || 0) / 8, 0)
+  const mul = form.value.ethereal ? 1.5 : 1
+  const edLo = sum('ac%', 0), edHi = sum('ac%', 1)
+  const min = Math.floor((Math.floor(b.minac * mul) * (100 + edLo)) / 100) + sum('ac', 0)
+  const max = Math.floor((Math.floor((b.maxac + (edHi > 0 ? 1 : 0)) * mul) * (100 + edHi)) / 100) + sum('ac', 1) + Math.floor(perLevel * 99)
+  return { min, max }
+})
+// 유니크·세트 무기 데미지 범위 (한손·양손 중 아무 쪽이나 맞으면 됨, 레벨당 데미지는 99레벨까지)
+const uniqueDamageRange = computed(() => {
+  if (!isUniqueOrSet.value || selectedItem.value?.base_stats?.category !== 'weapon') return null
+  const lo = itemDamage(selectedItem.value, { level: 0, ethereal: form.value.ethereal })
+  const hi = itemDamage(selectedItem.value, { level: 99, ethereal: form.value.ethereal })
+  const hands = ['one', 'two'].filter((h) => lo?.[h] && hi?.[h])
+  if (!hands.length) return null
+  return hands.map((h) => ({ min: [lo[h].min[0], hi[h].min[1]], max: [lo[h].max[0], hi[h].max[1]] }))
+})
+// 범위는 formatDamage 처럼 "35~(238-547)", 한손·양손 둘 다 있으면 " / " 로 이어 붙임
+const damageRangeLabel = (r) => r.map(formatDamage).join(' / ')
+// 입력한 데미지가 맞는지 - 둘 다 입력, 최소 ≤ 최대, 유니크·세트는 나올 수 있는 범위 안
+const damageError = computed(() => {
+  const { dmgMin, dmgMax } = armorStats.value
+  if (!filled(dmgMin) && !filled(dmgMax)) return ''
+  if (!filled(dmgMin) || !filled(dmgMax)) return '데미지 최소·최대 둘 다 입력'
+  const lo = Number(dmgMin), hi = Number(dmgMax)
+  if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || hi < lo) return '데미지 최소~최대 확인'
+  const r = uniqueDamageRange.value
+  if (r && !r.some((d) => lo >= d.min[0] && lo <= d.min[1] && hi >= d.max[0] && hi <= d.max[1])) {
+    return `데미지 (${damageRangeLabel(r)})`
+  }
+  return ''
+})
 // 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
 // · 스킬: 오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀 등에 그 직업 스킬 최대 3개 × +1~3
 // · 자동 옵션: 팔라딘 방패 = 모든 저항 또는 명중률, 오브 = 생명력 또는 마나, 아마존 무기 = 스킬 트리 +1~3 등
@@ -504,7 +547,7 @@ function hideBaseItemDropdownSoon() {
 }
 
 function resetBaseStats() {
-  armorStats.value = { baseDefense: '' }
+  armorStats.value = { baseDefense: '', dmgMin: '', dmgMax: '' }
   clearBaseItem()
 }
 
@@ -517,13 +560,22 @@ function buildBaseStatOptions() {
     const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
     if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
   } else if (effectiveBaseKind.value === 'weapon') {
-    // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배)이라 입력받지 않고 그대로 씀
+    // 직접 입력한 데미지가 있으면 그 값, 없으면 베이스 고정값(에테리얼이면 1.5배)
     const exp = expectedWeaponDamage.value
-    if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
+    if (!damageError.value && filled(armorStats.value.dmgMin)) out.push(...enteredStatLines())
+    else if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
   }
   out.push(...orderedCraftAffixLines([...buildSuperiorOptions(), ...buildBaseModOptions()]))
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
+}
+
+// 판매자가 직접 입력한 방어력·데미지 줄 (유니크·세트, 미확인 판매에도 씀 - 게임에서 미확인이어도 보이는 값)
+function enteredStatLines() {
+  const s = armorStats.value
+  if (effectiveBaseKind.value === 'armor') return filled(s.baseDefense) ? [`기본 방어력 ${s.baseDefense}`] : []
+  if (effectiveBaseKind.value === 'weapon') return filled(s.dmgMin) && filled(s.dmgMax) && !damageError.value ? [`기본 데미지 ${s.dmgMin}~${s.dmgMax}`] : []
+  return []
 }
 
 // 입력한 수치가 게임에서 나올 수 있는 값인지 전부 검사 - 틀린 게 있으면 첫 번째 것을 알려주고 등록을 막음
@@ -544,6 +596,10 @@ const invalidInputs = computed(() => {
   if (expectedDefense.value && !isAllowedValue(armorStats.value.baseDefense, expectedDefense.value)) {
     bad.push(`기본 방어력 (${expectedDefense.value.min}~${expectedDefense.value.max})`)
   }
+  if (uniqueDefenseRange.value && !isAllowedValue(armorStats.value.baseDefense, uniqueDefenseRange.value)) {
+    bad.push(`방어력 (${uniqueDefenseRange.value.min}~${uniqueDefenseRange.value.max})`)
+  }
+  if (damageError.value) bad.push(damageError.value)
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
   for (const { fam, values } of pickedAffixes.value) {
@@ -765,7 +821,7 @@ function submitBundle() {
 function buildAllOptions() {
   if (isUnidentified.value) {
     // 옵션 수치는 안 받음 (사전 범위 그대로). 소켓 수는 미확인이어도 게임에서 보이니 남김
-    return ['미확인', ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
+    return ['미확인', ...enteredStatLines(), ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
   }
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
@@ -932,6 +988,31 @@ function submitPost() {
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">공격 속도 {{ baseStatsRef.speed }}</span>
           <span>내구도 {{ baseStatsRef.durability }}</span>
         </div>
+        <template v-if="isUniqueOrSet">
+          <div class="base-stats-input-row" v-if="baseStatsRef.category === 'armor'">
+            <label>
+              방어력 (게임에 보이는 값 · 선택)
+              <input
+                type="number" v-model="armorStats.baseDefense" class="write-input"
+                :class="{ invalid: uniqueDefenseRange && outOfRange(armorStats.baseDefense, uniqueDefenseRange) }"
+                :min="uniqueDefenseRange?.min" :max="uniqueDefenseRange?.max"
+                :placeholder="uniqueDefenseRange ? `${uniqueDefenseRange.min}~${uniqueDefenseRange.max}` : '예: 141'"
+              />
+            </label>
+          </div>
+          <div class="base-stats-input-row" v-else-if="baseStatsRef.category === 'weapon'">
+            <label>
+              최소 데미지 (게임에 보이는 값 · 선택)
+              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" placeholder="최소" />
+            </label>
+            <label>
+              최대 데미지
+              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" placeholder="최대" />
+            </label>
+          </div>
+          <div class="unit-hint" v-if="baseStatsRef.category === 'weapon' && uniqueDamageRange">나올 수 있는 데미지 {{ damageRangeLabel(uniqueDamageRange) }}{{ form.ethereal ? ' (에테리얼)' : '' }}</div>
+          <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
+        </template>
       </div>
 
       <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반' && !selectedBaseItem">
@@ -1067,10 +1148,22 @@ function submitPost() {
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값 (자동 입력)</span>
+            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}{{ isRuneword ? ' · 베이스 고정값 (자동 입력)' : '' }}</span>
             <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
           </div>
+          <div class="base-stats-input-row" v-if="!isRuneword">
+            <label>
+              최소 데미지
+              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.min}` : '최소'" />
+            </label>
+            <label>
+              최대 데미지
+              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.max}` : '최대'" />
+            </label>
+          </div>
+          <div class="unit-hint" v-if="!isRuneword">비워두면 베이스 기본값{{ expectedWeaponDamage ? ` ${expectedWeaponDamage.min}~${expectedWeaponDamage.max}` : '' }} - 피해 증가 등으로 바뀐 값은 게임에 보이는 그대로 입력</div>
+          <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
         </template>
 
         <div class="base-mods" v-if="superiorCombos.length">

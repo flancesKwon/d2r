@@ -12,7 +12,7 @@ let seen = null
 function fmtDate(ts) {
   const d = new Date(ts)
   const p = (n) => String(n).padStart(2, '0')
-  return `${d.getMonth() + 1}.${p(d.getDate())}`
+  return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 export async function loadNotifications() {
