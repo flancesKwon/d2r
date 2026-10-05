@@ -5,7 +5,7 @@
 // - 최근 글: 커뮤니티·거래 글 삭제
 // 신고·정지는 supabase/002_reports_suspension.sql 을 실행해야 켜짐 - 안 돌렸으면 안내만 띄우고 나머지는 그대로 동작
 import { ref, computed, watch } from 'vue'
-import { askConfirm, askPrompt } from '../dialog.js'
+import { askConfirm, askPrompt, showAlert } from '../dialog.js'
 import { supabase, mustReturnRows } from '../supabase.js'
 import { authState, signIn, isStaff, isAdmin, ROLE_LABEL, suspendedUntil, suspensionText, fetchSuspensionReasons } from '../profileStore.js'
 import { formatDate } from '../communityStore.js'
@@ -250,6 +250,7 @@ async function removeTradePost(p) {
     await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentTrade.value = recentTrade.value.filter((x) => x.id !== p.id)
     stats.value.tradePosts--
+    showAlert('판매글 삭제 완료', { icon: 'success' })
   })
 }
 </script>

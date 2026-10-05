@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
-import { askConfirm } from '../dialog.js'
+import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
@@ -132,6 +132,7 @@ async function removePost() {
   await run(async () => {
     await deleteTradePost(post.value.id)
     router.replace('/trade')
+    showAlert('판매글 삭제 완료', { icon: 'success' })
   })
 }
 

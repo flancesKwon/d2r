@@ -19,8 +19,9 @@ function onKey(e) {
   <Transition name="dlg">
     <div class="dlg-backdrop" v-if="dialogState.open" @mousedown.self="closeDialog(false)" @keydown="onKey">
       <div class="dlg" role="dialog" aria-modal="true" :aria-label="dialogState.title">
-        <div class="dlg-icon" :class="{ danger: dialogState.danger }" aria-hidden="true">
-          <svg v-if="dialogState.danger" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+        <div class="dlg-icon" :class="{ danger: dialogState.danger, success: dialogState.icon === 'success' && !dialogState.danger }" aria-hidden="true">
+          <svg v-if="dialogState.icon === 'success' && !dialogState.danger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="m8 12.5 2.8 2.8L16.5 9.5" /></svg>
+          <svg v-else-if="dialogState.danger" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
           <svg v-else viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5h.01" /></svg>
         </div>
         <div class="dlg-title">{{ dialogState.title }}</div>
@@ -30,7 +31,7 @@ function onKey(e) {
           :placeholder="dialogState.placeholder" maxlength="200"
         />
         <div class="dlg-actions">
-          <button type="button" class="dlg-btn cancel" v-if="dialogState.kind !== 'alert'" @click="closeDialog(false)">취소</button>
+          <button type="button" class="dlg-btn cancel" v-if="dialogState.kind !== 'alert'" @click="closeDialog(false)">{{ dialogState.cancelText }}</button>
           <button type="button" ref="okBtn" class="dlg-btn ok" :class="{ danger: dialogState.danger }" @click="closeDialog(true)">{{ dialogState.confirmText }}</button>
         </div>
       </div>
@@ -45,6 +46,7 @@ function onKey(e) {
   padding:26px 24px 20px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.8); text-align:center;
 }
 .dlg-icon{width:48px; height:48px; margin:0 auto 14px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:rgba(200,163,77,0.14); color:var(--gold);}
+.dlg-icon.success{background:rgba(62,207,90,0.14); color:#3ecf5a;}
 .dlg-icon.danger{background:rgba(162,81,63,0.18); color:#e0775f;}
 .dlg-icon svg{width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
 .dlg-title{font-family:'Noto Serif KR', serif; font-size:18px; font-weight:700; color:var(--text); line-height:1.45; word-break:keep-all;}
