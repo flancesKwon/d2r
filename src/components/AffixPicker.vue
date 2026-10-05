@@ -17,7 +17,7 @@ const SLOT_KO = { p: '접두사', s: '접미사' }
 const famByKey = computed(() => new Map(props.families.map((f) => [f.key, f])))
 
 // 화면 목록 (고른 순서 그대로, 아직 안 고른 빈 줄 포함)
-const blank = () => ({ slot: '', key: '', values: [], q: '', open: false })
+const blank = () => ({ slot: '', key: '', values: [], q: '', open: false, active: 0 })
 const list = ref([])
 let emitted = null
 watch(() => props.modelValue, (m) => {
@@ -37,9 +37,12 @@ const pickedTotal = computed(() => list.value.filter((r) => r.key).length)
 const canAdd = computed(() => list.value.length < props.limits.total && list.value.every((r) => r.key))
 // 접두사·접미사 칸이 다 찼으면 그 종류는 못 고름 (같은 옵션은 한 번만)
 const slotFull = (slot, row) => count(slot, row) >= props.limits[slot]
+// 한글 조합 중인 끝 글자(자음·모음만 친 상태 "저ㅎ")는 빼고 찾음 - 치는 동안 목록이 비지 않게
+const JAMO_TAIL = /[ㄱ-ㅎㅏ-ㅣ]+$/
+const queryOf = (row) => squashText(row.q).replace(JAMO_TAIL, '')
 function optionsFor(row) {
   const taken = new Set(list.value.filter((r) => r !== row).map((r) => r.key))
-  const q = squashText(row.q)
+  const q = queryOf(row)
   const hits = props.families.filter((f) => !taken.has(f.key) && (!q || squashText(f.label).includes(q)))
   // 검색어로 시작하는 옵션 먼저 ("시전" -> 시전 속도가 "…번개 시전"보다 위)
   if (q) hits.sort((a, b) => squashText(b.label).startsWith(q) - squashText(a.label).startsWith(q))
@@ -66,6 +69,44 @@ function removeRow(i) {
   sync()
 }
 const closeSoon = (row) => setTimeout(() => (row.open = false), 150)
+
+// 자동완성: v-model 은 한글 조합이 끝나야 값이 바뀌어서 input 이벤트 값을 바로 씀
+function onType(row, e) {
+  row.q = e.target.value
+  row.open = true
+  row.active = 0
+}
+// ↑↓ 로 옮기고 Enter 로 고름 (Enter 가 판매글 등록 폼을 보내지 않게 막음), Esc 닫기
+function onKey(row, e, i) {
+  if (e.isComposing) return
+  const opts = optionsFor(row)
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    // 닫혀 있으면 열기만 (첫 줄부터)
+    if (!row.open) { row.open = true; row.active = 0; return }
+    if (!opts.length) return
+    row.active = (row.active + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length
+    nextTick(() => rootEl.value?.querySelectorAll('.affix-row')[i]?.querySelector('.affix-opt.active')?.scrollIntoView({ block: 'nearest' }))
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    const f = opts[row.active] || opts[0]
+    if (row.open && f) pick(row, f)
+  } else if (e.key === 'Escape') {
+    row.open = false
+  }
+}
+// 옵션 이름에서 검색어 부분 강조 (띄어쓰기 무시하고 맞춘 위치)
+function highlight(label, row) {
+  const q = queryOf(row)
+  if (!q) return [{ t: label }]
+  const idx = []
+  let squashed = ''
+  for (let i = 0; i < label.length; i++) if (!/\s/.test(label[i])) { idx.push(i); squashed += label[i].toLowerCase() }
+  const at = squashed.indexOf(q)
+  if (at < 0) return [{ t: label }]
+  const from = idx[at], to = idx[at + q.length - 1] + 1
+  return [{ t: label.slice(0, from) }, { t: label.slice(from, to), hit: true }, { t: label.slice(to) }].filter((p) => p.t)
+}
 
 // 수치 칸 (고정 수치는 자동) - 직접 입력, 칸을 벗어나면 범위 안으로 맞춤
 const inputSlots = (fam) => fam.slotRanges.map((r, i) => ({ i, lo: r[0], hi: r[1] })).filter((s) => s.lo !== s.hi)
@@ -108,15 +149,16 @@ function previewOf(row) {
         </template>
         <div class="affix-search-wrap" v-else>
           <input
-            class="write-input affix-search" type="search" v-model="row.q" @focus="row.open = true" @input="row.open = true" @blur="closeSoon(row)"
+            class="write-input affix-search" type="search" :value="row.q" @focus="row.open = true" @input="onType(row, $event)" @blur="closeSoon(row)"
+            @keydown="onKey(row, $event, i)" autocomplete="off" role="combobox" :aria-expanded="row.open"
             placeholder="옵션 검색 (예: 시전, 저항, 생명력, 소서리스)" :aria-label="`옵션 ${i + 1} 검색`"
           />
           <div class="affix-drop" v-if="row.open">
             <button
-              type="button" class="affix-opt" v-for="f in optionsFor(row)" :key="f.key"
-              :disabled="slotFull(f.slot, row)" @mousedown.prevent="pick(row, f)"
+              type="button" class="affix-opt" v-for="(f, fi) in optionsFor(row)" :key="f.key" :class="{ active: fi === row.active }"
+              :disabled="slotFull(f.slot, row)" @mousedown.prevent="pick(row, f)" @mousemove="row.active = fi"
             >
-              <span class="affix-opt-label">{{ f.label }}</span>
+              <span class="affix-opt-label"><template v-for="(part, pi) in highlight(f.label, row)" :key="pi"><mark v-if="part.hit">{{ part.t }}</mark><template v-else>{{ part.t }}</template></template></span>
               <span class="affix-tag" :class="f.slot">{{ SLOT_KO[f.slot] }}{{ slotFull(f.slot, row) ? ' 가득' : '' }}</span>
             </button>
             <div class="affix-empty" v-if="!optionsFor(row).length">일치하는 옵션 없음</div>
@@ -155,7 +197,8 @@ function previewOf(row) {
 .affix-search-wrap{position:relative; flex:1; min-width:0;}
 .affix-drop{position:absolute; z-index:20; left:0; right:0; top:calc(100% + 4px); max-height:300px; overflow-y:auto; background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.45);}
 .affix-opt{display:flex; align-items:center; gap:8px; width:100%; padding:7px 10px; border-radius:8px; text-align:left; background:transparent; border:0; color:var(--text); font-size:12.5px; cursor:pointer;}
-.affix-opt:hover:not(:disabled){background:var(--panel);}
+.affix-opt.active:not(:disabled){background:var(--panel);}
+.affix-opt mark{background:transparent; color:var(--gold); font-weight:700;}
 .affix-opt:disabled{opacity:.4; cursor:not-allowed;}
 .affix-opt-label{flex:1; min-width:0;}
 .affix-empty{padding:10px; font-size:12px; color:var(--text-dim); text-align:center;}

@@ -124,7 +124,7 @@ async function submit() {
             <div class="empty-state small" v-if="!priceItems.length">받을 룬·보석·재료 추가</div>
           </div>
 
-          <input type="search" v-model="query" class="write-input" placeholder="룬·보석·재료 추가 (예: 이스트 룬, 파괴의 열쇠)" aria-label="룬·보석·재료 검색" />
+          <input type="search" :value="query" @input="query = $event.target.value" class="write-input" placeholder="룬·보석·재료 추가 (예: 이스트 룬, 파괴의 열쇠)" aria-label="룬·보석·재료 검색" />
           <div class="price-cands">
             <button type="button" class="price-cand" v-for="it in candidates" :key="it.id" @click="addItem(it)">
               <span class="price-chip-icon"><img v-if="iconUrl(it.icon_key)" :src="iconUrl(it.icon_key)" alt="" /></span>{{ it.name_ko }}
