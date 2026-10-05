@@ -3,6 +3,7 @@
 // 매직 파랑, 레어 노랑, 방어력·데미지·요구 민첩·힘·레벨 흰색, 옵션 줄 파랑
 import { itemLevelReq, baseForItem, getItemAffixes, itemStatReqs, baseFromLabel } from './tradeStore.js'
 import { runePips } from './itemStats.js'
+import { sortOptionLines } from './statOrder.js'
 
 // 베이스 목록(baseItems)에 없는 장신구 베이스의 한글 이름 - 게임 툴팁처럼 이름 아래에 베이스를 보여줌
 const MISC_BASE_KO = { Amulet: '목걸이', Ring: '반지', Jewel: '주얼', 'Small Charm': '작은 부적', 'Large Charm': '큰 부적', 'Grand Charm': '거대 부적' }
@@ -99,8 +100,9 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   }
 
   // 옵션 줄 - 판매글에 옵션이 없고 사전 아이템이면(유니크 참 등) 사전 옵션을 그대로 보여줌
+  // 순서는 게임 툴팁 규칙 (스킬·시전 확률 > 공격 속도 > ... > 저항 > 마법 아이템 발견 > 충전) - src/statOrder.js
   const modLines = mods.length ? mods : item && !['runeword', 'gem'].includes(item.category) ? getItemAffixes(item).map((a) => a.text) : []
-  for (const m of modLines) push(m, TOOLTIP_COLORS.magic)
+  for (const m of sortOptionLines(modLines)) push(m, TOOLTIP_COLORS.magic)
 
   const tail = []
   if (ethereal) tail.push('에테리얼 (수리 불가)')
