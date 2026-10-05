@@ -27,24 +27,33 @@ const DEFAULT_PRIZES = () => [
   { label: '2등', item: '소집 룬 세트 (앰·랄·말·이스트·옴)' },
   { label: '3등', item: '소집 룬 세트 (앰·랄·말·이스트·옴)' },
 ]
-const form = ref({ title: '매물 등록 이벤트', start: toLocal(nextHour()), hours: 2, reviewMin: 30, cap: 5, prizes: DEFAULT_PRIZES(), rules: '' })
+const form = ref({ title: '매물 등록 이벤트', start: toLocal(nextHour()), durMin: 120, reviewMin: 30, cap: 5, prizes: DEFAULT_PRIZES(), rules: '' })
 // 입력값 검사 - 칸마다 무엇이 틀렸는지 (datetime-local 은 날짜·시간을 다 채워야 값이 생김)
 const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v))
 const formProblem = computed(() => {
   const f = form.value
   if (!f.start || Number.isNaN(new Date(f.start).getTime())) return '시작 시각: 날짜와 시간을 끝까지 입력 (또는 아래 "바로 시작" 버튼)'
-  if (!(num(f.hours) > 0)) return '진행 시간: 0보다 큰 숫자 (시간 단위, 30분 = 0.5)'
-  if (!(num(f.reviewMin) >= 0)) return '검토 시간: 0 이상 숫자 (분 단위, 검토 안 하면 0)'
+  if (!(f.durMin > 0)) return '진행 시간: 1분 이상'
+  if (!(f.reviewMin >= 0)) return '검토 시간: 0분 이상 (검토 안 하면 "없음")'
   if (!(num(f.cap) >= 1 && num(f.cap) <= 100)) return '1인 최대 응모권: 1~100'
   return ''
 })
 const formTimes = computed(() => {
   if (formProblem.value) return null
   const s = new Date(form.value.start)
-  const end = new Date(s.getTime() + num(form.value.hours) * 3600000)
-  const draw = new Date(end.getTime() + num(form.value.reviewMin) * 60000)
+  const end = new Date(s.getTime() + form.value.durMin * 60000)
+  const draw = new Date(end.getTime() + form.value.reviewMin * 60000)
   return { start: s, end, draw, round: drandRoundAt(draw) }
 })
+// 진행·검토 시간은 둘 다 분으로 저장 - 버튼으로 고르거나 "시간 + 분"으로 직접 입력
+const DUR_CHOICES = { durMin: [30, 60, 120, 180], reviewMin: [0, 10, 30, 60] }
+const fmtMin = (m) => (m === 0 ? '없음' : [Math.floor(m / 60) && `${Math.floor(m / 60)}시간`, m % 60 && `${m % 60}분`].filter(Boolean).join(' '))
+const durPart = (key, unit) => (unit === 'h' ? Math.floor(form.value[key] / 60) : form.value[key] % 60)
+function setDurPart(key, unit, raw) {
+  const v = Math.max(0, Math.floor(Number(raw) || 0))
+  const h = unit === 'h' ? v : durPart(key, 'h'), m = unit === 'm' ? Math.min(v, 59) : durPart(key, 'm')
+  form.value[key] = h * 60 + m
+}
 // 시작 시각 빠른 선택 (지금부터 n분 뒤, 초는 버림)
 function startIn(min) { const d = new Date(Date.now() + min * 60000); d.setSeconds(0, 0); form.value.start = toLocal(d) }
 function addPrize() { form.value.prizes.push({ label: `${form.value.prizes.length + 1}등`, item: '' }) }
@@ -171,14 +180,20 @@ async function draw() {
         <div class="ae-form">
           <label>제목 <input v-model="form.title" class="ae-input" /></label>
           <label>시작 <input type="datetime-local" v-model="form.start" class="ae-input" /></label>
-          <label>진행 시간(시간) <input type="number" min="0.1" step="any" v-model="form.hours" class="ae-input ae-num" /></label>
-          <label>검토 시간(분) <input type="number" min="0" step="1" v-model="form.reviewMin" class="ae-input ae-num" /></label>
           <label>1인 최대 응모권 <input type="number" min="1" max="100" v-model="form.cap" class="ae-input ae-num" /></label>
         </div>
         <div class="ae-quick">
-          시작: <button type="button" class="ae-btn small" @click="startIn(1)">바로 시작 (1분 뒤)</button>
+          <span class="ae-dur-label">시작 빠르게</span><button type="button" class="ae-btn small" @click="startIn(1)">바로 시작 (1분 뒤)</button>
           <button type="button" class="ae-btn small" @click="startIn(10)">10분 뒤</button>
           <button type="button" class="ae-btn small" @click="startIn(60)">1시간 뒤</button>
+        </div>
+        <div class="ae-dur" v-for="key in ['durMin', 'reviewMin']" :key="key">
+          <span class="ae-dur-label">{{ key === 'durMin' ? '진행 시간' : '검토 시간' }}</span>
+          <button type="button" class="ae-btn small" v-for="m in DUR_CHOICES[key]" :key="m" :class="{ on: form[key] === m }" @click="form[key] = m">{{ fmtMin(m) }}</button>
+          <span class="ae-dim">직접</span>
+          <input type="number" min="0" class="ae-input ae-tiny" :value="durPart(key, 'h')" @input="setDurPart(key, 'h', $event.target.value)" :aria-label="`${key === 'durMin' ? '진행' : '검토'} 시간`" /> 시간
+          <input type="number" min="0" max="59" class="ae-input ae-tiny" :value="durPart(key, 'm')" @input="setDurPart(key, 'm', $event.target.value)" :aria-label="`${key === 'durMin' ? '진행' : '검토'} 분`" /> 분
+          <span class="ae-dim" v-if="key === 'reviewMin'">· 종료 후 잡템 검토하는 시간 (끝나면 추첨)</span>
         </div>
         <div class="ae-error" v-if="formProblem">{{ formProblem }}</div>
         <div class="ae-dim" v-if="formTimes">
@@ -288,6 +303,10 @@ async function draw() {
 .ae-form label, .ae-rules{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--text-dim);}
 .ae-input{background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:13px; padding:8px 10px; border-radius:8px; font-family:'Noto Sans KR', sans-serif;}
 .ae-num{width:90px;}
+.ae-dur{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);}
+.ae-dur-label{width:64px; color:var(--text-dim); font-size:12px;}
+.ae-tiny{width:64px; padding:5px 8px;}
+.ae-btn.small.on{color:#1a1408; background:var(--gold); border-color:var(--gold); font-weight:700;}
 .ae-quick{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);}
 .ae-rnd{width:100%; font-family:ui-monospace, monospace; font-size:12px; margin-top:6px;}
 .ae-prizes{display:flex; flex-direction:column; gap:6px;}
