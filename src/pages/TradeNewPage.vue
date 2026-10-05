@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { askConfirm } from '../dialog.js'
 import {
   TRADE_REALMS,
   TRADE_LADDERS,
@@ -54,6 +55,7 @@ import { authState, signIn } from '../profileStore.js'
 import { openTradeGuide } from '../tradeGuide.js'
 
 const router = useRouter()
+const route = useRoute()
 
 // 팝업은 열릴 때 새로 그려져서 autofocus 속성이 안 먹음 - 마운트될 때 직접 포커스
 const vFocus = { mounted: (el) => el.focus() }
@@ -73,9 +75,10 @@ const emptyForm = () => ({
   offerOnly: false,
   // 유니크·세트를 미확인으로 팜 - 옵션 수치 입력 없이 사전 범위로
   unidentified: false,
-  realm: TRADE_REALMS[0],
-  ladder: TRADE_LADDERS[0],
-  hardcore: TRADE_HARDCORE[0],
+  // "계속 등록"으로 다시 열면 앞 글의 서버·레더·하드코어를 그대로
+  realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : TRADE_REALMS[0],
+  ladder: TRADE_LADDERS.includes(route.query.ladder) ? route.query.ladder : TRADE_LADDERS[0],
+  hardcore: TRADE_HARDCORE.includes(route.query.hardcore) ? route.query.hardcore : TRADE_HARDCORE[0],
   content: '',
 })
 const form = ref(emptyForm())
@@ -801,7 +804,15 @@ async function savePost(payload) {
   saving.value = true
   try {
     const post = await addTradePost(payload)
-    router.push(`/trade/${post.id}`)
+    saving.value = false
+    // 확인 = 등록한 글 보기 / 계속 등록 = 서버·레더·하드코어만 남기고 새 글 쓰기 (창 밖을 눌러 닫아도 계속 등록)
+    const view = await askConfirm('판매글 등록 완료 - 거래게시판에 올라갔어요', { confirmText: '등록한 글 보기', cancelText: '계속 등록', icon: 'success' })
+    if (view) router.push(`/trade/${post.id}`)
+    else {
+      const { realm, ladder, hardcore } = form.value
+      router.replace({ path: '/trade/new', query: { again: Date.now(), realm, ladder, hardcore } })
+      window.scrollTo(0, 0)
+    }
   } catch (e) {
     formError.value = e.message || '등록 실패'
   } finally {

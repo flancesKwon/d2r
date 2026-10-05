@@ -1,6 +1,7 @@
 <script setup>
 // 재등록 (/trade/:id/relist) - 판매 기간(48시간)이 끝난 내 판매중 글을 판매가만 고쳐서 다시 48시간
 // 아이템·옵션은 그대로 (바꾸려면 새 글). 실제 확인(주인·기간·가격)은 DB 함수 d2r_relist_trade_post
+import { showAlert } from '../dialog.js'
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -64,6 +65,7 @@ async function submit() {
   try {
     await relistTradePost(post.value, price)
     router.replace(`/trade/${post.value.id}`)
+    showAlert('재등록 완료 - 판매 기간 48시간 다시 시작', { icon: 'success' })
   } catch (e) {
     error.value = e.message || '재등록 실패'
   } finally {

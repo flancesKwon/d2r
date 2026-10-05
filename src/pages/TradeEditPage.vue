@@ -2,6 +2,7 @@
 // 판매글 수정 (/trade/:id/edit) - 판매중이고 대기·수락된 구매신청이 없을 때만 (019 SQL 이 다시 확인)
 // 아이템·옵션 종류는 그대로 두고 수치만, 그리고 판매가·수량·제안만 받기·흥정·레더/하드코어·설명
 // 판매 기간(48시간)은 그대로 - 수정해도 늘어나지 않음
+import { showAlert } from '../dialog.js'
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -102,6 +103,7 @@ async function submit() {
       ladder: form.value.ladder, hardcore: form.value.hardcore, contact: post.value.contact, content: form.value.content,
     })
     router.replace(`/trade/${post.value.id}`)
+    showAlert('판매글 수정 완료', { icon: 'success' })
   } catch (e) {
     error.value = e.message || '수정 실패'
   } finally {

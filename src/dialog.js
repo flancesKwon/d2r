@@ -3,6 +3,8 @@
 //   if (!await askConfirm('글 삭제 - 되돌릴 수 없음')) return
 //   const reason = await askPrompt('정지 - 사유 입력')   // 취소면 null
 //   await showAlert('삭제 실패')
+//   await showAlert('등록 완료', { icon: 'success' })   // 초록 체크 아이콘
+//   askConfirm('등록 완료', { confirmText: '확인', cancelText: '계속 등록' })   // 두 버튼 글자 바꾸기
 import { reactive } from 'vue'
 
 export const dialogState = reactive({
@@ -11,6 +13,8 @@ export const dialogState = reactive({
   title: '',
   message: '',
   confirmText: '확인',
+  cancelText: '취소',
+  icon: 'info', // 'info' | 'success' (danger 면 경고)
   danger: false,
   value: '',
   placeholder: '',
@@ -39,6 +43,8 @@ function open(kind, text, opts = {}) {
       title: opts.title || title,
       message: opts.message ?? message,
       confirmText: opts.confirmText || (kind !== 'alert' && DANGER.test(title) ? BUTTON[title.match(DANGER)[0]] || title.match(DANGER)[0] : '확인'),
+      cancelText: opts.cancelText || '취소',
+      icon: opts.icon || 'info',
       danger: opts.danger ?? (kind !== 'alert' && DANGER.test(title)),
       value: opts.value || '',
       placeholder: opts.placeholder || '',
