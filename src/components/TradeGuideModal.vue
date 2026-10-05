@@ -1,9 +1,21 @@
 <script setup>
 // 거래 이용 안내 - 장점 / 판매하기 / 구매하기 / 거래 진행·상태 / 자동 정리·규칙
 // 실제 규칙은 DB(016~023 SQL)가 지킴 - 여기 문구는 그 규칙을 그대로 풀어 쓴 것 (규칙이 바뀌면 같이 고칠 것)
-import { watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { tradeGuideState, closeTradeGuide } from '../tradeGuide.js'
+
+// 실제 화면 캡처 (예시 데이터로 찍음 - 실제 회원·매물 아님). 화면이 크게 바뀌면 다시 찍을 것
+import imgBoard from '../assets/guide/board.jpg'
+import imgSellSearch from '../assets/guide/sell-search.jpg'
+import imgSellPreview from '../assets/guide/sell-preview.jpg'
+import imgPriceCard from '../assets/guide/price-card.jpg'
+import imgOffer from '../assets/guide/offer.jpg'
+import imgRequests from '../assets/guide/requests.jpg'
+import imgDeal from '../assets/guide/deal.jpg'
+
+// 이미지를 누르면 크게
+const zoom = ref(null)
 
 const TABS = [
   { key: 'why', label: '장점' },
@@ -14,7 +26,8 @@ const TABS = [
 ]
 const route = useRoute()
 watch(() => route.fullPath, closeTradeGuide)
-const onKey = (e) => { if (e.key === 'Escape') closeTradeGuide() }
+const onKey = (e) => { if (e.key !== 'Escape') return; if (zoom.value) zoom.value = null; else closeTradeGuide() }
+watch(() => tradeGuideState.tab, () => (zoom.value = null))
 onMounted(() => window.addEventListener('keydown', onKey))
 onUnmounted(() => window.removeEventListener('keydown', onKey))
 const tabIndex = () => TABS.findIndex((t) => t.key === tradeGuideState.tab)
@@ -52,6 +65,10 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
             <div class="tg-card"><b>실시간 알림·접속 표시</b><span>신청·수락·메시지가 바로 알림으로, 접속 중인 회원은 초록 점</span></div>
             <div class="tg-card"><b>멈춘 거래 자동 정리</b><span>연락이 끊긴 거래는 자동으로 정리돼 매물이 묶이지 않음</span></div>
           </div>
+          <figure class="tg-shot">
+            <img :src="imgBoard" alt="거래게시판 - 옵션 키워드로 매물 검색" loading="lazy" @click="zoom = imgBoard" />
+            <figcaption>거래게시판 - "저항 15 이상"처럼 옵션 조건으로 찾기, ★ 찜</figcaption>
+          </figure>
         </template>
 
         <!-- 2. 판매하기 -->
@@ -63,6 +80,16 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
             <li><b>가격 정하기</b> <span>받을 룬·보석·재료 선택. 또는 <em>흥정 가능</em>(가격 제안도 받음) / <em>제안만 받기</em>(판매가 없이 제안만)</span></li>
             <li><b>등록</b> <span>판매 기간 48시간 동안 거래게시판에 노출</span></li>
           </ol>
+          <div class="tg-shots">
+            <figure class="tg-shot">
+              <img :src="imgSellSearch" alt="아이템 검색" loading="lazy" @click="zoom = imgSellSearch" />
+              <figcaption>② 별칭으로 검색 - "샤코"</figcaption>
+            </figure>
+            <figure class="tg-shot">
+              <img :src="imgSellPreview" alt="아이템 미리보기" loading="lazy" @click="zoom = imgSellPreview" />
+              <figcaption>③ 수치를 넣으면 게임 툴팁 모양 미리보기</figcaption>
+            </figure>
+          </div>
           <div class="tg-note">
             <b>알아두기</b>
             <ul>
@@ -80,6 +107,16 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
             <div class="tg-card"><b>구매하기</b><span>판매가 그대로 구매 신청</span></div>
             <div class="tg-card"><b>가격 제안</b><span>흥정 가능·제안만 받기 글에 룬·보석·재료로 가격 제안</span></div>
             <div class="tg-card"><b>문의하기 (쪽지)</b><span>거래 시간·옵션 확인 같은 질문은 쪽지로 - 판매글이 링크로 함께 붙음</span></div>
+          </div>
+          <div class="tg-shots">
+            <figure class="tg-shot">
+              <img :src="imgPriceCard" alt="판매글 가격 카드" loading="lazy" @click="zoom = imgPriceCard" />
+              <figcaption>판매글의 가격 카드 - 제안만 받기 글은 "가격 제안하기"</figcaption>
+            </figure>
+            <figure class="tg-shot">
+              <img :src="imgOffer" alt="가격 제안" loading="lazy" @click="zoom = imgOffer" />
+              <figcaption>제안할 룬·보석·재료와 개수 고르기</figcaption>
+            </figure>
           </div>
           <div class="tg-note">
             <b>알아두기</b>
@@ -122,6 +159,14 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
               </dl>
             </div>
           </div>
+          <figure class="tg-shot">
+            <img :src="imgRequests" alt="구매신청 내역" loading="lazy" @click="zoom = imgRequests" />
+            <figcaption>신청 내역 - 한 명 수락되면 나머지는 "보류", 거절·취소도 그대로 보임</figcaption>
+          </figure>
+          <figure class="tg-shot">
+            <img :src="imgDeal" alt="거래방" loading="lazy" @click="zoom = imgDeal" />
+            <figcaption>거래방 - 거래가·진행 단계, 대화로 조율하고 둘 다 거래완료</figcaption>
+          </figure>
           <div class="tg-note">
             <b>거래방에서</b>
             <ul>
@@ -152,6 +197,8 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
         </template>
       </div>
 
+      <div class="tg-zoom" v-if="zoom" @click="zoom = null"><img :src="zoom" alt="" /><span>눌러서 닫기</span></div>
+
       <div class="tg-foot">
         <button type="button" class="tg-btn" :disabled="tabIndex() === 0" @click="go(-1)">← 이전</button>
         <span class="tg-dots"><i v-for="(t, i) in TABS" :key="t.key" :class="{ on: i === tabIndex() }"></i></span>
@@ -164,7 +211,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
 
 <style scoped>
 .tg-overlay{align-items:center;}
-.tg{width:100%; max-width:760px; max-height:calc(100vh - 40px); display:flex; flex-direction:column; background:var(--bg-raise); border:1px solid var(--border); border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.55); overflow:hidden;}
+.tg{position:relative; width:100%; max-width:760px; max-height:calc(100vh - 40px); display:flex; flex-direction:column; background:var(--bg-raise); border:1px solid var(--border); border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.55); overflow:hidden;}
 .tg-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:20px 22px 12px;}
 .tg-eyebrow{font-size:11.5px; color:var(--gold-dim);}
 .tg-title{font-family:'Noto Serif KR', serif; font-size:20px; font-weight:700; color:var(--text);}
@@ -212,7 +259,15 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
 .tg-dots{display:flex; gap:5px;}
 .tg-dots i{width:6px; height:6px; border-radius:999px; background:var(--border);}
 .tg-dots i.on{background:var(--gold);}
+.tg-shots{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start;}
+.tg-shot{display:flex; flex-direction:column; gap:5px; margin:0;}
+.tg-shot img{width:100%; height:auto; display:block; border-radius:10px; border:1px solid var(--border); cursor:zoom-in; background:var(--panel);}
+.tg-shot figcaption{font-size:11.5px; color:var(--text-dim);}
+.tg-zoom{position:absolute; inset:0; z-index:5; background:rgba(10,8,6,.92); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; cursor:zoom-out;}
+.tg-zoom img{max-width:100%; max-height:calc(100% - 30px); object-fit:contain; border-radius:10px; border:1px solid var(--border);}
+.tg-zoom span{font-size:11.5px; color:var(--text-dim);}
 @media (max-width:640px){
+  .tg-shots{grid-template-columns:1fr;}
   .tg-overlay{padding:10px;}
   .tg-grid, .tg-grid.three, .tg-cols{grid-template-columns:1fr;}
   .tg-head, .tg-tabs, .tg-body, .tg-foot{padding-left:16px; padding-right:16px;}
