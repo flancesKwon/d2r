@@ -1,21 +1,53 @@
-// 이벤트 (024 SQL tb_event) - 매물 등록 이벤트의 응모권 계산·추첨
-// 응모권: 이벤트 기간 안에 올린 판매글 중 "인정 매물" 1개당 1장, 1인 최대 ticket_cap 장
-// 인정 안 되는 글 (자동): 삭제한 글(목록에 안 옴), 골드, 코 룬 미만 룬, 최상급이 아닌 보석,
-//   같은 사람이 같은 아이템을 여러 번 올린 글(첫 글만), 운영진 글
-// 매직·레어·일반 장비와 기타는 자동으로 인정하되 관리자 화면에서 "검토" 표시 - 관리자가 잡템이면 빼고 추첨
-// 거래완료는 조건에 안 넣음 (부계정으로 자작 거래가 가능해서)
+// 이벤트 (024 SQL) - 매물 등록 이벤트
+// 응모권: 이벤트 시간에 판매글을 올리면 DB가 tb_event_entry 에 자동 기록 (1인 최대 ticket_cap 장, 잡템·중복·운영진 글 제외)
+// 추첨: 추첨 시각(draw_at)에 나오는 drand 공개 난수(누구도 미리 모름)로 DB가 뽑음 - d2r_event_draw
+//   응모권(제외 안 된 것, 기록 순 번호) × SHA-256("난수:등수") 앞 6바이트 mod 남은 장수 → 당첨 번호, 당첨자 나머지 응모권 빼고 다음 등수
+//   pickWinners() 가 같은 계산 - 이벤트 페이지 "직접 검증"에 씀
 import { reactive } from 'vue'
 import { supabase } from './supabase.js'
-import { mapTradePost, POST_AUTHOR, getTradeItem, itemLevelReq } from './tradeStore.js'
-
-export const MIN_RUNE_LEVEL = 39 // 코 룬 요구 레벨 - 이보다 낮은 룬은 잡템
 
 export const eventState = reactive({ current: null, loadedAt: 0 })
 
 const mapEvent = (r) => r && {
-  id: r.id, title: r.title, startsAt: r.starts_at, endsAt: r.ends_at, ticketCap: r.ticket_cap,
-  prizes: Array.isArray(r.prizes) ? r.prizes : [], rules: r.rules || '', result: r.result || null,
+  id: r.id, title: r.title, startsAt: r.starts_at, endsAt: r.ends_at, drawAt: r.draw_at, drandRound: r.drand_round,
+  ticketCap: r.ticket_cap, prizes: Array.isArray(r.prizes) ? r.prizes : [], rules: r.rules || '', result: r.result || null,
 }
+const mapEntry = (r) => ({
+  id: r.id, userId: r.user_id, postId: r.post_id, nickname: r.nickname || '알 수 없음', itemName: r.item_name, category: r.category,
+  excluded: !!r.excluded, reason: r.excluded_reason || '', createdAt: r.created_at,
+})
+
+// ---- drand (League of Entropy 공개 난수, 30초마다 새 값) ----
+export const DRAND_CHAIN = '8990e7a9aaed2ffed73dbd7092123d6f289930540d7651336225dc172e51b2ce'
+const DRAND_GENESIS = 1595431050
+const DRAND_PERIOD = 30
+const DRAND_RELAYS = ['https://api.drand.sh', 'https://api2.drand.sh', 'https://api3.drand.sh', 'https://drand.cloudflare.com']
+// 이 시각 이후 처음 나오는 라운드
+export const drandRoundAt = (date) => Math.ceil((new Date(date).getTime() / 1000 - DRAND_GENESIS) / DRAND_PERIOD) + 1
+export const drandTimeOf = (round) => new Date((DRAND_GENESIS + (round - 1) * DRAND_PERIOD) * 1000)
+export const drandUrl = (round) => `${DRAND_RELAYS[0]}/${DRAND_CHAIN}/public/${round}`
+export async function fetchDrand(round) {
+  for (const base of DRAND_RELAYS) {
+    try {
+      const res = await fetch(`${base}/${DRAND_CHAIN}/public/${round}`, { cache: 'no-store' })
+      if (!res.ok) continue
+      const j = await res.json()
+      if (j.round === round && /^[0-9a-f]{64}$/.test(j.randomness)) return j.randomness
+    } catch { /* 다음 서버 */ }
+  }
+  throw new Error('drand 난수를 못 가져옴 - 아래에 직접 붙여넣기')
+}
+
+// ---- 이벤트 ----
+export function phaseOf(ev, now = Date.now()) {
+  if (!ev) return null
+  if (ev.result) return 'announced'
+  if (now < new Date(ev.startsAt).getTime()) return 'upcoming'
+  if (now < new Date(ev.endsAt).getTime()) return 'live'
+  if (now < new Date(ev.drawAt).getTime()) return 'review'
+  return 'ready'
+}
+export const PHASE_KO = { upcoming: '시작 전', live: '진행 중', review: '종료 · 추첨 준비', ready: '추첨 대기', announced: '당첨 발표' }
 
 // 진행 중 / 곧 시작 / 최근(7일 안에) 끝난 이벤트 하나 - 배너용 (1분 캐시)
 export async function loadCurrentEvent(force = false) {
@@ -27,13 +59,11 @@ export async function loadCurrentEvent(force = false) {
   if (error) return eventState.current // 024 SQL 전이면 그냥 없음
   const list = (data || []).map(mapEvent)
   const now = Date.now()
-  // 진행 중 > 곧 시작(가장 빠른) > 최근 끝난(가장 최근)
   eventState.current = list.find((e) => phaseOf(e, now) === 'live')
     || list.find((e) => phaseOf(e, now) === 'upcoming')
     || [...list].reverse().find((e) => phaseOf(e, now) !== 'upcoming') || null
   return eventState.current
 }
-
 export async function fetchEvent(id) {
   const { data, error } = await supabase.from('tb_event').select('*').eq('id', id).maybeSingle()
   if (error) throw error
@@ -44,9 +74,10 @@ export async function fetchEvents() {
   if (error) throw error
   return (data || []).map(mapEvent)
 }
-export async function createEvent({ title, startsAt, endsAt, ticketCap, prizes, rules }) {
+export async function createEvent({ title, startsAt, endsAt, drawAt, ticketCap, prizes, rules }) {
   const { data, error } = await supabase.from('tb_event').insert({
-    title, starts_at: startsAt, ends_at: endsAt, ticket_cap: ticketCap, prizes, rules: rules || null,
+    title, starts_at: startsAt, ends_at: endsAt, draw_at: drawAt, drand_round: drandRoundAt(drawAt),
+    ticket_cap: ticketCap, prizes, rules: rules || null,
   }).select('*').single()
   if (error) throw error
   eventState.loadedAt = 0
@@ -57,8 +88,7 @@ export async function updateEvent(id, patch) {
   if ('title' in patch) row.title = patch.title
   if ('startsAt' in patch) row.starts_at = patch.startsAt
   if ('endsAt' in patch) row.ends_at = patch.endsAt
-  if ('ticketCap' in patch) row.ticket_cap = patch.ticketCap
-  if ('prizes' in patch) row.prizes = patch.prizes
+  if ('drawAt' in patch) { row.draw_at = patch.drawAt; row.drand_round = drandRoundAt(patch.drawAt) }
   if ('rules' in patch) row.rules = patch.rules || null
   const { data, error } = await supabase.from('tb_event').update(row).eq('id', id).select('*').single()
   if (error) throw error
@@ -71,88 +101,64 @@ export async function deleteEvent(id) {
   if (!data?.length) throw new Error('삭제 안 됨 (추첨한 이벤트는 삭제 불가)')
   eventState.loadedAt = 0
 }
-export async function saveEventResult(id, result) {
-  const { error } = await supabase.rpc('d2r_event_save_result', { p_event_id: id, p_result: result })
+
+// ---- 응모권 ----
+export async function fetchEntries(eventId) {
+  const { data, error } = await supabase.from('tb_event_entry').select('*').eq('event_id', eventId).order('id', { ascending: true }).limit(5000)
+  if (error) throw error
+  return (data || []).map(mapEntry)
+}
+export async function setEntryExcluded(entryId, excluded, reason = '') {
+  const { data, error } = await supabase.from('tb_event_entry').update({ excluded, excluded_reason: excluded ? reason || '운영진 제외' : null }).eq('id', entryId).select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('수정 안 됨 (추첨 시각이 지나면 목록 고정)')
+}
+// 제외 안 된 응모권에 추첨 번호(1부터, 기록 순)를 붙임 - DB 추첨의 ticket_no 와 같음
+export function numberTickets(entries) {
+  let n = 0
+  return entries.map((e) => ({ ...e, ticketNo: e.excluded ? null : ++n }))
+}
+// 응모자별 요약 [{ userId, nickname, tickets, entries }]
+export function summarizeEntries(entries) {
+  const m = new Map()
+  for (const e of entries) {
+    if (!m.has(e.userId)) m.set(e.userId, { userId: e.userId, nickname: e.nickname, tickets: 0, entries: [] })
+    const u = m.get(e.userId)
+    u.entries.push(e)
+    if (!e.excluded) u.tickets++
+  }
+  return [...m.values()].sort((a, b) => b.tickets - a.tickets || a.nickname.localeCompare(b.nickname, 'ko'))
+}
+
+// ---- 추첨 ----
+export async function drawEvent(id, randomness) {
+  const { data, error } = await supabase.rpc('d2r_event_draw', { p_event_id: id, p_randomness: randomness })
   if (error) throw error
   eventState.loadedAt = 0
+  return data
 }
-
-export function phaseOf(ev, now = Date.now()) {
-  if (!ev) return null
-  if (now < new Date(ev.startsAt).getTime()) return 'upcoming'
-  if (now < new Date(ev.endsAt).getTime()) return 'live'
-  return ev.result ? 'announced' : 'ended'
+async function sha256Head6(text) {
+  const buf = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))
+  let v = 0n
+  for (let i = 0; i < 6; i++) v = (v << 8n) | BigInt(buf[i])
+  return v
 }
-
-// 이벤트 기간에 올라온 판매글 (삭제한 글 빼고). authorId 를 주면 그 사람 글만
-export async function fetchEventPosts(ev, authorId = null) {
-  let q = supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
-    .gte('created_at', ev.startsAt).lt('created_at', ev.endsAt).is('deleted_at', null)
-    .order('created_at', { ascending: true }).limit(2000)
-  if (authorId) q = q.eq('author_id', authorId)
-  const { data, error } = await q
-  if (error) throw error
-  return (data || []).map(mapTradePost)
-}
-
-// 글 하나가 자동으로 인정 안 되는 이유 (인정이면 '') / 관리자 검토가 필요한지
-export function autoJudge(post) {
-  if (post.category === '골드') return { reason: '골드' }
-  const item = getTradeItem(post.itemId)
-  if (item?.type_sub === '룬') {
-    const lv = itemLevelReq(item)
-    if (lv !== null && lv < MIN_RUNE_LEVEL) return { reason: '하급 룬 (코 룬 미만)' }
-  }
-  if (item?.category === 'gem' && item.type_sub !== '룬' && !/최상급/.test(item.name_ko || '')) return { reason: '최상급이 아닌 보석' }
-  const review = post.category === '매직/레어/일반' || post.category === '기타'
-  return { reason: '', review }
-}
-
-// 응모자 목록 - [{ userId, nickname, posts: [{ post, ok, reason, review, manual }], count, tickets }]
-// overrides: { [postId]: true(인정) | false(제외) } - 관리자가 바꾼 것, staffIds: 운영진(응모 제외)
-export function computeEntries(posts, ev, { overrides = {}, staffIds = new Set() } = {}) {
-  const byUser = new Map()
-  const seen = new Set()
-  for (const post of posts) {
-    let { reason, review } = autoJudge(post)
-    const dupKey = `${post.authorId}|${post.category}|${(post.itemName || '').trim()}`
-    if (!reason && seen.has(dupKey)) reason = '같은 매물 중복'
-    seen.add(dupKey)
-    if (staffIds.has(post.authorId)) reason = '운영진'
-    const manual = post.id in overrides
-    const ok = manual ? !!overrides[post.id] : !reason
-    if (!byUser.has(post.authorId)) byUser.set(post.authorId, { userId: post.authorId, nickname: post.author, posts: [] })
-    byUser.get(post.authorId).posts.push({ post, ok, reason: manual ? (ok ? '관리자 인정' : '관리자 제외') : reason, review: !!review, manual })
-  }
-  return [...byUser.values()].map((u) => {
-    const count = u.posts.filter((x) => x.ok).length
-    return { ...u, count, tickets: staffIds.has(u.userId) ? 0 : Math.min(count, ev.ticketCap) }
-  }).sort((a, b) => b.tickets - a.tickets || a.nickname.localeCompare(b.nickname, 'ko'))
-}
-
-// 공정한 난수 (브라우저 암호 난수) 0 <= r < n
-function randInt(n) {
-  const buf = new Uint32Array(1)
-  const limit = Math.floor(0x100000000 / n) * n
-  do crypto.getRandomValues(buf); while (buf[0] >= limit)
-  return buf[0] % n
-}
-// 응모권 수만큼 확률을 주고 상품 순서대로(1등부터) 한 명씩 뽑음 - 한 사람은 한 번만 당첨
-export function drawWinners(entries, prizes, rand = randInt) {
-  let pool = entries.filter((e) => e.tickets > 0)
+// DB 의 d2r_event_pick 과 같은 계산 - 응모권 목록(entries: 기록 순, 제외 포함)과 난수로 당첨자
+export async function pickWinners(entries, prizes, randomness) {
+  let pool = entries.filter((e) => !e.excluded)
   const winners = []
-  for (const prize of [...prizes].sort((a, b) => (a.rank || 0) - (b.rank || 0))) {
-    const total = pool.reduce((s, e) => s + e.tickets, 0)
-    if (!total) break
-    let r = rand(total)
-    const w = pool.find((e) => (r -= e.tickets) < 0)
-    winners.push({ rank: prize.rank, label: prize.label, item: prize.item, user_id: w.userId, nickname: w.nickname, tickets: w.tickets })
-    pool = pool.filter((e) => e !== w)
+  const sorted = [...prizes].sort((a, b) => (a.rank || 0) - (b.rank || 0))
+  for (let k = 1; k <= sorted.length; k++) {
+    if (!pool.length) break
+    const idx = Number((await sha256Head6(`${randomness}:${k}`)) % BigInt(pool.length))
+    const w = pool[idx]
+    winners.push({ rank: k, label: sorted[k - 1].label, item: sorted[k - 1].item, user_id: w.userId, nickname: w.nickname, entry_id: w.id, ticket_no: idx + 1, tickets_left: pool.length })
+    pool = pool.filter((e) => e.userId !== w.userId)
   }
   return winners
 }
 
-// 남은 시간 "1:23:45" / "12:05"
+// ---- 표시 ----
 export function fmtCountdown(ms) {
   if (ms <= 0) return '0:00'
   const s = Math.floor(ms / 1000)
