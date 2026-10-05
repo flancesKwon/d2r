@@ -28,7 +28,7 @@ create table if not exists public.tb_event_entry (
   id bigint generated always as identity primary key,
   event_id bigint not null references public.tb_event(id) on delete cascade,
   user_id uuid not null,
-  post_id uuid not null,
+  post_id bigint not null,                     -- tb_trade_post.id (숫자)
   nickname text not null default '',
   item_name text not null default '',
   category text,

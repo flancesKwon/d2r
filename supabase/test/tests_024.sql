@@ -1,7 +1,16 @@
 -- 024 검사: 응모 자동 기록(1인 최대·제외 규칙·삭제), 목록 고정, drand 난수 추첨(DB 계산), 당첨 알림
 -- 실행 순서: test/base_stub.sql → 002 → 이 파일 (024 를 \ir 로 두 번 불러옴)
 \set ON_ERROR_STOP on
-alter table public.tb_trade_post add column if not exists category text;
+-- 실서버처럼 판매글 번호는 숫자 (base_stub 은 uuid 라 이 검사에서만 바꿈)
+drop table public.tb_trade_post cascade;
+create table public.tb_trade_post (
+  id bigint generated always as identity primary key,
+  author_id uuid not null default auth.uid() references public.tb_profile(id),
+  item_name text not null, category text, status text default '판매중',
+  created_at timestamptz default now(), updated_at timestamptz, deleted_at timestamptz
+);
+alter table public.tb_trade_post enable row level security;
+create policy tp_all on public.tb_trade_post for all using (true) with check (true);
 create table if not exists public.tb_notification (id bigint generated always as identity primary key, user_id uuid, text text, link text, created_at timestamptz default now());
 \ir ../024_events.sql
 \ir ../024_events.sql
@@ -73,7 +82,7 @@ insert into public.tb_trade_post (author_id, item_name, category) values ('00000
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b2', false);
 update public.tb_event_entry set excluded = true where item_name = '이스트 룬' and user_id = '00000000-0000-0000-0000-0000000000b1';
-select z_fails('회원은 응모 기록 직접 추가 못 함', $$insert into public.tb_event_entry (event_id, user_id, post_id) values ((select id from public.tb_event limit 1), '00000000-0000-0000-0000-0000000000b2', gen_random_uuid())$$);
+select z_fails('회원은 응모 기록 직접 추가 못 함', $$insert into public.tb_event_entry (event_id, user_id, post_id) values ((select id from public.tb_event limit 1), '00000000-0000-0000-0000-0000000000b2', 999999)$$);
 reset role;
 select z_ok('회원 수정 시도는 반영 안 됨', (select count(*) from public.tb_event_entry where excluded) = 2);
 set role authenticated;
