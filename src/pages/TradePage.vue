@@ -368,6 +368,9 @@ const filteredPosts = computed(() => {
     </div>
   </div>
 
+  <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
+  <div class="trade-event-slot"><EventBanner mode="big" /></div>
+
   <div class="toolbar">
     <div class="toolbar-inner">
       <div class="cat-tabs">
@@ -503,7 +506,6 @@ const filteredPosts = computed(() => {
   </div>
 
   <div class="grid-wrap trade-list-wrap">
-    <EventBanner />
     <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 찜한 글은 거래중이어도 보임 · 거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
@@ -641,6 +643,9 @@ const filteredPosts = computed(() => {
   .trade-title{white-space:normal; flex-basis:100%;}
 }
 
+.trade-event-slot{max-width:1180px; margin:0 auto; padding:18px 24px 0;}
+.trade-event-slot:empty{display:none;}
+@media (max-width:640px){ .trade-event-slot{padding:14px 16px 0;} }
 /* 아이템 자동완성 */
 .trade-search{position:relative; flex:1; min-width:0; display:flex;}
 .trade-search .search-input-wrap{flex:1; min-width:0; align-items:center;}
