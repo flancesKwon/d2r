@@ -32,6 +32,7 @@ import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
+import EventBanner from '../components/EventBanner.vue'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 onMounted(() => { loadTradePosts(); openTradeGuideOnce() })
@@ -502,6 +503,7 @@ const filteredPosts = computed(() => {
   </div>
 
   <div class="grid-wrap trade-list-wrap">
+    <EventBanner />
     <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 찜한 글은 거래중이어도 보임 · 거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">

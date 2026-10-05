@@ -33,6 +33,8 @@ const NotFoundPage = () => import('./pages/NotFoundPage.vue')
 const UserProfilePage = () => import('./pages/UserProfilePage.vue')
 const ProfileEditPage = () => import('./pages/ProfileEditPage.vue')
 const AdminStatsPage = () => import('./pages/AdminStatsPage.vue')
+const AdminEventPage = () => import('./pages/AdminEventPage.vue')
+const EventPage = () => import('./pages/EventPage.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -64,6 +66,8 @@ const router = createRouter({
     { path: '/signup', redirect: '/mypage' },
     { path: '/admin', name: 'admin', component: AdminPage, meta: { title: '관리자' } },
     { path: '/admin/stats', name: 'admin-stats', component: AdminStatsPage, meta: { title: '방문 통계' } },
+    { path: '/admin/event', name: 'admin-event', component: AdminEventPage, meta: { title: '이벤트 관리' } },
+    { path: '/event/:id', name: 'event', component: EventPage, meta: { title: '이벤트' } },
     { path: '/cube', name: 'cube', component: CubeRecipesPage, meta: { title: '큐브 레시피' } },
     { path: '/runewords', name: 'runewords', component: RunewordFinderPage, meta: { title: '룬워드 찾기' } },
     { path: '/craft-sim', name: 'craft-sim', component: CraftSimPage, meta: { title: '크래프트 시뮬레이터' } },

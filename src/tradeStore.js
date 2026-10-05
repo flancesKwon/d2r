@@ -550,7 +550,7 @@ export function postRarity(post) {
 // 아이템·옵션·가격 계산은 위 그대로, 저장만 DB. 주인은 author_id(로그인 uuid), 권한은 RLS가 막음
 // DB에 칸이 없는 값(품질·아이콘 모양·흥정 가능)은 options(jsonb) 안에 옵션 줄과 같이 넣음
 // 구매신청은 당사자(구매자·판매자)만 볼 수 있어서 목록엔 신청 수를 안 보여줌
-const POST_AUTHOR = 'author:tb_profile!tb_trade_post_author_id_fkey(nickname, avatar_url)'
+export const POST_AUTHOR = 'author:tb_profile!tb_trade_post_author_id_fkey(nickname, avatar_url)'
 const REQUEST_BUYER = 'buyer:tb_profile!tb_trade_request_buyer_id_fkey(nickname, contact, avatar_url)'
 const LIST_LIMIT = 300
 
@@ -593,7 +593,7 @@ export function fmtSaleLeft(ms) {
 }
 const isExpired = (status, bumpedAt) => isSaleExpired({ status, bumpedAt })
 
-function mapTradePost(r) {
+export function mapTradePost(r) {
   const o = unpackOptions(r.options)
   return {
     id: r.id,
