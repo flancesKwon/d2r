@@ -1,4 +1,5 @@
 <script setup>
+import EventBanner from '../components/EventBanner.vue'
 // 메인 - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
 import { computed, shallowRef, ref } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
@@ -96,6 +97,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
         <span class="hm-dot"></span>{{ ladder.seasonName }} {{ ladder.status }} · 패치 {{ ladder.patchVersion }}
       </router-link>
       <h1>디아블로 2 레저렉션<br /><span>정보 · 계산기 · 거래</span></h1>
+      <EventBanner class="hm-event" />
 
       <form class="hm-search" role="search" @submit.prevent="search">
         <div class="hm-search-by" role="group" aria-label="검색 기준">
