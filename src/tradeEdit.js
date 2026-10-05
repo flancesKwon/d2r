@@ -105,6 +105,8 @@ function statTemplates(post, item, base) {
   }
   const maxSock = ['unique', 'set'].includes(item?.category) ? 1 : base?.sockets || 0
   if (maxSock) out.push({ re: /^소켓 (\d+)개$/d, ranges: [[1, maxSock]] })
+  // 매직·레어·크래프트에 판매자가 적은 요구 레벨
+  if (!item) out.push({ re: /^요구 레벨 (\d+)$/d, ranges: [[1, 99]] })
   return out
 }
 

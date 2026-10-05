@@ -334,6 +334,10 @@ const needsManualBaseStats = computed(() => {
 // 무기 데미지(dmgMin~dmgMax)는 비워두면 베이스 고정값, 입력하면 게임에 보이는 값 그대로 저장.
 // 유니크·세트도 같은 칸을 씀 - 샤코처럼 방어력을 보고 사는 아이템이 있어서 실제 수치를 적게 함
 const armorStats = ref({ baseDefense: '', dmgMin: '', dmgMax: '' })
+// 매직·레어·크래프트 요구 레벨 (선택) - 접사마다 달라서 사전으로 못 구함, 판매자가 게임 툴팁 보고 적음
+const levelReq = ref('')
+const levelReqValid = computed(() => /^\d+$/.test(String(levelReq.value)) && Number(levelReq.value) >= 1 && Number(levelReq.value) <= 99)
+const levelReqLines = () => (isAffixQuality.value && levelReqValid.value ? [`요구 레벨 ${Number(levelReq.value)}`] : [])
 const filled = (v) => v !== '' && v !== null && v !== undefined
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
@@ -550,6 +554,7 @@ function hideBaseItemDropdownSoon() {
 
 function resetBaseStats() {
   armorStats.value = { baseDefense: '', dmgMin: '', dmgMax: '' }
+  levelReq.value = ''
   clearBaseItem()
 }
 
@@ -602,6 +607,7 @@ const invalidInputs = computed(() => {
     bad.push(`방어력 (${uniqueDefenseRange.value.min}~${uniqueDefenseRange.value.max})`)
   }
   if (damageError.value) bad.push(damageError.value)
+  if (isAffixQuality.value && filled(levelReq.value) && !levelReqValid.value) bad.push('요구 레벨 (1~99)')
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
   for (const { fam, values } of pickedAffixes.value) {
@@ -831,7 +837,7 @@ function buildAllOptions() {
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   })
   return [
-    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
+    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...levelReqLines(), ...customOptions.value,
   ]
 }
 
@@ -1093,6 +1099,15 @@ function submitPost() {
         <template v-if="isAffixQuality">
           <AffixPicker :families="affixFamilies" :limits="pickerLimits" v-model="affixPicks" />
           <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
+          <div class="level-req-row">
+            <label>
+              요구 레벨 <span class="craft-sub-note">선택 · 게임 툴팁의 값</span>
+              <input
+                type="number" v-model="levelReq" class="write-input" min="1" max="99" placeholder="예: 42"
+                :class="{ invalid: filled(levelReq) && !levelReqValid }"
+              />
+            </label>
+          </div>
         </template>
       </div>
 
@@ -1135,6 +1150,7 @@ function submitPost() {
             <span v-if="expectedDefense">기본 방어력 범위 {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
             <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
+            <span v-if="selectedBaseItem.base_stats.reqdex">요구 민첩 {{ selectedBaseItem.base_stats.reqdex }}</span>
           </div>
           <div class="base-stats-input-row">
             <label>
@@ -1613,6 +1629,8 @@ function submitPost() {
 .class-skill-add{align-self:flex-start; font-size:12.5px; color:var(--gold); border:1px dashed var(--gold-dim); padding:7px 14px; border-radius:10px; background:transparent;}
 .class-skill-add:hover{background:var(--panel-2);}
 .base-stats-input-row{display:flex; gap:12px; flex-wrap:wrap;}
+.level-req-row{margin-top:10px;}
+.level-req-row label{display:flex; flex-direction:column; gap:6px; font-size:11.5px; color:var(--text-dim); max-width:200px;}
 .base-stats-input-row label{
   flex:1; min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:11.5px; color:var(--text-dim);
 }

@@ -7,6 +7,7 @@ import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
 import { itemDamage, formatDamage } from '../itemDamage.js'
+import { itemLevelReq, itemStatReqs } from '../tradeStore.js'
 
 const items = itemsData
 const icons = ITEM_ICONS
@@ -33,6 +34,8 @@ const shown = (list) => (list || []).filter((a) => !a.hidden)
 const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg', 'dmg-pois'])
 
 // 무기 실제 피해 (피해 증가·추가 피해 적용) - 레벨당 최대 피해 옵션이 있으면 99레벨 기준도
+// 요구 힘·민첩 (착용 조건 ±% 옵션 반영)
+const statReqs = computed(() => itemStatReqs(selected.value))
 const damageInfo = computed(() => {
   const it = selected.value
   const d = it && itemDamage(it)
@@ -289,9 +292,13 @@ const optionHits = computed(() => {
             <div class="label">기본 방어력</div>
             <div class="value">{{ selected.base_stats.minac ?? '—' }}~{{ selected.base_stats.maxac ?? '—' }}</div>
           </div>
-          <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.reqstr">
+          <div class="d-meta-item" v-if="statReqs.str">
             <div class="label">필요 힘</div>
-            <div class="value">{{ selected.base_stats.reqstr }}</div>
+            <div class="value">{{ statReqs.str }}</div>
+          </div>
+          <div class="d-meta-item" v-if="statReqs.dex">
+            <div class="label">필요 민첩</div>
+            <div class="value">{{ statReqs.dex }}</div>
           </div>
         </div>
         <div class="note-box warn" v-if="selected.spawnable === false">
@@ -405,6 +412,13 @@ const optionHits = computed(() => {
         <div class="rune-pips">
           <div class="rune-pip" v-for="(r, i) in runePips(selected.extra.rune_sequence)" :key="i">
             {{ r }}
+          </div>
+        </div>
+        <div class="d-meta-row">
+          <div class="d-meta-item">
+            <div class="label">필요 레벨</div>
+            <div class="value">{{ itemLevelReq(selected) || '—' }}</div>
+            <div class="d-meta-sub">박힌 룬 중 가장 높은 요구 레벨 · 힘·민첩은 베이스 따라</div>
           </div>
         </div>
         <div class="note-box">

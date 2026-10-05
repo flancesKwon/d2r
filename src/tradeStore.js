@@ -433,8 +433,39 @@ export function itemLevelReq(item) {
   }
   return null
 }
+// 사전에 없는 매직·레어·크래프트는 판매자가 적은 "요구 레벨 N" 줄 (선택 입력)
+export const LEVEL_REQ_LINE_RE = /^요구 레벨 (\d+)$/
+export function enteredLevelReq(options) {
+  for (const line of options || []) {
+    const m = LEVEL_REQ_LINE_RE.exec(line)
+    if (m) return Number(m[1])
+  }
+  return null
+}
 export function postLevelReq(post) {
-  return itemLevelReq(getTradeItem(post.itemId))
+  return itemLevelReq(getTradeItem(post.itemId)) ?? enteredLevelReq(post.options)
+}
+
+// 요구 힘·민첩 - 베이스 값에 착용 조건 ±N% 옵션(ease)과 에테리얼 -10 반영. 요구치 없으면 null
+// item: 사전 아이템(유니크·세트는 자기 base_stats), base: 룬워드·매직/레어의 고른 베이스
+export function itemStatReqs(item, { base = null, ethereal = false } = {}) {
+  const bs = (['unique', 'set'].includes(item?.category) ? item.base_stats || baseForItem(item)?.base_stats : null) || base?.base_stats
+  if (!bs || !['armor', 'weapon'].includes(bs.category)) return { str: null, dex: null }
+  const ease = ['unique', 'set'].includes(item?.category)
+    ? (item.affixes || []).filter((a) => a.prop === 'ease').reduce((s, a) => s + Number(a.min || 0), 0)
+    : 0
+  const calc = (v) => {
+    if (!v) return null
+    // 게임 계산: 착용 조건 %는 늘거나 준 양을 0 쪽으로 버림 (99 -50% = 50), 그다음 에테리얼 -10
+    let r = v + Math.trunc((v * ease) / 100)
+    if (ethereal) r -= 10
+    return r > 0 ? r : null
+  }
+  return { str: calc(bs.reqstr), dex: calc(bs.reqdex) }
+}
+// 판매글 옵션의 "베이스: ..." 줄 -> 베이스 아이템
+export function baseFromLabel(label) {
+  return (label && BASE_BY_LABEL.get(label)) || null
 }
 
 // 콤보박스 없이 숫자만 입력받아서 "N개"로 만듦
