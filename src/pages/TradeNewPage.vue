@@ -853,7 +853,16 @@ function buildAllOptions() {
 }
 
 // 그림: 룬워드는 고른 베이스 모양(예전엔 사전의 대표 그림으로 고정), 사전에 없는 장비는 고른 베이스·모양, 유니크·세트는 사전 그림
+// 유니크·세트 반지·목걸이·주얼은 게임에서 그림이 무작위 (사전 그림이 기본 반지·목걸이·주얼 그림인 것) - 실제 모양을 고르게
+const JEWELRY_CODE = Object.fromEntries(['rin', 'amu', 'jew'].map((c) => [ICON_VARIANTS[c][0], c]))
+const uniqueShapeVariants = computed(() => {
+  const it = selectedItem.value
+  if (!it || !['unique', 'set'].includes(it.category)) return null
+  const code = JEWELRY_CODE[it.icon_key]
+  return code ? ICON_VARIANTS[code] : null
+})
 const postIcon = computed(() => {
+  if (uniqueShapeVariants.value) return iconVariant.value || null
   if (isManualEquip.value) return iconVariant.value || (selectedBaseItem.value ? baseIconKey(selectedBaseItem.value) : null)
   if (isRuneword.value && selectedBaseItem.value) return baseIconKey(selectedBaseItem.value)
   return null
@@ -1048,6 +1057,17 @@ function submitPost() {
             type="button" v-for="b in MISC_BASES" :key="b.code" :class="{ active: selectedBaseItem?.code === b.code }"
             @click="pickMiscBase(b)"
           >{{ b.name_ko }}</button>
+        </div>
+      </div>
+
+      <div class="manual-kind-row" v-if="uniqueShapeVariants">
+        <div class="option-editor-title shape-title">모양 <span class="craft-sub-note">게임에서 무작위 - 실제 아이템 모양 선택</span></div>
+        <div class="shape-row">
+          <button
+            type="button" v-for="k in uniqueShapeVariants" :key="k" class="shape-btn"
+            :class="{ active: (iconVariant || uniqueShapeVariants[0]) === k }" :aria-label="`모양 ${k}`"
+            @click="iconVariant = k"
+          ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
         </div>
       </div>
 
