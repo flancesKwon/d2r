@@ -94,6 +94,18 @@ drop trigger if exists trg_event_entry_guard on public.tb_event_entry;
 create trigger trg_event_entry_guard before update on public.tb_event_entry
   for each row execute function public.d2r_event_entry_guard();
 
+-- 잡템 판정: 코 룬 미만 룬, 최상급이 아닌 보석 (묶음 판매 "엘 룬 3개 + 엘드 룬 2개"는 모든 항목이 잡템이면 잡템)
+create or replace function public.d2r_event_is_junk(p_item_name text) returns boolean
+language sql immutable as $$
+  select coalesce(bool_and(
+           regexp_replace(btrim(part), '\s*\d+개$', '') in ('엘 룬', '엘드 룬', '티르 룬', '네프 룬', '에드 룬', '아이드 룬', '탈 룬', '랄 룬',
+             '오르트 룬', '주울 룬', '앰 룬', '솔 룬', '샤엘 룬', '돌 룬', '헬 룬', '이오 룬', '룸 룬')
+           or regexp_replace(btrim(part), '\s*\d+개$', '') ~ '^((최하급|하급|상급) )?(자수정|토파즈|사파이어|에메랄드|루비|다이아몬드|해골)$'
+         ), false)
+    from regexp_split_to_table(coalesce(p_item_name, ''), '\s*\+\s*') part
+   where btrim(part) <> ''
+$$;
+
 -- 판매글을 올리면 진행 중인 이벤트에 응모권 기록
 create or replace function public.d2r_event_entry_on_post() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -103,9 +115,9 @@ begin
     select nickname, role::text into nick, role_ from public.tb_profile where id = new.author_id;
     if role_ in ('moderator', 'admin') then continue; end if;                       -- 운영진
     if new.category = '골드' then continue; end if;                                  -- 골드
-    if new.item_name in ('엘 룬', '엘드 룬', '티르 룬', '네프 룬', '에드 룬', '아이드 룬', '탈 룬', '랄 룬', '오르트 룬',
-        '주울 룬', '앰 룬', '솔 룬', '샤엘 룬', '돌 룬', '헬 룬', '이오 룬', '룸 룬') then continue; end if;   -- 코 룬 미만
-    if new.category = '퍼펙트 보석' and new.item_name not like '최상급 %' then continue; end if;          -- 최상급 아닌 보석
+    if public.d2r_event_is_junk(new.item_name) then continue; end if;                -- 코 룬 미만 룬·최상급 아닌 보석 (묶음 포함)
+    -- 같은 사람이 동시에 여러 글을 올려도 1인 최대를 넘지 않게 (이벤트·사람별로 차례대로)
+    perform pg_advisory_xact_lock(e.id::int, hashtext(new.author_id::text));
     if exists (select 1 from public.tb_event_entry where event_id = e.id and user_id = new.author_id
                 and item_name = new.item_name and not excluded) then continue; end if;                  -- 같은 아이템 중복
     select count(*) into n from public.tb_event_entry where event_id = e.id and user_id = new.author_id and not excluded;
