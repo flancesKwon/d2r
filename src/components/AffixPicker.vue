@@ -82,7 +82,8 @@ function onKey(row, e, i) {
   const opts = optionsFor(row)
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault()
-    row.open = true
+    // 닫혀 있으면 열기만 (첫 줄부터)
+    if (!row.open) { row.open = true; row.active = 0; return }
     if (!opts.length) return
     row.active = (row.active + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length
     nextTick(() => rootEl.value?.querySelectorAll('.affix-row')[i]?.querySelector('.affix-opt.active')?.scrollIntoView({ block: 'nearest' }))

@@ -79,7 +79,8 @@ function onSearchKey(e) {
   const list = suggestions.value
   if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && list.length) {
     e.preventDefault()
-    suggestOpen.value = true
+    // 닫혀 있으면 열기만 (첫 줄부터)
+    if (!suggestOpen.value) { suggestOpen.value = true; suggestActive.value = 0; return }
     suggestActive.value = (suggestActive.value + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length
   } else if (e.key === 'Enter' && suggestOpen.value && list.length) {
     e.preventDefault()
@@ -655,11 +656,6 @@ const filteredPosts = computed(() => {
 .item-suggest-name.set, .picked-item-chip.set, .item-range-title b.set{color:#00c400;}
 .item-suggest-icon.unique, .item-suggest-icon.runeword{border-color:#6b5f3c;} .item-suggest-icon.set{border-color:#1f6b1f;}
 .item-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 4px;}
-@media (max-width:640px){
-  .trade-search{flex-basis:100%;}
-  .item-range-grid{grid-template-columns:1fr;}
-  .item-range-label{white-space:normal;}
-}
 .picked-item-chip{
   display:inline-flex; align-items:center; gap:6px; flex:none; margin-left:8px; font-size:12.5px; font-weight:600;
   border:1px solid currentColor; padding:4px 6px 4px 10px; border-radius:999px; background:var(--panel-2);
@@ -682,6 +678,12 @@ const filteredPosts = computed(() => {
 .item-range-row input{
   width:68px; background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:12.5px;
   padding:6px 8px; border-radius:8px; font-family:'Noto Sans KR', sans-serif;
+}
+
+@media (max-width:640px){
+  .trade-search{flex-basis:100%;}
+  .item-range-grid{grid-template-columns:1fr;}
+  .item-range-label{white-space:normal;}
 }
 
 /* 상세 필터 접기 */
