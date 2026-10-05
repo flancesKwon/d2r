@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { askConfirm } from '../dialog.js'
+import EventBanner from '../components/EventBanner.vue'
 import {
   TRADE_REALMS,
   TRADE_LADDERS,
@@ -1503,6 +1504,7 @@ function submitPost() {
         <ItemTooltipCanvas :tooltip="previewTooltip" :file-name="form.itemName" />
       </div>
 
+      <EventBanner mode="post" />
       <div class="trade-new-actions">
         <router-link to="/trade" class="trade-new-cancel">취소</router-link>
         <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">등록하기</button>
