@@ -23,6 +23,7 @@ import {
   isRandomClassSkillAffix,
   CLASS_SKILL_NAMES,
   uniqueDefenseRange,
+  SUPERIOR_MODS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
 import { useNow } from '../useNow.js'
@@ -91,19 +92,62 @@ function onSearchKey(e) {
 }
 const closeSuggestSoon = () => setTimeout(() => (suggestOpen.value = false), 150)
 
-// 고른 아이템의 변동 옵션 - 범위로 굴러가는 옵션, 무작위 직업 기술, 방어구 기본 방어력
+// 고른 아이템의 검색 칸 - 베이스(룬워드 베이스·기본 방어력·데미지·소켓·상급) + 변동 옵션(범위 옵션·무작위 직업 기술)
+// 범위 칸(kind 없음): { lo, hi, get(post) -> 숫자 } / 고르기 칸(choices): get(post) -> 값
 const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const lineValue = (re) => (p) => { for (const l of p.options || []) { const m = re.exec(l); if (m) return Number(m[1]) } return null }
+const lineMatch = (re, i = 1) => (p) => { for (const l of p.options || []) { const m = re.exec(l); if (m) return m[i] } return null }
+const lineValue = (re, i = 1) => (p) => { const v = lineMatch(re, i)(p); return v === null ? null : Number(v) }
 const CLASS_LINE = new RegExp(`^(${Object.values(CLASS_SKILL_NAMES).join('|')}) 기술 레벨 \\+\\d+`)
-const itemVarDefs = computed(() => {
+const DEF_LINE = /^기본 방어력 (\d+)$/
+const DMG_LINE = /^기본 데미지 (\d+)~(\d+)$/
+const SOCK_LINE = /^소켓 (\d+)개$/
+const BASE_LINE = /^베이스: (.+?)(?: \(.+\))?$/
+const normLine = (t) => t.replace(/\d+/g, '#')
+const SUPERIOR_RES = Object.values(SUPERIOR_MODS).map((m) => new RegExp('^' + escRe(m.text).replace('\\{v\\}', '\\d+') + '$'))
+// 상급 베이스인지 - 상급 옵션 줄(피해 증가·방어력 증가·명중률·최대 내구도)이 아이템 자기 옵션 말고 따로 붙어 있으면 상급
+function isSuperiorPost(p, item) {
+  const own = new Map()
+  for (const a of getItemAffixes(item)) if (a.text) own.set(normLine(a.text), (own.get(normLine(a.text)) || 0) + 1)
+  const seen = new Map()
+  for (const l of p.options || []) {
+    if (!SUPERIOR_RES.some((re) => re.test(l))) continue
+    const k = normLine(l)
+    seen.set(k, (seen.get(k) || 0) + 1)
+    if (seen.get(k) > (own.get(k) || 0)) return true
+  }
+  return false
+}
+// 이 아이템 글 (베이스 종류 고르기·방어력/데미지 칸을 보여줄지 정할 때 씀)
+const pickedItemPosts = computed(() => (pickedItem.value ? tradeState.posts.filter((p) => p.itemId === pickedItem.value.id) : []))
+const anyLine = (re) => pickedItemPosts.value.some((p) => (p.options || []).some((l) => re.test(l)))
+const itemBaseDefs = computed(() => {
   const it = pickedItem.value
   if (!it) return []
   const defs = []
+  const kind = it.base_stats?.category
+  if (it.category === 'runeword') {
+    const names = [...new Set(pickedItemPosts.value.map(lineMatch(BASE_LINE)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'))
+    if (names.length) defs.push({ key: 'base', label: '베이스', choices: names, get: lineMatch(BASE_LINE) })
+    defs.push({ key: 'sup', label: '상급(슈페리얼) 베이스', choices: ['상급', '일반'], get: (p) => (isSuperiorPost(p, it) ? '상급' : '일반') })
+  }
   const def = uniqueDefenseRange(it, false)
-  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: uniqueDefenseRange(it, true)?.max ?? def.max, get: lineValue(/^기본 방어력 (\d+)$/) })
+  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: uniqueDefenseRange(it, true)?.max ?? def.max, get: lineValue(DEF_LINE) })
+  else if (kind === 'armor' || (it.category === 'runeword' && anyLine(DEF_LINE))) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
+  if (kind === 'weapon' || (it.category === 'runeword' && anyLine(DMG_LINE))) {
+    defs.push({ key: 'dmin', label: '기본 최소 데미지', get: lineValue(DMG_LINE, 1) })
+    defs.push({ key: 'dmax', label: '기본 최대 데미지', get: lineValue(DMG_LINE, 2) })
+  }
+  // 유니크·세트 장비는 라르주크 소켓(1개)이나 원래 소켓 붙는 것
+  if (it.category !== 'runeword' && (kind === 'armor' || kind === 'weapon')) defs.push({ key: 'sock', label: '소켓 수', lo: 0, hi: 6, get: (p) => lineValue(SOCK_LINE)(p) ?? 0 })
+  return defs
+})
+const itemOptionDefs = computed(() => {
+  const it = pickedItem.value
+  if (!it) return []
+  const defs = []
   for (const a of getItemAffixes(it)) {
     if (isRandomClassSkillAffix(a)) {
-      defs.push({ key: 'class', label: '직업 기술', classes: Object.values(CLASS_SKILL_NAMES), get: (p) => { for (const l of p.options || []) { const m = CLASS_LINE.exec(l); if (m) return m[1] } return null } })
+      defs.push({ key: 'class', label: '직업 기술', choices: Object.values(CLASS_SKILL_NAMES), get: lineMatch(CLASS_LINE) })
     } else if (isRollRangeAffix(a)) {
       const [pre, post] = a.text.split(`${a.min}~${a.max}`)
       const lo = Math.min(Number(a.min), Number(a.max)), hi = Math.max(Number(a.min), Number(a.max))
@@ -112,17 +156,24 @@ const itemVarDefs = computed(() => {
   }
   return defs
 })
-// { [def.key]: { min, max } } 또는 직업 기술은 { cls }
+const itemVarDefs = computed(() => [...itemBaseDefs.value, ...itemOptionDefs.value])
+// { [def.key]: { min, max, pick } } - 글이 새로 들어와 칸이 다시 만들어져도 입력한 값은 그대로
+// (다른 아이템을 고르면 비움)
 const itemRanges = ref({})
-watch(itemVarDefs, (defs) => { itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, { min: '', max: '', cls: '' }])) }, { immediate: true })
+let rangesItemId = null
+watch(itemVarDefs, (defs) => {
+  const old = rangesItemId === pickedItem.value?.id ? itemRanges.value : {}
+  rangesItemId = pickedItem.value?.id ?? null
+  itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, old[d.key] || { min: '', max: '', pick: '' }]))
+}, { immediate: true })
 const activeItemRanges = computed(() =>
-  itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (r.min !== '' || r.max !== '' || r.cls) })
+  itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (d.choices ? r.pick : r.min !== '' || r.max !== '') })
 )
 function itemRangeMatches(p, d) {
   const r = itemRanges.value[d.key]
   const v = d.get(p)
-  if (v === null) return false
-  if (d.classes) return v === r.cls
+  if (v === null || v === undefined) return false
+  if (d.choices) return v === r.pick
   return (r.min === '' || v >= Number(r.min)) && (r.max === '' || v <= Number(r.max))
 }
 // 아이템을 바꾸면 주소도 맞춤 (공유·뒤로 가기용)
@@ -358,24 +409,29 @@ const filteredPosts = computed(() => {
       </div>
       <div class="item-range-panel" v-if="pickedItem">
         <div class="item-range-title">
-          <b :class="pickedItem.category">{{ pickedItem.name_ko }}</b> 옵션 범위
-          <span v-if="!itemVarDefs.length">- 변동 옵션 없음 (고정 옵션 아이템)</span>
-          <span v-else>- 비워두면 상관없음 · 범위를 넣으면 그 수치를 적은 글만</span>
+          <b :class="pickedItem.category">{{ pickedItem.name_ko }}</b> 검색 옵션
+          <span>- 비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만</span>
+          <label class="ethereal-filter-check"><input type="checkbox" v-model="etherealOnly" /> 에테리얼만</label>
+          <label class="ethereal-filter-check unid-filter-check"><input type="checkbox" v-model="unidOnly" /> 미확인만</label>
         </div>
-        <div class="item-range-grid" v-if="itemVarDefs.length">
-          <div class="item-range-row" v-for="d in itemVarDefs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
-            <span class="item-range-label">{{ d.label }}</span>
-            <select v-if="d.classes" v-model="itemRanges[d.key].cls" class="sort-select" :aria-label="d.label">
-              <option value="">전체</option>
-              <option v-for="c in d.classes" :key="c" :value="c">{{ c }}</option>
-            </select>
-            <template v-else>
-              <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="String(d.lo)" :aria-label="`${d.label} 최소`" />
-              <span class="level-range-sep">~</span>
-              <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="String(d.hi)" :aria-label="`${d.label} 최대`" />
-            </template>
+        <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
+          <div class="item-range-sec" v-if="sec.defs.length">{{ sec.name }}</div>
+          <div class="item-range-grid" v-if="sec.defs.length">
+            <div class="item-range-row" v-for="d in sec.defs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
+              <span class="item-range-label">{{ d.label }}</span>
+              <select v-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
+                <option value="">전체</option>
+                <option v-for="c in d.choices" :key="c" :value="c">{{ d.key === 'sup' ? (c === '상급' ? '상급만' : '일반 베이스만') : c }}</option>
+              </select>
+              <template v-else>
+                <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="d.lo ?? '최소'" :aria-label="`${d.label} 최소`" />
+                <span class="level-range-sep">~</span>
+                <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="d.hi ?? '최대'" :aria-label="`${d.label} 최대`" />
+              </template>
+            </div>
           </div>
-        </div>
+        </template>
+        <div class="item-range-empty" v-if="!itemVarDefs.length">변동 옵션 없음 (옵션이 고정된 아이템)</div>
       </div>
       <div class="filter-toggle-row">
         <button type="button" class="filter-toggle" :class="{ open: filtersOpen, on: advancedCount }" @click="toggleFilters" :aria-expanded="filtersOpen">
@@ -614,7 +670,11 @@ const filteredPosts = computed(() => {
 /* 고른 아이템의 변동 옵션 범위 */
 .item-range-panel{margin-top:10px; padding:12px 14px; border:1px solid var(--border-soft); border-radius:12px; background:var(--panel);}
 .item-range-title{font-size:12.5px; color:var(--text-muted); margin-bottom:8px;}
+.item-range-title{display:flex; align-items:center; gap:6px 12px; flex-wrap:wrap;}
 .item-range-title span{color:var(--text-dim); font-size:12px;}
+.item-range-sec{font-size:11.5px; color:var(--gold-dim); margin:10px 0 6px; letter-spacing:.02em;}
+.item-range-empty{font-size:12px; color:var(--text-dim);}
+.item-range-row .sort-select{padding:6px 10px; min-width:150px;}
 .item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:8px 16px;}
 .item-range-row{display:flex; align-items:center; gap:6px; font-size:12.5px;}
 .item-range-label{flex:1; min-width:0; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
