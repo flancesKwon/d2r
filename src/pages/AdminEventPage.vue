@@ -28,27 +28,39 @@ const DEFAULT_PRIZES = () => [
   { label: '3등', item: '소집 룬 세트 (앰·랄·말·이스트·옴)' },
 ]
 const form = ref({ title: '매물 등록 이벤트', start: toLocal(nextHour()), hours: 2, reviewMin: 30, cap: 5, prizes: DEFAULT_PRIZES(), rules: '' })
+// 입력값 검사 - 칸마다 무엇이 틀렸는지 (datetime-local 은 날짜·시간을 다 채워야 값이 생김)
+const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v))
+const formProblem = computed(() => {
+  const f = form.value
+  if (!f.start || Number.isNaN(new Date(f.start).getTime())) return '시작 시각: 날짜와 시간을 끝까지 입력 (또는 아래 "바로 시작" 버튼)'
+  if (!(num(f.hours) > 0)) return '진행 시간: 0보다 큰 숫자 (시간 단위, 30분 = 0.5)'
+  if (!(num(f.reviewMin) >= 0)) return '검토 시간: 0 이상 숫자 (분 단위, 검토 안 하면 0)'
+  if (!(num(f.cap) >= 1 && num(f.cap) <= 100)) return '1인 최대 응모권: 1~100'
+  return ''
+})
 const formTimes = computed(() => {
+  if (formProblem.value) return null
   const s = new Date(form.value.start)
-  if (Number.isNaN(s.getTime())) return null
-  const end = new Date(s.getTime() + Number(form.value.hours || 0) * 3600000)
-  const draw = new Date(end.getTime() + Number(form.value.reviewMin || 0) * 60000)
+  const end = new Date(s.getTime() + num(form.value.hours) * 3600000)
+  const draw = new Date(end.getTime() + num(form.value.reviewMin) * 60000)
   return { start: s, end, draw, round: drandRoundAt(draw) }
 })
+// 시작 시각 빠른 선택 (지금부터 n분 뒤, 초는 버림)
+function startIn(min) { const d = new Date(Date.now() + min * 60000); d.setSeconds(0, 0); form.value.start = toLocal(d) }
 function addPrize() { form.value.prizes.push({ label: `${form.value.prizes.length + 1}등`, item: '' }) }
 function removePrize(i) { form.value.prizes.splice(i, 1) }
 async function submitCreate() {
   error.value = ''
   const t = formTimes.value
   if (!form.value.title.trim()) { error.value = '제목 입력'; return }
-  if (!t || !(Number(form.value.hours) > 0) || Number(form.value.reviewMin) < 0) { error.value = '시작 시각·진행 시간·검토 시간 확인'; return }
+  if (formProblem.value) { error.value = formProblem.value; return }
   const prizes = form.value.prizes.filter((p) => p.item.trim()).map((p, k) => ({ rank: k + 1, label: p.label.trim() || `${k + 1}등`, item: p.item.trim() }))
   if (!prizes.length) { error.value = '상품 하나 이상'; return }
   busy.value = true
   try {
     const ev = await createEvent({
       title: form.value.title.trim(), startsAt: t.start.toISOString(), endsAt: t.end.toISOString(), drawAt: t.draw.toISOString(),
-      ticketCap: Number(form.value.cap) || 5, prizes, rules: form.value.rules.trim(),
+      ticketCap: num(form.value.cap), prizes, rules: form.value.rules.trim(),
     })
     await loadEvents()
     selectedId.value = ev.id
@@ -159,10 +171,16 @@ async function draw() {
         <div class="ae-form">
           <label>제목 <input v-model="form.title" class="ae-input" /></label>
           <label>시작 <input type="datetime-local" v-model="form.start" class="ae-input" /></label>
-          <label>진행 시간(시간) <input type="number" min="0.5" step="0.5" v-model="form.hours" class="ae-input ae-num" /></label>
-          <label>검토 시간(분) <input type="number" min="0" step="5" v-model="form.reviewMin" class="ae-input ae-num" /></label>
+          <label>진행 시간(시간) <input type="number" min="0.1" step="any" v-model="form.hours" class="ae-input ae-num" /></label>
+          <label>검토 시간(분) <input type="number" min="0" step="1" v-model="form.reviewMin" class="ae-input ae-num" /></label>
           <label>1인 최대 응모권 <input type="number" min="1" max="100" v-model="form.cap" class="ae-input ae-num" /></label>
         </div>
+        <div class="ae-quick">
+          시작: <button type="button" class="ae-btn small" @click="startIn(1)">바로 시작 (1분 뒤)</button>
+          <button type="button" class="ae-btn small" @click="startIn(10)">10분 뒤</button>
+          <button type="button" class="ae-btn small" @click="startIn(60)">1시간 뒤</button>
+        </div>
+        <div class="ae-error" v-if="formProblem">{{ formProblem }}</div>
         <div class="ae-dim" v-if="formTimes">
           종료 {{ fmtEventTime(formTimes.end.toISOString()) }} → 검토 → 추첨 {{ fmtEventTime(formTimes.draw.toISOString()) }}
           (drand 라운드 {{ formTimes.round }}, {{ drandTimeOf(formTimes.round).toLocaleTimeString('ko-KR') }} 공개)
@@ -270,6 +288,7 @@ async function draw() {
 .ae-form label, .ae-rules{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--text-dim);}
 .ae-input{background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:13px; padding:8px 10px; border-radius:8px; font-family:'Noto Sans KR', sans-serif;}
 .ae-num{width:90px;}
+.ae-quick{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);}
 .ae-rnd{width:100%; font-family:ui-monospace, monospace; font-size:12px; margin-top:6px;}
 .ae-prizes{display:flex; flex-direction:column; gap:6px;}
 .ae-prize{display:flex; gap:6px; align-items:center;}
