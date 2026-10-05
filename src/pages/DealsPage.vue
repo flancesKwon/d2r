@@ -1,4 +1,5 @@
 <script setup>
+import { openTradeGuide } from '../tradeGuide.js'
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -186,7 +187,7 @@ function submitReview() {
         </div>
 
         <div class="deal-thread-body" ref="bodyEl" @scroll="onScroll">
-          <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율<br><small>7일 동안 대화가 없으면 자동 거래불발 · 한쪽만 거래완료를 누르면 3일 뒤 자동 완료</small></div>
+          <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율<br><small>7일 동안 대화가 없으면 자동 거래불발 · 한쪽만 거래완료를 누르면 3일 뒤 자동 완료 · <button type="button" class="guide-link" @click="openTradeGuide('flow')">거래 진행 안내</button></small></div>
           <div
             class="conv-bubble" v-for="m in activeDeal.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
@@ -400,4 +401,5 @@ function submitReview() {
 }
 .deals-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
 .action-error{font-size:12.5px; color:#e0775f;}
+.guide-link{font-size:inherit; color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
 </style>

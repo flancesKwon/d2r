@@ -51,6 +51,7 @@ import {
   affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
 } from '../magicAffixes.js'
 import { authState, signIn } from '../profileStore.js'
+import { openTradeGuide } from '../tradeGuide.js'
 
 const router = useRouter()
 
@@ -891,7 +892,7 @@ function submitPost() {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">판매글 등록</div>
+      <div class="eyebrow">판매글 등록 · <button type="button" class="hero-guide-link" @click="openTradeGuide('sell')">등록 방법 보기</button></div>
       <h1>아이템 등록하기</h1>
     </div>
   </div>
@@ -1656,4 +1657,5 @@ function submitPost() {
   .option-row{gap:6px;}
 }
 .trade-new-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
+.hero-guide-link{color:var(--gold); text-decoration:underline; text-underline-offset:3px; font-size:inherit;}
 </style>

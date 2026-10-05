@@ -21,12 +21,13 @@ import {
 } from '../tradeStore.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
+import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
-onMounted(() => loadTradePosts())
+onMounted(() => { loadTradePosts(); openTradeGuideOnce() })
 useAutoRefresh(() => loadTradePosts(true))
 const activeCat = ref(null)
 const activeLadder = ref(null)
@@ -218,6 +219,7 @@ const filteredPosts = computed(() => {
           <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" @click="setViewMode('list')">☰</button>
           <button type="button" :class="{ active: viewMode === 'grid' }" title="그리드형" @click="setViewMode('grid')">▦</button>
         </div>
+        <button type="button" class="guide-btn" @click="openTradeGuide()">? 이용 안내</button>
         <router-link class="quality-toggle" to="/trade/new">판매글 등록</router-link>
       </div>
       <div class="filter-row">
@@ -513,4 +515,6 @@ const filteredPosts = computed(() => {
 .dealing-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); border-radius:999px; flex:none;}
 .trade-card-dealing{align-self:center;}
 .trade-row:has(.dealing-badge), .trade-card:has(.dealing-badge){opacity:.75;}
+.guide-btn{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--panel);}
+.guide-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
 </style>
