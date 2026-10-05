@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   tradeState,
   loadTradePosts,
@@ -18,7 +18,13 @@ import {
   postRarity,
   saleLeftMs,
   fmtSaleLeft,
+  getItemAffixes,
+  isRollRangeAffix,
+  isRandomClassSkillAffix,
+  CLASS_SKILL_NAMES,
+  uniqueDefenseRange,
 } from '../tradeStore.js'
+import itemsData from '../data/items.json'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
@@ -37,7 +43,95 @@ const unidOnly = ref(false)
 const favoritesOnly = ref(false)
 // 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
 const route = useRoute()
+const router = useRouter()
 const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
+
+// ---- 아이템 지정: 검색창에 치면 유니크·세트·룬워드 자동완성 -> 고르면 그 아이템 글만 + 변동 옵션 범위 필터
+// (?item=아이템id 로 들어와도 됨). 고르지 않고 치면 예전처럼 글자 검색
+const PICKABLE = itemsData.filter((it) => ['unique', 'set', 'runeword'].includes(it.category))
+const pickedItem = ref(getTradeItem(typeof route.query.item === 'string' ? route.query.item : null) || null)
+const suggestOpen = ref(false)
+const suggestActive = ref(0)
+const JAMO_TAIL = /[ㄱ-ㅎㅏ-ㅣ]+$/
+const suggestions = computed(() => {
+  const q = searchQuery.value.trim().replace(JAMO_TAIL, '')
+  if (!q || pickedItem.value) return []
+  // 이름이 검색어로 시작하는 것 먼저 (별칭으로만 걸린 건 뒤로)
+  const starts = (it) => it.name_ko.replace(/\s+/g, '').startsWith(q.replace(/\s+/g, ''))
+  return PICKABLE.filter((it) => itemMatchesQuery(it, q)).sort((x, y) => starts(y) - starts(x)).slice(0, 8)
+})
+function onSearchInput(e) {
+  searchQuery.value = e.target.value
+  suggestOpen.value = true
+  suggestActive.value = 0
+}
+function pickItem(it) {
+  pickedItem.value = it
+  searchQuery.value = ''
+  suggestOpen.value = false
+}
+function clearPickedItem() {
+  pickedItem.value = null
+}
+function onSearchKey(e) {
+  if (e.isComposing) return
+  const list = suggestions.value
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && list.length) {
+    e.preventDefault()
+    suggestOpen.value = true
+    suggestActive.value = (suggestActive.value + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length
+  } else if (e.key === 'Enter' && suggestOpen.value && list.length) {
+    e.preventDefault()
+    pickItem(list[suggestActive.value] || list[0])
+  } else if (e.key === 'Escape') {
+    suggestOpen.value = false
+  } else if (e.key === 'Backspace' && !searchQuery.value && pickedItem.value) {
+    clearPickedItem()
+  }
+}
+const closeSuggestSoon = () => setTimeout(() => (suggestOpen.value = false), 150)
+
+// 고른 아이템의 변동 옵션 - 범위로 굴러가는 옵션, 무작위 직업 기술, 방어구 기본 방어력
+const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const lineValue = (re) => (p) => { for (const l of p.options || []) { const m = re.exec(l); if (m) return Number(m[1]) } return null }
+const CLASS_LINE = new RegExp(`^(${Object.values(CLASS_SKILL_NAMES).join('|')}) 기술 레벨 \\+\\d+`)
+const itemVarDefs = computed(() => {
+  const it = pickedItem.value
+  if (!it) return []
+  const defs = []
+  const def = uniqueDefenseRange(it, false)
+  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: uniqueDefenseRange(it, true)?.max ?? def.max, get: lineValue(/^기본 방어력 (\d+)$/) })
+  for (const a of getItemAffixes(it)) {
+    if (isRandomClassSkillAffix(a)) {
+      defs.push({ key: 'class', label: '직업 기술', classes: Object.values(CLASS_SKILL_NAMES), get: (p) => { for (const l of p.options || []) { const m = CLASS_LINE.exec(l); if (m) return m[1] } return null } })
+    } else if (isRollRangeAffix(a)) {
+      const [pre, post] = a.text.split(`${a.min}~${a.max}`)
+      const lo = Math.min(Number(a.min), Number(a.max)), hi = Math.max(Number(a.min), Number(a.max))
+      defs.push({ key: 'a:' + a.text, label: a.text, lo, hi, get: lineValue(new RegExp('^' + escRe(pre) + '(-?\\d+)' + escRe(post) + '$')) })
+    }
+  }
+  return defs
+})
+// { [def.key]: { min, max } } 또는 직업 기술은 { cls }
+const itemRanges = ref({})
+watch(itemVarDefs, (defs) => { itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, { min: '', max: '', cls: '' }])) }, { immediate: true })
+const activeItemRanges = computed(() =>
+  itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (r.min !== '' || r.max !== '' || r.cls) })
+)
+function itemRangeMatches(p, d) {
+  const r = itemRanges.value[d.key]
+  const v = d.get(p)
+  if (v === null) return false
+  if (d.classes) return v === r.cls
+  return (r.min === '' || v >= Number(r.min)) && (r.max === '' || v <= Number(r.max))
+}
+// 아이템을 바꾸면 주소도 맞춤 (공유·뒤로 가기용)
+watch(pickedItem, (it) => {
+  const q = { ...route.query }
+  if (it) q.item = it.id
+  else delete q.item
+  router.replace({ query: q })
+})
 
 // 트레더리처럼 아이콘 위주로 훑어보고 싶을 때는 그리드로, 옵션·메모까지 자세히
 // 보고 싶을 때는 리스트로 - 마지막으로 고른 보기 방식을 기억해둠
@@ -135,8 +229,22 @@ const hasActiveFilters = computed(
     activeCat.value !== null || activeLadder.value !== null ||
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
-    levelMin.value !== '' || levelMax.value !== ''
+    levelMin.value !== '' || levelMax.value !== '' || !!pickedItem.value
 )
+// 상세 필터(레더·하드코어·체크·요구 레벨·옵션 조건)는 접어 둠 - 걸려 있는 개수만 버튼에 표시
+const advancedCount = computed(() =>
+  [activeLadder.value !== null, activeHardcore.value !== null, etherealOnly.value, unidOnly.value, favoritesOnly.value,
+    levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length + statConditions.value.length
+)
+const FILTER_OPEN_KEY = 'd2r-trade-filter-open'
+function loadFilterOpen() {
+  try { return localStorage.getItem(FILTER_OPEN_KEY) === '1' } catch { return false }
+}
+const filtersOpen = ref(loadFilterOpen())
+function toggleFilters() {
+  filtersOpen.value = !filtersOpen.value
+  try { localStorage.setItem(FILTER_OPEN_KEY, filtersOpen.value ? '1' : '0') } catch { /* 프라이빗 창 등 */ }
+}
 function resetFilters() {
   activeCat.value = null
   activeLadder.value = null
@@ -151,6 +259,7 @@ function resetFilters() {
   statPickKeyword.value = ''
   levelMin.value = ''
   levelMax.value = ''
+  pickedItem.value = null
 }
 
 // 판매 기간(48시간)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
@@ -167,6 +276,10 @@ const filteredPosts = computed(() => {
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
   if (unidOnly.value) list = list.filter((p) => p.unidentified)
   if (favoritesOnly.value) list = list.filter((p) => isFavorite(p.id))
+  if (pickedItem.value) {
+    list = list.filter((p) => p.itemId === pickedItem.value.id)
+    for (const d of activeItemRanges.value) list = list.filter((p) => itemRangeMatches(p, d))
+  }
   const q = searchQuery.value.trim()
   if (q) {
     list = list.filter(
@@ -211,8 +324,29 @@ const filteredPosts = computed(() => {
         </button>
       </div>
       <div class="search-row">
-        <div class="search-input-wrap">
-          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="아이템명·옵션·내용 검색" aria-label="거래글 검색" />
+        <div class="trade-search">
+          <div class="search-input-wrap">
+            <span class="picked-item-chip" v-if="pickedItem" :class="pickedItem.category">
+              {{ pickedItem.name_ko }}
+              <button type="button" :aria-label="`${pickedItem.name_ko} 지정 해제`" @click="clearPickedItem">✕</button>
+            </span>
+            <input
+              type="text" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
+              :placeholder="pickedItem ? '옵션·내용으로 더 좁히기' : '아이템명·옵션·내용 검색 (유니크·룬워드는 골라서 옵션 범위 검색)'"
+              aria-label="거래글 검색" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && suggestions.length > 0"
+            />
+          </div>
+          <div class="item-suggest" v-if="suggestOpen && suggestions.length">
+            <button
+              type="button" v-for="(it, i) in suggestions" :key="it.id" class="item-suggest-row" :class="{ active: i === suggestActive }"
+              @mousedown.prevent="pickItem(it)" @mousemove="suggestActive = i"
+            >
+              <span class="item-suggest-icon" :class="it.category"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
+              <span class="item-suggest-name" :class="it.category">{{ it.name_ko }}</span>
+              <small>{{ it.category_label }}{{ it.subtitle && it.category !== 'runeword' ? ' · ' + it.subtitle : '' }}</small>
+            </button>
+            <div class="item-suggest-hint">↑↓·Enter로 고르면 이 아이템 글만 + 옵션 범위 검색 · 안 고르면 글자로 검색</div>
+          </div>
         </div>
         <span class="result-count">{{ filteredPosts.length }}개</span>
         <div class="view-mode-toggle">
@@ -222,7 +356,38 @@ const filteredPosts = computed(() => {
         <button type="button" class="guide-btn" @click="openTradeGuide()">? 이용 안내</button>
         <router-link class="quality-toggle" to="/trade/new">판매글 등록</router-link>
       </div>
-      <div class="filter-row">
+      <div class="item-range-panel" v-if="pickedItem">
+        <div class="item-range-title">
+          <b :class="pickedItem.category">{{ pickedItem.name_ko }}</b> 옵션 범위
+          <span v-if="!itemVarDefs.length">- 변동 옵션 없음 (고정 옵션 아이템)</span>
+          <span v-else>- 비워두면 상관없음 · 범위를 넣으면 그 수치를 적은 글만</span>
+        </div>
+        <div class="item-range-grid" v-if="itemVarDefs.length">
+          <div class="item-range-row" v-for="d in itemVarDefs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
+            <span class="item-range-label">{{ d.label }}</span>
+            <select v-if="d.classes" v-model="itemRanges[d.key].cls" class="sort-select" :aria-label="d.label">
+              <option value="">전체</option>
+              <option v-for="c in d.classes" :key="c" :value="c">{{ c }}</option>
+            </select>
+            <template v-else>
+              <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="String(d.lo)" :aria-label="`${d.label} 최소`" />
+              <span class="level-range-sep">~</span>
+              <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="String(d.hi)" :aria-label="`${d.label} 최대`" />
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="filter-toggle-row">
+        <button type="button" class="filter-toggle" :class="{ open: filtersOpen, on: advancedCount }" @click="toggleFilters" :aria-expanded="filtersOpen">
+          상세 필터<span class="filter-count" v-if="advancedCount">{{ advancedCount }}</span> {{ filtersOpen ? '▴' : '▾' }}
+        </button>
+        <span class="stat-chip" v-for="(c, i) in (filtersOpen ? [] : statConditions)" :key="'c' + condId(c)">
+          {{ statLabel(c) }}{{ rangeText(c) }}
+          <button type="button" :aria-label="`${statLabel(c)} 조건 삭제`" @click="removeStatCondition(i)">✕</button>
+        </span>
+        <button type="button" class="reset-filters" v-if="hasActiveFilters" @click="resetFilters">필터 초기화</button>
+      </div>
+      <div class="filter-row" v-show="filtersOpen">
         <select v-model="activeLadder" class="sort-select">
           <option :value="null">레더·논레더 전체</option>
           <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
@@ -249,9 +414,8 @@ const filteredPosts = computed(() => {
           <span class="level-range-sep">~</span>
           <input type="number" min="1" max="99" v-model="levelMax" placeholder="최대" aria-label="요구 레벨 최대" />
         </div>
-        <button type="button" class="reset-filters" v-if="hasActiveFilters" @click="resetFilters">필터 초기화</button>
       </div>
-      <div class="filter-row stat-filter-row">
+      <div class="filter-row stat-filter-row" v-show="filtersOpen">
         <span class="stat-filter-label">옵션 조건</span>
         <select v-model="statPickKey" class="sort-select" aria-label="옵션 종류">
           <option :value="KEYWORD_KEY">키워드 직접 입력</option>
@@ -409,7 +573,6 @@ const filteredPosts = computed(() => {
 .stat-match{font-size:11px; color:var(--teal); border:1px solid var(--teal); padding:2px 10px; border-radius:999px;}
 
 @media (max-width:640px){
-  .reset-filters{margin-left:0;}
   .stat-min-input{width:100%;}
   /* 폰: 카테고리 칩을 빼고 제목이 줄바꿈되게 - 예전엔 제목이 "이…"로 잘리고 본문이 한 글자씩 세로로 꺾였음 */
   .trade-row{gap:10px; padding:14px; flex-wrap:wrap;}
@@ -418,6 +581,57 @@ const filteredPosts = computed(() => {
   .trade-title-row{flex-wrap:wrap;}
   .trade-title{white-space:normal; flex-basis:100%;}
 }
+
+/* 아이템 자동완성 */
+.trade-search{position:relative; flex:1; min-width:0; display:flex;}
+.trade-search .search-input-wrap{flex:1; min-width:0; align-items:center;}
+.item-suggest{
+  position:absolute; z-index:30; left:0; right:0; top:calc(100% + 4px); background:var(--panel-2); border:1px solid var(--border);
+  border-radius:10px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.45);
+}
+.item-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:7px 10px; border-radius:8px; text-align:left; background:transparent; border:0; cursor:pointer;}
+.item-suggest-row.active{background:var(--panel);}
+.item-suggest-row small{margin-left:auto; font-size:11px; color:var(--text-dim);}
+.item-suggest-icon{width:28px; height:28px; flex:none; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:6px; background:var(--panel);}
+.item-suggest-icon img{max-width:24px; max-height:24px; image-rendering:pixelated;}
+.item-suggest-name{font-size:13px; color:var(--text);}
+.item-suggest-name.unique, .item-suggest-name.runeword, .picked-item-chip.unique, .picked-item-chip.runeword, .item-range-title b.unique, .item-range-title b.runeword{color:#c7b377;}
+.item-suggest-name.set, .picked-item-chip.set, .item-range-title b.set{color:#00c400;}
+.item-suggest-icon.unique, .item-suggest-icon.runeword{border-color:#6b5f3c;} .item-suggest-icon.set{border-color:#1f6b1f;}
+.item-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 4px;}
+@media (max-width:640px){
+  .trade-search{flex-basis:100%;}
+  .item-range-grid{grid-template-columns:1fr;}
+  .item-range-label{white-space:normal;}
+}
+.picked-item-chip{
+  display:inline-flex; align-items:center; gap:6px; flex:none; margin-left:8px; font-size:12.5px; font-weight:600;
+  border:1px solid currentColor; padding:4px 6px 4px 10px; border-radius:999px; background:var(--panel-2);
+}
+.picked-item-chip button{color:var(--text-dim); font-size:11px; padding:2px;}
+.picked-item-chip button:hover{color:var(--text);}
+
+/* 고른 아이템의 변동 옵션 범위 */
+.item-range-panel{margin-top:10px; padding:12px 14px; border:1px solid var(--border-soft); border-radius:12px; background:var(--panel);}
+.item-range-title{font-size:12.5px; color:var(--text-muted); margin-bottom:8px;}
+.item-range-title span{color:var(--text-dim); font-size:12px;}
+.item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:8px 16px;}
+.item-range-row{display:flex; align-items:center; gap:6px; font-size:12.5px;}
+.item-range-label{flex:1; min-width:0; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.item-range-row.on .item-range-label{color:var(--gold);}
+.item-range-row input{
+  width:68px; background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:12.5px;
+  padding:6px 8px; border-radius:8px; font-family:'Noto Sans KR', sans-serif;
+}
+
+/* 상세 필터 접기 */
+.filter-toggle-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.filter-toggle{
+  font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); padding:7px 14px; border-radius:999px; background:var(--panel);
+  display:inline-flex; align-items:center; gap:6px;
+}
+.filter-toggle:hover, .filter-toggle.open{color:var(--gold); border-color:var(--gold-dim);}
+.filter-count{font-size:11px; color:#1a1408; background:var(--gold); border-radius:999px; padding:0 7px; font-weight:700;}
 
 .favorite-star{
   font-size:20px; line-height:1; color:var(--text-dim); flex:none; padding:2px; margin-top:2px;
