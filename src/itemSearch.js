@@ -53,13 +53,24 @@ const OPTION_ALIASES = {
   빙결안됨: '빙결되지 않음', cbf: '빙결되지 않음',
   텔포: '순간이동', 텔레포트: '순간이동',
 }
+// 영어 화면: 옵션 줄도 영어라서 줄임말도 영어 문구로
+const OPTION_ALIASES_EN = {
+  fcr: 'faster cast rate', fhr: 'faster hit recovery', fbr: 'faster block rate', ias: 'increased attack speed',
+  frw: 'faster run/walk', mf: 'better chance of getting magic items', gf: 'extra gold',
+  'all skills': 'to all skills', 'all res': 'all resistances', ll: 'life stolen', ml: 'mana stolen',
+  cb: 'crushing blow', ds: 'deadly strike', ow: 'open wounds', dr: 'physical damage received reduced',
+  cbf: 'cannot be frozen', tele: 'teleport', ed: 'enhanced damage',
+}
 // 비교용: 소문자, 띄어쓰기·+·% 무시. 줄임말의 * 는 사이에 뭐가 와도 됨 (적중당 생명력 5% 훔침)
 const squashOption = (s) => squashText(s).replace(/[+%]/g, '')
 
-export function optionTerms(query) {
+export function optionTerms(query, lang = 'ko') {
   return (query || '').split(/[,，]/).map((t) => t.trim()).filter(Boolean)
     // 띄어 쓴 단어는 순서대로만 있으면 됨 (생명력 훔침 -> 적중당 생명력 5% 훔침)
-    .map((t) => (OPTION_ALIASES[t.toLowerCase().replace(/\s+/g, '')] || t).trim().split(/\s+/).map(squashOption).join('*'))
+    .map((t) => (lang === 'en'
+      ? OPTION_ALIASES_EN[t.toLowerCase().replace(/\s+/g, ' ')]
+      : OPTION_ALIASES[t.toLowerCase().replace(/\s+/g, '')]) || t)
+    .map((t) => t.trim().split(/\s+/).map(squashOption).join('*'))
 }
 
 // 아이템이 가진 옵션 줄 전부 (툴팁에 안 나오는 줄 빼고)

@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import itemsData from '../data/items.json'
 import runeChain from '../data/runeUpgradeChain.json'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { runewordBaseTypesKo, runewordSlots } from '../itemStats.js'
+import { runewordBaseTypes, runewordSlots } from '../itemStats.js'
 import { itemLevelReq } from '../tradeStore.js'
 import { buildRuneTable, buildRunewordList } from '../runewordFinder.js'
 
@@ -144,7 +144,7 @@ function missingGroups(missing) {
           <article class="rw-card ready" v-for="{ rw } in ready" :key="rw.item.id">
             <div class="rw-card-top">
               <router-link class="rw-name" :to="itemLink(rw)">{{ rw.item.name_ko }}</router-link>
-              <span class="rw-meta">{{ runewordBaseTypesKo(rw.item.subtitle) }} · {{ rw.runes.length }}소켓<template v-if="levelOf(rw)"> · 요구 레벨 {{ levelOf(rw) }}</template></span>
+              <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ rw.runes.length }}소켓<template v-if="levelOf(rw)"> · 요구 레벨 {{ levelOf(rw) }}</template></span>
             </div>
             <div class="rw-seq">
               <span class="rw-seq-rune owned" v-for="(s, k) in runeSlots(rw)" :key="k">
@@ -163,7 +163,7 @@ function missingGroups(missing) {
           <article class="rw-card" v-for="{ rw, missing } in needMore" :key="rw.item.id">
             <div class="rw-card-top">
               <router-link class="rw-name" :to="itemLink(rw)">{{ rw.item.name_ko }}</router-link>
-              <span class="rw-meta">{{ runewordBaseTypesKo(rw.item.subtitle) }} · {{ rw.runes.length }}소켓<template v-if="levelOf(rw)"> · 요구 레벨 {{ levelOf(rw) }}</template></span>
+              <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ rw.runes.length }}소켓<template v-if="levelOf(rw)"> · 요구 레벨 {{ levelOf(rw) }}</template></span>
             </div>
             <div class="rw-seq">
               <span class="rw-seq-rune" :class="{ owned: s.owned }" v-for="(s, k) in runeSlots(rw)" :key="k">
