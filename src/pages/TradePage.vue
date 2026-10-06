@@ -766,8 +766,7 @@ function variantLines(p) {
           </template>
         </span>
         <span class="trade-opts" v-if="variantLines(p).length">
-          <span class="trade-opt" v-for="(l, i) in variantLines(p).slice(0, 3)" :key="i">{{ $affix(l) }}</span>
-          <span class="trade-opt more" v-if="variantLines(p).length > 3">+{{ variantLines(p).length - 3 }}</span>
+          <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i">{{ $affix(l) }}</span>
         </span>
         <span class="stat-match-row" v-if="statConditions.length">
           <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
@@ -944,7 +943,6 @@ function variantLines(p) {
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 /* 그 아이템에서만 달라지는 옵션 줄 */
 .trade-opts{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
-.trade-opt.more{color:var(--text-dim); border-color:var(--border); background:transparent;}
 .trade-opt{font-size:11.5px; color:#8c8cff; border:1px solid rgba(110,110,255,0.35); background:rgba(110,110,255,0.07); padding:2px 9px; border-radius:7px;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
@@ -955,7 +953,7 @@ function variantLines(p) {
 .view-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
 
 .trade-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:16px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px;
 }
 .trade-card{
   position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
@@ -981,7 +979,7 @@ function variantLines(p) {
 .trade-card-price{font-size:12px; color:var(--text-muted); line-height:1.6;}
 .trade-card-footer{
   font-size:10.5px; color:var(--text-dim); display:flex; align-items:center; gap:6px; margin-top:4px;
-}
+ margin-top:auto; padding-top:6px;}
 .online-dot{color:#3ecf5a; margin-right:3px; font-size:10px;}
 .stat-num-input{width:76px;}
 .stat-keyword-input{width:210px; max-width:100%;}
