@@ -1,5 +1,5 @@
 <script setup>
-import { postName, countText, priceTok, saleLeftText } from '../tradeI18n.js'
+import { postName, countText, priceTok } from '../tradeI18n.js'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -27,14 +27,13 @@ import {
   TRADE_REALMS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
+import { isFavorite } from '../tradeFavorites.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
-import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import EventBanner from '../components/EventBanner.vue'
-import { fetchPosts } from '../communityStore.js'
 import { t, itemName, locale } from '../i18n.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
@@ -327,10 +326,8 @@ function resetFilters() {
 
 // 판매 기간(48시간)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
 const now = useNow(60000)
-const leftLabel = (p) => saleLeftText(saleLeftMs(p, now.value))
 // 글의 아이템 이름·가격 (영어면 사전의 영문 이름, "2개" -> "×2") - tradeI18n.js
 const enCount = countText
-const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
   // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
@@ -491,23 +488,44 @@ const levelText = computed(() => {
   return levelMin.value !== '' ? t('{v} 이상', { v: levelMin.value }) : t('{v} 이하', { v: levelMax.value })
 })
 
-// ───────── 오른쪽: 고룬 매물 · 거래 게시판 최신글 ─────────
-const BY_EN = new Map(itemsData.map((it) => [it.name_en, it]))
-const HIGH_RUNES = ['Ber Rune', 'Jah Rune', 'Sur Rune', 'Lo Rune', 'Ohm Rune', 'Vex Rune', 'Gul Rune', 'Ist Rune'].map((en) => BY_EN.get(en)).filter(Boolean)
-const highRunes = computed(() =>
-  HIGH_RUNES.map((it) => ({
-    it,
-    count: tradeState.posts.filter((p) => p.itemId === it.id && p.status === '판매중' && saleLeftMs(p, now.value) > 0).length,
-  }))
-)
-function searchRune(it) {
-  searchQuery.value = it.name_ko
-  suggestOpen.value = false
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+// ───────── 목록에 보여줄 것 ─────────
+// 올린 시각: 하루 안쪽이면 "3시간 전"(1시간 미만은 "방금"), 그 뒤로는 날짜 그대로
+function agoText(p) {
+  const ms = p.createdAt ? now.value - new Date(p.createdAt).getTime() : NaN
+  if (!Number.isFinite(ms) || ms < 0 || ms >= 86400000) return p.date
+  const h = Math.floor(ms / 3600000)
+  return h < 1 ? t('방금') : t('{n}시간 전', { n: h })
 }
-const tradeBoard = ref([])
-const loadTradeBoard = () => fetchPosts({ category: '거래', pageSize: 5 }).then((r) => (tradeBoard.value = r.posts)).catch(() => {})
-loadTradeBoard()
+
+// 같은 아이템이라도 개체마다 달라지는 줄만 보여줌
+// · 유니크·세트·룬워드: 사전에서 범위로 굴러가는 옵션 + 방어력·데미지·소켓 (고정 옵션은 다 같으니 뺌)
+// · 매직·레어·크래프트·일반(베이스): 사전에 없어서 판매자가 넣은 옵션 그대로
+const META_LINE = /^(베이스: |베이스 룬 조합: |미확인$)/
+const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const PER_ITEM_LINE = /^(기본 방어력|기본 데미지|소켓) /
+const CLASS_SKILL_LINE = new RegExp(`^(?:${Object.values(CLASS_SKILL_NAMES).join('|')}) 기술 레벨 \\+`)
+function variantLines(p) {
+  const opts = (p.options || []).filter((l) => l && !META_LINE.test(l))
+  const item = getTradeItem(p.itemId)
+  // 사전에 없는 아이템(매직·레어·일반)과 룬·보석류는 넣은 옵션 그대로
+  if (!item || !getItemAffixes(item).length) return opts
+  const out = []
+  for (const a of getItemAffixes(item)) {
+    if (isRandomClassSkillAffix(a)) {
+      const hit = opts.find((l) => CLASS_SKILL_LINE.test(l))
+      if (hit) out.push(hit)
+      continue
+    }
+    if (!isRollRangeAffix(a)) continue
+    const [pre, post] = a.text.split(`${a.min}~${a.max}`)
+    const re = new RegExp('^' + esc(pre) + '-?\\d+' + esc(post) + '$')
+    // 미확인 판매는 사전 범위 그대로 올라와서 원문도 그대로 받아 줌
+    const hit = opts.find((l) => re.test(l) || l === a.text)
+    if (hit) out.push(hit)
+  }
+  for (const l of opts) if (PER_ITEM_LINE.test(l)) out.push(l)
+  return out
+}
 </script>
 
 <template>
@@ -698,21 +716,15 @@ loadTradeBoard()
     </div>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
-        <button
-          type="button" class="favorite-star" :class="{ active: isFavorite(p.id) }"
-          :title="isFavorite(p.id) ? $t('찜 해제') : $t('찜하기')"
-          @click.prevent.stop="toggleFavorite(p.id)"
-        >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-row-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
-        <span class="trade-cat">{{ $t(p.category) }}</span>
         <div class="trade-body">
           <div class="trade-title-row">
             <span class="trade-title">{{ postName(p) }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
-            <span class="dealing-badge" v-if="p.status === '예약중'">{{ $t('거래중') }}</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" :title="$t('판매 종료까지')">⏱ {{ leftLabel(p) }}</span>
+            <span class="dealing-badge" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
           </div>
           <div class="trade-meta">
             {{ enCount(p.amountLabel) }} ·
@@ -720,8 +732,11 @@ loadTradeBoard()
               <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
             </template>
           </div>
+          <div class="trade-opts" v-if="variantLines(p).length">
+            <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i">{{ $affix(l) }}</span>
+          </div>
           <div class="trade-sub-meta">
-            {{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · <span v-if="isOnline(p.authorId)" class="online-dot" :title="$t('판매자 접속 중')">●</span>{{ p.author }} · {{ p.date }}
+            {{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ agoText(p) }}
           </div>
           <div class="stat-match-row" v-if="statConditions.length">
             <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
@@ -737,16 +752,10 @@ loadTradeBoard()
 
     <div class="trade-grid" v-else>
       <router-link class="trade-card" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
-        <button
-          type="button" class="favorite-star trade-card-star" :class="{ active: isFavorite(p.id) }"
-          :title="isFavorite(p.id) ? $t('찜 해제') : $t('찜하기')"
-          @click.prevent.stop="toggleFavorite(p.id)"
-        >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
-        <span class="trade-cat trade-card-cat">{{ $t(p.category) }}</span>
         <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
         <span class="trade-card-title">{{ postName(p) }}</span>
         <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
@@ -756,15 +765,16 @@ loadTradeBoard()
             <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
           </template>
         </span>
-        <span class="sale-left card-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" :title="$t('판매 종료까지')">⏱ {{ leftLabel(p) }}</span>
+        <span class="trade-opts" v-if="variantLines(p).length">
+          <span class="trade-opt" v-for="(l, i) in variantLines(p).slice(0, 3)" :key="i">{{ $affix(l) }}</span>
+          <span class="trade-opt more" v-if="variantLines(p).length > 3">+{{ variantLines(p).length - 3 }}</span>
+        </span>
         <span class="stat-match-row" v-if="statConditions.length">
           <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
             {{ statLabel(c) }}{{ condValue(p, c) !== null ? ` ${condValue(p, c)}${statUnit(c)}` : '' }}
           </span>
         </span>
-        <span class="trade-card-footer">
-          <span v-if="isOnline(p.authorId)" class="online-dot" :title="$t('판매자 접속 중')">●</span>{{ p.author }} · {{ p.date }}
-        </span>
+        <span class="trade-card-footer">{{ agoText(p) }}</span>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
@@ -772,24 +782,6 @@ loadTradeBoard()
     </div>
   </div>
 
-  <aside class="tr-side">
-    <section class="tr-card">
-      <div class="tr-card-head"><h2>{{ $t('고룬 매물') }}</h2><router-link to="/market">{{ $t('시세 보기') }}</router-link></div>
-      <button type="button" class="tr-rune" v-for="r in highRunes" :key="r.it.id" @click="searchRune(r.it)">
-        <span class="tr-rune-icon"><img v-if="iconUrlFor(r.it.icon_key)" :src="iconUrlFor(r.it.icon_key)" alt="" /></span>
-        <span class="tr-rune-name">{{ $itemName(r.it) }}</span>
-        <span class="tr-rune-count">{{ r.count ? $t('판매중 {n}', { n: r.count }) : $t('매물 없음') }}</span>
-      </button>
-    </section>
-    <section class="tr-card">
-      <div class="tr-card-head"><h2>{{ $t('거래 게시판 최신글') }}</h2><router-link to="/community?cat=거래">{{ $t('더보기') }}</router-link></div>
-      <router-link class="tr-board-row" v-for="b in tradeBoard" :key="b.id" :to="`/community/${b.id}`">
-        <span class="tr-board-title">{{ b.title }}</span>
-        <span class="tr-board-meta">{{ b.commentCount ? `[${b.commentCount}]` : '' }}</span>
-      </router-link>
-      <div class="tr-card-empty" v-if="!tradeBoard.length">{{ $t('아직 글 없음') }} · <router-link to="/community/write?cat=거래">{{ $t('첫 글 쓰기') }}</router-link></div>
-    </section>
-  </aside>
   </div>
   </div>
 </template>
@@ -911,15 +903,9 @@ loadTradeBoard()
 .filter-toggle:hover, .filter-toggle.open{color:var(--gold); border-color:var(--gold-dim);}
 .filter-count{font-size:11px; color:#1a1408; background:var(--gold); border-radius:999px; padding:0 7px; font-weight:700;}
 
-.favorite-star{
-  font-size:20px; line-height:1; color:var(--text-dim); flex:none; padding:2px; margin-top:2px;
-  transition:color .1s, transform .1s;
-}
-.favorite-star:hover{color:var(--gold-dim); transform:scale(1.15);}
-.favorite-star.active{color:var(--gold);}
 
 .trade-row-icon{
-  width:44px; height:44px; flex:none; display:flex; align-items:center; justify-content:center;
+  width:68px; height:68px; flex:none; display:flex; align-items:center; justify-content:center;
   background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px;
 }
 .trade-row-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
@@ -940,10 +926,9 @@ loadTradeBoard()
   transition:transform .15s, box-shadow .15s, border-color .15s;
 }
 .trade-row:hover{transform:translateY(-2px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
-.trade-cat{font-size:11px; color:var(--gold-dim); border:1px solid var(--border); padding:4px 12px; flex:none; margin-top:1px; border-radius:999px;}
 .trade-body{flex:1; min-width:0;}
 .trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
-.trade-title{font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.trade-title{font-size:16.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .unid-badge{font-size:10px; padding:2px 10px; border:1px solid var(--blood); color:#e0775f; flex:none; border-radius:999px;}
 .unid-filter-check{color:#e0775f !important;}
 .unid-filter-check input{accent-color:#e0775f;}
@@ -957,8 +942,10 @@ loadTradeBoard()
 .price-icon{display:inline-flex; width:15px; height:15px; vertical-align:-3px; margin:0 2px 0 3px;}
 .price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
-.sale-left{font-size:10.5px; color:var(--text-dim); flex:none; white-space:nowrap; font-variant-numeric:tabular-nums;}
-.sale-left.soon{color:#e0775f;}
+/* 그 아이템에서만 달라지는 옵션 줄 */
+.trade-opts{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+.trade-opt.more{color:var(--text-dim); border-color:var(--border); background:transparent;}
+.trade-opt{font-size:11.5px; color:#8c8cff; border:1px solid rgba(110,110,255,0.35); background:rgba(110,110,255,0.07); padding:2px 9px; border-radius:7px;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
 .view-mode-toggle button{
@@ -979,7 +966,7 @@ loadTradeBoard()
 .trade-card-star{position:absolute; top:10px; right:12px; margin:0;}
 .trade-card-status{position:absolute; top:12px; left:12px; margin:0;}
 .trade-card-icon{
-  width:64px; height:64px; flex:none; display:flex; align-items:center; justify-content:center;
+  width:88px; height:88px; flex:none; display:flex; align-items:center; justify-content:center;
   background:var(--panel-2); border:1px solid var(--border-soft); border-radius:12px; margin-top:8px;
 }
 .trade-card-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
@@ -987,9 +974,8 @@ loadTradeBoard()
 .trade-card-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
 .trade-card-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
 .trade-card-icon.gem{border-color:var(--teal); box-shadow:0 0 12px -3px rgba(78,138,138,0.5);}
-.trade-card-cat{margin-top:4px;}
 .trade-card-title{
-  font-size:13.5px; color:var(--text); width:100%; overflow:hidden; text-overflow:ellipsis;
+  font-size:14.5px; font-weight:600; color:var(--text); width:100%; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; margin-top:2px;
 }
 .trade-card-price{font-size:12px; color:var(--text-muted); line-height:1.6;}
@@ -1075,7 +1061,7 @@ loadTradeBoard()
 .tr-qchip.more{border-style:dashed;}
 .tr-qchip.more.on{color:var(--gold); border-color:var(--gold-dim);}
 
-.tr-body{max-width:1232px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
+.tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 .tr-main{flex:999 1 620px; min-width:0;}
 .tr-main .trade-list, .tr-main .trade-grid{margin-top:12px;}
 .tr-results-head{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
@@ -1085,27 +1071,6 @@ loadTradeBoard()
 .tr-results-note a{color:var(--gold-dim); text-decoration:underline;}
 .tr-gap{flex:1;}
 
-.tr-side{flex:1 1 280px; max-width:340px; display:flex; flex-direction:column; gap:14px; position:sticky; top:72px;}
-.tr-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:16px;}
-.tr-card-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px;}
-.tr-card-head h2{font-size:15px; margin:0; font-family:'Noto Sans KR', sans-serif; font-weight:800;}
-.tr-card-head a{font-size:12px; color:var(--gold-dim);}
-.tr-rune{display:flex; align-items:center; gap:10px; width:100%; padding:6px; border-radius:8px; text-align:left;}
-.tr-rune:hover{background:var(--panel-2);}
-.tr-rune-icon{width:26px; height:26px; display:flex; align-items:center; justify-content:center;}
-.tr-rune-icon img{max-width:100%; max-height:100%; image-rendering:pixelated;}
-.tr-rune-name{flex:1; font-size:14px; font-weight:600; color:var(--text);}
-.tr-rune-count{font-size:12px; color:var(--text-muted);}
-.tr-board-row{display:flex; gap:8px; padding:8px 0; border-top:1px solid var(--border-soft); font-size:13px; color:var(--text);}
-.tr-board-row:hover .tr-board-title{color:var(--gold);}
-.tr-board-title{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.tr-board-meta{font-size:12px; color:var(--gold-dim);}
-.tr-card-empty{font-size:12.5px; color:var(--text-dim); padding:6px 0;}
-.tr-card-empty a{color:var(--gold-dim); text-decoration:underline;}
-
-@media (max-width:900px){
-  .tr-side{position:static; max-width:none;}
-}
 @media (max-width:640px){
   .tr-hero-inner{padding:24px 14px 18px; gap:12px;}
   .tr-hero h1{font-size:22px;}
