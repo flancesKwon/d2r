@@ -1,10 +1,11 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import {
   notificationsState,
   unreadNotificationCount,
   markNotificationRead,
+  markNotificationsReadFor,
   markAllNotificationsRead,
 } from '../notificationsStore.js'
 import { unreadMessageCount } from '../messagesStore.js'
@@ -12,9 +13,15 @@ import { activeDealCount } from '../dealsStore.js'
 import { authState, signIn, signOut, isStaff } from '../profileStore.js'
 import { supabase } from '../supabase.js'
 import { avatarSrc, presetOf } from '../avatars.js'
+import { soundState, setSound } from '../notifySound.js'
 
 const router = useRouter()
+const route = useRoute()
 const showDropdown = ref(false)
+// 지금 보고 있는 화면의 아이콘은 금색 (/deals/번호 도 거래중인 품목)
+const isHere = (p) => route.path === p || route.path.startsWith(p + '/')
+// 알림이 가리키는 화면에 들어와 있으면 그 알림은 읽음 (새 알림을 받아 왔을 때도 다시 확인)
+watch(() => [route.path, notificationsState.items.length], () => markNotificationsReadFor(route.path).catch(() => {}), { immediate: true })
 
 function toggleDropdown() {
   showDropdown.value = !showDropdown.value
@@ -64,11 +71,11 @@ function openNotification(n) {
         <div class="header-notif-empty" v-if="!notificationsState.items.length">알림 없음</div>
       </div>
     </div>
-    <router-link to="/messages" class="header-icon-btn" title="쪽지함">
+    <router-link to="/messages" class="header-icon-btn" :class="{ here: isHere('/messages') }" title="쪽지함">
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
       <span class="header-icon-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</span>
     </router-link>
-    <router-link to="/deals" class="header-icon-btn" title="거래중인 품목">
+    <router-link to="/deals" class="header-icon-btn" :class="{ here: isHere('/deals') }" title="거래중인 품목">
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><path d="M7 7h10l3 3-3 3M17 17H7l-3-3 3-3"/></svg>
       <span class="header-icon-badge" v-if="activeDealCount > 0">{{ activeDealCount > 9 ? '9+' : activeDealCount }}</span>
     </router-link>
@@ -81,6 +88,7 @@ function openNotification(n) {
         <div class="header-profile-name">{{ authState.profile?.nickname }}</div>
         <router-link to="/mypage" class="header-profile-link" @mousedown.prevent="showMenu = false; router.push('/mypage')">마이페이지</router-link>
         <router-link to="/admin" class="header-profile-link" v-if="isStaff()" @mousedown.prevent="showMenu = false; router.push('/admin')">관리자</router-link>
+        <button type="button" class="header-profile-link" @mousedown.prevent="setSound(!soundState.on)">알림 소리 {{ soundState.on ? '끄기' : '켜기' }}</button>
         <button type="button" class="header-profile-link" @mousedown.prevent="logout">로그아웃</button>
       </div>
     </div>
@@ -100,6 +108,7 @@ function openNotification(n) {
 }
 .hi{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
 .header-icon-btn:hover{background:var(--panel-2); color:var(--text);}
+.header-icon-btn.here{background:rgba(200,163,77,0.14); color:var(--gold); box-shadow:inset 0 0 0 1px var(--gold-dim);}
 .header-icon-badge{
   position:absolute; top:-2px; right:-2px; min-width:15px; height:15px; padding:0 3px; border-radius:999px;
   background:var(--blood); color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center;

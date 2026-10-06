@@ -5,8 +5,11 @@
 // - 좁은 화면: 햄버거 버튼으로 전체 메뉴 펼침
 import { ref, shallowRef, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import LogoMark from './LogoMark.vue'
+const LOGO = import.meta.env.BASE_URL + 'logo.png'
 import HeaderNotifications from './HeaderNotifications.vue'
+import HeaderOnlineUsers from './HeaderOnlineUsers.vue'
+import { isStaff } from '../profileStore.js'
+import { useNow } from '../useNow.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
@@ -36,7 +39,7 @@ const MENUS = [
     key: 'tools', label: '도구', to: '/runewords',
     match: ['/runewords', '/craft-sim', '/simulator', '/cube', '/breakpoints', '/sockets'],
     links: [
-      { label: '룬워드 찾기', to: '/runewords', desc: '가진 룬으로 만들 수 있는 룬워드' },
+      { label: '룬워드 찾기', to: '/runewords', desc: '룬을 고르면 들어가는 룬워드' },
       { label: '스킬·스탯 시뮬레이터', to: '/simulator', desc: '스킬 트리·스탯·장비 계획' },
       { label: '공격 속도 계산기', to: '/breakpoints?tab=ias', desc: '직업·용병·무기·스킬별 공속 프레임' },
       { label: '브레이크포인트 계산기', to: '/breakpoints', desc: '시전·타격 회복·막기 속도 단계' },
@@ -55,7 +58,7 @@ const MENUS = [
   {
     key: 'community', label: '커뮤니티', to: '/community', match: ['/community'],
     links: [
-      { label: '전체', to: '/community' }, { label: '자유게시판', to: '/community?cat=잡담' },
+      { label: '전체', to: '/community' }, { label: '공지사항', to: '/community?cat=공지' }, { label: '자유게시판', to: '/community?cat=잡담' },
       { label: '질문게시판', to: '/community?cat=질문' }, { label: '공략 인증', to: '/community?cat=공략' },
       { label: '건의게시판', to: '/community?cat=건의' }, { label: '버그 제보', to: '/community?cat=버그제보' },
     ],
@@ -68,6 +71,27 @@ const MENUS = [
 const activeKey = computed(() => {
   const p = route.path
   return MENUS.find((m) => m.match.some((pre) => p === pre || p.startsWith(pre + '/')))?.key || (p === '/' ? 'home' : '')
+})
+
+// 지금 화면에 해당하는 하위 메뉴 하나 (드롭다운·모바일 메뉴에 표시)
+// 주소가 가장 길게 겹치는 링크, 같으면 ?cat= 같은 조건까지 맞는 링크 (/community?cat=공지 → 공지사항)
+function linkScore(to) {
+  const [lp, qs = ''] = to.split('?')
+  const p = route.path
+  if (p !== lp && !p.startsWith(lp + '/')) return -1
+  const q = [...new URLSearchParams(qs)]
+  if (q.some(([k, v]) => route.query[k] !== v)) return -1
+  return lp.length * 10 + q.length
+}
+const activeLink = computed(() => {
+  let best = null
+  let top = -1
+  for (const m of MENUS) for (const l of m.links) {
+    if (!l.to) continue
+    const s = linkScore(l.to)
+    if (s > top) { top = s; best = l.to }
+  }
+  return best
 })
 
 // 통합 검색
@@ -90,7 +114,7 @@ const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 function goItem(it) {
   searchOpen.value = false
   query.value = ''
-  router.push({ path: '/items', query: { q: it.name_ko, id: it.id } })
+  router.push({ path: `/items/${it.id}`, query: { q: it.name_ko } })
 }
 function goPage(p) {
   searchOpen.value = false
@@ -106,14 +130,27 @@ function submitSearch() {
 const hideSearchSoon = () => window.setTimeout(() => (searchOpen.value = false), 150)
 
 // 모바일 메뉴
+// 지금 시각 - 어느 페이지에서든 헤더에서 보이게 (구매신청·알림 시각과 비교하기 쉽게 시:분:초까지)
+const now = useNow(1000)
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+const pad2 = (n) => String(n).padStart(2, '0')
+const clockTime = computed(() => {
+  const d = new Date(now.value)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+})
+const clockDate = computed(() => {
+  const d = new Date(now.value)
+  return `${d.getMonth() + 1}.${pad2(d.getDate())} (${WEEKDAYS[d.getDay()]})`
+})
+
 const mobileOpen = ref(false)
 watch(() => route.fullPath, () => (mobileOpen.value = false))
 </script>
 
 <template>
   <header class="site-header">
-    <div class="site-header-inner">
-      <router-link to="/" class="site-logo"><LogoMark :size="20" />디아허브</router-link>
+    <div class="site-header-inner" :class="{ staff: isStaff() }">
+      <router-link to="/" class="site-logo" aria-label="디아허브 홈"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
 
       <nav class="site-nav" aria-label="주 메뉴">
         <div class="site-nav-item" v-for="m in MENUS" :key="m.key" :class="{ active: activeKey === m.key }">
@@ -121,7 +158,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           <div class="site-dropdown" :class="{ wide: m.key === 'tools' }">
             <template v-for="(l, i) in m.links" :key="i">
               <div class="site-dropdown-group" v-if="l.group">{{ l.group }}</div>
-              <router-link v-else :to="l.to" class="site-dropdown-link">
+              <router-link v-else :to="l.to" class="site-dropdown-link" :class="{ here: activeLink === l.to }" :aria-current="activeLink === l.to ? 'page' : null">
                 <span>{{ l.label }}</span>
                 <small v-if="l.desc">{{ l.desc }}</small>
               </router-link>
@@ -148,6 +185,11 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
         </div>
       </div>
 
+      <div class="site-clock" :title="`현재 시각 ${clockDate} ${clockTime}`" aria-label="현재 시각">
+        <span class="site-clock-date">{{ clockDate }}</span>
+        <span class="site-clock-time">{{ clockTime }}</span>
+      </div>
+      <HeaderOnlineUsers />
       <HeaderNotifications />
       <button type="button" class="site-burger" :aria-expanded="mobileOpen" aria-label="메뉴 열기" @click="mobileOpen = !mobileOpen">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -162,10 +204,11 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           <button type="button" v-for="it in itemHits" :key="it.id" @click="goItem(it)">{{ it.name_ko }}</button>
         </div>
       </div>
+      <HeaderOnlineUsers inline class="site-mobile-online" />
       <div class="site-mobile-group" v-for="m in MENUS" :key="m.key">
         <div class="site-mobile-title">{{ m.label }}</div>
         <div class="site-mobile-links">
-          <router-link v-for="l in m.links.filter((x) => x.to)" :key="l.to" :to="l.to">{{ l.label }}</router-link>
+          <router-link v-for="l in m.links.filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ l.label }}</router-link>
         </div>
       </div>
     </div>
@@ -175,7 +218,8 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 <style scoped>
 .site-header{position:sticky; top:0; z-index:40; background:rgba(25,21,18,0.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--border-soft);}
 .site-header-inner{max-width:1232px; margin:0 auto; height:56px; padding:0 24px; display:flex; align-items:center; gap:22px;}
-.site-logo{font-family:'Noto Serif KR', serif; font-weight:800; font-size:18px; display:flex; align-items:center; gap:8px; white-space:nowrap; flex:none;}
+.site-logo{display:flex; align-items:center; flex:none;}
+.site-logo img{display:block; height:46px; width:auto;}
 .site-nav{display:flex; align-items:stretch; height:100%; gap:2px;}
 .site-nav-item{position:relative; display:flex;}
 .site-nav-link{display:flex; align-items:center; gap:5px; padding:0 11px; font-size:14px; color:var(--text-muted); border-bottom:2px solid transparent; white-space:nowrap;}
@@ -192,6 +236,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-dropdown-link{display:flex; flex-direction:column; padding:8px 12px; border-radius:8px; font-size:13px; color:var(--text-muted);}
 .site-dropdown-link small{font-size:11px; color:var(--text-dim);}
 .site-dropdown-link:hover{background:var(--panel); color:var(--gold);}
+.site-dropdown-link.here{background:rgba(200,163,77,0.12); color:var(--gold); font-weight:600; box-shadow:inset 3px 0 0 var(--gold);}
 .site-dropdown-group{padding:8px 12px 2px; font-size:10.5px; color:var(--text-dim); border-top:1px solid var(--border-soft); margin-top:4px;}
 
 .site-search{position:relative; margin-left:auto; width:240px; flex:none;}
@@ -214,6 +259,10 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-search-name.unique, .site-search-name.runeword{color:var(--gold);}
 .site-search-name.set{color:var(--green);}
 
+.site-clock{flex:none; display:flex; flex-direction:column; align-items:flex-end; line-height:1.15; font-variant-numeric:tabular-nums; margin-right:-8px;}
+.site-clock-date{font-size:10.5px; color:var(--text-dim);}
+.site-clock-time{font-size:13px; color:var(--text-muted); font-weight:600; letter-spacing:.02em;}
+
 .site-burger{display:none; width:36px; height:36px; border-radius:10px; align-items:center; justify-content:center; flex:none;}
 .site-burger svg{width:20px; height:20px; stroke:var(--text-muted); stroke-width:2; stroke-linecap:round;}
 .site-burger:hover{background:var(--panel-2);}
@@ -221,12 +270,19 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-mobile-title{font-size:12px; color:var(--gold-dim); font-weight:600; margin-bottom:6px;}
 .site-mobile-links{display:flex; flex-wrap:wrap; gap:6px;}
 .site-mobile-links a{font-size:13px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
+.site-mobile-links a.here{color:#1a1408; background:var(--gold); border-color:var(--gold); font-weight:600;}
 
-@media (max-width:1100px){
+@media (max-width:1180px){
   .site-search{width:180px;}
+}
+@media (max-width:1100px){
+  .site-search{width:150px;}
+  .site-header-inner{gap:14px;}
+  .site-clock-date{display:none;}
   .site-nav-link{padding:0 8px; font-size:13.5px;}
 }
-@media (max-width:960px){
+/* 헤더 시계가 들어가면서 1040px 아래에선 메뉴가 한 줄에 안 들어가서 햄버거로 바꿈 */
+@media (max-width:1040px){
   .site-nav{display:none;}
   .site-burger{display:flex;}
   .site-search{width:auto; flex:1; max-width:320px;}
@@ -236,9 +292,25 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-mobile-hits button{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:4px 11px;}
 @media (max-width:560px){
   .site-search{display:none;}
-  .header-notif-wrap{margin-left:auto;}
+  .site-clock{margin-left:auto; margin-right:-4px;}
+  .site-clock-time{font-size:12px; letter-spacing:0;}
   .site-header-inner{gap:10px; padding:0 12px;}
-  .site-logo{font-size:16px;}
+  .site-logo img{height:40px;}
   .site-search-results{width:calc(100vw - 24px); right:auto; left:0;}
+}
+/* 아주 좁은 폰: 시계까지 한 줄에 들어가게 (위 560px 규칙보다 뒤에 있어야 이김) */
+@media (max-width:400px){
+  .site-header-inner{gap:6px;}
+  .site-logo img{height:34px;}
+}
+/* 운영진은 헤더에 접속자 버튼이 하나 더 있어서 더 일찍 햄버거 메뉴로 (일반 회원은 그대로) */
+@media (max-width:1240px){
+  .site-header-inner.staff .site-nav{display:none;}
+  .site-header-inner.staff .site-burger{display:flex;}
+  .site-header-inner.staff .site-search{width:auto; flex:1; max-width:320px;}
+}
+/* 폰에선 접속자 버튼을 펼침 메뉴 안으로 */
+@media (max-width:560px){
+  .site-header-inner :deep(.online-wrap){display:none;}
 }
 </style>

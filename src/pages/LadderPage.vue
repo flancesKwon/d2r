@@ -1,5 +1,4 @@
 <script setup>
-import contentMeta from '../data/contentMeta.json'
 import ladder from '../data/ladder.json'
 </script>
 
@@ -10,7 +9,6 @@ import ladder from '../data/ladder.json'
     <div class="patch-hero-inner">
       <div class="eyebrow">시즌 안내</div>
       <h1>{{ ladder.seasonName }}</h1>
-      <div class="content-updated">정보 갱신 {{ contentMeta.ladder.updated }}</div>
     </div>
   </div>
 

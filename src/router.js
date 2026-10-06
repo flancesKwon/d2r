@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { PAGE_META, SITE_URL, DEFAULT_DESCRIPTION, pageTitle } from './seoMeta.js'
+import { trackVisit } from './visitTracker.js'
 import HomePage from './pages/HomePage.vue'
 const ItemsPage = () => import('./pages/ItemsPage.vue')
 const GuidesPage = () => import('./pages/GuidesPage.vue')
@@ -14,6 +14,8 @@ const LadderPage = () => import('./pages/LadderPage.vue')
 const MarketPage = () => import('./pages/MarketPage.vue')
 const TradePage = () => import('./pages/TradePage.vue')
 const TradeNewPage = () => import('./pages/TradeNewPage.vue')
+const TradeRelistPage = () => import('./pages/TradeRelistPage.vue')
+const TradeEditPage = () => import('./pages/TradeEditPage.vue')
 const TradePostPage = () => import('./pages/TradePostPage.vue')
 const AdminPage = () => import('./pages/AdminPage.vue')
 const CubeRecipesPage = () => import('./pages/CubeRecipesPage.vue')
@@ -28,13 +30,19 @@ const TradeHistoryPage = () => import('./pages/TradeHistoryPage.vue')
 const PrivacyPage = () => import('./pages/PrivacyPage.vue')
 const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
+const UserProfilePage = () => import('./pages/UserProfilePage.vue')
+const ProfileEditPage = () => import('./pages/ProfileEditPage.vue')
+const AdminStatsPage = () => import('./pages/AdminStatsPage.vue')
+const AdminEventPage = () => import('./pages/AdminEventPage.vue')
+const EventPage = () => import('./pages/EventPage.vue')
 
 const router = createRouter({
-  // 주소가 /d2r/trade/1 처럼 일반 주소 (예전 #/ 주소는 index.html 이 바꿔 줌). 배포는 base /d2r/, 개발은 /
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomePage },
     { path: '/items', name: 'items', component: ItemsPage, meta: { title: '아이템 사전' } },
+    // 아이템 하나 (검색엔진·공유용 주소) - 사전 화면에서 그 아이템 상세를 열어 둠
+    { path: '/items/:id', name: 'item', component: ItemsPage, meta: { title: '아이템 사전' } },
     { path: '/guides', name: 'guides', component: GuidesPage, meta: { title: '빌드 가이드' } },
     // /guides/:id 보다 먼저 - 안 그러면 'new'가 가이드 주소로 잡힘
     { path: '/guides/new', name: 'guide-new', component: GuideEditPage, meta: { title: '가이드 쓰기' } },
@@ -51,10 +59,15 @@ const router = createRouter({
     { path: '/trade', name: 'trade', component: TradePage, meta: { title: '거래게시판' } },
     { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
+    { path: '/trade/:id/relist', name: 'trade-relist', component: TradeRelistPage, meta: { title: '재등록' } },
+    { path: '/trade/:id/edit', name: 'trade-edit', component: TradeEditPage, meta: { title: '판매글 수정' } },
     { path: '/trade/:id', name: 'trade-post', component: TradePostPage, meta: { title: '거래게시판' } },
     // 회원가입은 디스코드·구글 로그인으로 대신함 (예전 주소는 마이페이지로)
     { path: '/signup', redirect: '/mypage' },
     { path: '/admin', name: 'admin', component: AdminPage, meta: { title: '관리자' } },
+    { path: '/admin/stats', name: 'admin-stats', component: AdminStatsPage, meta: { title: '방문 통계' } },
+    { path: '/admin/event', name: 'admin-event', component: AdminEventPage, meta: { title: '이벤트 관리' } },
+    { path: '/event/:id', name: 'event', component: EventPage, meta: { title: '이벤트' } },
     { path: '/cube', name: 'cube', component: CubeRecipesPage, meta: { title: '큐브 레시피' } },
     { path: '/runewords', name: 'runewords', component: RunewordFinderPage, meta: { title: '룬워드 찾기' } },
     { path: '/craft-sim', name: 'craft-sim', component: CraftSimPage, meta: { title: '크래프트 시뮬레이터' } },
@@ -62,9 +75,11 @@ const router = createRouter({
     { path: '/breakpoints', name: 'breakpoints', component: BreakpointsPage, meta: { title: '브레이크포인트 계산기' } },
     { path: '/messages', name: 'messages', component: MessagesPage, meta: { title: '쪽지함' } },
     { path: '/mypage', name: 'mypage', component: MyPage, meta: { title: '마이페이지' } },
+    { path: '/mypage/edit', name: 'profile-edit', component: ProfileEditPage, meta: { title: '프로필 수정' } },
     { path: '/deals', name: 'deals', component: DealsPage, meta: { title: '거래중인 품목' } },
     // 거래 시작 알림 링크 (DB 함수가 /deals/거래번호 로 만듦)
     { path: '/deals/:id', name: 'deal', component: DealsPage, meta: { title: '거래중인 품목' } },
+    { path: '/users/:id', name: 'user', component: UserProfilePage, meta: { title: '회원 정보' } },
     { path: '/privacy', name: 'privacy', component: PrivacyPage, meta: { title: '개인정보 처리 안내' } },
     { path: '/terms', name: 'terms', component: TermsPage, meta: { title: '이용 규칙' } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage, meta: { title: '페이지를 찾을 수 없음' } },
@@ -74,23 +89,10 @@ const router = createRouter({
   },
 })
 
-// 제목·설명·주소를 화면마다 맞춤 (자바스크립트를 읽는 검색엔진·브라우저용. 정적 HTML 은 빌드 때 따로 만듦)
-function setMeta(selector, attr, value) {
-  const el = document.head.querySelector(selector)
-  if (el) el.setAttribute(attr, value)
-}
 router.afterEach((to) => {
-  const path = to.path.length > 1 ? to.path.replace(/\/$/, '') : to.path // Pages 가 /items/ 로 열 때도
-  const meta = PAGE_META[path] || {}
-  const title = pageTitle(meta.title || to.meta.title)
-  const description = meta.description || DEFAULT_DESCRIPTION
-  const url = SITE_URL + (path === '/' ? '/' : path)
-  document.title = title
-  setMeta('meta[name="description"]', 'content', description)
-  setMeta('link[rel="canonical"]', 'href', url)
-  setMeta('meta[property="og:title"]', 'content', title)
-  setMeta('meta[property="og:description"]', 'content', description)
-  setMeta('meta[property="og:url"]', 'content', url)
+  document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 정보'
+  // 방문 통계 (013 SQL) - 화면 옮길 때마다
+  trackVisit(to.path)
 })
 
 // 새로 배포되면 페이지 조각 파일 이름이 바뀌어서, 배포 전에 열어 둔 창에선 메뉴를 눌러도 옛 파일을 못 받아 안 넘어감

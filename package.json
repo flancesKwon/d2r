@@ -5,13 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender-meta.mjs",
+    "build": "vite build && node scripts/prerender-routes.js",
     "preview": "vite preview",
-    "check:items": "node scripts/check-item-data.js",
-    "check:content": "node scripts/check-content-age.js"
+    "check:items": "node scripts/check-item-data.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "@tiptap/extension-image": "^3.31.4",
+    "@tiptap/extensions": "^3.31.4",
+    "@tiptap/pm": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
+    "@tiptap/vue-3": "^3.31.4",
+    "dompurify": "^3.4.16",
     "vue": "^3.4.21",
     "vue-router": "^4.6.4"
   },

@@ -5,6 +5,7 @@
 // - 최근 글: 커뮤니티·거래 글 삭제
 // 신고·정지는 supabase/002_reports_suspension.sql 을 실행해야 켜짐 - 안 돌렸으면 안내만 띄우고 나머지는 그대로 동작
 import { ref, computed, watch } from 'vue'
+import { askConfirm, askPrompt, showAlert } from '../dialog.js'
 import { supabase, mustReturnRows } from '../supabase.js'
 import { authState, signIn, isStaff, isAdmin, ROLE_LABEL, suspendedUntil, suspensionText, fetchSuspensionReasons } from '../profileStore.js'
 import { formatDate } from '../communityStore.js'
@@ -15,7 +16,7 @@ import {
 
 const staff = computed(() => isStaff())
 const admin = computed(() => isAdmin())
-const stats = ref({ members: 0, newToday: 0, communityPosts: 0, tradePosts: 0, openReports: 0 })
+const stats = ref({ members: 0, newToday: 0, communityPosts: 0, tradePosts: 0, openReports: 0, visitorsToday: null })
 const members = ref([])
 const memberQuery = ref('')
 const recentCommunity = ref([])
@@ -50,7 +51,9 @@ async function loadStats() {
     count('tb_trade_post', (q) => q.is('deleted_at', null)),
   ])
   const openReports = await countOpenReports().catch(() => 0)
-  stats.value = { members: m, newToday: t, communityPosts: c, tradePosts: tr, openReports }
+  // 오늘 방문자 (013 SQL 전이면 비워 둠)
+  const v = await supabase.rpc('d2r_visit_stats', { p_days: 1 }).then((r) => (r.error ? null : r.data?.[0]?.visitors ?? 0), () => null)
+  stats.value = { members: m, newToday: t, communityPosts: c, tradePosts: tr, openReports, visitorsToday: v }
 }
 async function loadMembers() {
   const build = (cols) => {
@@ -88,28 +91,44 @@ async function loadRecent() {
   recentCommunity.value = c || []
   recentTrade.value = t || []
 }
-// 로그인 기록 (009 SQL) - 안 돌렸으면 칸을 숨김
-const logins = ref([])
-const loginLogReady = ref(true)
-const PROVIDER_LABEL = { discord: '디스코드', google: '구글' }
-async function loadLogins() {
-  const { data, error } = await supabase.from('tb_login_log')
-    .select('id, provider, created_at, user:tb_profile!tb_login_log_user_id_fkey(nickname)')
-    .order('created_at', { ascending: false }).limit(30)
-  if (error) {
-    loginLogReady.value = false
-    return
-  }
-  logins.value = data || []
+// 운영 기록·금칙어·자동 숨김 (009 SQL 이후 - 없으면 빈 목록)
+const logs = ref([])
+const bannedWords = ref([])
+const newWord = ref('')
+const autoHidden = ref(new Set())
+async function loadOps() {
+  const [l, w, h] = await Promise.all([
+    supabase.from('tb_admin_log').select('*, actor:tb_profile!tb_admin_log_actor_id_fkey(nickname)').order('created_at', { ascending: false }).limit(50),
+    supabase.from('tb_banned_word').select('word, created_at').order('word'),
+    supabase.from('tb_auto_hidden').select('target_type, target_id'),
+  ])
+  logs.value = l.data || []
+  bannedWords.value = w.data || []
+  autoHidden.value = new Set((h.data || []).map((x) => x.target_type + ':' + x.target_id))
 }
-const formatDateTime = (ts) => {
-  const d = new Date(ts)
-  const p = (n) => String(n).padStart(2, '0')
-  return `${formatDate(ts)} ${p(d.getHours())}:${p(d.getMinutes())}`
+const isAutoHidden = (r) => autoHidden.value.has(r.target_type + ':' + r.target_id)
+function addWord() {
+  const word = newWord.value.trim()
+  if (!word) return
+  return run(async () => {
+    await mustReturnRows(supabase.from('tb_banned_word').insert({ word }).select('word, created_at'), '금칙어 추가 실패')
+    newWord.value = ''
+    await loadOps()
+  })
 }
+async function removeWord(w) {
+  if (!await askConfirm(`금칙어 삭제: ${w.word}`)) return
+  return run(async () => {
+    await mustReturnRows(supabase.from('tb_banned_word').delete().eq('word', w.word).select('word'), '금칙어 삭제 실패')
+    await loadOps()
+  })
+}
+const LOG_TARGET = { tb_community_post: '글', tb_community_comment: '댓글', tb_trade_post: '판매글', community_post: '글', community_comment: '댓글', trade_post: '판매글', profile: '회원', banned_word: '금칙어' }
+const fmtTime = (ts) => { const d = new Date(ts); const p = (n) => String(n).padStart(2, '0'); return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}` }
+
 function loadAll() {
   if (!supabase || !staff.value) return
-  loadLogins().catch(() => { loginLogReady.value = false })
+  loadOps().catch(() => {})
   loadStats().catch(() => {})
   loadMembers().catch(() => {})
   loadReports()
@@ -138,18 +157,18 @@ async function setRole(m, role, event) {
   // 취소·실패하면 셀렉트를 원래 등급으로 되돌림
   const revert = () => { if (event) event.target.value = m.role }
   if (role === m.role) return
-  if (m.id === authState.user?.id && role !== 'admin' && !confirm('내 최고관리자 권한 해제 - 되돌리려면 다른 최고관리자 필요')) return revert()
+  if (m.id === authState.user?.id && role !== 'admin' && !await askConfirm('내 최고관리자 권한 해제 - 되돌리려면 다른 최고관리자 필요')) return revert()
   await run(async () => {
     const rows = await mustReturnRows(supabase.from('tb_profile').update({ role }).eq('id', m.id).select('role'), '등급 변경 실패')
     m.role = rows[0].role
   })
   revert()
 }
-function suspend(m, option, event) {
+async function suspend(m, option, event) {
   if (event) event.target.value = ''
   if (!option) return
   const label = SUSPEND_OPTIONS.find((o) => o.value === option)?.label
-  const reason = prompt(`${m.nickname} 님을 ${label} 정지 - 사유 입력 (본인에게 보임)`, '')
+  const reason = await askPrompt(`${m.nickname} 님을 ${label} 정지 - 사유 입력 (본인에게 보임)`, '')
   if (reason === null) return
   const until = option === 'forever' ? 'infinity' : new Date(Date.now() + Number(option) * 86400000).toISOString()
   return run(async () => {
@@ -162,8 +181,8 @@ function suspend(m, option, event) {
     syncReportAuthors(m)
   })
 }
-function unsuspend(m) {
-  if (!confirm(`${m.nickname} 님 정지 해제`)) return
+async function unsuspend(m) {
+  if (!await askConfirm(`${m.nickname} 님 정지 해제`)) return
   return run(async () => {
     const rows = await mustReturnRows(
       supabase.from('tb_profile').update({ suspended_until: null, suspended_reason: null }).eq('id', m.id).select('suspended_until'),
@@ -187,8 +206,8 @@ function changeReport(r, status) {
     if (reportFilter.value && reportFilter.value !== status) reports.value = reports.value.filter((x) => x.id !== r.id)
   })
 }
-function removeReportTarget(r) {
-  if (!confirm(`신고된 ${REPORT_TARGET_LABEL[r.target_type]}삭제 후 신고 처리함으로 변경`)) return
+async function removeReportTarget(r) {
+  if (!await askConfirm(`신고된 ${REPORT_TARGET_LABEL[r.target_type]}삭제 후 신고 처리함으로 변경`)) return
   return run(async () => {
     await deleteReportTarget(r)
     await changeReport(r, 'resolved')
@@ -200,8 +219,8 @@ function suspendReportAuthor(r, option, event) {
   const m = members.value.find((x) => x.id === a.id) || { ...a }
   return suspend(m, option, event)?.then(() => { a.suspended_until = m.suspended_until })
 }
-function removeReport(r) {
-  if (!confirm('신고 기록 삭제')) return
+async function removeReport(r) {
+  if (!await askConfirm('신고 기록 삭제')) return
   return run(async () => {
     await deleteReport(r.id)
     reports.value = reports.value.filter((x) => x.id !== r.id)
@@ -217,20 +236,21 @@ const reportFilters = [
 const canSuspendAuthor = (r) => r.target_author && canSuspend(r.target_author)
 
 // ── 최근 글
-function removeCommunityPost(p) {
-  if (!confirm(`"${p.title}" 글 삭제`)) return
+async function removeCommunityPost(p) {
+  if (!await askConfirm(`"${p.title}" 글 삭제`)) return
   return run(async () => {
     await mustReturnRows(supabase.from('tb_community_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentCommunity.value = recentCommunity.value.filter((x) => x.id !== p.id)
     stats.value.communityPosts--
   })
 }
-function removeTradePost(p) {
-  if (!confirm(`"${p.item_name}" 판매글 삭제`)) return
+async function removeTradePost(p) {
+  if (!await askConfirm(`"${p.item_name}" 판매글 삭제`)) return
   return run(async () => {
     await mustReturnRows(supabase.from('tb_trade_post').delete().eq('id', p.id).select('id'), '삭제 실패')
     recentTrade.value = recentTrade.value.filter((x) => x.id !== p.id)
     stats.value.tradePosts--
+    showAlert('판매글 삭제 완료', { icon: 'success' })
   })
 }
 </script>
@@ -259,6 +279,14 @@ function removeTradePost(p) {
     </div>
 
     <div class="admin-stat-row">
+      <router-link to="/admin/stats" class="admin-stat-card visit">
+        <div class="label">오늘 방문자 <span class="go">통계 →</span></div>
+        <div class="value accent">{{ stats.visitorsToday == null ? '-' : stats.visitorsToday.toLocaleString() }}</div>
+      </router-link>
+      <router-link to="/admin/event" class="admin-stat-card visit">
+        <div class="label">이벤트 <span class="go">관리 →</span></div>
+        <div class="value accent">🎁</div>
+      </router-link>
       <div class="admin-stat-card">
         <div class="label">처리 대기 신고</div>
         <div class="value" :class="{ warn: stats.openReports > 0 }">{{ stats.openReports }}</div>
@@ -297,6 +325,7 @@ function removeTradePost(p) {
               <span class="admin-badge">{{ REPORT_TARGET_LABEL[r.target_type] }}</span>
               <span class="admin-badge reason">{{ REPORT_REASON_LABEL[r.reason] }}</span>
               <span class="admin-badge" :class="'st-' + r.status">{{ REPORT_STATUS_LABEL[r.status] }}</span>
+              <span class="admin-badge auto-hidden" v-if="isAutoHidden(r)" title="신고 3건 이상이라 자동으로 가려짐 - 기각하면 다시 보임">자동 숨김</span>
               <router-link v-if="reportTargetLink(r)" :to="reportTargetLink(r)" class="a-text admin-report-target">{{ r.target_label || '(내용 없음)' }}</router-link>
               <span v-else class="admin-report-target">{{ r.target_label }}</span>
             </div>
@@ -372,23 +401,6 @@ function removeTradePost(p) {
       </table>
     </div>
 
-    <template v-if="loginLogReady">
-      <div class="d-section-title">최근 로그인</div>
-      <div class="admin-table-wrap">
-        <table class="admin-table admin-login-table">
-          <thead><tr><th>닉네임</th><th>방식</th><th>시각</th></tr></thead>
-          <tbody>
-            <tr v-for="l in logins" :key="l.id">
-              <td class="admin-nick">{{ l.user?.nickname || '탈퇴한 회원' }}</td>
-              <td class="admin-dim">{{ PROVIDER_LABEL[l.provider] || l.provider || '-' }}</td>
-              <td class="admin-dim">{{ formatDateTime(l.created_at) }}</td>
-            </tr>
-            <tr v-if="!logins.length"><td colspan="3" class="admin-dim">기록 없음</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </template>
-
     <div class="d-section-title">최근 커뮤니티 글</div>
     <div class="affix-list admin-report-list">
       <div class="affix-line admin-report-line" v-for="p in recentCommunity" :key="'c' + p.id">
@@ -412,6 +424,32 @@ function removeTradePost(p) {
       </div>
       <div class="empty-state" v-if="!recentTrade.length">판매글 없음</div>
     </div>
+
+    <div class="d-section-title">금칙어</div>
+    <div class="admin-words">
+      <span class="admin-word" v-for="w in bannedWords" :key="w.word">{{ w.word }}<button type="button" @click="removeWord(w)" :aria-label="'금칙어 삭제 ' + w.word">✕</button></span>
+      <span class="empty-state" v-if="!bannedWords.length">금칙어 없음</span>
+    </div>
+    <form class="admin-word-form" @submit.prevent="addWord">
+      <input v-model="newWord" maxlength="40" placeholder="추가할 단어 (띄어쓰기 무시하고 걸림)" class="write-input" />
+      <button type="submit" class="admin-action-btn">추가</button>
+    </form>
+    <p class="admin-hint">금칙어가 들어간 글·댓글·판매글·쪽지·거래방 대화는 등록이 막힘 (운영진은 제외)</p>
+
+    <div class="d-section-title">운영 기록 <small class="admin-hint">최근 50개</small></div>
+    <div class="affix-list admin-report-list">
+      <div class="affix-line admin-report-line" v-for="l in logs" :key="'l' + l.id">
+        <div class="admin-report-info">
+          <div class="admin-report-head">
+            <span class="admin-badge">{{ l.action }}</span>
+            <span class="admin-badge" v-if="LOG_TARGET[l.target_type]">{{ LOG_TARGET[l.target_type] }}</span>
+            <span class="admin-report-target">{{ l.detail }}</span>
+          </div>
+          <span class="admin-report-meta">{{ l.actor?.nickname || '자동' }} · {{ fmtTime(l.created_at) }}</span>
+        </div>
+      </div>
+      <div class="empty-state" v-if="!logs.length">기록 없음</div>
+    </div>
   </div>
   </div>
 </template>
@@ -420,7 +458,10 @@ function removeTradePost(p) {
 .admin-wrap{max-width:1000px;}
 .admin-gate{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
 
-.admin-stat-row{display:grid; grid-template-columns:repeat(5, 1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); margin-bottom:32px;}
+.admin-stat-card.visit{display:block; color:inherit;}
+.admin-stat-card.visit:hover{background:var(--panel-2);}
+.admin-stat-card .label .go{color:var(--gold); margin-left:4px;}
+.admin-stat-row{display:grid; grid-template-columns:repeat(6, 1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); margin-bottom:32px;}
 .admin-stat-card{background:var(--panel); padding:18px 16px;}
 .admin-stat-card .label{font-size:11.5px; color:var(--text-dim); margin-bottom:8px;}
 .admin-stat-card .value{font-size:22px; font-weight:700; color:var(--text); font-family:'Noto Serif KR', serif;}
@@ -431,7 +472,6 @@ function removeTradePost(p) {
 .admin-search{width:100%; max-width:280px; margin-bottom:10px; background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:13px; padding:8px 12px; border-radius:10px;}
 .admin-table-wrap{overflow-x:auto; margin-bottom:32px; border:1px solid var(--border-soft);}
 .admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:560px;}
-.admin-login-table{min-width:0;}
 .admin-table th{
   text-align:left; padding:11px 14px; font-size:11.5px; color:var(--text-dim); font-weight:600;
   background:var(--panel-2); border-bottom:1px solid var(--border-soft); white-space:nowrap;
@@ -478,4 +518,12 @@ function removeTradePost(p) {
   .admin-stat-row{grid-template-columns:1fr 1fr;}
   .admin-stat-card:first-child{grid-column:1 / -1;}
 }
+.admin-badge.auto-hidden{color:#e0905a; border-color:#e0905a;}
+.admin-words{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+.admin-word{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:5px 10px; border:1px solid var(--border); border-radius:999px; color:var(--text-muted);}
+.admin-word button{color:var(--text-dim); font-size:11px;}
+.admin-word button:hover{color:#e0775f;}
+.admin-word-form{display:flex; gap:8px; max-width:420px;}
+.admin-word-form .write-input{flex:1;}
+.admin-hint{font-size:11.5px; color:var(--text-dim); font-weight:400; margin:6px 0 0;}
 </style>

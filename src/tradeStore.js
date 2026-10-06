@@ -8,7 +8,7 @@ import skillTextData from './data/skill_text.json'
 import { buildSkillNameLookup } from './skillNames.js'
 import { SKILL_TAB_NAMES } from './magicAffixes.js'
 import magicAffixData from './data/magicAffixes.json'
-import { supabase, mustReturnRows } from './supabase.js'
+import { supabase, mustReturnRows, settleStaleSoon } from './supabase.js'
 import { authState } from './profileStore.js'
 
 export { itemsData }
@@ -38,7 +38,11 @@ export const ESSENCE_MATERIALS = [
   essence('token', '면죄의 징표', 'Token of Absolution', 'invtoa__uber', ['토큰', '면죄', '용서의 증표']),
 ]
 export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS]
-const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS]
+// 골드 판매글 한 건 최대 액수
+export const GOLD_MAX = 15000000
+// 골드 - 게임 골드를 룬·보석 등을 받고 파는 글. 수량 = 골드 액수
+export const GOLD_ITEM = { id: 'gold', category: 'gold', category_label: '골드', name_ko: '골드', name_en: 'Gold', icon_key: 'gold', aliases: ['금화', '골드 판매', 'gold'] }
+const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS, GOLD_ITEM]
 
 // 희망 가격이 대부분 룬·보석 이름으로 적히는데("이스트 룬 2개" 등) 그냥 텍스트라
 // 뭔지 한눈에 안 들어옴 - 가격 문자열에서 룬·보석 이름을 찾아서 아이콘을 붙여주려고
@@ -124,13 +128,23 @@ export function runewordMaterials(item) {
 
 // 룬·퍼펙트 보석·우버보스 재료(소환 재료)는 여러 개를 묶어 파는 경우가 많아서 개수를
 // 입력받고, 장비(유니크·세트·룬워드·매직/레어/일반)나 기타는 낱개(1개)로 고정
-export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표']
+export const QUANTITY_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '골드']
 export function categoryHasQuantity(category) {
   return QUANTITY_CATEGORIES.includes(category)
 }
 
-export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
+export const TRADE_CATEGORIES = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '골드', '유니크/세트', '룬워드', '매직/레어/일반', '기타']
+// 제안만 받기 글의 판매가 자리 (DB price 칸은 비울 수 없어서 이 문구로 채움)
+export const OFFER_ONLY_PRICE = '가격 제안 받음'
 export const TRADE_STATUSES = ['판매중', '예약중', '거래완료']
+// 화면에 보이는 상태 이름 - DB 값 '예약중'은 거래방이 거래중인 상태라 "거래중"으로 보여줌 (거래방 상태와 같은 말로)
+export const statusLabel = (s) => (s === '예약중' ? '거래중' : s)
+// 거래내역·시세에 쓸 가격 - 거래완료된 글은 실제 거래가, 아니면 판매가. 거래가를 모르는 예전 제안만 받기 글은 ''
+export function tradePriceOf(post) {
+  if (post?.status !== '거래완료') return post?.price || ''
+  if (post.soldPrice) return post.soldPrice
+  return post.price === OFFER_ONLY_PRICE ? '' : post.price || ''
+}
 // 아시아 서버 유저 대상 게시판이라 서버 선택 자체를 없앰 - 항상 아시아로 고정
 export const TRADE_REALMS = ['아시아']
 export const TRADE_LADDERS = ['레더', '논레더']
@@ -153,11 +167,12 @@ export function tradeCategoryForItem(item) {
   if (item.category === 'runeword') return '룬워드'
   if (item.category === 'uber') return '우버보스 재료'
   if (item.category === 'essence') return '정수·징표'
+  if (item.category === 'gold') return '골드'
   return null
 }
 
 // 룬워드·유니크·세트는 베이스가 무기인지 방어구인지에 따라 실제로 붙을 수 있는 옵션이
-// 갈려서(방어력은 방어구에만, 인핸스드 데미지는 무기에만 등), "옵션 직접 추가" 목록을
+// 갈려서(방어력은 방어구에만, 피해 증가는 무기에만 등), "옵션 직접 추가" 목록을
 // 그 아이템에 맞는 것만 보여주려고 구분함. 판단 불가능하면(우버 재료·자유입력 등) null
 const ARMOR_TYPE_SUBS = ['방패', '투구', '갑옷', '장갑', '신발', '벨트']
 export function itemBaseKind(item) {
@@ -251,9 +266,9 @@ export function baseForItem(item) {
 // 상급(Superior) 흰 베이스에 붙는 옵션 - 게임 qualityitems.txt의 8가지 조합 중 하나만 붙음
 // (무기: 데미지%·명중률·내구도% 중 1~2개 / 방어구: 방어력%·내구도% 중 1~2개)
 export const SUPERIOR_MODS = {
-  'dmg%': { text: '증가된 데미지 +{v}%', min: 5, max: 15 },
+  'dmg%': { text: '피해 증가 +{v}%', min: 5, max: 15 },
   att: { text: '명중률 +{v}', min: 1, max: 3 },
-  'ac%': { text: '증가된 방어력 +{v}%', min: 5, max: 15 },
+  'ac%': { text: '방어력 증가 +{v}%', min: 5, max: 15 },
   'dur%': { text: '최대 내구도 +{v}%', min: 10, max: 15 },
 }
 const SUPERIOR_COMBOS = {
@@ -342,8 +357,8 @@ export const TRADE_STAT_FILTERS = [
   { key: 'ias', label: '공격 속도(%)', pattern: `^공격 속도(?: 증가)? ${N}` },
   { key: 'fhr', label: '타격 회복 속도(%)', pattern: `^(?:타격 회복 속도|재빠른 히트 회복) ${N}` },
   { key: 'frw', label: '달리기/걷기 속도(%)', pattern: `^(?:달리기/걷기 속도|이동/공격 속도 증가) ${N}` },
-  { key: 'ed', label: '인핸스드 데미지(%)', pattern: `^(?:인핸스드 데미지|증가된 데미지) ${N}` },
-  { key: 'edef', label: '방어력 증가(%)', pattern: `^(?:방어력|증가된 방어력) ${N}%` },
+  { key: 'ed', label: '피해 증가(%)', pattern: `^(?:피해 증가|인핸스드 데미지|증가된 데미지) ${N}` },
+  { key: 'edef', label: '방어력 증가(%)', pattern: `^(?:방어력 증가|방어력|증가된 방어력) ${N}%` },
   { key: 'sockets', label: '소켓 개수', pattern: '^소켓 (\\d+)개' },
   { key: 'lifesteal', label: '생명력 흡수(%)', pattern: `^(?:적중당 생명력|공격 시 생명력 흡수) ${N}` },
   { key: 'manasteal', label: '마나 흡수(%)', pattern: `^(?:적중당 마나|공격 시 마나 흡수) ${N}` },
@@ -360,6 +375,9 @@ export const TRADE_STAT_FILTERS = [
   { key: 'classskill', label: '클래스 스킬 (가장 높은 수치)', pattern: `^(?!(?:${TAB_NAMES_RE}) \\+).+ \\+(\\d+) \\((?:${CLASS_NAMES_RE}) 전용\\)$`, agg: 'max' },
   // 스킬 트리 옵션 (매직/레어 "번개 기술 +1 (소서리스 전용)", 아마존 무기 자동 옵션 등)
   { key: 'skilltab', label: '스킬 트리 (가장 높은 수치)', pattern: `^(?:${TAB_NAMES_RE}) \\+(\\d+) \\((?:${CLASS_NAMES_RE}) 전용\\)$`, agg: 'max' },
+  // 판매자가 입력한 방어력·데미지 (샤코 방어력 등) - 범위로 남은 글("98~141")은 빠짐
+  { key: 'defense', label: '방어력 (입력값)', pattern: '^기본 방어력 (\\d+)$', agg: 'max' },
+  { key: 'maxdmg', label: '최대 데미지 (입력값)', pattern: '^기본 데미지 \\d+~(\\d+)$', agg: 'max' },
 ].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
 const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
 
@@ -377,6 +395,20 @@ export function postStatValue(post, key) {
     total = total === null ? v : stat.agg === 'max' ? Math.max(total, v) : total + v
   }
   return total
+}
+
+// 키워드 옵션 검색 ("블리자드", "시전 속도" 처럼 옵션 문구 일부) - 맞는 옵션 줄의 첫 숫자를 값으로 (여러 줄이면 가장 큰 값)
+// { hit: 맞는 줄이 있는지, value: 그 숫자 (숫자 없는 줄뿐이면 null) }. matches = 화면의 검색 함수 (textMatchesQuery)
+export function postKeywordValue(post, keyword, matches) {
+  let hit = false
+  let value = null
+  for (const line of post.options || []) {
+    if (!matches(line, keyword)) continue
+    hit = true
+    const m = /\d+/.exec(line)
+    if (m) value = value === null ? Number(m[0]) : Math.max(value, Number(m[0]))
+  }
+  return { hit, value }
 }
 
 // 아이템 사전의 룬·룬워드는 level_req가 비어 있어서(유니크·세트만 채워짐) 룬 요구
@@ -401,14 +433,47 @@ export function itemLevelReq(item) {
   }
   return null
 }
+// 사전에 없는 매직·레어·크래프트는 판매자가 적은 "요구 레벨 N" 줄 (선택 입력)
+export const LEVEL_REQ_LINE_RE = /^요구 레벨 (\d+)$/
+export function enteredLevelReq(options) {
+  for (const line of options || []) {
+    const m = LEVEL_REQ_LINE_RE.exec(line)
+    if (m) return Number(m[1])
+  }
+  return null
+}
 export function postLevelReq(post) {
-  return itemLevelReq(getTradeItem(post.itemId))
+  return itemLevelReq(getTradeItem(post.itemId)) ?? enteredLevelReq(post.options)
+}
+
+// 요구 힘·민첩 - 베이스 값에 착용 조건 ±N% 옵션(ease)과 에테리얼 -10 반영. 요구치 없으면 null
+// item: 사전 아이템(유니크·세트는 자기 base_stats), base: 룬워드·매직/레어의 고른 베이스
+export function itemStatReqs(item, { base = null, ethereal = false } = {}) {
+  const bs = (['unique', 'set'].includes(item?.category) ? item.base_stats || baseForItem(item)?.base_stats : null) || base?.base_stats
+  if (!bs || !['armor', 'weapon'].includes(bs.category)) return { str: null, dex: null }
+  const ease = ['unique', 'set'].includes(item?.category)
+    ? (item.affixes || []).filter((a) => a.prop === 'ease').reduce((s, a) => s + Number(a.min || 0), 0)
+    : 0
+  const calc = (v) => {
+    if (!v) return null
+    // 게임 계산: 착용 조건 %는 늘거나 준 양을 0 쪽으로 버림 (99 -50% = 50), 그다음 에테리얼 -10
+    let r = v + Math.trunc((v * ease) / 100)
+    if (ethereal) r -= 10
+    return r > 0 ? r : null
+  }
+  return { str: calc(bs.reqstr), dex: calc(bs.reqdex) }
+}
+// 판매글 옵션의 "베이스: ..." 줄 -> 베이스 아이템
+export function baseFromLabel(label) {
+  return (label && BASE_BY_LABEL.get(label)) || null
 }
 
 // 콤보박스 없이 숫자만 입력받아서 "N개"로 만듦
-export function buildAmountLabel(count) {
+// 골드는 액수("2,500,000 골드"), 나머지는 개수("5개")
+export function buildAmountLabel(count, category = '') {
   const n = Number(count) || 0
-  return n > 0 ? `${n}개` : ''
+  if (n <= 0) return ''
+  return category === '골드' ? `${n.toLocaleString('ko-KR')} 골드` : `${n}개`
 }
 
 export function getTradeItem(itemId) {
@@ -434,13 +499,43 @@ export const ICON_VARIANTS = {
 export function postIconKey(post) {
   if (post?.iconKey) return post.iconKey
   const item = getTradeItem(post?.itemId)
-  if (item?.icon_key) return item.icon_key
   const baseLine = (post?.options || []).find((l) => l.startsWith('베이스: '))
-  const code = (baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))?.code) ||
-    MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
+  const baseCode = baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))?.code
+  // 룬워드는 고른 베이스 모양 (예전 글은 그림 키 없이 "베이스:" 줄만 있음)
+  if (item?.category === 'runeword' && baseCode) return MISC_BASE_BY_CODE.get(baseCode)?.icon_key || magicAffixData.bases[baseCode]?.icon || item.icon_key
+  if (item?.icon_key) return item.icon_key
+  const code = baseCode || MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
   if (!code) return null
   return MISC_BASE_BY_CODE.get(code)?.icon_key || magicAffixData.bases[code]?.icon || null
 }
+// 판매글의 베이스 아이템 - 유니크·세트는 사전 베이스, 룬워드·매직/레어는 "베이스: ..." 줄, 반지·부적 등은 이름으로
+// (반지·목걸이·주얼·부적은 무기·방어구 목록에 없어서 판매글 등록 화면과 같은 모양으로 만들어 줌)
+export function postBaseItem(post) {
+  const item = getTradeItem(post?.itemId)
+  if (item && (item.category === 'unique' || item.category === 'set')) return baseForItem(item)
+  const baseLine = (post?.options || []).find((l) => l.startsWith('베이스: '))
+  const b = baseLine && BASE_BY_LABEL.get(baseLine.slice('베이스: '.length))
+  const code = b ? b.code : !item && MISC_WORDS.find(([w]) => post?.itemName?.includes(w))?.[1]
+  if (b?.base_stats) return b
+  const misc = code && MISC_BASE_BY_CODE.get(code)
+  return misc ? { ...misc, type_sub: misc.name_ko, tier: '', sockets: 0, can_eth: false, base_stats: { category: 'misc' } } : null
+}
+
+// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 - 베이스 방어력(에테리얼 1.5배) × 방어력 증가% + 추가 방어력.
+// 방어력 증가가 붙으면 베이스가 최대값+1로 고정돼서 위쪽은 그걸로, 레벨당 방어력은 99레벨까지 넉넉하게 잡음
+export function uniqueDefenseRange(item, ethereal = false) {
+  const b = item?.base_stats
+  if (!['unique', 'set'].includes(item?.category) || b?.category !== 'armor') return null
+  const affixes = item.affixes || []
+  const sum = (prop, i) => affixes.filter((a) => a.prop === prop).reduce((t, a) => t + (Number(i ? a.max : a.min) || 0), 0)
+  const perLevel = affixes.filter((a) => a.prop === 'ac/lvl').reduce((t, a) => t + (Number(a.par) || 0) / 8, 0)
+  const mul = ethereal ? 1.5 : 1
+  const edLo = sum('ac%', 0), edHi = sum('ac%', 1)
+  const min = Math.floor((Math.floor(b.minac * mul) * (100 + edLo)) / 100) + sum('ac', 0)
+  const max = Math.floor((Math.floor((b.maxac + (edHi > 0 ? 1 : 0)) * mul) * (100 + edHi)) / 100) + sum('ac', 1) + Math.floor(perLevel * 99)
+  return { min, max }
+}
+
 // 아이콘 테두리 색 - 사전 아이템은 카테고리, 사전에 없는 장비는 고른 품질(예전 글은 이름의 매직/레어)
 export function postRarity(post) {
   const item = getTradeItem(post?.itemId)
@@ -455,7 +550,7 @@ export function postRarity(post) {
 // 아이템·옵션·가격 계산은 위 그대로, 저장만 DB. 주인은 author_id(로그인 uuid), 권한은 RLS가 막음
 // DB에 칸이 없는 값(품질·아이콘 모양·흥정 가능)은 options(jsonb) 안에 옵션 줄과 같이 넣음
 // 구매신청은 당사자(구매자·판매자)만 볼 수 있어서 목록엔 신청 수를 안 보여줌
-const POST_AUTHOR = 'author:tb_profile!tb_trade_post_author_id_fkey(nickname, avatar_url)'
+export const POST_AUTHOR = 'author:tb_profile!tb_trade_post_author_id_fkey(nickname, avatar_url)'
 const REQUEST_BUYER = 'buyer:tb_profile!tb_trade_request_buyer_id_fkey(nickname, contact, avatar_url)'
 const LIST_LIMIT = 300
 
@@ -468,12 +563,37 @@ function fmtDate(ts) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+// 구매신청은 받은 시각까지 보여야 해서 시분초 포함
+function fmtDateTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${fmtDate(ts)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
 function unpackOptions(o) {
   if (Array.isArray(o)) return { lines: o.filter((x) => typeof x === 'string') }
   return o && typeof o === 'object' ? o : { lines: [] }
 }
 
-function mapTradePost(r) {
+// 판매 기간: 올린(재등록한) 때부터 48시간 - 지나면 목록에서 내려감(기간 만료). 판매자는 판매가만 고쳐 재등록 (016 SQL)
+// 예약중·거래완료 글은 기간과 상관없음. bumped_at = 판매 시작 시각
+export const SALE_HOURS = 48
+const SALE_MS = SALE_HOURS * 3600000
+export const saleEndsAt = (post) => (post?.bumpedAt ? new Date(post.bumpedAt).getTime() + SALE_MS : 0)
+// 남은 판매 시간(ms) - 판매중이 아니면 null
+export const saleLeftMs = (post, now = Date.now()) => (post?.status === '판매중' && post.bumpedAt ? saleEndsAt(post) - now : null)
+export const isSaleExpired = (post, now = Date.now()) => { const left = saleLeftMs(post, now); return left !== null && left <= 0 }
+// "1일 3시간", "5시간 12분", "12분" (목록용 짧은 표시)
+export function fmtSaleLeft(ms) {
+  if (ms === null || ms <= 0) return ''
+  const m = Math.ceil(ms / 60000)
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60
+  return d ? `${d}일 ${h}시간` : h ? `${h}시간 ${mm}분` : `${mm}분`
+}
+const isExpired = (status, bumpedAt) => isSaleExpired({ status, bumpedAt })
+
+export function mapTradePost(r) {
   const o = unpackOptions(r.options)
   return {
     id: r.id,
@@ -484,7 +604,10 @@ function mapTradePost(r) {
     options: o.lines || [],
     quality: o.quality || '',
     iconKey: o.iconKey || null,
-    negotiable: !!o.negotiable,
+    // 제안만 받기 = 판매가 자리가 OFFER_ONLY_PRICE (재등록 때 가격을 정하면 보통 글이 됨). 늘 가격 제안 흐름
+    offerOnly: r.price === OFFER_ONLY_PRICE,
+    negotiable: !!o.negotiable || r.price === OFFER_ONLY_PRICE,
+    unidentified: !!o.unidentified,
     ethereal: !!r.ethereal,
     price: r.price,
     realm: r.realm,
@@ -499,8 +622,14 @@ function mapTradePost(r) {
     avatar: r.author?.avatar_url || null,
     date: fmtDate(r.created_at),
     createdAt: r.created_at,
+    bumpedAt: r.bumped_at || r.created_at,
+    expired: isExpired(r.status, r.bumped_at || r.created_at),
     // 아이템별 거래내역의 "팔린 날" - 거래완료로 바꾼 마지막 수정 시각
     completedAt: r.status === '거래완료' ? fmtDate(r.updated_at) : null,
+    // 실제 거래가 (023 SQL) - 거래완료 때 수락한 신청의 제안 내용(즉시 구매면 판매가)
+    soldPrice: r.sold_price || null,
+    // 판매자가 등록 뒤 옵션·가격 등을 고친 시각 (판매글 수정)
+    editedAt: o.editedAt || null,
     requests: [],
   }
 }
@@ -512,17 +641,25 @@ function needUser() {
 }
 
 // 목록 - 최근 글 LIST_LIMIT 개까지 받아서 화면에서 거름 (옵션 수치 필터가 화면 쪽 계산이라)
+// 화면에 들어올 때마다 부르면 됨: 받아 둔 목록은 그대로 보여주고, 10초 넘게 지났으면 뒤에서 새로 받음
+// (예전엔 처음 한 번만 받아서 다른 메뉴에 갔다 와도 새 글이 안 보였음 - 새로고침 필요)
+let lastLoadedAt = 0
 export async function loadTradePosts(force = false) {
-  if (!supabase || tradeState.loading || (tradeState.loaded && !force)) return
+  if (!supabase || tradeState.loading) return
+  if (tradeState.loaded && !force && Date.now() - lastLoadedAt < 10000) return
+  settleStaleSoon()
   tradeState.loading = true
   tradeState.error = ''
   try {
-    const { data, error } = await supabase
-      .from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
-      .is('deleted_at', null).order('created_at', { ascending: false }).limit(LIST_LIMIT)
+    // 끌어올린 순서로 (bumped_at 은 009 SQL 이후 생긴 칸 - 없으면 올린 순서로)
+    const list = (col) => supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
+      .is('deleted_at', null).order(col, { ascending: false }).limit(LIST_LIMIT)
+    let { data, error } = await list('bumped_at')
+    if (error) ({ data, error } = await list('created_at'))
     if (error) throw error
     tradeState.posts = data.map(mapTradePost)
     tradeState.loaded = true
+    lastLoadedAt = Date.now()
   } catch (e) {
     tradeState.error = '판매글 불러오기 실패 - 잠시 뒤 다시 시도'
   } finally {
@@ -559,7 +696,7 @@ export async function countTradeView(postId) {
 
 export async function addTradePost({
   category, itemId, itemName, amountLabel, price, realm, ladder, hardcore,
-  contact, content, options, quality, ethereal, negotiable, iconKey,
+  contact, content, options, quality, ethereal, negotiable, iconKey, unidentified, offerOnly,
 }) {
   const uid = needUser()
   const rows = await mustReturnRows(
@@ -570,7 +707,8 @@ export async function addTradePost({
       item_name: itemName,
       amount_label: amountLabel || null,
       // 텍스트가 없는 옵션(데이터 누락)은 빈 줄로 저장되지 않게 뺌
-      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable },
+      // unidentified: 유니크·세트를 미확인 상태로 파는 글 (옵션은 사전 범위)
+      options: { lines: (options || []).filter(Boolean), quality: quality || '', iconKey: iconKey || null, negotiable: !!negotiable || !!offerOnly, offerOnly: !!offerOnly, unidentified: !!unidentified },
       ethereal: !!ethereal,
       price,
       realm,
@@ -584,6 +722,69 @@ export async function addTradePost({
   const post = mapTradePost(rows[0])
   tradeState.posts.unshift(post)
   return post
+}
+
+// 판매글 수정 - 판매중이고 대기·수락된 구매신청이 없을 때만 (019 SQL 이 다시 확인). 아이템은 못 바꿈
+// patch: { price, options(줄 목록), amountLabel, negotiable, offerOnly, ladder, hardcore, contact, content }
+// 판매 기간(bumped_at)은 그대로 - 수정해도 시간이 늘어나지 않음
+export async function updateTradePost(post, patch) {
+  needUser()
+  const { data: cur, error: e1 } = await supabase.from('tb_trade_post').select('options').eq('id', post.id).single()
+  if (e1) throw e1
+  const o = unpackOptions(cur.options)
+  const options = {
+    ...o,
+    lines: (patch.options || o.lines || []).filter(Boolean),
+    negotiable: !!patch.negotiable || !!patch.offerOnly,
+    offerOnly: !!patch.offerOnly,
+    editedAt: new Date().toISOString(),
+  }
+  const { data, error } = await supabase.from('tb_trade_post').update({
+    price: patch.offerOnly ? OFFER_ONLY_PRICE : patch.price,
+    options,
+    amount_label: patch.amountLabel || null,
+    ladder: patch.ladder,
+    hardcore: patch.hardcore,
+    contact: patch.contact || null,
+    content: patch.content || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', post.id).select(`*, ${POST_AUTHOR}`)
+  if (error) throw new Error(error.message || '수정 실패')
+  if (!data?.length) throw new Error('수정 권한 없음')
+  const fresh = mapTradePost(data[0])
+  const i = tradeState.posts.findIndex((p) => String(p.id) === String(post.id))
+  if (i >= 0) tradeState.posts[i] = fresh
+  return fresh
+}
+// 수정할 수 있는 글인지 (화면용 - 실제 확인은 DB). requests: 이 글의 구매신청 목록
+export function tradeEditBlockReason(post, requests = []) {
+  if (!post) return '판매글 없음'
+  if (post.status !== '판매중') return `${post.status} 글은 수정 불가`
+  if (requests.some((r) => ['pending', 'accepted'].includes(r.status || 'pending'))) return '구매신청이 들어온 글은 수정 불가 (신청을 거절하거나 취소되면 가능)'
+  return ''
+}
+
+// 재등록: 판매 기간이 끝난 내 판매중 글을 판매가만 바꿔서 다시 48시간 (DB 함수가 기간·주인 확인)
+export async function relistTradePost(post, price) {
+  needUser()
+  const { data, error } = await supabase.rpc('d2r_relist_trade_post', { p_post: Number(post.id), p_price: price })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '재등록 준비 중 (DB 업데이트 필요)' : error.message || '재등록 실패')
+  const patch = { price: price.trim(), bumpedAt: data, expired: false }
+  Object.assign(post, patch)
+  const cached = getTradePost(post.id)
+  if (cached && cached !== post) Object.assign(cached, patch)
+  lastLoadedAt = 0
+}
+
+// 끌어올리기 (예전 기능 - 화면에선 안 씀. 판매 기간 48시간 + 재등록으로 바뀜)
+export async function bumpTradePost(post) {
+  needUser()
+  const { data, error } = await supabase.rpc('d2r_bump_trade_post', { p_post: post.id })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '준비 중 (DB 업데이트 필요)' : error.message || '끌어올리기 실패')
+  post.bumpedAt = data
+  post.expired = false
+  const cached = getTradePost(post.id)
+  if (cached && cached !== post) Object.assign(cached, { bumpedAt: data, expired: false })
 }
 
 export async function updateTradeStatus(postId, status) {
@@ -627,16 +828,16 @@ function mapRequest(r) {
     buyerAvatar: r.buyer?.avatar_url || null,
     qty: r.qty,
     message: r.message || '',
-    kind: (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
+    kind: (r.message || '').startsWith('가격 제안 - ') ? 'offer' : (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
     offerItems: offerItemsFromMessage(r.message),
     status: REQUEST_STATUS_FROM_DB[r.status] || r.status,
-    date: fmtDate(r.created_at),
+    date: fmtDateTime(r.created_at),
   }
 }
 
-// 이 글의 구매신청 - 판매자는 전부, 구매자는 자기 것만 내려옴(RLS), 비로그인은 없음
+// 이 글의 구매신청·가격 제안 - 017 SQL 이후 누구나 볼 수 있음 (그 전엔 RLS 대로 판매자는 전부, 구매자는 자기 것만)
 export async function fetchTradeRequests(postId) {
-  if (!supabase || !authState.user) return []
+  if (!supabase) return []
   const { data, error } = await supabase
     .from('tb_trade_request').select(`*, ${REQUEST_BUYER}`)
     .eq('post_id', postId).order('created_at', { ascending: true })
@@ -667,8 +868,9 @@ export async function respondToRequest(post, request, decision) {
     const { data: dealId, error } = await supabase.rpc('accept_trade_request', { p_request_id: request.id })
     if (error) throw new Error(error.message || '수락 실패')
     request.status = 'accepted'
-    // 수락하면 판매중이던 글은 예약중으로
-    if (post.status === '판매중') await updateTradeStatus(post.id, '예약중').then((p) => (post.status = p.status)).catch(() => {})
+    // 판매글 예약중·다른 대기 신청 보류는 DB 함수가 같이 함 (020 SQL) - 화면도 맞춰 둠
+    if (post.status === '판매중') post.status = '예약중'
+    for (const r of post.requests || []) if (r !== request && (r.status || 'pending') === 'pending') r.status = 'held'
     return dealId
   }
   const status = decision === 'cancelled' ? 'cancelled' : 'rejected'
@@ -718,9 +920,14 @@ export function tradedItemSummaries() {
 // 마이페이지: 내가 쓴 판매글 / 내가 구매신청 보낸 글
 export async function fetchMyTradePosts() {
   if (!supabase || !authState.user) return []
+  return fetchTradePostsBy(authState.user.id)
+}
+// 한 회원의 판매글 (회원 프로필 화면) - 판매글은 누구나 볼 수 있음
+export async function fetchTradePostsBy(userId) {
+  if (!supabase || !userId) return []
   const { data, error } = await supabase
     .from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
-    .eq('author_id', authState.user.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(100)
+    .eq('author_id', userId).is('deleted_at', null).order('created_at', { ascending: false }).limit(100)
   if (error) throw error
   return data.map(mapTradePost)
 }

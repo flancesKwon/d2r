@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
+import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import { guidesState, loadGuides, getGuide, canEditGuides, deleteGuide } from '../guideStore.js'
 import { CLASS_ICONS } from '../icons.js'
@@ -32,6 +33,7 @@ const route = useRoute()
 const router = useRouter()
 loadGuides()
 const guide = computed(() => getGuide(route.params.id))
+watch(guide, (g) => { if (g) document.title = `${g.title} — 디아허브` }, { immediate: true, flush: 'post' })
 // 가이드에 나온 스킬의 예전 이름 (눈보라 = 블리자드) - 가이드는 게임 공식 이름으로 씀
 const skillPairs = computed(() => {
   const g = guide.value
@@ -42,12 +44,12 @@ const skillPairs = computed(() => {
 // 단계가 숫자(1~11, 24~)일 때만 Lv 를 붙임 (소용돌이·광분·공통 같은 이름 단계는 그대로)
 const levelLabel = (lv) => (/^\d/.test(lv || '') ? 'Lv ' + lv : lv)
 async function removeGuide() {
-  if (!confirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
+  if (!await askConfirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
   try {
     await deleteGuide(guide.value)
     router.replace('/guides')
   } catch (e) {
-    alert(e.message || '삭제 실패')
+    await showAlert(e.message || '삭제 실패')
   }
 }
 // 목차 - 해시 라우터라 #앵커 링크 대신 버튼으로 스크롤
@@ -108,7 +110,7 @@ const related = computed(() =>
           <div class="affix-line" v-for="(item, i) in guide.keyItems" :key="i">
             <span class="a-text">
               <template v-for="(seg, k) in linkSegments(item)" :key="k">
-                <router-link v-if="seg.item" class="item-link" :class="seg.item.category" :to="{ path: '/items', query: { q: seg.item.name_ko, id: seg.item.id } }">
+                <router-link v-if="seg.item" class="item-link" :class="seg.item.category" :to="{ path: `/items/${seg.item.id}`, query: { q: seg.item.name_ko } }">
                   <img v-if="iconUrl(seg.item)" :src="iconUrl(seg.item)" alt="" />{{ seg.text }}
                 </router-link>
                 <template v-else>{{ seg.text }}</template>
@@ -145,7 +147,7 @@ const related = computed(() =>
           <div class="guide-toc-title">이 빌드에 쓰는 도구</div>
           <router-link to="/simulator">스킬·스탯 시뮬레이터로 찍어보기</router-link>
           <router-link to="/breakpoints">브레이크포인트 확인하기</router-link>
-          <router-link to="/runewords">가진 룬으로 룬워드 찾기</router-link>
+          <router-link to="/runewords">룬워드 찾기</router-link>
         </div>
         <div class="side-block tool-box">
           <h3>이 빌드의 아이템이 궁금하다면</h3>

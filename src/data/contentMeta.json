@@ -1,6 +1,0 @@
-{
-  "_comment": "손으로 고치는 정보의 마지막 갱신일 (YYYY-MM-DD). 해당 json 을 고치면 같이 바꿀 것 - scripts/check-content-age.js 가 오래되면 경고",
-  "ladder": { "updated": "2026-10-01", "file": "ladder.json", "maxDays": 60, "label": "래더 시즌 안내" },
-  "patchNotes": { "updated": "2026-10-01", "file": "patchNotes.json", "maxDays": 60, "label": "패치노트" },
-  "marketTiers": { "updated": "2026-09-29", "file": "marketTiers.json", "maxDays": 45, "label": "시세 티어" }
-}

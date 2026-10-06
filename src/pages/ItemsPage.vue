@@ -1,15 +1,19 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
+import { itemDamage, formatDamage } from '../itemDamage.js'
+import { itemLevelReq, itemStatReqs } from '../tradeStore.js'
 
 const items = itemsData
 const icons = ITEM_ICONS
 const route = useRoute()
+const router = useRouter()
+
 const runeLookup = buildRuneLookup(itemsData)
 
 // 룬워드는 실제 게임에서도 전용 아이콘이 없고(꽂힌 베이스 아이템 모양을 그대로 씀),
@@ -27,7 +31,22 @@ function runewordFullAffixes(item) {
 const shown = (list) => (list || []).filter((a) => !a.hidden)
 // min~max 범위로 굴러가는(주사위 판정) 옵션인지 - 고정값 옵션과 구분해서 색으로 표시하려고 씀
 // 원소·물리 추가 피해(예: 화염 피해 15-35 추가)는 min~max가 굴림 범위가 아니라 고정된 피해 범위
-const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg-pois'])
+const FIXED_RANGE_PROPS = new Set(['dmg-fire', 'dmg-ltng', 'dmg-cold', 'dmg-mag', 'dmg-elem', 'dmg-norm', 'dmg', 'dmg-pois'])
+
+// 무기 실제 피해 (피해 증가·추가 피해 적용) - 레벨당 최대 피해 옵션이 있으면 99레벨 기준도
+// 요구 힘·민첩 (착용 조건 ±% 옵션 반영)
+const statReqs = computed(() => itemStatReqs(selected.value))
+const damageInfo = computed(() => {
+  const it = selected.value
+  const d = it && itemDamage(it)
+  if (!d) return null
+  const d99 = d.perLevel ? itemDamage(it, { level: 99 }) : null
+  const b = it.base_stats
+  const rows = []
+  if (d.one) rows.push({ label: d.two ? '한손 피해' : '피해', value: formatDamage(d.one), at99: d99 && formatDamage(d99.one), base: `${b.mindam}~${b.maxdam}` })
+  if (d.two) rows.push({ label: '양손 피해', value: formatDamage(d.two), at99: d99 && formatDamage(d99.two), base: `${b['2handmindam']}~${b['2handmaxdam']}` })
+  return rows
+})
 function isVariable(a) {
   if (FIXED_RANGE_PROPS.has(a.prop)) return false
   return a.min !== undefined && a.max !== undefined && a.min !== '' && a.max !== '' && String(a.min) !== String(a.max)
@@ -50,12 +69,25 @@ const searchBy = ref(route.query.by === 'option' ? 'option' : 'name')
 // 상단 메뉴의 유니크·세트·룬워드 등(?cat=)도 이미 사전 페이지에 있을 때 주소만 바뀌어서, 탭도 주소를 따라가게 함
 // (예전엔 처음 들어올 때만 읽어서 유니크 -> 세트로 메뉴를 옮겨도 탭이 안 바뀌었음)
 const URL_CATS = ['unique', 'set', 'runeword', 'gem']
-function applyRouteQuery(q) {
+// 아이템 하나는 /items/아이템id (예전 주소 ?id= 도 그대로 됨)
+function applyRouteQuery() {
+  const q = route.query
+  const id = route.params.id || q.id
   if (typeof q.q === 'string') searchQuery.value = q.q
   if (q.by === 'option' || q.by === 'name') searchBy.value = q.by
-  selected.value = (q.id && items.find((it) => it.id === q.id)) || null
+  selected.value = (id && items.find((it) => it.id === id)) || null
   const cat = URL_CATS.includes(q.cat) ? q.cat : 'all'
-  if (cat !== activeCat.value && !q.id) setCat(cat)
+  if (cat !== activeCat.value && !id) setCat(cat)
+}
+// 카드를 열고 닫을 때 주소도 바꿈 (그 아이템 주소를 그대로 공유할 수 있게)
+function openItem(it) {
+  const { id, ...rest } = route.query
+  router.replace({ path: `/items/${it.id}`, query: rest })
+}
+function closeItem() {
+  const { id, ...rest } = route.query
+  if (route.params.id || id) router.replace({ path: '/items', query: rest })
+  else selected.value = null
 }
 const showQualityInfo = ref(false)
 
@@ -74,8 +106,10 @@ const groupOptions = computed(() => {
   const pool = items.filter((it) => it.category === activeCat.value)
   return [...new Set(pool.map((it) => it.type_group))]
 })
-applyRouteQuery(route.query)
-watch(() => route.query, applyRouteQuery)
+applyRouteQuery()
+watch(() => [route.query, route.params.id], applyRouteQuery)
+// 열린 아이템 이름을 창 제목으로 (검색엔진·탭 제목)
+watch(selected, (it) => (document.title = it ? `${it.name_ko} (${it.name_en}) — 디아허브` : '아이템 사전 — 디아허브'), { immediate: true, flush: 'post' })
 
 const subOptions = computed(() => {
   if (!activeGroup.value) return []
@@ -178,7 +212,7 @@ const optionHits = computed(() => {
       </div>
       <div class="quality-row">
         <b>우수한 (Superior)</b>
-        <span>무기: 인핸스드 데미지 +5~15% (또는 최대데미지 +1) · 방어구: 인핸스드 방어력 +15% · 공격력/내구도 추가 보너스 가능</span>
+        <span>무기: 피해 증가 +5~15% (또는 최대 피해 +1) · 방어구: 방어력 증가 +15% · 공격력/내구도 추가 보너스 가능</span>
       </div>
     </div>
   </div>
@@ -190,7 +224,7 @@ const optionHits = computed(() => {
         :key="it.id"
         class="item-card"
         :class="it.category"
-        @click="selected = it"
+        @click="openItem(it)"
       >
         <span class="card-icon" :class="[it.category]" v-if="it.category === 'runeword' && iconUrl(it)">
           <span class="rw-icon">
@@ -220,9 +254,9 @@ const optionHits = computed(() => {
     </div>
   </div>
 
-  <div class="modal-overlay" v-if="selected" @click.self="selected = null">
+  <div class="modal-overlay" v-if="selected" @click.self="closeItem">
     <div class="modal-panel">
-      <button class="modal-close" @click="selected = null">✕</button>
+      <button class="modal-close" @click="closeItem">✕</button>
 
       <template v-if="selected.category === 'unique' || selected.category === 'set'">
         <div class="d-eyebrow">{{ selected.category_label }} · {{ selected.subtitle || '' }}</div>
@@ -249,21 +283,22 @@ const optionHits = computed(() => {
             <div class="label">아이템 레벨</div>
             <div class="value">{{ selected.level || '—' }}</div>
           </div>
-          <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.category === 'weapon'">
-            <div class="label">기본 피해</div>
-            <div class="value">
-              {{ (selected.base_stats.mindam ?? selected.base_stats['2handmindam']) ?? '—' }}~{{
-                (selected.base_stats.maxdam ?? selected.base_stats['2handmaxdam']) ?? '—'
-              }}
-            </div>
+          <div class="d-meta-item" v-for="row in damageInfo || []" :key="row.label">
+            <div class="label">{{ row.label }}</div>
+            <div class="value">{{ row.value }}</div>
+            <div class="d-meta-sub">기본 {{ row.base }}<template v-if="row.at99"> · 99레벨 {{ row.at99 }}</template></div>
           </div>
           <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.category === 'armor'">
             <div class="label">기본 방어력</div>
             <div class="value">{{ selected.base_stats.minac ?? '—' }}~{{ selected.base_stats.maxac ?? '—' }}</div>
           </div>
-          <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.reqstr">
+          <div class="d-meta-item" v-if="statReqs.str">
             <div class="label">필요 힘</div>
-            <div class="value">{{ selected.base_stats.reqstr }}</div>
+            <div class="value">{{ statReqs.str }}</div>
+          </div>
+          <div class="d-meta-item" v-if="statReqs.dex">
+            <div class="label">필요 민첩</div>
+            <div class="value">{{ statReqs.dex }}</div>
           </div>
         </div>
         <div class="note-box warn" v-if="selected.spawnable === false">
@@ -377,6 +412,13 @@ const optionHits = computed(() => {
         <div class="rune-pips">
           <div class="rune-pip" v-for="(r, i) in runePips(selected.extra.rune_sequence)" :key="i">
             {{ r }}
+          </div>
+        </div>
+        <div class="d-meta-row">
+          <div class="d-meta-item">
+            <div class="label">필요 레벨</div>
+            <div class="value">{{ itemLevelReq(selected) || '—' }}</div>
+            <div class="d-meta-sub">박힌 룬 중 가장 높은 요구 레벨 · 힘·민첩은 베이스 따라</div>
           </div>
         </div>
         <div class="note-box">

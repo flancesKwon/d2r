@@ -51,41 +51,6 @@ create table public.tb_trade_post (
   item_name text not null, status text default '판매중',
   created_at timestamptz default now(), updated_at timestamptz, deleted_at timestamptz
 );
--- 알림 (009 신고 알림)
-create table public.tb_notification (
-  id bigint generated always as identity primary key,
-  user_id uuid not null references public.tb_profile(id) on delete cascade,
-  text text not null, link text, read boolean not null default false,
-  created_at timestamptz default now()
-);
-alter table public.tb_notification enable row level security;
-create policy s on public.tb_notification for select to authenticated using (user_id = auth.uid());
-
--- auth.users (009 로그인 기록) - 실제 Supabase 의 일부 컬럼만
-create table auth.users (
-  id uuid primary key,
-  last_sign_in_at timestamptz,
-  raw_app_meta_data jsonb default '{}'::jsonb
-);
-
--- storage (010 이미지) - 실제 Supabase 의 일부만
-create schema storage;
-grant usage on schema storage to anon, authenticated;
-create table storage.buckets (
-  id text primary key, name text not null, public boolean default false,
-  file_size_limit bigint, allowed_mime_types text[]
-);
-create table storage.objects (
-  id uuid primary key default gen_random_uuid(),
-  bucket_id text references storage.buckets(id), name text not null,
-  owner uuid default auth.uid(), created_at timestamptz default now()
-);
-create function storage.foldername(name text) returns text[] language sql immutable as $$
-  select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
-$$;
-alter table storage.objects enable row level security;
-grant all on storage.objects, storage.buckets to anon, authenticated;
-
 create table public.tb_dm_message (
   id bigint generated always as identity primary key,
   sender_id uuid not null default auth.uid() references public.tb_profile(id),

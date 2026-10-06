@@ -1,6 +1,7 @@
 import { reactive, computed, watch } from 'vue'
 import { supabase, mustReturnRows } from './supabase.js'
 import { authState } from './profileStore.js'
+import { playChime } from './notifySound.js'
 
 // 쪽지 - tb_dm_conversation / tb_dm_message. 두 사람 사이 대화방은 하나 (open_conversation RPC 가 만들거나 찾아 줌)
 // 대화 당사자만 보고 쓸 수 있음(RLS). 읽음 표시는 read_at
@@ -9,6 +10,13 @@ const CONV_SELECT = `*, a:${PERSON('tb_dm_conversation_user_a_fkey')}, b:${PERSO
 
 // keepId: 나간 방이라도 지금 열려 있는 방(쪽지 보내기로 다시 연 방)은 목록에 남김
 export const messagesState = reactive({ conversations: [], loaded: false, keepId: null })
+// 이미 본 받은 쪽지 id 중 가장 큰 것 - 그보다 새 받은 쪽지가 오면 소리 (처음 불러올 때는 소리 없음)
+let lastSeenId = null
+function chimeIfNew(msgs, uid) {
+  const top = Math.max(0, ...msgs.filter((m) => m.sender_id !== uid).map((m) => m.id))
+  if (lastSeenId !== null && top > lastSeenId) playChime()
+  if (lastSeenId === null || top > lastSeenId) lastSeenId = top
+}
 
 function fmtTime(ts) {
   const d = new Date(ts)
@@ -28,6 +36,7 @@ export async function loadConversations() {
   if (!supabase || !uid) {
     messagesState.conversations = []
     messagesState.loaded = false
+    lastSeenId = null
     return
   }
   const { data: convs, error } = await supabase.from('tb_dm_conversation').select(CONV_SELECT)
@@ -36,6 +45,7 @@ export async function loadConversations() {
   const { data: msgs } = ids.length
     ? await supabase.from('tb_dm_message').select('*').in('conversation_id', ids).order('created_at', { ascending: false }).limit(500)
     : { data: [] }
+  chimeIfNew(msgs || [], uid)
   const old = new Map(messagesState.conversations.map((c) => [c.id, c.messages]))
   const list = convs.map((c) => {
     const other = c.user_a === uid ? c.b : c.a
@@ -70,9 +80,13 @@ export async function loadMessages(conv) {
   const { data, error } = await q.order('created_at', { ascending: true })
   if (error) throw error
   const uid = authState.user?.id
+  chimeIfNew(data, uid)
   const visible = data.filter((m) => !hiddenForMe(m, uid))
   conv.messages = visible.map(mapMessage)
   if (visible.length) conv.last = mapMessage(visible[visible.length - 1])
+  // 안 읽은 수도 여기서 다시 셈 - 대화를 열어 둔 채 새 쪽지가 오면 바로 읽음 처리되게
+  // (예전엔 30초마다 도는 목록 갱신에서만 세서, 그 사이에 온 쪽지는 상대 화면에 1 이 남았음)
+  conv.unread = visible.filter((m) => m.sender_id !== uid && !m.read_at).length
 }
 
 // 상대가 보낸 안 읽은 쪽지를 읽음으로 (0건이어도 정상이라 결과 행 확인 안 함)
@@ -127,10 +141,12 @@ export const lastMessageOf = (conv) => conv.last
 export const isConversationRead = (conv) => !conv.unread
 export const unreadMessageCount = computed(() => messagesState.conversations.filter((c) => c.unread > 0).length)
 
-// 로그인하면 불러오고, 30초마다 새 쪽지 확인 (창이 보일 때만)
+// 로그인하면 불러오고, 30초마다 새 쪽지 확인 - 다른 탭을 보고 있어도 (새 쪽지 소리가 나게)
+// 보통은 실시간(realtime.js)으로 바로 오고, 이건 실시간 연결이 끊겼을 때 뒤를 받침
 let timer = 0
 watch(() => authState.user?.id, (uid) => {
   clearInterval(timer)
+  lastSeenId = null
   loadConversations().catch(() => {})
-  if (uid) timer = setInterval(() => { if (!document.hidden) loadConversations().catch(() => {}) }, 30000)
+  if (uid) timer = setInterval(() => loadConversations().catch(() => {}), 30000)
 }, { immediate: true })

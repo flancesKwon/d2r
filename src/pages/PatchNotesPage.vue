@@ -1,5 +1,4 @@
 <script setup>
-import contentMeta from '../data/contentMeta.json'
 import { ref } from 'vue'
 import patchData from '../data/patchNotes.json'
 
@@ -14,7 +13,6 @@ const selected = ref(null)
     <div class="patch-hero-inner">
       <div class="eyebrow">업데이트 기록</div>
       <h1>패치노트</h1>
-      <div class="content-updated">정보 갱신 {{ contentMeta.patchNotes.updated }}</div>
     </div>
   </div>
 

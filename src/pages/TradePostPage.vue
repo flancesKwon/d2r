@@ -1,25 +1,31 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
+import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, updateTradeStatus, deleteTradePost,
-  getTradeItem, TRADE_STATUSES, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
+  getTradeItem, tradeEditBlockReason, statusLabel, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
-import { renderMarkdown } from '../markdown.js'
+import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
 import { openConversationWith } from '../messagesStore.js'
+import { dealsState, loadDeals } from '../dealsStore.js'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
-import { avatarSrc } from '../avatars.js'
 import { buildTooltip } from '../itemTooltip.js'
+import { useNow } from '../useNow.js'
+import { isOnline } from '../presence.js'
+import { openTradeGuide } from '../tradeGuide.js'
 
 const route = useRoute()
 const router = useRouter()
 // 판매글 (목록에서 받아둔 게 있으면 바로 보여주고 DB에서 최신으로) + 구매신청(당사자만)
 const post = ref(getTradePost(route.params.id) || null)
+watch(post, (p) => { if (p) document.title = `${p.itemName} — 거래게시판 — 디아허브` }, { immediate: true, flush: 'post' })
 const loading = ref(!post.value)
 const actionError = ref('')
 async function load() {
@@ -28,8 +34,11 @@ async function load() {
     const fresh = await fetchTradePost(route.params.id)
     post.value = fresh
     if (fresh) {
-      if (await countTradeView(fresh.id)) fresh.views++
-      fresh.requests = await fetchTradeRequests(fresh.id).catch(() => [])
+      // 화면이 쓰는 건 post.value (반응형) - 원본 객체(fresh)를 고치면 화면이 안 바뀌어서 구매신청이 안 보였음
+      // 조회수 올리기와 구매신청 받기를 같이 (조회수 요청이 느리면 신청 목록·수정 버튼까지 늦게 떴음)
+      const [counted, reqs] = await Promise.all([countTradeView(fresh.id), fetchTradeRequests(fresh.id).catch(() => [])])
+      post.value.requests = reqs
+      if (counted) post.value.views++
     }
   } catch (e) {
     // 네트워크 오류면 받아둔 글을 그대로 둠
@@ -39,9 +48,19 @@ async function load() {
 }
 watch(() => route.params.id, () => { post.value = getTradePost(route.params.id) || null; loading.value = !post.value; load() }, { immediate: true })
 watch(() => authState.user?.id, () => { if (post.value) load() })
-// 판매자 본인(또는 관리자)만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS
+async function refreshQuiet() {
+  const id = route.params.id
+  const fresh = await fetchTradePost(id)
+  if (!fresh || String(route.params.id) !== String(id)) return
+  fresh.requests = await fetchTradeRequests(fresh.id).catch(() => post.value?.requests || [])
+  fresh.views = Math.max(fresh.views || 0, post.value?.views || 0)
+  post.value = fresh
+}
+useAutoRefresh(refreshQuiet)
+// 판매자 본인만 상태 변경·수락/거절 버튼 - 실제 차단은 RLS·DB 함수
+// (예전엔 관리자에게도 보여서, 관리자 계정으로 구매신청하면 내 신청에 수락/거절이 뜨고 "신청 취소"가 가려졌음)
 const isOwner = computed(() => !!authState.user && post.value?.authorId === authState.user.id)
-const canManage = computed(() => isOwner.value || authState.profile?.role === 'admin')
+const canManage = isOwner
 // 운영진은 상태 변경은 못 하고 삭제만 (DB 정책 d2r_staff_delete)
 const canDelete = computed(() => isOwner.value || isStaff())
 async function run(fn) {
@@ -53,7 +72,7 @@ async function run(fn) {
     actionError.value = e.message || '처리 실패'
   }
 }
-const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
+const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
 const linkedItem = computed(() => (post.value ? getTradeItem(post.value.itemId) : null))
 
 // 게임 툴팁 모양 아이템 카드 (이미지로 저장 가능)
@@ -80,46 +99,48 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-const reqQty = ref(1)
-const reqMessage = ref('')
-const showRequestSent = ref(false)
+// 판매 기간 카운트다운 (올린 때부터 48시간) - 끝나면 목록에서 내려가고, 판매자는 판매가만 고쳐 재등록
+const now = useNow(1000)
+const saleLeft = computed(() => saleLeftMs(post.value, now.value))
+const saleExpired = computed(() => saleLeft.value !== null && saleLeft.value <= 0)
+const saleClock = computed(() => {
+  const ms = saleLeft.value
+  if (ms === null || ms <= 0) return ''
+  const t = Math.floor(ms / 1000)
+  const p = (n) => String(n).padStart(2, '0')
+  const d = Math.floor(t / 86400)
+  return `${d ? d + '일 ' : ''}${p(Math.floor((t % 86400) / 3600))}:${p(Math.floor((t % 3600) / 60))}:${p(t % 60)}`
+})
+const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.min(100, (saleLeft.value / (SALE_HOURS * 3600000)) * 100))))
+// 거래완료된 글: 상태 변경·삭제 없음 (거래내역·후기가 이 글을 가리킴)
+// 판매글 수정 - 판매중 + 대기·수락된 구매신청 없을 때만 (019 SQL)
+const editBlocked = computed(() => tradeEditBlockReason(post.value, post.value?.requests || []))
+// 여러 개·골드·묶음은 한 번에 통째로 파는 글 (나눠 팔려면 글을 따로)
+const isLot = computed(() => !!post.value && post.value.amountLabel && post.value.amountLabel !== '1개')
+const isDone = computed(() => post.value?.status === '거래완료')
 
-function submitRequest() {
-  if (!reqMessage.value.trim()) return
-  return run(async () => {
-    const r = await addTradeRequest(post.value.id, { qty: reqQty.value, message: reqMessage.value.trim() })
-    post.value.requests.push(r)
-    reqQty.value = 1
-    reqMessage.value = ''
-    showRequestSent.value = true
-    setTimeout(() => (showRequestSent.value = false), 2500)
-  })
-}
-
-function setStatus(status) {
-  return run(async () => {
-    const p = await updateTradeStatus(post.value.id, status)
-    post.value.status = p.status
-  })
-}
 // 판매자에게 쪽지 - 대화방을 열고(없으면 만들고) 쪽지함으로
+// 문의는 구매신청이 아니라 쪽지로 - 쪽지창에 이 판매글이 붙어서 첫 메시지에 링크됨 (MessagesPage ?post=)
 function messageSeller() {
   return run(async () => {
     const convId = await openConversationWith(post.value.authorId)
-    router.push({ path: '/messages', query: { c: convId } })
+    router.push({ path: '/messages', query: { c: convId, post: post.value.id } })
   })
 }
 async function removePost() {
-  if (!confirm('판매글 삭제 - 되돌릴 수 없음')) return
+  if (!await askConfirm('판매글 삭제 - 되돌릴 수 없음')) return
   await run(async () => {
     await deleteTradePost(post.value.id)
     router.replace('/trade')
+    showAlert('판매글 삭제 완료', { icon: 'success' })
   })
 }
 
 // 희망 가격 "베르 룬 1개 + 미라의 눈물"을 항목별 칩으로 (룬·보석이면 아이콘과 함께)
+// 거래완료 글은 실제 거래가(023), 아니면 희망 가격
+const showSoldPrice = computed(() => post.value?.status === '거래완료' && !!post.value?.soldPrice)
 const priceParts = computed(() =>
-  (post.value?.price || '')
+  ((showSoldPrice.value ? post.value.soldPrice : post.value?.price) || '')
     .split(/\s*\+\s*/)
     .filter(Boolean)
     .map((part) => ({ text: part, item: parsePriceTokens(part).find((t) => t.item)?.item || null }))
@@ -137,16 +158,40 @@ async function copyContact() {
   }
 }
 
-function respond(r, decision) {
+const RESPOND_CONFIRM = {
+  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열리고 판매글은 거래중, 다른 대기 신청은 보류로 바뀜 (거래가 불발되면 다시 대기)`,
+  declined: (r) => `${r.buyer}님 구매신청 거절 - 신청자에게 거절 알림이 감`,
+  cancelled: () => '구매신청 취소',
+}
+async function respond(r, decision) {
+  if (!await askConfirm(RESPOND_CONFIRM[decision](r), decision === 'accepted' ? { confirmText: '수락' } : undefined)) return
   return run(async () => {
     const dealId = await respondToRequest(post.value, r, decision)
-    // 수락하면 거래방이 열림
-    if (dealId) router.push('/deals')
+    // 수락하면 거래방이 열림 - 그 거래방으로 바로
+    if (dealId) { await loadDeals().catch(() => {}); router.push(`/deals/${dealId}`) }
   })
 }
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
-const REQUEST_KIND_LABEL = { buy_now: '구매하기', inquiry: '문의' }
+// 판매자: 대기 중인 구매신청 수 (제목 아래 배너) / 수락된 신청의 거래방
+const pendingCount = computed(() => (post.value?.requests || []).filter((r) => (r.status || 'pending') === 'pending').length)
+const requestsEl = ref(null)
+const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
+
+const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
+// 판매 상태는 거래 흐름으로만 바뀜 (020·021 SQL) - 판매자에겐 지금 상태와 다음 단계만 보여줌
+const activeDeal = computed(() => dealsState.deals.find((d) => d.postId === post.value?.id && d.status === '거래중') || null)
+const STATUS_HELP = {
+  판매중: '구매신청을 수락하면 거래중으로 바뀜',
+  예약중: '거래방에서 둘 다 거래완료를 누르면 거래완료, 거래불발이면 다시 판매중',
+}
+// 수락했지만 거래방에서 거래불발이 된 신청은 '불발' (거래방 열기 버튼 없음)
+// 거래완료된 신청은 '거래완료' (역시 거래방 열기 없음)
+const DEAL_TO_REQ = { 거래불발: 'failed', 거래완료: 'done' }
+const reqStatus = (r) => (r.status === 'accepted' && DEAL_TO_REQ[dealFor(r)?.status]) || r.status || 'pending'
+const REQUEST_KIND_LABEL = { buy_now: '구매하기', offer: '가격 제안', inquiry: '문의' }
+// 제안만 받기 글: 받은 가격 제안 수 (취소된 것 빼고)
+const offerCount = computed(() => (post.value?.requests || []).filter((r) => r.offerItems?.length && r.status !== 'cancelled').length)
 
 // "구매하기" 팝업 흐름: 흥정 가능한 글이면 룬/보석 제안 선택 단계(offer)를 거치고,
 // 아니면 바로 확인 단계(confirm)로 감. 어느 쪽이든 마지막엔 판매 아이템 + 제안
@@ -196,7 +241,7 @@ async function confirmBuy() {
       qty: 1,
       // 제안 내용은 메시지 한 줄로 저장 (보여줄 때 칩으로 다시 만듦)
       message: post.value.negotiable
-        ? `구매하기 - 제안: ${offerItems.value.map((o) => `${o.item.name_ko} ${o.qty}개`).join(' + ')}`
+        ? `${post.value.offerOnly ? '가격 제안' : '구매하기'} - 제안: ${offerItems.value.map((o) => `${o.item.name_ko} ${o.qty}개`).join(' + ')}`
         : '구매하기 (즉시 구매 신청)',
     })
     post.value.requests.push(r)
@@ -226,9 +271,11 @@ async function confirmBuy() {
         <div class="title-block">
           <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
           <div class="title-badges">
-            <span class="status-pill" :class="'status-' + post.status">{{ post.status }}</span>
+            <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? '기간 만료' : statusLabel(post.status) }}</span>
             <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
-            <span class="negotiable-badge" v-if="post.negotiable">흥정 가능</span>
+            <span class="unid-badge" v-if="post.unidentified">미확인</span>
+            <span class="negotiable-badge" v-if="post.offerOnly">제안만 받기</span>
+            <span class="negotiable-badge" v-else-if="post.negotiable">흥정 가능</span>
           </div>
         </div>
         <button
@@ -238,10 +285,29 @@ async function confirmBuy() {
         >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">
-        {{ post.author }} · {{ post.date }} 등록 · 조회 {{ post.views }} ·
+        {{ post.author }} · {{ post.date }} 등록<template v-if="post.editedAt"> · 수정됨</template> · 조회 {{ post.views }} ·
         <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">이 아이템 거래내역</router-link>
       </div>
     </div>
+
+    <!-- 판매 기간 (판매중일 때만) -->
+    <div class="sale-timer" v-if="saleLeft !== null" :class="{ expired: saleExpired, soon: !saleExpired && saleLeft < 6 * 3600000 }">
+      <template v-if="!saleExpired">
+        <span class="sale-timer-label">판매 종료까지</span>
+        <b class="sale-timer-clock">{{ saleClock }}</b>
+        <span class="sale-timer-bar"><span :style="{ width: salePct + '%' }"></span></span>
+      </template>
+      <template v-else>
+        <span class="sale-timer-label">판매 기간 만료 · 목록에서 내려감</span>
+        <router-link v-if="isOwner" class="sale-relist-btn" :to="`/trade/${post.id}/relist`">재등록 →</router-link>
+      </template>
+    </div>
+
+    <button type="button" class="pending-banner" v-if="canManage && pendingCount" @click="scrollToRequests">
+      <span class="pending-dot"></span>
+      <b>대기 중인 구매신청 {{ pendingCount }}건</b>
+      <span class="pending-go">수락·거절하러 가기 ↓</span>
+    </button>
 
     <div class="post-layout">
       <!-- 왼쪽: 아이템 이미지 + 판매자 설명 -->
@@ -255,39 +321,46 @@ async function confirmBuy() {
 
         <section class="side-card desc-card" v-if="post.content && post.content.trim()">
           <div class="card-title">판매자 설명</div>
-          <div class="trade-post-content" v-html="contentHtml"></div>
+          <div class="trade-post-content rich-content" v-html="contentHtml"></div>
         </section>
       </div>
 
       <!-- 오른쪽: 가격·구매 / 판매자 / 판매자 전용 (넓은 화면에선 스크롤해도 따라옴) -->
       <aside class="post-side">
         <section class="side-card price-card">
-          <div class="card-title">희망 가격</div>
-          <div class="price-parts">
+          <div class="card-title">{{ showSoldPrice ? '거래가' : post.offerOnly ? '가격 제안 받는 중' : '희망 가격' }}</div>
+          <div class="offer-only-box" v-if="post.offerOnly && !showSoldPrice">
+            <b>판매가 없음 · 제안만 받음</b>
+            <button type="button" class="offer-count-link" @click="scrollToRequests">받은 제안 {{ offerCount }}건 보기 ↓</button>
+          </div>
+          <div class="price-parts" v-else>
             <span class="price-part" v-for="(p, i) in priceParts" :key="i">
               <span class="price-part-icon" :class="{ empty: !p.item }"><img v-if="p.item && iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
               <span class="price-part-text">{{ p.text }}</span>
               <span class="price-or" v-if="i < priceParts.length - 1">+</span>
             </span>
           </div>
+          <div class="sold-was" v-if="showSoldPrice && post.price !== post.soldPrice">희망 가격 {{ post.price }}</div>
           <div class="price-meta">
-            <span>수량 <b>{{ post.amountLabel }}</b></span>
+            <span>수량 <b>{{ post.amountLabel }}</b><template v-if="isLot"> · 한 번에 판매</template></span>
             <span v-if="post.negotiable" class="nego">흥정 가능</span>
           </div>
           <button
             type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
             @click="openBuyModal"
-          >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
-          <p class="buy-now-hint">{{ post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
+          >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
+          <p class="buy-now-hint" v-if="post.status === '예약중'">다른 구매자와 거래중 - 지금 신청하면 보류됐다가, 그 거래가 불발되면 대기로 바뀜</p>
+          <p class="buy-now-hint" v-else>{{ post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
         </section>
 
         <section class="side-card seller-card">
           <div class="card-title">판매자</div>
           <div class="seller-row">
-            <span class="seller-avatar" aria-hidden="true"><img v-if="avatarSrc(post.avatar)" :src="avatarSrc(post.avatar)" alt="" /><template v-else>{{ (post.author || '?').slice(0, 1) }}</template></span>
+            <UserAvatar :src="post.avatar" :name="post.author" :size="40" :user-id="post.authorId" />
             <div class="seller-name-block">
-              <div class="seller-name">{{ post.author }}</div>
-              <div class="seller-sub">{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
+              <router-link :to="'/users/' + post.authorId" class="seller-name user-link">{{ post.author }}</router-link>
+              <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">● 접속 중 · </span>{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
+              <router-link :to="'/users/' + post.authorId" class="seller-profile-link">프로필·받은 리뷰 보기 →</router-link>
             </div>
           </div>
           <div class="contact-row">
@@ -295,37 +368,50 @@ async function confirmBuy() {
             <span class="contact-value">{{ post.contact || '구매신청으로 문의' }}</span>
             <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ copied ? '복사됨' : '복사' }}</button>
           </div>
-          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지 보내기</button>
+          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지로 문의하기</button>
           <div class="seller-report" v-if="!isOwner"><ReportButton target-type="trade_post" :target-id="post.id" :owner-id="post.authorId" label="판매글 신고" /></div>
         </section>
 
-        <section class="side-card owner-card" v-if="canManage || canDelete">
+        <section class="side-card owner-card done-card" v-if="isOwner && isDone">
+          <div class="card-title">거래완료 <span class="owner-tag">판매자 전용</span></div>
+          <small class="owner-bump-note">거래가 끝난 글 · 상태 변경·삭제 불가</small>
+        </section>
+        <section class="side-card owner-card" v-if="(canManage || canDelete) && !isDone">
           <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
-          <div class="status-segment" role="radiogroup" aria-label="판매 상태" v-if="canManage">
-            <button
-              v-for="s in TRADE_STATUSES" :key="s" type="button" role="radio" :aria-checked="post.status === s"
-              :class="['status-' + s, { active: post.status === s }]" @click="setStatus(s)"
-            >{{ s }}</button>
+          <!-- 판매 상태는 직접 못 바꿈 (021): 신청 수락 → 예약중, 거래방에서 거래완료 / 거래불발 → 판매중 -->
+          <div class="status-now" v-if="canManage">
+            <span class="status-pill" :class="'status-' + post.status">{{ statusLabel(post.status) }}</span>
+            <small>{{ STATUS_HELP[post.status] }}</small>
           </div>
-          <button type="button" class="owner-delete" @click="removePost">판매글 삭제</button>
+          <router-link v-if="isOwner && activeDeal" class="owner-bump" :to="`/deals/${activeDeal.id}`">거래방 열기 →</router-link>
+          <template v-if="isOwner && post.status === '판매중'">
+            <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">✎ 판매글 수정 (가격·옵션 수치)</router-link>
+            <small v-else class="owner-bump-note">{{ editBlocked }}</small>
+            <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">재등록 (판매가 수정)</router-link>
+            <small class="owner-bump-note">판매 기간 {{ SALE_HOURS }}시간 · 끝나면 판매가만 고쳐 재등록</small>
+          </template>
+          <button type="button" class="owner-delete" @click="removePost">✕ 판매글 삭제</button>
         </section>
         <div class="action-error" v-if="actionError">{{ actionError }}</div>
       </aside>
     </div>
 
     <!-- 구매신청 -->
-    <section class="requests-section">
+    <section class="requests-section" ref="requestsEl">
       <div class="section-head">
-        <div class="section-title">{{ isOwner ? '받은 구매신청' : '내 구매신청' }} <span class="count" v-if="authState.user">{{ post.requests.length }}</span></div>
+        <div class="section-title">{{ isOwner ? '받은 구매신청·제안' : '구매신청·가격 제안 내역' }} <span class="count">{{ post.requests.length }}</span></div>
+        <small class="section-note" v-if="!isOwner">다른 사람의 신청·제안도 공개 · 연락처는 판매자만</small>
+        <button type="button" class="guide-link" @click="openTradeGuide('flow')">거래는 어떻게 진행돼요?</button>
       </div>
       <div class="request-list">
-        <div class="request-item" v-for="r in post.requests" :key="r.id">
-          <div class="request-top">
-            <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" />
+        <div class="request-item" v-for="r in post.requests" :key="r.id" :class="{ pending: (r.status || 'pending') === 'pending' && canManage }">
+          <div class="request-top" :class="{ mine: r.buyerId === authState.user?.id }">
+            <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" :user-id="r.buyerId" />
             <b>{{ r.buyer }}</b>
-            <span class="request-kind" v-if="r.kind === 'buy_now'">{{ REQUEST_KIND_LABEL.buy_now }}</span>
+            <span class="request-kind" v-if="REQUEST_KIND_LABEL[r.kind] && r.kind !== 'inquiry'">{{ REQUEST_KIND_LABEL[r.kind] }}</span>
+            <span class="request-mine" v-if="r.buyerId === authState.user?.id">내 신청</span>
             <span class="request-qty">{{ r.qty }}개</span>
-            <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+            <span class="request-status" :class="'status-' + reqStatus(r)">{{ REQUEST_STATUS_LABEL[reqStatus(r)] }}</span>
             <span class="request-date">{{ r.date }}</span>
           </div>
           <div class="request-offer-row" v-if="r.offerItems && r.offerItems.length">
@@ -337,38 +423,31 @@ async function confirmBuy() {
           </div>
           <div class="request-message">{{ r.message }}</div>
           <div class="request-bottom">
-            <span class="request-contact" v-if="r.contact">연락처 {{ r.contact }}</span>
+            <span class="request-contact" v-if="r.contact && (canManage || r.buyerId === authState.user?.id)">연락처 {{ r.contact }}</span>
             <div class="request-actions" v-if="(r.status || 'pending') === 'pending' && canManage">
-              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락</button>
+              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락 · 거래방 열기</button>
               <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
             </div>
-            <div class="request-actions" v-else-if="(r.status || 'pending') === 'pending' && r.buyerId === authState.user?.id">
-              <button type="button" class="request-action-btn decline" @click="respond(r, 'cancelled')">신청 취소</button>
+            <div class="request-actions" v-else-if="r.status === 'held' && canManage">
+              <span class="request-held-note">다른 구매자와 거래중 · 불발되면 다시 대기</span>
+              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
+            </div>
+            <div class="request-actions" v-else-if="['pending', 'held'].includes(r.status || 'pending') && r.buyerId === authState.user?.id">
+              <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">신청 취소</button>
+            </div>
+            <div class="request-actions" v-else-if="reqStatus(r) === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
+              <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : `/deals?post=${post.id}&buyer=${r.buyerId}`">거래방 열기 →</router-link>
             </div>
           </div>
         </div>
-        <div class="empty-state request-empty" v-if="!authState.user">구매신청은 판매자·신청자만 볼 수 있음</div>
-        <div class="empty-state request-empty" v-else-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '보낸 구매신청 없음' }}</div>
+        <div class="empty-state request-empty" v-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '아직 구매신청·제안 없음' }}</div>
       </div>
 
-      <div class="side-card request-form" v-if="!authState.user">
-        <div class="card-title">판매자에게 문의·구매신청</div>
-        <p class="request-login">로그인 후 문의·구매신청</p>
-        <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
-      </div>
-      <div class="side-card request-form" v-else-if="!isOwner">
-        <div class="card-title">판매자에게 문의·구매신청</div>
-        <div class="request-form-row">
-          <input type="number" min="1" v-model="reqQty" placeholder="수량" class="write-input request-qty-input" aria-label="신청 수량" />
-        </div>
-        <textarea
-          v-model="reqMessage" class="request-textarea" rows="4" aria-label="메시지"
-          placeholder="판매자에게 전할 메시지 (예: 2개 구매 희망, 지금 거래 가능?)"
-        ></textarea>
-        <div class="request-form-actions">
-          <span class="request-sent-toast" v-if="showRequestSent">신청 완료</span>
-          <button class="btn-primary write-submit" :disabled="!reqMessage.trim()" @click="submitRequest">보내기</button>
-        </div>
+      <!-- 문의는 쪽지로 (구매신청 목록엔 구매하기·가격 제안만) -->
+      <div class="side-card request-form" v-if="!isOwner">
+        <div class="card-title">판매자에게 문의</div>
+        <p class="request-login">거래 시간·옵션 확인 같은 문의는 쪽지로 - 이 판매글이 쪽지에 같이 붙음. 사려면 위의 "{{ post.offerOnly ? '가격 제안하기' : '구매하기' }}"</p>
+        <button type="button" class="btn-primary write-submit" @click="authState.user ? messageSeller() : signIn()">{{ authState.user ? '문의하기 (쪽지)' : '로그인 후 문의하기' }}</button>
       </div>
     </section>
   </div>
@@ -417,7 +496,7 @@ async function confirmBuy() {
       </template>
 
       <template v-else>
-        <div class="d-section-title">구매 확인</div>
+        <div class="d-section-title">구매 신청 확인</div>
         <div class="confirm-row">
           <span class="k">판매 아이템</span>
           <span class="v confirm-item">
@@ -427,7 +506,11 @@ async function confirmBuy() {
             {{ post.itemName }}
           </span>
         </div>
-        <div class="confirm-row">
+        <div class="confirm-row" v-if="isLot">
+          <span class="k">수량</span>
+          <span class="v">{{ post.amountLabel }} 한 번에 (나눠 사기 없음)</span>
+        </div>
+        <div class="confirm-row" v-if="!post.offerOnly">
           <span class="k">희망 가격</span>
           <span class="v">
             <template v-for="(t, i) in parsePriceTokens(post.price)" :key="i">
@@ -451,7 +534,7 @@ async function confirmBuy() {
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" v-if="post.negotiable" @click="buyStep = 'offer'">이전</button>
-          <button type="button" class="btn-primary" @click="confirmBuy">구매 확정</button>
+          <button type="button" class="btn-primary" @click="confirmBuy">구매 신청</button>
         </div>
       </template>
     </div>
@@ -499,6 +582,7 @@ async function confirmBuy() {
 .status-pill.status-판매중{color:#1f1a10; background:var(--gold); border-color:var(--gold);}
 .status-pill.status-예약중{color:var(--teal); border-color:var(--teal);}
 .ethereal-badge{font-size:11px; padding:3px 11px; border:1px solid var(--teal); color:var(--teal); border-radius:999px;}
+.unid-badge{font-size:11px; padding:3px 11px; border:1px solid var(--blood); color:#e0775f; border-radius:999px;}
 .negotiable-badge{font-size:11px; padding:3px 11px; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:999px;}
 
 .favorite-star{
@@ -557,7 +641,9 @@ async function confirmBuy() {
 }
 .seller-avatar.small{width:26px; height:26px; font-size:12px;}
 .seller-name-block{min-width:0;}
-.seller-name{font-size:15px; font-weight:700; color:var(--text);}
+.seller-name{font-size:15px; font-weight:700; color:var(--text); display:block;}
+.seller-profile-link{display:inline-block; margin-top:4px; font-size:12px; color:var(--gold);}
+.seller-profile-link:hover{text-decoration:underline;}
 .seller-sub{font-size:11.5px; color:var(--text-dim);}
 .contact-row{display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px; padding:9px 10px 9px 12px;}
 .contact-label{font-size:11px; color:var(--text-dim); flex:none;}
@@ -582,10 +668,11 @@ async function confirmBuy() {
 
 /* 구매신청 */
 .requests-section{display:flex; flex-direction:column; gap:14px; max-width:calc(100% - 362px);}
-.section-head{display:flex; align-items:center; justify-content:space-between;}
+.section-head{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 12px;}
 .section-title{font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
 .section-title .count{font-size:12px; color:var(--gold); border:1px solid var(--gold-dim); padding:1px 9px; border-radius:999px;}
-.request-list{display:flex; flex-direction:column; gap:10px;}
+/* 신청이 많으면 목록 안에서 스크롤 */
+.request-list{display:flex; flex-direction:column; gap:10px; max-height:min(440px, 60vh); overflow-y:auto; padding-right:6px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent;}
 .request-item{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:14px 18px;}
 .request-top{display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; flex-wrap:wrap;}
 .request-top b{color:var(--text); font-weight:600; font-size:13px;}
@@ -593,7 +680,8 @@ async function confirmBuy() {
 .request-qty{color:var(--teal); font-size:11px; border:1px solid var(--teal); padding:2px 9px; border-radius:999px;}
 .request-status{font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
 .request-status.status-accepted{color:var(--gold); border-color:var(--gold-dim);}
-.request-status.status-declined{color:var(--blood); border-color:var(--blood);}
+.request-status.status-declined, .request-status.status-failed{color:var(--blood); border-color:var(--blood);}
+.request-status.status-done{color:#1a1408; background:var(--gold); border-color:var(--gold);}
 .request-date{color:var(--text-dim); margin-left:auto;}
 .request-offer-row{display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
 .request-offer-label{font-size:11px; color:var(--text-dim); flex:none;}
@@ -607,9 +695,24 @@ async function confirmBuy() {
 .request-bottom{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;}
 .request-contact{font-size:11.5px; color:var(--text-dim);}
 .request-actions{display:flex; gap:8px; margin-left:auto;}
-.request-action-btn{font-size:12px; padding:6px 16px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
-.request-action-btn.accept:hover{border-color:var(--gold-dim); color:var(--gold);}
-.request-action-btn.decline:hover{border-color:var(--blood); color:var(--blood);}
+/* 수락·거절은 큰 버튼 (수락 = 금색으로 꽉 참, 거절 = 빨간 테두리) */
+.request-action-btn{font-size:13.5px; font-weight:700; padding:10px 20px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); display:inline-flex; align-items:center;}
+.request-action-btn.accept{background:var(--gold); border-color:var(--gold); color:#1a1408;}
+.request-action-btn.accept:hover{filter:brightness(1.08);}
+.request-action-btn.decline{border-color:var(--blood); color:#e0775f;}
+.request-action-btn.decline:hover{background:rgba(162,81,63,0.15);}
+.request-action-btn.cancel:hover{border-color:var(--text-dim); color:var(--text);}
+.request-item.pending{border-color:var(--gold-dim); box-shadow:0 0 0 1px rgba(200,163,77,0.25);}
+.pending-banner{
+  display:flex; align-items:center; gap:10px; width:100%; margin:0 0 16px; padding:14px 18px; text-align:left;
+  border:1px solid var(--gold-dim); background:rgba(200,163,77,0.1); border-radius:14px; color:var(--text); font-size:14px;
+}
+.pending-banner:hover{background:rgba(200,163,77,0.16);}
+.pending-banner b{color:var(--gold);}
+.pending-dot{width:9px; height:9px; border-radius:999px; background:var(--gold); flex:none; animation:pending-pulse 1.4s ease-in-out infinite;}
+@keyframes pending-pulse{50%{opacity:.35;}}
+.pending-go{margin-left:auto; font-size:13px; color:var(--gold);}
+@media (max-width:640px){ .request-actions{width:100%;} .request-action-btn{flex:1; justify-content:center;} .pending-go{display:none;} }
 .request-empty{padding:26px 0; font-size:12.5px; border:1px dashed var(--border); border-radius:14px;}
 
 .request-form{display:flex; flex-direction:column; gap:10px;}
@@ -713,12 +816,50 @@ async function confirmBuy() {
 }
 .history-link{color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
 .history-link:hover{color:var(--gold);}
-.owner-delete{margin-top:12px; font-size:12px; color:var(--text-dim); border:1px solid var(--border-soft); padding:6px 12px; border-radius:999px;}
-.owner-delete:hover{color:#e0775f; border-color:#e0775f;}
+.owner-bump{display:block; width:100%; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--gold); border:1px solid var(--gold-dim); padding:10px 0; border-radius:10px;}
+.owner-bump:hover{background:rgba(200,163,77,0.1);}
+a.owner-bump{text-align:center; background:var(--gold); color:#1a1408;}
+a.owner-bump:hover{filter:brightness(1.08); background:var(--gold);}
+.done-card .owner-bump-note{margin-top:0;}
+
+/* 판매 기간 카운트다운 */
+.sale-timer{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 16px; padding:12px 18px; border:1px solid var(--gold-dim); border-radius:14px; background:rgba(200,163,77,0.07);}
+.sale-timer-label{font-size:13px; color:var(--text-muted);}
+.sale-timer-clock{font-family:'Noto Serif KR', serif; font-size:20px; color:var(--gold); font-variant-numeric:tabular-nums; letter-spacing:.5px;}
+.sale-timer-bar{flex:1; min-width:120px; height:6px; border-radius:999px; background:var(--panel-2); overflow:hidden;}
+.sale-timer-bar span{display:block; height:100%; background:var(--gold); border-radius:999px; transition:width .9s linear;}
+.sale-timer.soon{border-color:#e0775f; background:rgba(162,81,63,0.08);}
+.sale-timer.soon .sale-timer-clock{color:#e0775f;}
+.sale-timer.soon .sale-timer-bar span{background:#e0775f;}
+.sale-timer.expired{border-color:var(--border); background:var(--panel);}
+.sale-relist-btn{margin-left:auto; font-size:13.5px; font-weight:700; color:#1a1408; background:var(--gold); padding:8px 18px; border-radius:10px;}
+.sale-relist-btn:hover{filter:brightness(1.08);}
+.owner-bump-note{display:block; margin-top:6px; font-size:11px; color:var(--text-dim);}
+.owner-bump-done{display:block; margin-top:6px; font-size:11.5px; color:var(--gold);}
+.status-pill.status-만료{color:var(--text-dim); border-style:dashed;}
+/* 삭제는 맨 아래 따로, 빨간 테두리로 눈에 띄게 */
+.owner-delete{display:block; width:100%; margin-top:14px; padding:10px 0; font-size:13.5px; font-weight:600; color:#e0775f; border:1px solid var(--blood); border-radius:10px; position:relative;}
+.owner-delete::before{content:''; position:absolute; left:0; right:0; top:-8px; border-top:1px solid var(--border-soft);}
+.owner-delete:hover{background:rgba(162,81,63,0.15);}
 .action-error{font-size:12.5px; color:#e0775f; margin-top:10px;}
 .request-login{font-size:13px; color:var(--text-muted); margin:6px 0 12px;}
 .seller-avatar img{width:100%; height:100%; object-fit:cover; border-radius:inherit;}
 .dm-btn{margin-top:12px; width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); font-size:13px;}
 .seller-report{display:flex; justify-content:flex-end; margin-top:10px;}
 .dm-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+.online-now{color:#3ecf5a; font-weight:600;}
+.offer-only-box{display:flex; flex-direction:column; gap:6px; padding:4px 0 10px; font-size:13.5px; color:var(--gold);}
+.offer-count-link{align-self:flex-start; font-size:12px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:4px 11px;}
+.offer-count-link:hover{color:var(--gold); border-color:var(--gold-dim);}
+.section-note{font-size:11.5px; color:var(--text-dim);}
+.request-mine{font-size:10.5px; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:1px 7px;}
+.owner-edit{margin-bottom:6px;}
+.request-status.status-held{color:var(--teal); border-color:var(--teal); border-style:dashed;}
+.request-held-note{font-size:11.5px; color:var(--text-dim); margin-right:6px;}
+.status-segment button:disabled{opacity:.35; cursor:not-allowed;}
+.status-now{display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
+.status-now small{font-size:11.5px; color:var(--text-dim); line-height:1.5;}
+.sold-was{font-size:11.5px; color:var(--text-dim); margin:-6px 0 10px; text-decoration:line-through;}
+.guide-link{font-size:11.5px; color:var(--gold-dim); text-decoration:underline; text-underline-offset:3px;}
+.guide-link:hover{color:var(--gold);}
 </style>

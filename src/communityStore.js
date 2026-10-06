@@ -5,7 +5,9 @@
 import { supabase, mustReturnRows } from './supabase.js'
 import { authState, isStaff } from './profileStore.js'
 
-export const CATEGORIES = ['질문', '거래', '잡담', '공략', '건의', '버그제보']
+export const CATEGORIES = ['공지', '질문', '거래', '잡담', '공략', '건의', '버그제보']
+// 글쓰기에서 고를 수 있는 카테고리 - 공지는 운영진만
+export const writeCategories = () => CATEGORIES.filter((c) => c !== '공지' || isStaff())
 export const PAGE_SIZE = 20
 
 // tb_profile 로 가는 길이 둘(작성자 / 추천 표)이라 외래키 이름을 꼭 적어야 함 (안 적으면 PGRST201)
@@ -30,6 +32,7 @@ function mapPost(r) {
     likes: r.like_count,
     dislikes: r.dislike_count,
     commentCount: r.comment_count,
+    pinned: !!r.pinned,
     authorId: r.author_id,
     author: r.author?.nickname || '알 수 없음',
     avatar: r.author?.avatar_url || null,
@@ -81,6 +84,20 @@ export async function fetchPosts({ category = null, tag = null, q = '', sort = '
   const { data, error, count } = await query.range(page * pageSize, page * pageSize + pageSize - 1)
   if (error) throw error
   return { posts: data.map(mapPost), total: count ?? 0 }
+}
+
+// 맨 위에 고정한 글 (공지 등) - DB 업데이트(009) 전이면 빈 목록
+export async function fetchPinnedPosts() {
+  if (!supabase) return []
+  const { data, error } = await supabase.from('tb_community_post').select(`*, ${POST_AUTHOR}`)
+    .eq('pinned', true).is('deleted_at', null).order('created_at', { ascending: false }).limit(5)
+  return error ? [] : data.map(mapPost)
+}
+// 고정·고정 해제 (운영진, DB 함수가 다시 확인)
+export async function setPinned(post, pinned) {
+  const { error } = await supabase.rpc('d2r_set_pinned', { p_post: post.id, p_pinned: pinned })
+  if (error) throw new Error(error.message || '처리 실패')
+  post.pinned = pinned
 }
 
 // 글 하나 + 댓글 + (로그인 시) 내가 누른 추천

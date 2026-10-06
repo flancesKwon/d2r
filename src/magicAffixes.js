@@ -9,7 +9,7 @@
 // - 접사 레벨(level~maxlevel)은 아이템의 affix level(alvl) 안이어야 함. alvl 은 아이템 레벨과
 //   베이스 qlvl(+magic lvl)로 정해져서, 베이스마다 alvl 최솟값이 있음 -> 같이 붙은 접사들이 한 alvl 에서
 //   동시에 가능해야 함 (예: maxlevel 이 낮은 저레벨 접사 + 고레벨 접사 조합 불가)
-// 수치는 접사 단계(tier)마다 범위가 있고, 한 옵션 안의 수치들(예: 인핸스드 데미지 + 명중률)은 같은 단계여야 함
+// 수치는 접사 단계(tier)마다 범위가 있고, 한 옵션 안의 수치들(예: 피해 증가 + 명중률)은 같은 단계여야 함
 // data = src/data/magicAffixes.json (화면과 데이터 검사 스크립트가 같이 쓰도록 인자로 받음)
 
 const CLASS_KO = {
@@ -49,8 +49,8 @@ const skillProc = (when) => ({
   text: ([chance, lv], m) => `${when} ${chance}% 확률로 ${lv} 레벨 ${m.skill.ko} 시전`,
 })
 const MODS = {
-  ac: simple('방어력 +#'), 'ac%': simple('방어력 +#% 증가'),
-  'dmg%': simple('인핸스드 데미지 +#%'), 'dmg-min': simple('최소 피해 +#'), 'dmg-max': simple('최대 피해 +#'),
+  ac: simple('방어력 +#'), 'ac%': simple('방어력 증가 +#%'),
+  'dmg%': simple('피해 증가 +#%'), 'dmg-min': simple('최소 피해 +#'), 'dmg-max': simple('최대 피해 +#'),
   att: simple('명중률 +#'), 'att%': simple('명중률 보너스 #%'),
   'dmg-to-mana': simple('받는 피해의 +#%만큼 마나 회복'), 'regen-stam': simple('지구력 회복 속도 #% 증가'),
   stam: simple('최대 지구력 +#'), light: simple('시야 +#'), 'mag%': simple('마법 아이템 발견 확률 #% 증가'),

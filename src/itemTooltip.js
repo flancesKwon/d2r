@@ -1,8 +1,9 @@
 // 판매글(또는 등록 중인 폼) 정보를 게임 아이템 툴팁 모양의 줄 목록으로 바꿈 - ItemTooltipCanvas가 그림
 // 색은 게임 툴팁 규칙: 유니크 금색, 세트 초록, 룬워드 이름 금색 + 베이스 회색, 룬 주황,
-// 매직 파랑, 레어 노랑, 방어력·데미지·요구 레벨 흰색, 옵션 줄 파랑
-import { itemLevelReq, baseForItem, getItemAffixes } from './tradeStore.js'
+// 매직 파랑, 레어 노랑, 방어력·데미지·요구 민첩·힘·레벨 흰색, 옵션 줄 파랑
+import { itemLevelReq, baseForItem, getItemAffixes, itemStatReqs, baseFromLabel } from './tradeStore.js'
 import { runePips } from './itemStats.js'
+import { sortOptionLines } from './statOrder.js'
 
 // 베이스 목록(baseItems)에 없는 장신구 베이스의 한글 이름 - 게임 툴팁처럼 이름 아래에 베이스를 보여줌
 const MISC_BASE_KO = { Amulet: '목걸이', Ring: '반지', Jewel: '주얼', 'Small Charm': '작은 부적', 'Large Charm': '큰 부적', 'Grand Charm': '거대 부적' }
@@ -15,6 +16,7 @@ export const TOOLTIP_COLORS = {
   set: '#00C400',
   unique: '#C7B377',
   orange: '#FFA800',
+  red: '#FF4D4D',
 }
 
 // 판매글 옵션 중 툴팁에서 따로 다루는 줄 (베이스 이름·방어력·데미지·소켓 등)
@@ -24,6 +26,8 @@ const META = [
   { key: 'defense', re: /^기본 방어력 (.+)$/ },
   { key: 'damage', re: /^기본 데미지 (.+)$/ },
   { key: 'sockets', re: /^소켓 (\d+)개$/ },
+  { key: 'unid', re: /^미확인$/ },
+  { key: 'lvreq', re: /^요구 레벨 (\d+)$/ },
 ]
 
 function nameColor(item, category, name, quality) {
@@ -33,6 +37,7 @@ function nameColor(item, category, name, quality) {
   if (item?.category === 'unique') return TOOLTIP_COLORS.unique
   if (item?.category === 'set') return TOOLTIP_COLORS.set
   if (item?.category === 'runeword') return TOOLTIP_COLORS.unique
+  if (item?.category === 'gold') return TOOLTIP_COLORS.unique
   if (item?.type_sub === '룬' || category === '우버보스 재료' || category === '정수·징표') return TOOLTIP_COLORS.orange
   if (category === '매직/레어/일반') {
     if (/레어/.test(name)) return TOOLTIP_COLORS.rare
@@ -47,8 +52,10 @@ function nameColor(item, category, name, quality) {
 export function buildTooltip({ item = null, name = '', category = '', quality = '', options = [], ethereal = false, amountLabel = '', iconKey = null }) {
   const meta = {}
   const mods = []
+  let baseItem = null
   for (const line of options.filter(Boolean)) {
     const hit = META.find((m) => m.re.test(line))
+    if (hit?.key === 'base') baseItem = baseFromLabel(line.slice('베이스: '.length))
     if (hit) meta[hit.key] = line.match(hit.re)[1] ?? true
     else mods.push(line)
   }
@@ -74,8 +81,14 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   if (meta.defense) push(`방어력: ${meta.defense}`)
   if (meta.damage) push(`데미지: ${meta.damage}`)
   if (amountLabel && amountLabel !== '1개') push(`수량: ${amountLabel}`)
-  const lv = itemLevelReq(item)
+  // 게임 툴팁 순서: 요구 민첩 -> 요구 힘 -> 요구 레벨
+  const req = itemStatReqs(item, { base: baseItem, ethereal })
+  if (req.dex) push(`요구 민첩: ${req.dex}`)
+  if (req.str) push(`요구 힘: ${req.str}`)
+  const lv = itemLevelReq(item) ?? (meta.lvreq ? Number(meta.lvreq) : null)
   if (lv) push(`요구 레벨: ${lv}`)
+  // 미확인 판매 - 게임처럼 빨간 '미확인', 아래 옵션은 사전 범위
+  if (meta.unid) push('미확인 (옵션은 확인 전 범위)', TOOLTIP_COLORS.red)
 
   // 룬·보석은 게임처럼 박는 부위별 효과를 보여줌 (무기 / 갑옷·투구 / 방패)
   if (item?.category === 'gem' && !mods.length) {
@@ -87,8 +100,9 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   }
 
   // 옵션 줄 - 판매글에 옵션이 없고 사전 아이템이면(유니크 참 등) 사전 옵션을 그대로 보여줌
+  // 순서는 게임 툴팁 규칙 (스킬·시전 확률 > 공격 속도 > ... > 저항 > 마법 아이템 발견 > 충전) - src/statOrder.js
   const modLines = mods.length ? mods : item && !['runeword', 'gem'].includes(item.category) ? getItemAffixes(item).map((a) => a.text) : []
-  for (const m of modLines) push(m, TOOLTIP_COLORS.magic)
+  for (const m of sortOptionLines(modLines)) push(m, TOOLTIP_COLORS.magic)
 
   const tail = []
   if (ethereal) tail.push('에테리얼 (수리 불가)')
@@ -96,5 +110,6 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   if (sockets) tail.push(`소켓 (${sockets})`)
   if (tail.length) push(tail.join(', '), TOOLTIP_COLORS.magic)
 
-  return { icon_key: item?.icon_key || iconKey || null, ethereal, lines }
+  // iconKey 가 있으면 우선 (룬워드는 사전의 대표 그림 대신 판매자가 고른 베이스 모양)
+  return { icon_key: iconKey || item?.icon_key || null, ethereal, lines }
 }

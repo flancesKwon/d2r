@@ -13,6 +13,8 @@ import {
 // 크래프트 시뮬레이터 - 제작법·베이스·캐릭터 레벨·재료 아이템 레벨을 정하면 게임 방식대로 결과를 굴려봄
 // (옵션 개수 확률, 접두사/접미사 50:50, frequency 가중치, 같은 그룹 제외 - src/magicAffixes.js)
 const KINDS = ['히트 파워', '블러드', '캐스터', '세이프티']
+// 제작법마다 고정으로 붙는 옵션 성격 (버튼 아래 한 줄)
+const KIND_HINT = { '히트 파워': '피격 시 서릿발·가시', 블러드: '생명력·생명력 흡수', 캐스터: '마나·마나 재생', 세이프티: '피해 감소·저항' }
 const SLOTS = ['투구', '갑옷', '방패', '장갑', '신발', '벨트', '목걸이', '반지', '무기']
 const kind = ref('캐스터')
 const slot = ref('목걸이')
@@ -161,14 +163,17 @@ const tableRows = computed(() => {
 
   <div class="grid-wrap cs-wrap">
     <section class="cs-panel">
-      <div class="cs-title">제작법</div>
-      <div class="cat-tabs">
-        <button v-for="k in KINDS" :key="k" :class="{ active: kind === k }" @click="kind = k">{{ k }}</button>
+      <div class="cs-title"><span class="cs-step">1</span>제작법</div>
+      <div class="cs-kinds">
+        <button v-for="k in KINDS" :key="k" class="cs-kind" :class="{ active: kind === k }" @click="kind = k">
+          <b>{{ k }}</b><small>{{ KIND_HINT[k] }}</small>
+        </button>
       </div>
       <div class="cat-tabs">
         <button v-for="s in SLOTS" :key="s" :class="{ active: slot === s }" @click="slot = s">{{ s }}</button>
       </div>
       <div class="cs-recipe" v-if="recipe">
+        <div class="cs-result-line">결과: 크래프트 {{ slot }} = <span class="cs-fixed">고정 옵션</span> + 무작위 옵션 1~4개</div>
         <div class="cs-fixed">고정 옵션: {{ recipe.fam.label }}</div>
         <div class="cs-mats">
           재료:
@@ -178,9 +183,10 @@ const tableRows = computed(() => {
         </div>
       </div>
 
+      <div class="cs-title cs-title-sub"><span class="cs-step">2</span>재료·레벨</div>
       <div class="cs-row">
         <label class="cs-field cs-base">
-          베이스
+          재료 베이스 (매직)
           <select v-model="baseCode" class="cs-input">
             <option v-for="b in bases" :key="b.code" :value="b.code">{{ baseLabel(b) }}</option>
           </select>
@@ -190,7 +196,7 @@ const tableRows = computed(() => {
           <input type="number" min="1" max="99" v-model="clvl" class="cs-input" />
         </label>
         <label class="cs-field">
-          재료 아이템 레벨
+          재료 매직 아이템 레벨
           <input type="number" min="1" max="99" v-model="inputIlvl" class="cs-input" />
         </label>
       </div>
@@ -207,9 +213,12 @@ const tableRows = computed(() => {
       </div>
     </section>
 
-    <div class="cat-tabs cs-tabs">
-      <button :class="{ active: tab === 'sim' }" @click="tab = 'sim'">시뮬레이션</button>
-      <button :class="{ active: tab === 'table' }" @click="tab = 'table'">가중치 표</button>
+    <div class="cs-tabs-row">
+      <div class="cs-title"><span class="cs-step">3</span>결과</div>
+      <div class="cat-tabs cs-tabs">
+        <button :class="{ active: tab === 'sim' }" @click="tab = 'sim'">제작 시뮬레이션</button>
+        <button :class="{ active: tab === 'table' }" @click="tab = 'table'">옵션별 확률 표</button>
+      </div>
     </div>
 
     <section class="cs-panel" v-if="tab === 'table'">
@@ -263,15 +272,17 @@ const tableRows = computed(() => {
 
     <div class="cs-cols" v-else>
       <section class="cs-panel">
-        <div class="cs-title">한 번 제작해보기</div>
-        <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="craftOnce">제작하기</button>
+        <div class="cs-title cs-title-sub">한 번 굴려보기</div>
+        <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="craftOnce">{{ rollTooltip ? '다시 제작' : '제작하기' }}</button>
         <div class="cs-tooltip" v-if="rollTooltip">
           <ItemTooltipCanvas :tooltip="rollTooltip" />
         </div>
+        <div class="cs-placeholder" v-else>결과 아이템 표시 자리</div>
       </section>
 
       <section class="cs-panel">
-        <div class="cs-title">원하는 옵션이 나올 확률</div>
+        <div class="cs-title cs-title-sub">원하는 옵션이 붙을 확률</div>
+        <div class="cs-hint">옵션 최대 3개 선택 → {{ RUNS.toLocaleString() }}번 제작해 보고 성공 확률·필요 재료 수 계산</div>
         <div class="cs-target" v-for="(t, i) in targets" :key="i">
           <select v-model="t.key" class="cs-input cs-target-key" @change="t.min = ''" :aria-label="`목표 옵션 ${i + 1}`">
             <option value="">옵션 선택 ({{ families.length }}종)</option>
@@ -326,7 +337,19 @@ const tableRows = computed(() => {
 <style scoped>
 .cs-wrap{max-width:1180px; display:flex; flex-direction:column; gap:16px;}
 .cs-panel{border:1px solid var(--border-soft); background:var(--panel); border-radius:16px; padding:20px 22px; display:flex; flex-direction:column; gap:12px; min-width:0;}
-.cs-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:17px;}
+.cs-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:17px; display:flex; align-items:center; gap:8px;}
+.cs-title-sub{font-size:15px; margin-top:4px;}
+.cs-step{width:22px; height:22px; flex:none; border-radius:999px; background:var(--gold); color:#1a1408; font-family:'Noto Sans KR', sans-serif; font-size:12px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;}
+.cs-kinds{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px;}
+.cs-kind{display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; text-align:left; color:var(--text-muted);}
+.cs-kind b{font-size:13.5px; color:var(--text);}
+.cs-kind small{font-size:11.5px; color:var(--text-dim);}
+.cs-kind:hover{border-color:var(--text-dim);}
+.cs-kind.active{border-color:var(--gold-dim); background:rgba(200,163,77,0.08);}
+.cs-kind.active b{color:var(--gold);}
+.cs-result-line{font-size:13px; color:var(--text);}
+.cs-tabs-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+.cs-placeholder{border:1px dashed var(--border); border-radius:12px; padding:36px 12px; text-align:center; font-size:12.5px; color:var(--text-dim);}
 .cs-panel .cat-tabs{flex-wrap:wrap;}
 .cs-panel .cat-tabs button{border-radius:999px;}
 .cs-recipe{display:flex; flex-direction:column; gap:6px; padding:12px 14px; background:var(--panel-2); border-radius:12px;}
@@ -387,6 +410,7 @@ const tableRows = computed(() => {
 .cs-tier-name{color:var(--text); min-width:120px;}
 @media (max-width:860px){
   .cs-cols{grid-template-columns:1fr;}
+  .cs-kinds{grid-template-columns:repeat(2, minmax(0, 1fr));}
   .cs-bar{grid-template-columns:minmax(0, 140px) 1fr 56px;}
 }
 </style>

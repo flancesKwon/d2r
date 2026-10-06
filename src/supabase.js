@@ -13,11 +13,31 @@ export const supabase = url && key
 if (!supabase) console.warn('Supabase 설정(VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)없음 - 로그인·게시판 꺼짐')
 
 // RLS에 걸린 UPDATE/DELETE는 에러 없이 0건으로 조용히 끝남 -> 쓰기는 항상 .select() 로 돌아온 행을 확인
+// 이용 정지 중이면 막힌 이유를 그걸로 보여줌 (profileStore 가 정지 여부 확인 함수를 넣어 둠)
+let blockedReason = () => null
+export function setBlockedReason(fn) { blockedReason = fn }
+
 export async function mustReturnRows(query, message = '권한 없음') {
   const { data, error } = await query
   // RLS 에 걸린 INSERT 는 영어 에러로 옴 (예: 이용 정지 중) -> 화면에 보여줄 말로
-  if (error?.code === '42501' && /row-level security/i.test(error.message)) throw new Error(message)
+  if (error?.code === '42501' && /row-level security/i.test(error.message)) throw new Error(blockedReason() || message)
   if (error) throw error
-  if (!data?.length) throw new Error(message)
+  if (!data?.length) throw new Error(blockedReason() || message)
   return data
+}
+
+// 멈춘 거래방 자동 불발·자동 완료 알림·오래된 신청 정리 (022 SQL d2r_settle_stale) - 누가 부르든 전체를 정리하는
+// DB 함수라, 거래게시판·거래방 목록을 열 때 브라우저마다 10분에 한 번만 부름 (함수가 아직 없으면 조용히 넘어감)
+let settledAt = 0
+export function settleStaleSoon() {
+  if (!supabase) return
+  const now = Date.now()
+  try {
+    if (now - Number(localStorage.getItem('d2r-settle-at') || 0) < 600000) return
+    localStorage.setItem('d2r-settle-at', String(now))
+  } catch {
+    if (now - settledAt < 600000) return
+  }
+  settledAt = now
+  supabase.rpc('d2r_settle_stale').then(() => {}, () => {})
 }

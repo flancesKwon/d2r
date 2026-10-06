@@ -1,10 +1,13 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute } from 'vue-router'
-import { CATEGORIES, fetchPosts } from '../communityStore.js'
+import { CATEGORIES, fetchPosts, fetchPinnedPosts } from '../communityStore.js'
 
 const route = useRoute()
 const activeCat = ref(CATEGORIES.includes(route.query.cat) ? route.query.cat : null)
+// 이미 커뮤니티에 있을 때 상단 메뉴로 다른 카테고리(?cat=)를 누르면 따라감
+watch(() => route.query.cat, (c) => (activeCat.value = CATEGORIES.includes(c) ? c : null))
 const activeTag = ref(typeof route.query.tag === 'string' ? route.query.tag : null)
 const searchQuery = ref('')
 const sortBy = ref('latest')
@@ -40,6 +43,14 @@ let searchTimer = 0
 watch(searchQuery, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => load(), 300) })
 watch([activeCat, activeTag, sortBy], () => load())
 onMounted(() => load())
+// 보고 있는 동안 30초마다 새 글 ("더 보기"로 더 펼쳐 둔 상태면 그대로)
+useAutoRefresh(() => { if (page.value === 0 && !loading.value) return load() })
+
+// 고정 글(공지)은 전체·공지 목록 맨 위에. 아래 목록에선 중복으로 안 보이게 뺌
+const pinnedPosts = ref([])
+fetchPinnedPosts().then((list) => (pinnedPosts.value = list))
+const showPinned = () => !searchQuery.value.trim() && !activeTag.value && (!activeCat.value || activeCat.value === '공지')
+const pinnedIds = () => new Set(showPinned() ? pinnedPosts.value.map((p) => p.id) : [])
 
 function setTagFilter(t) {
   activeTag.value = activeTag.value === t ? null : t
@@ -86,8 +97,18 @@ function setTagFilter(t) {
 
   <div class="grid-wrap community-list-wrap">
     <div class="community-list">
-      <router-link class="community-row" v-for="p in posts" :key="p.id" :to="`/community/${p.id}`">
-        <span class="community-cat">{{ p.category }}</span>
+      <template v-if="showPinned()">
+        <router-link class="community-row pinned" v-for="p in pinnedPosts" :key="'pin-' + p.id" :to="`/community/${p.id}`">
+          <span class="community-cat cat-notice">{{ p.category === '공지' ? '공지' : '고정' }}</span>
+          <div class="community-body">
+            <div class="community-title-row"><span class="community-title">{{ p.title }}</span></div>
+            <div class="community-meta">{{ p.author }} · {{ p.date }} · 조회 {{ p.views }}</div>
+          </div>
+          <span class="community-comment-count" v-if="p.commentCount">{{ p.commentCount }}</span>
+        </router-link>
+      </template>
+      <router-link class="community-row" v-for="p in posts.filter((x) => !pinnedIds().has(x.id))" :key="p.id" :to="`/community/${p.id}`">
+        <span class="community-cat" :class="{ 'cat-notice': p.category === '공지' }">{{ p.category }}</span>
         <div class="community-body">
           <div class="community-title-row">
             <span class="community-title">{{ p.title }}</span>
@@ -118,6 +139,8 @@ function setTagFilter(t) {
 </template>
 
 <style scoped>
+.community-row.pinned{border-color:var(--gold-dim); background:rgba(200,163,77,0.06);}
+.community-cat.cat-notice{color:var(--gold); border-color:var(--gold-dim);}
 /* 벨로그처럼 여백 넉넉하고 둥근 카드 느낌으로 - 사이트 기본 톤(어두운 배경, 금색
    포인트)은 유지하되 커뮤니티/거래게시판만 각진 테두리 대신 둥근 모서리 +
    카드 구분 + 은은한 그림자로 가독성 위주로 다르게 감 */

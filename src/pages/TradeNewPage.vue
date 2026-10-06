@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { askConfirm } from '../dialog.js'
+import EventBanner from '../components/EventBanner.vue'
 import {
   TRADE_REALMS,
   TRADE_LADDERS,
   TRADE_HARDCORE,
   buildAmountLabel,
+  OFFER_ONLY_PRICE,
+  GOLD_MAX,
+  uniqueDefenseRange as uniqueDefenseRangeFor,
   optionPresetsFor,
   addTradePost,
   searchAllItems,
@@ -37,17 +42,21 @@ import {
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, squashText } from '../itemSearch.js'
-import MarkdownEditor from '../components/MarkdownEditor.vue'
+import RichEditor from '../components/RichEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
+import { itemDamage, formatDamage } from '../itemDamage.js'
 import AffixPicker from '../components/AffixPicker.vue'
+import RangeInput from '../components/RangeInput.vue'
 import magicAffixData from '../data/magicAffixes.json'
 import {
   affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
 } from '../magicAffixes.js'
 import { authState, signIn } from '../profileStore.js'
+import { openTradeGuide } from '../tradeGuide.js'
 
 const router = useRouter()
+const route = useRoute()
 
 // 팝업은 열릴 때 새로 그려져서 autofocus 속성이 안 먹음 - 마운트될 때 직접 포커스
 const vFocus = { mounted: (el) => el.focus() }
@@ -63,9 +72,14 @@ const emptyForm = () => ({
   quantity: '',
   ethereal: false,
   negotiable: false,
-  realm: TRADE_REALMS[0],
-  ladder: TRADE_LADDERS[0],
-  hardcore: TRADE_HARDCORE[0],
+  // 제안만 받기 - 희망 가격 없이 구매자들이 룬·보석·재료로 가격을 제안함
+  offerOnly: false,
+  // 유니크·세트를 미확인으로 팜 - 옵션 수치 입력 없이 사전 범위로
+  unidentified: false,
+  // "계속 등록"으로 다시 열면 앞 글의 서버·레더·하드코어를 그대로
+  realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : TRADE_REALMS[0],
+  ladder: TRADE_LADDERS.includes(route.query.ladder) ? route.query.ladder : TRADE_LADDERS[0],
+  hardcore: TRADE_HARDCORE.includes(route.query.hardcore) ? route.query.hardcore : TRADE_HARDCORE[0],
   content: '',
 })
 const form = ref(emptyForm())
@@ -100,6 +114,13 @@ function hideBundleDropdownSoon() {
 }
 
 const hasQuantity = computed(() => categoryHasQuantity(form.value.category))
+// 골드 판매 - 수량칸이 골드 액수. 큰 수라 "250만 골드"처럼 읽기 쉽게도 보여줌
+const isGold = computed(() => form.value.category === '골드')
+function goldReadable(v) {
+  const n = Math.floor(Number(v) || 0)
+  const eok = Math.floor(n / 100000000), man = Math.floor((n % 100000000) / 10000), rest = n % 10000
+  return '= ' + [eok && `${eok}억`, man && `${man}만`, rest && `${rest}`].filter(Boolean).join(' ') + ' 골드'
+}
 const showItemModal = ref(false)
 // 카테고리를 먼저 고르지 않아도 아이템명만 치면 사전 전체(룬·보석·유니크·세트·룬워드) +
 // 우버보스 재료 목록에서 검색되고, 고르면 카테고리가 자동으로 맞춰짐 - 그래도 없으면
@@ -252,7 +273,7 @@ const pickerLimits = computed(() => {
   const lim = affixLimitsNow.value
   return socketSource.value === 'affix' ? { ...lim, p: lim.p - 1, total: lim.total - 1 } : lim
 })
-const emptyAffixPicks = () => ({ p: [{ key: '', values: [] }], s: [{ key: '', values: [] }] })
+const emptyAffixPicks = () => ({ p: [], s: [] })
 const affixPicks = ref(emptyAffixPicks())
 function resetAffixPicks() {
   affixPicks.value = emptyAffixPicks()
@@ -271,8 +292,23 @@ const pickedAffixes = computed(() => {
 const affixErrors = computed(() =>
   isAffixQuality.value ? validateAffixPicks(magicAffixData, selectedBaseItem.value, itemQuality.value, pickedAffixes.value) : []
 )
-function buildAffixOptions() {
-  return pickedAffixes.value.flatMap(({ fam, values }) => familyLinesOrRange(fam, values))
+// 접사 줄 + 어느 칸(p 접두사 / s 접미사)에서 왔는지
+function buildAffixEntries() {
+  return pickedAffixes.value.flatMap(({ fam, values }) => familyLinesOrRange(fam, values).map((text) => ({ text, slot: fam.slot })))
+}
+// 그림에 나오는 순서: 스킬 레벨 -> 시전 속도 -> 접두사(크래프트 고정 옵션 포함) -> 접미사
+// "냉기 기술 피해 +15%"는 스킬 레벨이 아님 (기술 바로 뒤가 +숫자인 줄만)
+const SKILL_LINE = /(^모든 기술 \+)|(기술 (?:레벨 )?\+\d)|( \+\d+ \((?:\S+) 전용\)$)/
+const lineRank = ({ text, slot }) => (SKILL_LINE.test(text) ? 0 : /^시전 속도/.test(text) ? 1 : slot === 's' ? 3 : 2)
+// lead: 상급·베이스 자체 옵션 (스킬 줄이면 맨 위로, 아니면 접두사보다 앞)
+function orderedCraftAffixLines(lead = []) {
+  const entries = [...lead.map((text) => ({ text, slot: 'b' })), ...buildCraftOptions().map((text) => ({ text, slot: 'c' })), ...buildAffixEntries()]
+  const merged = mergeSameStatLines(entries.map((e) => e.text))
+  // 합쳐진 줄은 처음 나온 쪽의 칸을 따름
+  const slotOf = (line) => entries.find((e) => e.text === line || e.text.replace(/\d+/g, '#') === line.replace(/\d+/g, '#'))?.slot || 'p'
+  return merged.map((text, i) => ({ text, slot: slotOf(text), i }))
+    .sort((a, b) => lineRank(a) - lineRank(b) || a.i - b.i)
+    .map((e) => e.text)
 }
 
 // 영혼(검·방패)·인내(무기·갑옷)처럼 무기와 방어구 둘 다에 만들 수 있는 룬워드는 아이템만
@@ -289,7 +325,7 @@ const needsManualBaseStats = computed(() => {
   // 베이스를 고른 매직/레어/일반 장비: 품질을 고른 뒤에, 적을 게 있을 때만 (방어구 기본 방어력, 일반이면 상급 옵션, 직업 베이스 옵션)
   if (lockedEquipBase.value) {
     if (!itemQuality.value) return false
-    return effectiveBaseKind.value === 'armor' || superiorCombos.value.length > 0 || uniqueMaxSockets.value > 0 ||
+    return effectiveBaseKind.value === 'armor' || effectiveBaseKind.value === 'weapon' || superiorCombos.value.length > 0 || uniqueMaxSockets.value > 0 ||
       !!socketAffixFam.value || larzukMax.value > 0 ||
       !!baseClassSkills.value || baseAutoMods.value.length > 0
   }
@@ -299,7 +335,14 @@ const needsManualBaseStats = computed(() => {
 })
 
 // (증가된 방어력·데미지는 매직/레어 접사로, 추가 내구도는 상급 옵션으로만 입력받음)
-const armorStats = ref({ baseDefense: '' })
+// 무기 데미지(dmgMin~dmgMax)는 비워두면 베이스 고정값, 입력하면 게임에 보이는 값 그대로 저장.
+// 유니크·세트도 같은 칸을 씀 - 샤코처럼 방어력을 보고 사는 아이템이 있어서 실제 수치를 적게 함
+const armorStats = ref({ baseDefense: '', dmgMin: '', dmgMax: '' })
+// 매직·레어·크래프트 요구 레벨 (선택) - 접사마다 달라서 사전으로 못 구함, 판매자가 게임 툴팁 보고 적음
+const levelReq = ref('')
+const levelReqValid = computed(() => /^\d+$/.test(String(levelReq.value)) && Number(levelReq.value) >= 1 && Number(levelReq.value) <= 99)
+const levelReqLines = () => (isAffixQuality.value && levelReqValid.value ? [`요구 레벨 ${Number(levelReq.value)}`] : [])
+const filled = (v) => v !== '' && v !== null && v !== undefined
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
 // 고르면 그 베이스가 원래 갖고 있는 방어력/데미지·내구도가 자동으로 채워짐
@@ -308,6 +351,8 @@ const baseItemQuery = ref('')
 const showBaseItemDropdown = ref(false)
 const isRuneword = computed(() => selectedItem.value?.category === 'runeword')
 const isUniqueOrSet = computed(() => ['unique', 'set'].includes(selectedItem.value?.category))
+// 미확인 판매 (유니크·세트만)
+const isUnidentified = computed(() => isUniqueOrSet.value && form.value.unidentified)
 // 이 아이템의 실제 베이스 - 룬워드·매직/레어는 판매자가 고른 베이스, 유니크·세트는 고정 베이스
 const itemBase = computed(() => selectedBaseItem.value || baseForItem(selectedItem.value))
 
@@ -392,6 +437,34 @@ const expectedWeaponDamage = computed(() => {
   if (!dmg) return null
   const mul = form.value.ethereal ? 1.5 : 1
   return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
+})
+// 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 (tradeStore - 판매글 수정 화면도 같이 씀)
+const uniqueDefenseRange = computed(() =>
+  isUniqueOrSet.value ? uniqueDefenseRangeFor(selectedItem.value, form.value.ethereal) : null
+)
+// 유니크·세트 무기 데미지 범위 (한손·양손 중 아무 쪽이나 맞으면 됨, 레벨당 데미지는 99레벨까지)
+const uniqueDamageRange = computed(() => {
+  if (!isUniqueOrSet.value || selectedItem.value?.base_stats?.category !== 'weapon') return null
+  const lo = itemDamage(selectedItem.value, { level: 0, ethereal: form.value.ethereal })
+  const hi = itemDamage(selectedItem.value, { level: 99, ethereal: form.value.ethereal })
+  const hands = ['one', 'two'].filter((h) => lo?.[h] && hi?.[h])
+  if (!hands.length) return null
+  return hands.map((h) => ({ min: [lo[h].min[0], hi[h].min[1]], max: [lo[h].max[0], hi[h].max[1]] }))
+})
+// 범위는 formatDamage 처럼 "35~(238-547)", 한손·양손 둘 다 있으면 " / " 로 이어 붙임
+const damageRangeLabel = (r) => r.map(formatDamage).join(' / ')
+// 입력한 데미지가 맞는지 - 둘 다 입력, 최소 ≤ 최대, 유니크·세트는 나올 수 있는 범위 안
+const damageError = computed(() => {
+  const { dmgMin, dmgMax } = armorStats.value
+  if (!filled(dmgMin) && !filled(dmgMax)) return ''
+  if (!filled(dmgMin) || !filled(dmgMax)) return '데미지 최소·최대 둘 다 입력'
+  const lo = Number(dmgMin), hi = Number(dmgMax)
+  if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || hi < lo) return '데미지 최소~최대 확인'
+  const r = uniqueDamageRange.value
+  if (r && !r.some((d) => lo >= d.min[0] && lo <= d.min[1] && hi >= d.max[0] && hi <= d.max[1])) {
+    return `데미지 (${damageRangeLabel(r)})`
+  }
+  return ''
 })
 // 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
 // · 스킬: 오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀 등에 그 직업 스킬 최대 3개 × +1~3
@@ -484,7 +557,8 @@ function hideBaseItemDropdownSoon() {
 }
 
 function resetBaseStats() {
-  armorStats.value = { baseDefense: '' }
+  armorStats.value = { baseDefense: '', dmgMin: '', dmgMax: '' }
+  levelReq.value = ''
   clearBaseItem()
 }
 
@@ -497,31 +571,47 @@ function buildBaseStatOptions() {
     const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
     if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
   } else if (effectiveBaseKind.value === 'weapon') {
-    // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배)이라 입력받지 않고 그대로 씀
+    // 직접 입력한 데미지가 있으면 그 값, 없으면 베이스 고정값(에테리얼이면 1.5배)
     const exp = expectedWeaponDamage.value
-    if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
+    if (!damageError.value && filled(armorStats.value.dmgMin)) out.push(...enteredStatLines())
+    else if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
   }
-  out.push(...buildSuperiorOptions(), ...buildBaseModOptions(), ...mergeSameStatLines([...buildCraftOptions(), ...buildAffixOptions()]))
+  out.push(...orderedCraftAffixLines([...buildSuperiorOptions(), ...buildBaseModOptions()]))
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
+}
+
+// 판매자가 직접 입력한 방어력·데미지 줄 (유니크·세트, 미확인 판매에도 씀 - 게임에서 미확인이어도 보이는 값)
+function enteredStatLines() {
+  const s = armorStats.value
+  if (effectiveBaseKind.value === 'armor') return filled(s.baseDefense) ? [`기본 방어력 ${s.baseDefense}`] : []
+  if (effectiveBaseKind.value === 'weapon') return filled(s.dmgMin) && filled(s.dmgMax) && !damageError.value ? [`기본 데미지 ${s.dmgMin}~${s.dmgMax}`] : []
+  return []
 }
 
 // 입력한 수치가 게임에서 나올 수 있는 값인지 전부 검사 - 틀린 게 있으면 첫 번째 것을 알려주고 등록을 막음
 const invalidInputs = computed(() => {
   const bad = []
   itemAffixes.value.forEach((a, i) => {
+    if (isUnidentified.value) return
     if ((isRollRangeAffix(a) || isRandomClassSkillAffix(a)) && !isAllowedValue(rolledValues.value[i], a)) {
       // 옵션 문구에 이미 범위가 들어 있으면("방어력 750~775") 그대로, 아니면 범위를 붙여서
       bad.push(a.text.includes(`${a.min}~${a.max}`) ? a.text : `${a.text} (${Math.min(a.min, a.max)}~${Math.max(a.min, a.max)})`)
     }
   })
   randomGroups.value.forEach((g, gi) => {
+    if (isUnidentified.value) return
     const o = g[groupChoice.value[gi]]
     if (o && !isAllowedValue(groupValues.value[gi], o)) bad.push(`${o.text} (${o.min}~${o.max})`)
   })
   if (expectedDefense.value && !isAllowedValue(armorStats.value.baseDefense, expectedDefense.value)) {
     bad.push(`기본 방어력 (${expectedDefense.value.min}~${expectedDefense.value.max})`)
   }
+  if (uniqueDefenseRange.value && !isAllowedValue(armorStats.value.baseDefense, uniqueDefenseRange.value)) {
+    bad.push(`방어력 (${uniqueDefenseRange.value.min}~${uniqueDefenseRange.value.max})`)
+  }
+  if (damageError.value) bad.push(damageError.value)
+  if (isAffixQuality.value && filled(levelReq.value) && !levelReqValid.value) bad.push('요구 레벨 (1~99)')
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
   for (const { fam, values } of pickedAffixes.value) {
@@ -700,6 +790,7 @@ function removePriceItem(i) {
   priceItems.value.splice(i, 1)
 }
 function buildPriceString() {
+  if (form.value.offerOnly) return OFFER_ONLY_PRICE
   return priceItems.value.map((p) => `${p.item.name_ko} ${p.qty}개`).join(' + ')
 }
 
@@ -714,7 +805,15 @@ async function savePost(payload) {
   saving.value = true
   try {
     const post = await addTradePost(payload)
-    router.push(`/trade/${post.id}`)
+    saving.value = false
+    // 확인 = 등록한 글 보기 / 계속 등록 = 서버·레더·하드코어만 남기고 새 글 쓰기 (창 밖을 눌러 닫아도 계속 등록)
+    const view = await askConfirm('판매글 등록 완료 - 거래게시판에 올라갔어요', { confirmText: '등록한 글 보기', cancelText: '계속 등록', icon: 'success' })
+    if (view) router.push(`/trade/${post.id}`)
+    else {
+      const { realm, ladder, hardcore } = form.value
+      router.replace({ path: '/trade/new', query: { again: Date.now(), realm, ladder, hardcore } })
+      window.scrollTo(0, 0)
+    }
   } catch (e) {
     formError.value = e.message || '등록 실패'
   } finally {
@@ -724,7 +823,7 @@ async function savePost(payload) {
 
 function submitBundle() {
   if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담을 것'; return }
-  if (!priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택'; return }
+  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'; return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -741,14 +840,34 @@ function submitBundle() {
 
 // 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
 function buildAllOptions() {
+  if (isUnidentified.value) {
+    // 옵션 수치는 안 받음 (사전 범위 그대로). 소켓 수는 미확인이어도 게임에서 보이니 남김
+    return ['미확인', ...enteredStatLines(), ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
+  }
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   })
   return [
-    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
+    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...levelReqLines(), ...customOptions.value,
   ]
 }
+
+// 그림: 룬워드는 고른 베이스 모양(예전엔 사전의 대표 그림으로 고정), 사전에 없는 장비는 고른 베이스·모양, 유니크·세트는 사전 그림
+// 유니크·세트 반지·목걸이·주얼은 게임에서 그림이 무작위 (사전 그림이 기본 반지·목걸이·주얼 그림인 것) - 실제 모양을 고르게
+const JEWELRY_CODE = Object.fromEntries(['rin', 'amu', 'jew'].map((c) => [ICON_VARIANTS[c][0], c]))
+const uniqueShapeVariants = computed(() => {
+  const it = selectedItem.value
+  if (!it || !['unique', 'set'].includes(it.category)) return null
+  const code = JEWELRY_CODE[it.icon_key]
+  return code ? ICON_VARIANTS[code] : null
+})
+const postIcon = computed(() => {
+  if (uniqueShapeVariants.value) return iconVariant.value || null
+  if (isManualEquip.value) return iconVariant.value || (selectedBaseItem.value ? baseIconKey(selectedBaseItem.value) : null)
+  if (isRuneword.value && selectedBaseItem.value) return baseIconKey(selectedBaseItem.value)
+  return null
+})
 
 // 입력하는 동안 게임 툴팁 모양으로 바로 보여주는 미리보기 (묶음 판매·아이템 미선택이면 숨김)
 const previewTooltip = computed(() =>
@@ -758,25 +877,26 @@ const previewTooltip = computed(() =>
         name: form.value.itemName,
         category: form.value.category,
         quality: isManualEquip.value ? itemQuality.value : '',
-        // 사전에 없는 장비는 고른 베이스 아이콘 (반지·부적 등은 icon_key, 무기·방어구는 게임 invfile 기준 아이콘)
-        iconKey: iconVariant.value || selectedBaseItem.value?.icon_key || magicAffixData.bases[selectedBaseItem.value?.code]?.icon || null,
+        // 룬워드·사전에 없는 장비는 고른 베이스 모양 (반지·부적 등은 icon_key, 무기·방어구는 게임 invfile 기준 아이콘)
+        iconKey: postIcon.value,
         options: buildAllOptions(),
         ethereal: form.value.ethereal,
-        amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개',
+        amountLabel: hasQuantity.value ? buildAmountLabel(form.value.quantity, form.value.category) : '1개',
       })
     : null
 )
 
 function submitPost() {
   if (bundleMode.value) return submitBundle()
-  const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity) : '1개'
+  const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity, form.value.category) : '1개'
   if (!form.value.itemName.trim()) { formError.value = '아이템 검색·선택 또는 이름 입력'; return }
-  if (!amountLabel.trim()) { formError.value = '개수 입력'; return }
+  if (!amountLabel.trim()) { formError.value = isGold.value ? '골드 액수 입력' : '개수 입력'; return }
+  if (isGold.value && Number(form.value.quantity) > GOLD_MAX) { formError.value = `골드는 한 글에 최대 ${GOLD_MAX.toLocaleString('ko-KR')} (1500만) 골드까지`; return }
   if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
     formError.value = '룬워드는 베이스 아이템 선택 필수'
     return
   }
-  if (!priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택'; return }
+  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'; return }
   if (invalidInputs.value.length) {
     formError.value = `게임에서 나올 수 없는 수치: ${invalidInputs.value[0]}`
     return
@@ -788,7 +908,7 @@ function submitPost() {
     amountLabel,
     options,
     quality: isManualEquip.value ? itemQuality.value : '',
-    iconKey: isManualEquip.value ? iconVariant.value : null,
+    iconKey: isManualEquip.value ? iconVariant.value : postIcon.value,
     price: buildPriceString(),
   })
 }
@@ -799,7 +919,7 @@ function submitPost() {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">판매글 등록</div>
+      <div class="eyebrow">판매글 등록 · <button type="button" class="hero-guide-link" @click="openTradeGuide('sell')">등록 방법 보기</button></div>
       <h1>아이템 등록하기</h1>
     </div>
   </div>
@@ -831,7 +951,7 @@ function submitPost() {
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
         <button v-else type="button" class="item-picker-trigger" @click="showItemModal = true">
-          아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)
+          아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)
         </button>
       </div>
 
@@ -840,7 +960,7 @@ function submitPost() {
           <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
           <div class="d-section-title">아이템 선택</div>
           <input
-            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모)"
+            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)"
             class="write-input" v-focus
           />
           <div class="item-modal-list">
@@ -899,6 +1019,31 @@ function submitPost() {
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">공격 속도 {{ baseStatsRef.speed }}</span>
           <span>내구도 {{ baseStatsRef.durability }}</span>
         </div>
+        <template v-if="isUniqueOrSet">
+          <div class="base-stats-input-row" v-if="baseStatsRef.category === 'armor'">
+            <label>
+              방어력 (게임에 보이는 값 · 선택)
+              <input
+                type="number" v-model="armorStats.baseDefense" class="write-input"
+                :class="{ invalid: uniqueDefenseRange && outOfRange(armorStats.baseDefense, uniqueDefenseRange) }"
+                :min="uniqueDefenseRange?.min" :max="uniqueDefenseRange?.max"
+                :placeholder="uniqueDefenseRange ? `${uniqueDefenseRange.min}~${uniqueDefenseRange.max}` : '예: 141'"
+              />
+            </label>
+          </div>
+          <div class="base-stats-input-row" v-else-if="baseStatsRef.category === 'weapon'">
+            <label>
+              최소 데미지 (게임에 보이는 값 · 선택)
+              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" placeholder="최소" />
+            </label>
+            <label>
+              최대 데미지
+              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" placeholder="최대" />
+            </label>
+          </div>
+          <div class="unit-hint" v-if="baseStatsRef.category === 'weapon' && uniqueDamageRange">나올 수 있는 데미지 {{ damageRangeLabel(uniqueDamageRange) }}{{ form.ethereal ? ' (에테리얼)' : '' }}</div>
+          <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
+        </template>
       </div>
 
       <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반' && !selectedBaseItem">
@@ -913,6 +1058,17 @@ function submitPost() {
             type="button" v-for="b in MISC_BASES" :key="b.code" :class="{ active: selectedBaseItem?.code === b.code }"
             @click="pickMiscBase(b)"
           >{{ b.name_ko }}</button>
+        </div>
+      </div>
+
+      <div class="manual-kind-row" v-if="uniqueShapeVariants">
+        <div class="option-editor-title shape-title">모양 <span class="craft-sub-note">게임에서 무작위 - 실제 아이템 모양 선택</span></div>
+        <div class="shape-row">
+          <button
+            type="button" v-for="k in uniqueShapeVariants" :key="k" class="shape-btn"
+            :class="{ active: (iconVariant || uniqueShapeVariants[0]) === k }" :aria-label="`모양 ${k}`"
+            @click="iconVariant = k"
+          ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
         </div>
       </div>
 
@@ -964,23 +1120,26 @@ function submitPost() {
               <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
                 <span class="option-text fixed">{{ line.text }}</span>
                 <template v-for="s in craftInputSlots.filter((c) => line.slots.includes(c.i))" :key="s.i">
-                  <select
-                    v-model.number="craftPick.values[s.i]"
-                    class="write-select option-value-select" :aria-label="`${line.text} 수치 ${s.lo}~${s.hi}`"
-                  >
-                    <option :value="undefined">{{ s.lo }}~{{ s.hi }}</option>
-                    <option v-for="n in s.hi - s.lo + 1" :key="n" :value="s.lo + n - 1">{{ s.lo + n - 1 }}</option>
-                  </select>
+                  <RangeInput v-model="craftPick.values[s.i]" :min="s.lo" :max="s.hi" :label="`${line.text} 수치 ${s.lo}~${s.hi}`" />
                 </template>
               </div>
             </div>
           </template>
           <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
-          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개</span></div>
+          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개 · 접두사·접미사 한 목록</span></div>
         </template>
         <template v-if="isAffixQuality">
           <AffixPicker :families="affixFamilies" :limits="pickerLimits" v-model="affixPicks" />
           <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
+          <div class="level-req-row">
+            <label>
+              요구 레벨 <span class="craft-sub-note">선택 · 게임 툴팁의 값</span>
+              <input
+                type="number" v-model="levelReq" class="write-input" min="1" max="99" placeholder="예: 42"
+                :class="{ invalid: filled(levelReq) && !levelReqValid }"
+              />
+            </label>
+          </div>
         </template>
       </div>
 
@@ -1023,6 +1182,7 @@ function submitPost() {
             <span v-if="expectedDefense">기본 방어력 범위 {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
             <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
+            <span v-if="selectedBaseItem.base_stats.reqdex">요구 민첩 {{ selectedBaseItem.base_stats.reqdex }}</span>
           </div>
           <div class="base-stats-input-row">
             <label>
@@ -1040,10 +1200,22 @@ function submitPost() {
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값 (자동 입력)</span>
+            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}{{ isRuneword ? ' · 베이스 고정값 (자동 입력)' : '' }}</span>
             <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
           </div>
+          <div class="base-stats-input-row" v-if="!isRuneword">
+            <label>
+              최소 데미지
+              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.min}` : '최소'" />
+            </label>
+            <label>
+              최대 데미지
+              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.max}` : '최대'" />
+            </label>
+          </div>
+          <div class="unit-hint" v-if="!isRuneword">비워두면 베이스 기본값{{ expectedWeaponDamage ? ` ${expectedWeaponDamage.min}~${expectedWeaponDamage.max}` : '' }} - 피해 증가 등으로 바뀐 값은 게임에 보이는 그대로 입력</div>
+          <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
         </template>
 
         <div class="base-mods" v-if="superiorCombos.length">
@@ -1056,12 +1228,7 @@ function submitPost() {
           </div>
           <div class="option-row" v-for="k in pickedSuperiorCombo || []" :key="k">
             <span class="option-text">{{ SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`) }}</span>
-            <select v-model="superiorPick.values[k]" class="write-select option-value-select" :aria-label="`${SUPERIOR_MODS[k].text} 수치`">
-              <option :value="undefined">수치</option>
-              <option v-for="n in SUPERIOR_MODS[k].max - SUPERIOR_MODS[k].min + 1" :key="n" :value="SUPERIOR_MODS[k].min + n - 1">
-                {{ SUPERIOR_MODS[k].min + n - 1 }}
-              </option>
-            </select>
+            <RangeInput v-model="superiorPick.values[k]" :min="SUPERIOR_MODS[k].min" :max="SUPERIOR_MODS[k].max" :label="`${SUPERIOR_MODS[k].text} 수치`" />
           </div>
         </div>
 
@@ -1075,10 +1242,7 @@ function submitPost() {
           </div>
           <div class="option-row" v-if="hasSockets">
             <span class="option-text">소켓 개수 (1~{{ uniqueMaxSockets }})</span>
-            <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
-              <option value="">개수</option>
-              <option v-for="n in uniqueMaxSockets" :key="n" :value="n">{{ n }}개</option>
-            </select>
+            <RangeInput v-model="uniqueSockets" :min="1" :max="uniqueMaxSockets" label="소켓 개수" />
           </div>
         </div>
 
@@ -1096,17 +1260,11 @@ function submitPost() {
           <div class="option-editor-hint" v-if="socketSource === 'affix'">소켓 옵션이 접두사 한 칸 차지</div>
           <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
             <span class="option-text">소켓 개수 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
-            <select v-model.number="socketAffixCount" class="write-select option-value-select" aria-label="소켓 개수">
-              <option value="">개수</option>
-              <option v-for="n in socketAffixRange[1] - socketAffixRange[0] + 1" :key="n" :value="socketAffixRange[0] + n - 1">{{ socketAffixRange[0] + n - 1 }}개</option>
-            </select>
+            <RangeInput v-model="socketAffixCount" :min="socketAffixRange[0]" :max="socketAffixRange[1]" label="소켓 개수" />
           </div>
           <div class="option-row" v-if="socketSource === 'larzuk'">
             <span class="option-text">소켓 개수 (1~{{ larzukMax }})</span>
-            <select v-model="uniqueSockets" class="write-select option-value-select" aria-label="소켓 개수">
-              <option value="">개수</option>
-              <option v-for="n in larzukMax" :key="n" :value="n">{{ n }}개</option>
-            </select>
+            <RangeInput v-model="uniqueSockets" :min="1" :max="larzukMax" label="소켓 개수" />
           </div>
         </div>
 
@@ -1134,10 +1292,7 @@ function submitPost() {
                 <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
                 <option v-for="s in classSkillOptionsFor(i)" :key="s.en" :value="s.en">{{ skillLabel(s) }}</option>
               </select>
-              <select v-if="p.skill" v-model="p.level" class="write-select option-value-select" :aria-label="`스킬 ${i + 1} 레벨`">
-                <option value="">+?</option>
-                <option v-for="n in 3" :key="n" :value="n">+{{ n }}</option>
-              </select>
+              <RangeInput v-if="p.skill" v-model="p.level" :min="1" :max="3" prefix="+" :label="`스킬 ${i + 1} 레벨 1~3`" />
               <button
                 type="button" class="class-skill-remove" v-if="classSkillPicks.length > 1 || p.skill"
                 :aria-label="`스킬 ${i + 1} 삭제`" @click="removeClassSkillRow(i)"
@@ -1151,6 +1306,11 @@ function submitPost() {
         </div>
       </div>
 
+      <label class="unid-check" v-if="isUniqueOrSet">
+        <input type="checkbox" v-model="form.unidentified" />
+        미확인 아이템 <small>옵션 확인 전 - 수치 입력 없이 사전 범위로 표시</small>
+      </label>
+
       <label class="ethereal-check" v-if="hasEthereal">
         <input type="checkbox" v-model="form.ethereal" />
         에테리얼(Ethereal) 아이템
@@ -1159,13 +1319,17 @@ function submitPost() {
       <template v-if="selectedItem || form.category">
         <template v-if="hasQuantity">
           <input
-            type="number" min="1" v-model="form.quantity" placeholder="개수 (예: 5)"
-            class="write-input trade-quantity-input"
+            type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="isGold ? '골드 액수 (예: 2500000, 최대 1500만)' : '개수 (예: 5)'"
+            class="write-input trade-quantity-input" :class="{ invalid: isGold && Number(form.quantity) > GOLD_MAX }"
           />
+          <div class="unit-hint" v-if="!isGold">여러 개는 한 번에 통째로 판매 - 나눠 팔려면 글을 따로 올리기</div>
+          <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0" :class="{ 'affix-error': Number(form.quantity) > GOLD_MAX }">
+            {{ goldReadable(form.quantity) }}{{ Number(form.quantity) > GOLD_MAX ? ' - 최대 1500만 골드까지' : '' }}
+          </div>
         </template>
       </template>
 
-      <div class="option-editor" v-if="itemAffixes.length">
+      <div class="option-editor" v-if="itemAffixes.length && !isUnidentified">
         <div class="option-editor-title">실제 옵션 값 입력</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
@@ -1193,7 +1357,7 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="option-editor" v-if="randomGroups.length">
+      <div class="option-editor" v-if="randomGroups.length && !isUnidentified">
         <div class="option-editor-title">제작 시 붙은 무작위 옵션</div>
         <div class="option-row" v-for="(g, gi) in randomGroups" :key="gi">
           <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="`${gi + 1}그룹 옵션`">
@@ -1277,12 +1441,16 @@ function submitPost() {
       </div>
       </template>
 
-      <label class="negotiable-check">
+      <label class="negotiable-check offer-only-check">
+        <input type="checkbox" v-model="form.offerOnly" />
+        제안만 받기 <small>희망 가격 없이 구매자들의 가격 제안을 받음</small>
+      </label>
+      <label class="negotiable-check" v-if="!form.offerOnly">
         <input type="checkbox" v-model="form.negotiable" />
         흥정 가능
       </label>
 
-      <div class="price-picker">
+      <div class="price-picker" v-if="!form.offerOnly">
         <div class="option-editor-title">희망 가격</div>
         <div class="bundle-chip-row" v-if="priceItems.length">
           <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
@@ -1329,13 +1497,14 @@ function submitPost() {
         </select>
       </div>
 
-      <MarkdownEditor images v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="260px" />
+      <RichEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="220px" />
 
       <div class="tooltip-preview" v-if="previewTooltip">
         <div class="option-editor-title">미리보기</div>
         <ItemTooltipCanvas :tooltip="previewTooltip" :file-name="form.itemName" />
       </div>
 
+      <EventBanner mode="post" />
       <div class="trade-new-actions">
         <router-link to="/trade" class="trade-new-cancel">취소</router-link>
         <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">등록하기</button>
@@ -1446,11 +1615,15 @@ function submitPost() {
 .random-group-select{flex:1; min-width:0; padding:6px 8px !important; font-size:12.5px !important; border-radius:8px !important;}
 .option-value-select{width:110px; padding:6px 8px !important; font-size:12.5px !important; flex:none; border-radius:8px !important;}
 
+.unid-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:#e0775f; cursor:pointer; flex-wrap:wrap;}
+.unid-check input{accent-color:#e0775f;}
+.unid-check small{color:var(--text-dim); font-size:11.5px;}
 .ethereal-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--teal); cursor:pointer; margin-top:-2px;}
 .ethereal-check input{accent-color:var(--teal);}
 
 .negotiable-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--gold-dim); cursor:pointer;}
 .negotiable-check input{accent-color:var(--gold-dim);}
+.offer-only-check small{color:var(--text-dim); font-size:11.5px;}
 
 .custom-option-chip{
   display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border-soft);
@@ -1489,6 +1662,8 @@ function submitPost() {
 .class-skill-add{align-self:flex-start; font-size:12.5px; color:var(--gold); border:1px dashed var(--gold-dim); padding:7px 14px; border-radius:10px; background:transparent;}
 .class-skill-add:hover{background:var(--panel-2);}
 .base-stats-input-row{display:flex; gap:12px; flex-wrap:wrap;}
+.level-req-row{margin-top:10px;}
+.level-req-row label{display:flex; flex-direction:column; gap:6px; font-size:11.5px; color:var(--text-dim); max-width:200px;}
 .base-stats-input-row label{
   flex:1; min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:11.5px; color:var(--text-dim);
 }
@@ -1533,4 +1708,5 @@ function submitPost() {
   .option-row{gap:6px;}
 }
 .trade-new-login{display:flex; flex-direction:column; align-items:center; gap:14px; padding:48px 16px; color:var(--text-muted); font-size:14px;}
+.hero-guide-link{color:var(--gold); text-decoration:underline; text-underline-offset:3px; font-size:inherit;}
 </style>

@@ -1,18 +1,27 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineAsyncComponent } from 'vue'
+import { useAutoRefresh } from '../useAutoRefresh.js'
+import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete } from '../communityStore.js'
-import { authState, signIn } from '../profileStore.js'
-import { renderMarkdown } from '../markdown.js'
-import MarkdownEditor from '../components/MarkdownEditor.vue'
+import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
+import { authState, signIn, isStaff } from '../profileStore.js'
+import { renderContent } from '../richText.js'
 import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+const RichEditor = defineAsyncComponent(() => import('../components/RichEditor.vue')) // 댓글 에디터는 나중에 받아도 됨
 
 const route = useRoute()
 const router = useRouter()
 const post = ref(null)
+watch(post, (p) => { if (p) document.title = `${p.title} — 커뮤니티 — 디아허브` }, { flush: 'post' })
 const loading = ref(true)
 const actionError = ref('')
+
+// 운영진: 목록 맨 위 고정
+async function togglePin() {
+  actionError.value = ''
+  try { await setPinned(post.value, !post.value.pinned) } catch (e) { actionError.value = e.message || '처리 실패' }
+}
 
 async function load() {
   loading.value = true
@@ -29,8 +38,16 @@ async function load() {
 watch(() => route.params.id, load, { immediate: true })
 // 로그인/로그아웃하면 내 추천 표시·버튼을 다시 맞춤
 watch(() => authState.user?.id, () => { if (post.value) load() })
+async function refreshQuiet() {
+  const id = route.params.id
+  const fresh = await fetchPost(id)
+  if (!fresh || String(route.params.id) !== String(id)) return
+  fresh.views = Math.max(fresh.views || 0, post.value?.views || 0)
+  post.value = fresh
+}
+useAutoRefresh(refreshQuiet)
 
-const contentHtml = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
+const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
 
 async function run(fn) {
   actionError.value = ''
@@ -59,7 +76,7 @@ async function submitComment() {
 const onVotePost = (dir) => run(() => votePost(post.value, dir))
 const onVoteComment = (c, dir) => run(() => voteComment(c, dir))
 async function onDeleteComment(c) {
-  if (!confirm('댓글 삭제')) return
+  if (!await askConfirm('댓글 삭제')) return
   await run(async () => {
     await deleteComment(c.id)
     post.value.comments = post.value.comments.filter((x) => x.id !== c.id)
@@ -67,7 +84,7 @@ async function onDeleteComment(c) {
   })
 }
 async function onDeletePost() {
-  if (!confirm('글 삭제 - 되돌릴 수 없음')) return
+  if (!await askConfirm('글 삭제 - 되돌릴 수 없음')) return
   await run(async () => {
     await deletePost(post.value.id)
     router.replace('/community')
@@ -82,13 +99,13 @@ async function onDeletePost() {
     <div class="post-card">
       <div class="d-eyebrow">{{ post.category }}</div>
       <h1 class="d-name community-post-title">{{ post.title }}</h1>
-      <div class="community-post-meta"><UserAvatar :src="post.avatar" :name="post.author" :size="22" /> {{ post.author }} · {{ post.date }} · 조회 {{ post.views }}</div>
+      <div class="community-post-meta"><router-link :to="'/users/' + post.authorId" class="user-link"><UserAvatar :src="post.avatar" :name="post.author" :size="22" :user-id="post.authorId" /> {{ post.author }}</router-link> · {{ post.date }} · 조회 {{ post.views }}</div>
 
       <div class="post-tag-row" v-if="post.tags.length">
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
       </div>
 
-      <div class="community-post-content" v-html="contentHtml"></div>
+      <div class="community-post-content rich-content" v-html="contentHtml"></div>
 
       <div class="vote-row">
         <button class="vote-btn up" :class="{ active: post.myVote === 'up' }" @click="onVotePost('up')">
@@ -101,6 +118,7 @@ async function onDeletePost() {
       <div class="post-owner-row">
         <router-link class="owner-btn" v-if="canEdit(post)" :to="{ path: '/community/write', query: { edit: post.id } }">수정</router-link>
         <button type="button" class="owner-btn danger" v-if="canDelete(post)" @click="onDeletePost">삭제</button>
+        <button type="button" class="owner-btn" v-if="isStaff()" @click="togglePin">{{ post.pinned ? '고정 해제' : '맨 위 고정' }}</button>
         <ReportButton class="post-report" target-type="community_post" :target-id="post.id" :owner-id="post.authorId" label="글 신고" />
       </div>
       <div class="action-error" v-if="actionError">{{ actionError }}</div>
@@ -112,10 +130,10 @@ async function onDeletePost() {
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
-          <b class="comment-author"><UserAvatar :src="c.avatar" :name="c.author" :size="22" />{{ c.author }}</b>
+          <router-link :to="'/users/' + c.authorId" class="comment-author user-link"><UserAvatar :src="c.avatar" :name="c.author" :size="22" :user-id="c.authorId" />{{ c.author }}</router-link>
           <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">삭제</button></span>
         </div>
-        <div class="comment-body" v-html="renderMarkdown(c.content)"></div>
+        <div class="comment-body rich-content" v-html="renderContent(c.content)"></div>
         <div class="comment-vote-row">
           <button class="vote-btn mini up" :class="{ active: c.myVote === 'up' }" @click="onVoteComment(c, 'up')">👍 {{ c.likes }}</button>
           <button class="vote-btn mini down" :class="{ active: c.myVote === 'down' }" @click="onVoteComment(c, 'down')">👎 {{ c.dislikes }}</button>
@@ -126,7 +144,7 @@ async function onDeletePost() {
     </div>
 
     <div class="comment-form" v-if="authState.user">
-      <MarkdownEditor images v-model="commentDraft" placeholder="댓글" min-height="110px" />
+      <RichEditor v-model="commentDraft" placeholder="댓글" min-height="90px" compact />
       <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">댓글 등록</button>
     </div>
     <div class="comment-login" v-else>
