@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build && node scripts/prerender-routes.js",
     "preview": "vite preview",
-    "check:items": "node scripts/check-item-data.js"
+    "check:items": "node scripts/check-item-data.js",
+    "check:i18n": "node scripts/check-i18n.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

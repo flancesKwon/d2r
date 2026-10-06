@@ -39,7 +39,7 @@ const tabs = computed(() => TABS[mode.value].map((tab) => ({ ...tab, label: t(ta
 </script>
 
 <template>
-  <nav class="mtab" :class="mode" aria-label="하단 메뉴">
+  <nav class="mtab" :class="mode" :aria-label="$t('하단 메뉴')">
     <router-link v-for="t in tabs" :key="t.to" :to="t.to" class="mtab-item" :class="{ here: t.here, plus: t.plus }" :aria-current="t.here ? 'page' : null" :aria-label="t.plus ? t.label : null">
       <span v-if="t.plus" class="mtab-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></span>
       <template v-else>

@@ -1757,4 +1757,10 @@ export default {
   '아시아·미주·유럽 서버 매물 검색': 'Search listings on Asia, Americas and Europe',
   '레더·모드 전체': 'Ladder & mode: all',
   '세계석': 'Worldstone',
+  '접속 중': 'Online',
+  '이용 정지된 계정': 'Account suspended',
+  '사유': 'Reason',
+  '정지 중에는 글·댓글·판매글·구매신청·쪽지 작성 불가': 'While suspended you cannot post, comment, list, send buy requests or messages',
+  '영구 정지': 'Permanently suspended',
+  '{time}까지 정지': 'Suspended until {time}',
 }

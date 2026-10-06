@@ -1,3 +1,4 @@
+import { t } from './i18n.js'
 import { reactive } from 'vue'
 import { supabase, mustReturnRows, setBlockedReason } from './supabase.js'
 
@@ -113,9 +114,9 @@ export function suspendedUntil(profile = authState.profile) {
 }
 export function suspensionText(until) {
   if (!until) return ''
-  if (until === Infinity) return '영구 정지'
+  if (until === Infinity) return t('영구 정지')
   const p = (n) => String(n).padStart(2, '0')
-  return `${until.getFullYear()}-${p(until.getMonth() + 1)}-${p(until.getDate())} ${p(until.getHours())}:${p(until.getMinutes())}까지 정지`
+  return t('{time}까지 정지', { time: `${until.getFullYear()}-${p(until.getMonth() + 1)}-${p(until.getDate())} ${p(until.getHours())}:${p(until.getMinutes())}` })
 }
 
 // 마이페이지: 닉네임·연락처·프로필 사진 수정 (avatarUrl 을 안 넘기면 사진은 그대로)
