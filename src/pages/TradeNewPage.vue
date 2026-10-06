@@ -9,6 +9,8 @@ import {
   rememberRealm,
   TRADE_LADDERS,
   TRADE_HARDCORE,
+  GAME_VERSIONS,
+  DEFAULT_GAME_VERSION,
   buildAmountLabel,
   OFFER_ONLY_PRICE,
   GOLD_MAX,
@@ -88,6 +90,7 @@ const emptyForm = () => ({
   realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : guessRealm(),
   ladder: TRADE_LADDERS.includes(route.query.ladder) ? route.query.ladder : TRADE_LADDERS[0],
   hardcore: TRADE_HARDCORE.includes(route.query.hardcore) ? route.query.hardcore : TRADE_HARDCORE[0],
+  gameVersion: GAME_VERSIONS.includes(route.query.game) ? route.query.game : DEFAULT_GAME_VERSION,
   content: '',
 })
 const form = ref(emptyForm())
@@ -826,9 +829,9 @@ async function savePost(payload) {
     const view = await askConfirm(t('판매글 등록 완료 - 거래게시판에 올라갔어요'), { confirmText: t('등록한 글 보기'), cancelText: t('계속 등록'), icon: 'success' })
     if (view) router.push(`/trade/${post.id}`)
     else {
-      const { realm, ladder, hardcore } = form.value
+      const { realm, ladder, hardcore, gameVersion } = form.value
       rememberRealm(realm)
-      router.replace({ path: '/trade/new', query: { again: Date.now(), realm, ladder, hardcore } })
+      router.replace({ path: '/trade/new', query: { again: Date.now(), realm, ladder, hardcore, game: gameVersion } })
       window.scrollTo(0, 0)
     }
   } catch (e) {
@@ -1506,6 +1509,9 @@ function submitPost() {
       </div>
 
       <div class="trade-form-row">
+        <select v-model="form.gameVersion" class="write-select trade-meta-select" :aria-label="$t('게임 모드')">
+          <option v-for="g in GAME_VERSIONS" :key="g" :value="g">{{ $t(g) }}</option>
+        </select>
         <select v-model="form.realm" class="write-select trade-meta-select" :aria-label="$t('서버')">
           <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
         </select>

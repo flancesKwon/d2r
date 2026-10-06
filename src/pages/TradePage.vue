@@ -1,6 +1,6 @@
 <script setup>
 import { postName, countText, priceTok } from '../tradeI18n.js'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -12,6 +12,8 @@ import {
   getTradeItem,
   parsePriceTokens,
   TRADE_STAT_FILTERS,
+  ALL_STAT_FILTERS,
+  statFilterByKey,
   postStatValue,
   postKeywordValue,
   postLevelReq,
@@ -25,6 +27,7 @@ import {
   uniqueDefenseRange,
   SUPERIOR_MODS,
   TRADE_REALMS,
+  GAME_VERSIONS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
 import { isFavorite } from '../tradeFavorites.js'
@@ -46,6 +49,10 @@ const activeCats = ref([])
 const REGION_KEY = 'd2r-trade-region'
 const activeRegion = ref((() => { try { const v = localStorage.getItem(REGION_KEY); return TRADE_REALMS.includes(v) ? v : null } catch { return null } })())
 watch(activeRegion, (v) => { try { if (v) localStorage.setItem(REGION_KEY, v); else localStorage.removeItem(REGION_KEY) } catch { /* 프라이빗 창 등 */ } })
+// 게임 모드(확장팩) - 고른 모드는 다음 방문에도 유지 (서버 고르는 것과 같은 방식)
+const GAME_KEY = 'd2r-trade-game'
+const gameVersion = ref((() => { try { const v = localStorage.getItem(GAME_KEY); return GAME_VERSIONS.includes(v) ? v : null } catch { return null } })())
+watch(gameVersion, (v) => { try { if (v) localStorage.setItem(GAME_KEY, v); else localStorage.removeItem(GAME_KEY) } catch { /* 프라이빗 창 등 */ } })
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -236,8 +243,8 @@ const statPickMin = ref('')
 const statPickMax = ref('')
 const statPickKeyword = ref('')
 // 드롭다운 라벨의 "(%)"는 칩·배지에선 떼고 수치 뒤에 %로 붙임 ("모든 저항 20% 이상")
-const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : t((TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label || c.key).replace('(%)', '')))
-const statUnit = (c) => (!c.keyword && TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label.includes('(%)') ? '%' : '')
+const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : t((statFilterByKey(c.key)?.label || c.key).replace('(%)', '')))
+const statUnit = (c) => (!c.keyword && statFilterByKey(c.key)?.label.includes('(%)') ? '%' : '')
 function rangeText(c) {
   const u = statUnit(c)
   if (c.min === null && c.max === null) return ' ' + t('있음')
@@ -309,6 +316,7 @@ function toggleFilters() {
 function resetFilters() {
   activeCats.value = []
   activeRegion.value = null
+  gameVersion.value = null
   activeLadder.value = null
   activeHardcore.value = null
   etherealOnly.value = false
@@ -328,12 +336,16 @@ function resetFilters() {
 const now = useNow(60000)
 // 글의 아이템 이름·가격 (영어면 사전의 영문 이름, "2개" -> "×2") - tradeI18n.js
 const enCount = countText
+// 한 번에 보여줄 개수 - 스크롤이 끝에 닿으면 더 불러옴 (예전엔 300개를 한 번에 다 그려서 첫 화면이 무거웠음)
+const PAGE = 12
+const shown = ref(PAGE)
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
   // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
   let list = tradeState.posts.filter((p) => (p.status === '판매중' && saleLeftMs(p, now.value) > 0) || (p.status === '예약중' && isFavorite(p.id)))
   if (activeCats.value.length) list = list.filter((p) => activeCats.value.includes(p.category))
   if (activeRegion.value) list = list.filter((p) => p.realm === activeRegion.value)
+  if (gameVersion.value) list = list.filter((p) => p.gameVersion === gameVersion.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -389,8 +401,22 @@ const realm = computed({
 const realmLabel = computed(() => t(REALMS.find((r) => r.v === realm.value)?.label || ''))
 
 // 옵션 후보 - 직접 숫자를 넣는 칸(입력값)·"가장 높은 수치" 같은 특수 항목은 빼고
-const STAT_PICKS = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
+// 검색창에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
+// 그 뒤에 아이템 사전·매직/레어 접사·개별 스킬에서 뽑은 전체 목록 (같은 문구는 앞의 것만)
 const plainLabel = (l) => l.replace('(%)', '')
+const STAT_PICKS = (() => {
+  // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백은 떼고 봄 ('시전 속도(%)' 와 '시전 속도 X%' 는 같은 것)
+  const norm = (l) => plainLabel(l).replace(/[X%\s]/g, '')
+  const out = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
+  const seen = new Set(out.map((st) => norm(st.label)))
+  for (const st of ALL_STAT_FILTERS) {
+    const k = norm(st.label)
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(st)
+  }
+  return out
+})()
 const squash = (t) => t.replace(/[\s·/]+/g, '')
 const unifiedSuggestions = computed(() => {
   const raw = searchQuery.value.trim().replace(JAMO_TAIL, '')
@@ -399,10 +425,16 @@ const unifiedSuggestions = computed(() => {
   const out = []
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
-  for (const st of STAT_PICKS) if (squash(plainLabel(st.label)).includes(q)) out.push({ type: 'stat', key: 's' + st.key, st })
+  const stats = STAT_PICKS.filter((st) => squash(plainLabel(st.label)).includes(q))
+  // 검색어로 시작하는 옵션을 위로 ("저항" -> "저항 ..." 이 "모든 저항"보다 먼저가 아니라, 짧은 것부터)
+  stats.sort((a, b) => {
+    const la = squash(plainLabel(a.label)), lb = squash(plainLabel(b.label))
+    return (lb.startsWith(q) - la.startsWith(q)) || la.length - lb.length
+  })
+  for (const st of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
   out.push({ type: 'text', key: 'text', raw })
   out.push({ type: 'kw', key: 'kw', raw })
-  return out.slice(0, 12)
+  return out.slice(0, 20)
 })
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
@@ -479,9 +511,21 @@ function removeLastApplied() {
   if (pickedItem.value) return clearPickedItem()
   if (activeCats.value.length) activeCats.value.pop()
 }
+// 걸린 조건이나 정렬이 바뀌면 처음 12개부터 다시
+watch(filteredPosts, () => { shown.value = PAGE })
+const pagedPosts = computed(() => filteredPosts.value.slice(0, shown.value))
+const hasMore = computed(() => shown.value < filteredPosts.value.length)
+const moreEl = ref(null)
+let io = null
+onMounted(() => {
+  io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && hasMore.value) shown.value += PAGE }, { rootMargin: '400px' })
+  watch(moreEl, (el, old) => { if (old) io.unobserve(old); if (el) io.observe(el) }, { immediate: true, flush: 'post' })
+})
+onUnmounted(() => io?.disconnect())
+
 const appliedCount = computed(() =>
   activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0) +
-  (realm.value ? 1 : 0) + (activeRegion.value ? 1 : 0) + [etherealOnly.value, unidOnly.value, favoritesOnly.value, levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length
+  (realm.value ? 1 : 0) + (activeRegion.value ? 1 : 0) + (gameVersion.value ? 1 : 0) + [etherealOnly.value, unidOnly.value, favoritesOnly.value, levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length
 )
 const levelText = computed(() => {
   if (levelMin.value !== '' && levelMax.value !== '') return `${levelMin.value}~${levelMax.value}`
@@ -553,16 +597,6 @@ function variantLines(p) {
       <p class="tr-hero-sub">{{ $t('아이템 이름 · 종류 · 옵션을 여러 개 골라서 한 번에 검색') }}</p>
 
       <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
-        <label class="tr-realm">
-          <span class="sr-only">{{ $t('서버') }}</span>
-          <select v-model="activeRegion" class="tr-region" :aria-label="$t('지역 서버')">
-            <option :value="null">{{ $t('모든 지역') }}</option>
-            <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
-          </select>
-          <select v-model="realm" :aria-label="$t('서버 구분')">
-            <option v-for="r in REALMS" :key="r.v" :value="r.v">{{ $t(r.label) }}</option>
-          </select>
-        </label>
         <div class="tr-search-box">
           <input
             type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
@@ -605,6 +639,7 @@ function variantLines(p) {
 
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
+        <span class="tr-chip realm" v-if="gameVersion">{{ $t(gameVersion) }}<button type="button" :aria-label="$t('게임 모드 조건 빼기')" @click="gameVersion = null">×</button></span>
         <span class="tr-chip realm" v-if="activeRegion">{{ $t(activeRegion) }}<button type="button" :aria-label="$t('지역 조건 빼기')" @click="activeRegion = null">×</button></span>
         <span class="tr-chip realm" v-if="realm">{{ realmLabel }}<button type="button" :aria-label="$t('서버 조건 빼기')" @click="realm = ''">×</button></span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
@@ -630,13 +665,32 @@ function variantLines(p) {
       </div>
 
       <div class="tr-quick">
-        <div class="tr-quick-row">
-          <span class="tr-quick-label">{{ $t('종류') }}</span>
-          <button type="button" v-for="c in TRADE_CATEGORIES" :key="c" class="tr-qchip kind" :class="{ on: activeCats.includes(c) }" :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)">{{ $t(c) }}</button>
+        <div class="tr-pick-row">
+          <span class="tr-pick-label">{{ $t('서버') }}</span>
+          <div class="tr-seg">
+            <button type="button" :class="{ on: !activeRegion }" @click="activeRegion = null">{{ $t('전체') }}</button>
+            <button type="button" v-for="r in TRADE_REALMS" :key="r" :class="{ on: activeRegion === r }" @click="activeRegion = r">{{ $t(r) }}</button>
+          </div>
         </div>
-        <div class="tr-quick-row">
-          <span class="tr-quick-label">{{ $t('자주 쓰는 옵션') }}</span>
-          <button type="button" v-for="st in HOT_STATS" :key="st.key" class="tr-qchip opt" :class="{ on: hotOn(st) }" :aria-pressed="hotOn(st)" @click="toggleHot(st)">{{ $t(plainLabel(st.label)) }}</button>
+        <div class="tr-pick-row">
+          <span class="tr-pick-label">{{ $t('게임') }}</span>
+          <div class="tr-seg">
+            <button type="button" :class="{ on: !gameVersion }" @click="gameVersion = null">{{ $t('전체') }}</button>
+            <button type="button" v-for="g in GAME_VERSIONS" :key="g" :class="{ on: gameVersion === g }" @click="gameVersion = g">{{ $t(g) }}</button>
+          </div>
+        </div>
+        <div class="tr-pick-row">
+          <span class="tr-pick-label">{{ $t('래더') }}</span>
+          <div class="tr-seg">
+            <button type="button" :class="{ on: !activeLadder }" @click="activeLadder = null">{{ $t('전체') }}</button>
+            <button type="button" v-for="l in TRADE_LADDERS" :key="l" :class="{ on: activeLadder === l }" @click="activeLadder = l">{{ $t(l) }}</button>
+          </div>
+          <span class="tr-pick-label mode-label">{{ $t('모드') }}</span>
+          <div class="tr-seg">
+            <button type="button" :class="{ on: !activeHardcore }" @click="activeHardcore = null">{{ $t('전체') }}</button>
+            <button type="button" v-for="h in TRADE_HARDCORE" :key="h" :class="{ on: activeHardcore === h }" @click="activeHardcore = h">{{ $t(h) }}</button>
+          </div>
+          <span class="tr-gap"></span>
           <button type="button" class="tr-qchip more" :class="{ on: filtersOpen }" :aria-expanded="filtersOpen" @click="toggleFilters">{{ $t('상세 필터') }}{{ advancedCount ? ` ${advancedCount}` : '' }} {{ filtersOpen ? '▴' : '▾' }}</button>
         </div>
       </div>
@@ -665,6 +719,14 @@ function variantLines(p) {
           </div>
         </template>
         <div class="item-range-empty" v-if="!itemVarDefs.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
+      </div>
+      <div class="filter-row" v-show="filtersOpen">
+        <span class="stat-filter-label">{{ $t('종류') }}</span>
+        <button type="button" v-for="c in TRADE_CATEGORIES" :key="c" class="tr-qchip kind" :class="{ on: activeCats.includes(c) }" :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)">{{ $t(c) }}</button>
+      </div>
+      <div class="filter-row" v-show="filtersOpen">
+        <span class="stat-filter-label">{{ $t('자주 쓰는 옵션') }}</span>
+        <button type="button" v-for="st in HOT_STATS" :key="st.key" class="tr-qchip opt" :class="{ on: hotOn(st) }" :aria-pressed="hotOn(st)" @click="toggleHot(st)">{{ $t(plainLabel(st.label)) }}</button>
       </div>
       <div class="filter-row" v-show="filtersOpen">
         <label class="ethereal-filter-check">
@@ -731,7 +793,7 @@ function variantLines(p) {
       <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
     </div>
     <div class="trade-list" v-if="viewMode === 'list'">
-      <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+      <router-link class="trade-row" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
         <span class="trade-row-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -761,13 +823,14 @@ function variantLines(p) {
           </div>
         </div>
       </router-link>
+      <div class="tr-more" ref="moreEl" v-if="hasMore">{{ $t('더 불러오는 중…') }}</div>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
       <div class="empty-state" v-else-if="filteredPosts.length === 0">{{ $t('판매중인 글 없음') }}</div>
     </div>
 
     <div class="trade-grid" v-else>
-      <router-link class="trade-card" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
+      <router-link class="trade-card" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -795,6 +858,7 @@ function variantLines(p) {
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
       <div class="empty-state" v-else-if="filteredPosts.length === 0">{{ $t('판매중인 글 없음') }}</div>
     </div>
+    <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
   </div>
 
   </div>
@@ -1023,6 +1087,7 @@ function variantLines(p) {
 .tr-realm .tr-region{border-right:1px solid #D4CBBB;}
 .tr-realm select{height:100%; border:none; background:transparent; color:#2E2720; font-weight:700; font-size:14px; padding:0 14px; font-family:inherit; cursor:pointer;}
 .tr-realm select:focus-visible{outline:2px solid var(--gold); outline-offset:-2px;}
+.tr-search > .tr-search-box{border-radius:16px 0 0 16px;}
 .tr-search-box{flex:1 1 auto; min-width:0; position:relative; display:flex;}
 .tr-search-box input{flex:1; min-width:0; width:100%; border:none; outline:none; background:transparent; color:#1A1510; font-size:17px; padding:0 18px; font-family:'Noto Sans KR', sans-serif;}
 .tr-search-box input::placeholder{color:#6E655A;}
@@ -1068,6 +1133,16 @@ function variantLines(p) {
 
 .tr-quick{display:flex; flex-direction:column; gap:8px; margin-top:2px;}
 .tr-quick-row{display:flex; flex-wrap:wrap; align-items:center; gap:7px;}
+/* 서버·게임·래더·모드 고르기 - 칩보다 눈에 띄게 한 덩어리 버튼으로 */
+.tr-pick-row{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
+.tr-pick-label{width:46px; flex:none; font-size:12px; font-weight:700; color:var(--text-dim);}
+.tr-pick-label.mode-label{width:auto; margin-left:6px;}
+.tr-seg{display:inline-flex; flex:none; border:1px solid var(--border); border-radius:999px; overflow:hidden; background:var(--panel);}
+.tr-seg button{padding:7px 16px; font-size:13px; font-weight:600; color:var(--text-muted); white-space:nowrap; border-right:1px solid var(--border-soft);}
+.tr-seg button:last-child{border-right:0;}
+.tr-seg button:hover{color:var(--text); background:var(--panel-2);}
+.tr-seg button.on{background:var(--gold); color:#1a1408;}
+.tr-more{padding:18px; text-align:center; font-size:12.5px; color:var(--text-dim);}
 .tr-quick-label{width:92px; flex:none; font-size:12px; font-weight:700; color:var(--text-dim);}
 .tr-qchip{padding:6px 13px; border-radius:999px; font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--panel); color:var(--text-muted);}
 .tr-qchip:hover{color:var(--text);}
