@@ -42,6 +42,7 @@ import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 import AffixPicker from '../components/AffixPicker.vue'
 import RangeInput from '../components/RangeInput.vue'
+import BaseStatsInput from '../components/BaseStatsInput.vue'
 import magicAffixData from '../data/magicAffixes.json'
 import {
   affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
@@ -317,7 +318,7 @@ const needsManualBaseStats = computed(() => {
 })
 
 // (증가된 방어력·데미지는 매직/레어 접사로, 추가 내구도는 상급 옵션으로만 입력받음)
-const armorStats = ref({ baseDefense: '' })
+const armorStats = ref({ baseDefense: '', minDamage: '', maxDamage: '' })
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
 // 고르면 그 베이스가 원래 갖고 있는 방어력/데미지·내구도가 자동으로 채워짐
@@ -391,27 +392,70 @@ const basePickerPlaceholder = computed(() => {
     ? '베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)'
     : '베이스 방어구 검색 (예: 카이트 실드, Field Plate)'
 })
-// 고른 베이스의 기본 방어력 범위 (에테리얼이면 1.5배) - 안내·입력 예시·범위 경고에 같이 씀
+// 방어력·피해를 계산할 베이스 - 룬워드·매직/레어/일반은 고른 베이스, 유니크·세트는 사전 값
+const statBase = computed(() => selectedBaseItem.value?.base_stats || selectedItem.value?.base_stats || null)
+const ethMul = () => (form.value.ethereal ? 1.5 : 1)
+
+// 옵션 줄에서 "+N" 또는 "+N~M" 을 모아 [낮게, 높게] 로 (피해 증가%·방어력 증가%·방어력 등)
+function sumFromLines(lines, re) {
+  let lo = 0
+  let hi = 0
+  for (const line of lines) {
+    const m = re.exec(line)
+    if (!m) continue
+    lo += Number(m[1])
+    hi += Number(m[2] ?? m[1])
+  }
+  return [lo, hi]
+}
+// 베이스 스탯을 뺀 옵션 줄 (피해 증가% 등을 여기서 읽음 - 서로 참조하지 않게 따로 모음)
+const statModLines = computed(() => [
+  ...dictionaryOptionLines(), ...buildRandomGroupOptions(), ...buildSuperiorOptions(), ...buildBaseModOptions(),
+  ...buildCraftOptions(), ...buildAffixEntries().map((e) => e.text), ...customOptions.value,
+])
+// 실제 방어력 범위 = 내림(베이스 × 에테리얼 × (1 + 방어력 증가%)) + 방어력 +N
 const expectedDefense = computed(() => {
-  const base = selectedBaseItem.value?.base_stats
-  if (!base || base.category !== 'armor') return null
-  const mul = form.value.ethereal ? 1.5 : 1
-  return { min: Math.floor(base.minac * mul), max: Math.floor(base.maxac * mul) }
+  const base = statBase.value
+  if (!base || base.category !== 'armor' || base.minac == null) return null
+  const lines = statModLines.value
+  const [pLo, pHi] = sumFromLines(lines, /^방어력 증가 \+(\d+)(?:~(\d+))?%/)
+  const [fLo, fHi] = sumFromLines(lines, /^방어력 \+(\d+)(?:~(\d+))?$/)
+  const mul = ethMul()
+  return {
+    min: Math.floor(Math.floor(base.minac * mul) * (1 + pLo / 100)) + fLo,
+    max: Math.floor(Math.floor(base.maxac * mul) * (1 + pHi / 100)) + fHi,
+  }
+})
+// 실제 피해 범위 = 내림(베이스 × 에테리얼 × (1 + 피해 증가%)) + 최소/최대 피해 +N
+const expectedDamage = computed(() => {
+  const dmg = weaponDamageRange(statBase.value)
+  if (!dmg) return null
+  const lines = statModLines.value
+  const [eLo, eHi] = sumFromLines(lines, /^피해 증가 \+(\d+)(?:~(\d+))?%/)
+  const [minLo, minHi] = sumFromLines(lines, /^최소 피해 \+(\d+)(?:~(\d+))?$/)
+  const [maxLo, maxHi] = sumFromLines(lines, /^최대 (?:피해|공격력) \+(\d+)(?:~(\d+))?$/)
+  const mul = ethMul()
+  const lo = (v, add) => Math.floor(Math.floor(v * mul) * (1 + eLo / 100)) + add
+  const hi = (v, add) => Math.floor(Math.floor(v * mul) * (1 + eHi / 100)) + add
+  return {
+    min: { min: lo(dmg.min, minLo), max: hi(dmg.min, minHi) },
+    max: { min: lo(dmg.max, maxLo), max: hi(dmg.max, maxHi) },
+  }
 })
 const baseDefenseWarning = computed(() => {
   const exp = expectedDefense.value
   const v = armorStats.value.baseDefense
   if (!exp || v === '' || v === null) return ''
   return Number(v) < exp.min || Number(v) > exp.max
-    ? `고른 베이스의 기본 방어력 범위(${exp.min}~${exp.max}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어남 - 다시 확인`
+    ? `이 아이템의 방어력 범위(${exp.min}~${exp.max}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어남 - 다시 확인`
     : ''
 })
-// 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배) - 입력받지 않고 이 값을 그대로 저장
-const expectedWeaponDamage = computed(() => {
-  const dmg = weaponDamageRange(selectedBaseItem.value?.base_stats)
-  if (!dmg) return null
-  const mul = form.value.ethereal ? 1.5 : 1
-  return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
+// 실제로 글에 들어갈 피해 값 - 입력한 게 있으면 그걸, 없으면 범위의 낮은 쪽~높은 쪽
+const damageLineValue = computed(() => {
+  const exp = expectedDamage.value
+  if (!exp) return ''
+  const side = (v, r) => (v === '' || v === null || v === undefined ? (r.min === r.max ? `${r.min}` : `(${r.min}-${r.max})`) : `${v}`)
+  return `${side(armorStats.value.minDamage, exp.min)}~${side(armorStats.value.maxDamage, exp.max)}`
 })
 // 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
 // · 스킬: 오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀 등에 그 직업 스킬 최대 3개 × +1~3
@@ -504,23 +548,20 @@ function hideBaseItemDropdownSoon() {
 }
 
 function resetBaseStats() {
-  armorStats.value = { baseDefense: '' }
+  armorStats.value = { baseDefense: '', minDamage: '', maxDamage: '' }
   clearBaseItem()
 }
 
 function buildBaseStatOptions() {
   const out = []
   if (selectedBaseItem.value) out.push(`베이스: ${baseItemLabel(selectedBaseItem.value)}`)
-  if (effectiveBaseKind.value === 'armor') {
-    // 실제 방어력을 입력했으면 그 값, 안 했으면 고른 베이스의 방어력 범위를 그대로 씀
-    const base = selectedBaseItem.value?.base_stats
-    const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
-    if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
-  } else if (effectiveBaseKind.value === 'weapon') {
-    // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배)이라 입력받지 않고 그대로 씀
-    const exp = expectedWeaponDamage.value
-    if (exp) out.push(`기본 데미지 ${exp.min}~${exp.max}`)
+  // 실제 값을 입력했으면 그 값, 안 했으면 이 아이템의 방어력·피해 범위
+  const def = expectedDefense.value
+  if (def) {
+    const v = armorStats.value.baseDefense
+    out.push(`기본 방어력 ${v === '' || v === null ? (def.min === def.max ? def.min : `${def.min}~${def.max}`) : v}`)
   }
+  if (damageLineValue.value) out.push(`기본 데미지 ${damageLineValue.value}`)
   out.push(...orderedCraftAffixLines([...buildSuperiorOptions(), ...buildBaseModOptions()]))
   if (uniqueSockets.value) out.push(`소켓 ${uniqueSockets.value}개`)
   return out
@@ -542,7 +583,12 @@ const invalidInputs = computed(() => {
     if (o && !isAllowedValue(groupValues.value[gi], o)) bad.push(`${o.text} (${o.min}~${o.max})`)
   })
   if (expectedDefense.value && !isAllowedValue(armorStats.value.baseDefense, expectedDefense.value)) {
-    bad.push(`기본 방어력 (${expectedDefense.value.min}~${expectedDefense.value.max})`)
+    bad.push(`방어력 (${expectedDefense.value.min}~${expectedDefense.value.max})`)
+  }
+  const dmgExp = expectedDamage.value
+  if (dmgExp) {
+    if (!isAllowedValue(armorStats.value.minDamage, dmgExp.min)) bad.push(`최소 피해 (${dmgExp.min.min}~${dmgExp.min.max})`)
+    if (!isAllowedValue(armorStats.value.maxDamage, dmgExp.max)) bad.push(`최대 피해 (${dmgExp.max.min}~${dmgExp.max.max})`)
   }
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
@@ -761,18 +807,23 @@ function submitBundle() {
   })
 }
 
+// 사전 아이템(유니크·세트·룬워드)의 옵션 줄 - 판매자가 넣은 수치 반영
+function dictionaryOptionLines() {
+  if (isUnidentified.value) return itemAffixes.value.map((a) => a.text)
+  return itemAffixes.value.map((a, i) => {
+    if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
+    return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
+  })
+}
+
 // 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
 function buildAllOptions() {
   if (isUnidentified.value) {
     // 옵션 수치는 안 받음 (사전 범위 그대로). 소켓 수는 미확인이어도 게임에서 보이니 남김
     return ['미확인', ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
   }
-  const dbOptions = itemAffixes.value.map((a, i) => {
-    if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
-    return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
-  })
   return [
-    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
+    ...dictionaryOptionLines(), ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...customOptions.value,
   ]
 }
 
@@ -921,17 +972,14 @@ function submitPost() {
         </div>
       </div>
 
-      <div class="base-stats-ref" v-if="baseStatsRef && baseStatsRef.category !== 'misc'">
-        <div class="option-editor-title">베이스 아이템 기본 정보</div>
-        <div class="base-stats-ref-row" v-if="baseStatsRef.category === 'armor'">
-          <span>기본 방어력 {{ baseStatsRef.minac }}~{{ baseStatsRef.maxac }}</span>
-          <span>내구도 {{ baseStatsRef.durability }}</span>
-        </div>
-        <div class="base-stats-ref-row" v-else-if="baseStatsRef.category === 'weapon'">
-          <span>기본 데미지 {{ weaponDamageRange(baseStatsRef)?.min }}~{{ weaponDamageRange(baseStatsRef)?.max }}</span>
+      <div class="base-stats-ref" v-if="baseStatsRef && baseStatsRef.category !== 'misc' && !isUnidentified">
+        <div class="option-editor-title">아이템 기본 정보 <span class="craft-sub-note">실제 아이템 값 입력</span></div>
+        <div class="base-stats-ref-row">
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">공격 속도 {{ baseStatsRef.speed }}</span>
-          <span>내구도 {{ baseStatsRef.durability }}</span>
+          <span v-if="baseStatsRef.durability">내구도 {{ baseStatsRef.durability }}</span>
         </div>
+        <BaseStatsInput v-model="armorStats" :defense="expectedDefense" :damage="expectedDamage" :ethereal="form.ethereal" />
+        <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
       </div>
 
       <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반' && !selectedBaseItem">
@@ -1045,33 +1093,13 @@ function submitPost() {
           </div>
         </div>
 
-        <template v-if="effectiveBaseKind === 'armor'">
-          <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedDefense">기본 방어력 범위 {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}</span>
-            <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
-            <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
-          </div>
-          <div class="base-stats-input-row">
-            <label>
-              기본 방어력
-              <input
-                type="number" v-model="armorStats.baseDefense" class="write-input"
-                :class="{ invalid: expectedDefense && outOfRange(armorStats.baseDefense, expectedDefense) }"
-                :min="expectedDefense?.min" :max="expectedDefense?.max"
-                :placeholder="expectedDefense ? `${expectedDefense.min}~${expectedDefense.max}` : '예: 80'"
-              />
-            </label>
-          </div>
-          <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
-        </template>
-
-        <template v-else-if="effectiveBaseKind === 'weapon'">
-          <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }} · 베이스 고정값 (자동 입력)</span>
-            <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
-            <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
-          </div>
-        </template>
+        <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
+          <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
+          <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
+          <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
+        </div>
+        <BaseStatsInput v-model="armorStats" :defense="expectedDefense" :damage="expectedDamage" :ethereal="form.ethereal" />
+        <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
 
         <div class="base-mods" v-if="superiorCombos.length">
           <div class="option-editor-title">상급(Superior) 베이스 옵션</div>

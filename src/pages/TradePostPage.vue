@@ -497,7 +497,7 @@ async function confirmBuy() {
       </template>
 
       <template v-else>
-        <div class="d-section-title">구매 확인</div>
+        <div class="d-section-title">구매신청 확인</div>
         <div class="confirm-row">
           <span class="k">판매 아이템</span>
           <span class="v confirm-item">
@@ -531,7 +531,7 @@ async function confirmBuy() {
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" v-if="post.negotiable" @click="buyStep = 'offer'">이전</button>
-          <button type="button" class="btn-primary" @click="confirmBuy">구매 확정</button>
+          <button type="button" class="btn-primary" @click="confirmBuy">구매신청</button>
         </div>
       </template>
     </div>

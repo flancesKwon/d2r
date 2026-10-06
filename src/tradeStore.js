@@ -470,6 +470,14 @@ function fmtDate(ts) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+// 구매신청처럼 시각이 중요한 곳 - 2026-10-06 21:04:37
+function fmtDateTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${fmtDate(ts)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
 function unpackOptions(o) {
   if (Array.isArray(o)) return { lines: o.filter((x) => typeof x === 'string') }
   return o && typeof o === 'object' ? o : { lines: [] }
@@ -683,7 +691,8 @@ function mapRequest(r) {
     kind: (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
     offerItems: offerItemsFromMessage(r.message),
     status: REQUEST_STATUS_FROM_DB[r.status] || r.status,
-    date: fmtDate(r.created_at),
+    // 구매신청은 몇 시 몇 분에 왔는지가 중요해서 시·분·초까지
+    date: fmtDateTime(r.created_at),
   }
 }
 
