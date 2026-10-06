@@ -6,6 +6,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { profileState, saveProfile, authState, signIn } from '../profileStore.js'
 import UserAvatar from '../components/UserAvatar.vue'
 import { AVATAR_PRESETS, presetValue } from '../avatars.js'
+import { t } from '../i18n.js'
+import { nameText } from '../tradeI18n.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,14 +27,14 @@ const done = () => router.replace(welcome.value ? '/' : '/mypage')
 async function save() {
   saveError.value = ''
   const nick = nicknameInput.value.trim()
-  if (nick.length < 2 || nick.length > 20) return (saveError.value = '닉네임은 2~20자')
+  if (nick.length < 2 || nick.length > 20) return (saveError.value = t('닉네임은 2~20자'))
   saving.value = true
   try {
     await saveProfile({ nickname: nick, contact: contactInput.value, avatarUrl: avatarInput.value })
     done()
   } catch (e) {
     // 닉네임 중복(unique 제약)·사칭 닉네임(011 SQL) 등
-    saveError.value = /duplicate|unique/i.test(e.message || '') ? '이미 사용 중인 닉네임' : e.message || '저장 실패'
+    saveError.value = t(/duplicate|unique/i.test(e.message || '') ? '이미 사용 중인 닉네임' : e.message || '저장 실패')
   } finally {
     saving.value = false
   }
@@ -43,56 +45,56 @@ async function save() {
   <div class="items-page profile-edit-page">
     <div class="patch-hero">
       <div class="patch-hero-inner">
-        <div class="eyebrow">{{ welcome ? '가입 완료' : '마이페이지' }}</div>
-        <h1>프로필 수정</h1>
+        <div class="eyebrow">{{ $t(welcome ? '가입 완료' : '마이페이지') }}</div>
+        <h1>{{ $t('프로필 수정') }}</h1>
       </div>
     </div>
 
     <div class="grid-wrap pe-wrap" v-if="!authState.user">
       <div class="pe-login">
-        <p>로그인 필요</p>
-        <button type="button" class="btn-primary" @click="signIn">로그인</button>
+        <p>{{ $t('로그인 필요') }}</p>
+        <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
       </div>
     </div>
 
     <div class="grid-wrap pe-wrap" v-else>
-      <router-link v-if="!welcome" to="/mypage" class="pe-back">← 마이페이지</router-link>
+      <router-link v-if="!welcome" to="/mypage" class="pe-back">{{ $t('← 마이페이지') }}</router-link>
       <div class="welcome-box" v-if="welcome">
-        <b>가입 완료</b>
-        <span>닉네임·프로필 사진 설정</span>
+        <b>{{ $t('가입 완료') }}</b>
+        <span>{{ $t('닉네임·프로필 사진 설정') }}</span>
       </div>
 
       <section class="pe-card">
         <div class="pe-field">
-          <span class="pe-label">프로필 사진</span>
+          <span class="pe-label">{{ $t('프로필 사진') }}</span>
           <div class="avatar-now">
             <UserAvatar :src="avatarInput" :name="nicknameInput" :size="64" />
-            <span class="avatar-now-name">{{ nicknameInput || '닉네임' }}</span>
+            <span class="avatar-now-name">{{ nicknameInput || $t('닉네임') }}</span>
           </div>
-          <div class="avatar-grid" role="radiogroup" aria-label="프로필 사진 고르기">
-            <button type="button" v-if="loginPhoto" class="avatar-pick" :class="{ active: avatarInput === loginPhoto }" @click="avatarInput = loginPhoto" title="로그인 계정 사진">
-              <UserAvatar :src="loginPhoto" :size="44" /><small>계정 사진</small>
+          <div class="avatar-grid" role="radiogroup" :aria-label="$t('프로필 사진 고르기')">
+            <button type="button" v-if="loginPhoto" class="avatar-pick" :class="{ active: avatarInput === loginPhoto }" @click="avatarInput = loginPhoto" :title="$t('로그인 계정 사진')">
+              <UserAvatar :src="loginPhoto" :size="44" /><small>{{ $t('계정 사진') }}</small>
             </button>
             <button type="button" v-for="a in AVATAR_PRESETS" :key="a.key" class="avatar-pick" :class="{ active: avatarInput === presetValue(a.key) }" @click="avatarInput = presetValue(a.key)" :title="a.label">
-              <UserAvatar :src="presetValue(a.key)" :size="44" /><small>{{ a.label }}</small>
+              <UserAvatar :src="presetValue(a.key)" :size="44" /><small>{{ nameText(a.label) }}</small>
             </button>
-            <button type="button" class="avatar-pick" :class="{ active: !avatarInput }" @click="avatarInput = ''" title="사진 없음">
-              <UserAvatar :name="nicknameInput" :size="44" /><small>없음</small>
+            <button type="button" class="avatar-pick" :class="{ active: !avatarInput }" @click="avatarInput = ''" :title="$t('사진 없음')">
+              <UserAvatar :name="nicknameInput" :size="44" /><small>{{ $t('없음') }}</small>
             </button>
           </div>
         </div>
         <label class="pe-field">
-          <span class="pe-label">닉네임</span>
-          <input type="text" v-model="nicknameInput" placeholder="판매글·게시글에 보일 닉네임 (2~20자)" maxlength="20" class="write-input" @keydown.enter="save" />
+          <span class="pe-label">{{ $t('닉네임') }}</span>
+          <input type="text" v-model="nicknameInput" :placeholder="$t('판매글·게시글에 보일 닉네임 (2~20자)')" maxlength="20" class="write-input" @keydown.enter="save" />
         </label>
         <label class="pe-field">
-          <span class="pe-label">연락처 <small>공개 (거래 상대가 봄)</small></span>
-          <input type="text" v-model="contactInput" placeholder="배틀태그, 디스코드 등" class="write-input" @keydown.enter="save" />
+          <span class="pe-label">{{ $t('연락처') }} <small>{{ $t('공개 (거래 상대가 봄)') }}</small></span>
+          <input type="text" v-model="contactInput" :placeholder="$t('배틀태그, 디스코드 등')" class="write-input" @keydown.enter="save" />
         </label>
         <div class="pe-actions">
           <span class="pe-error" v-if="saveError">{{ saveError }}</span>
-          <button type="button" class="pe-cancel" @click="done">{{ welcome ? '나중에' : '취소' }}</button>
-          <button type="button" class="btn-primary pe-save" :disabled="saving" @click="save">저장</button>
+          <button type="button" class="pe-cancel" @click="done">{{ $t(welcome ? '나중에' : '취소') }}</button>
+          <button type="button" class="btn-primary pe-save" :disabled="saving" @click="save">{{ $t('저장') }}</button>
         </div>
       </section>
     </div>

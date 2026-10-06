@@ -7,6 +7,8 @@
 // - 악마술사: id가 null -> 한글 이름(ko)으로 매칭 (시뮬레이터 이름과 30/30 일치)
 
 // 시뮬레이터 직업 키 -> skill_text.json 직업 키
+import { locale, skillDescText } from './i18n.js'
+
 export const SKILL_TEXT_CLASS = {
   amazon: 'amazon', sorc: 'sorceress', necro: 'necromancer', paladin: 'paladin',
   barb: 'barbarian', druid: 'druid', assassin: 'assassin', warlock: 'warlock',
@@ -38,6 +40,8 @@ export function buildSkillTextIndex(skillText, skillIdMap, skillsData) {
 
 // 툴팁에 쓸 설명 줄: shortDesc, 비어 있으면(피의 맹세) longDesc
 export function skillDescLines(entry) {
-  const text = (entry?.shortDesc || '').trim() || (entry?.longDesc || '').trim()
+  // 영어 화면이면 게임 영어 문구 (locales/skills.en.json)
+  const en = locale.value !== 'ko' && (skillDescText(entry?.keys?.short) || skillDescText(entry?.keys?.long))
+  const text = en || (entry?.shortDesc || '').trim() || (entry?.longDesc || '').trim()
   return text ? text.split('\n').map((l) => l.trim()).filter(Boolean) : []
 }

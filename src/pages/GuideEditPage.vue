@@ -70,79 +70,79 @@ watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate:
   <div class="items-page guide-edit-page">
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">빌드 가이드</div>
+      <div class="eyebrow">{{ $t('빌드 가이드') }}</div>
       <h1>{{ pageTitle }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap ge-wrap ge-gate" v-if="!authState.user">
-    <p>운영진 계정 로그인 필요</p>
-    <button type="button" class="btn-primary" @click="signIn">로그인</button>
+    <p>{{ $t('운영진 계정 로그인 필요') }}</p>
+    <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
   </div>
   <div class="grid-wrap ge-wrap ge-gate" v-else-if="guidesState.loaded && !canEditGuides">
-    <p>운영진 전용</p>
-    <router-link to="/guides" class="btn-primary">가이드 목록으로</router-link>
+    <p>{{ $t('운영진 전용') }}</p>
+    <router-link to="/guides" class="btn-primary">{{ $t('가이드 목록으로') }}</router-link>
   </div>
 
   <div class="grid-wrap ge-wrap" v-else-if="loadedEdit">
     <div class="ge-row">
       <label class="ge-field">
-        <span>직업</span>
+        <span>{{ $t('직업') }}</span>
         <select v-model="form.classKey" class="ge-input">
           <option v-for="c in GUIDE_CLASSES" :key="c.key" :value="c.key">{{ c.name }}</option>
         </select>
       </label>
       <label class="ge-field">
-        <span>티어</span>
+        <span>{{ $t('티어') }}</span>
         <select v-model="form.tier" class="ge-input">
-          <option value="">없음</option>
+          <option value="">{{ $t('없음') }}</option>
           <option v-for="t in GUIDE_TIERS" :key="t" :value="t">{{ t }}</option>
         </select>
       </label>
       <label class="ge-check">
-        <input type="checkbox" v-model="form.published" /> 공개
+        <input type="checkbox" v-model="form.published" /> {{ $t('공개') }}
       </label>
     </div>
 
     <label class="ge-field">
-      <span>제목</span>
-      <input v-model="form.title" class="ge-input ge-title" maxlength="120" placeholder="예: 파벽 소서리스 — 초보자용 완전 정복" />
+      <span>{{ $t('제목') }}</span>
+      <input v-model="form.title" class="ge-input ge-title" maxlength="120" :placeholder="$t('예: 파벽 소서리스 — 초보자용 완전 정복')" />
     </label>
     <label class="ge-field">
-      <span>한 줄 소개 <small>목록 카드에 표시</small></span>
-      <input v-model="form.desc" class="ge-input" placeholder="예: 스킬 트리, 필요 장비, 레벨링 순서까지 한 번에" />
+      <span>{{ $t('한 줄 소개') }} <small>{{ $t('목록 카드에 표시') }}</small></span>
+      <input v-model="form.desc" class="ge-input" :placeholder="$t('예: 스킬 트리, 필요 장비, 레벨링 순서까지 한 번에')" />
     </label>
     <label class="ge-field">
-      <span>요약</span>
-      <textarea v-model="form.summary" class="ge-input" rows="4" placeholder="이 빌드가 어떤 빌드인지"></textarea>
+      <span>{{ $t('요약') }}</span>
+      <textarea v-model="form.summary" class="ge-input" rows="4" :placeholder="$t('이 빌드가 어떤 빌드인지')"></textarea>
     </label>
     <label class="ge-field">
-      <span>스탯 우선순위</span>
-      <textarea v-model="form.statPriority" class="ge-input" rows="3" placeholder="예: 힘은 장비 요구치만, 나머지는 활력"></textarea>
+      <span>{{ $t('스탯 우선순위') }}</span>
+      <textarea v-model="form.statPriority" class="ge-input" rows="3" :placeholder="$t('예: 힘은 장비 요구치만, 나머지는 활력')"></textarea>
     </label>
 
     <div class="ge-field">
-      <span>스킬 트리 순서</span>
+      <span>{{ $t('스킬 트리 순서') }}</span>
       <div class="ge-skill-row" v-for="(s, i) in form.skillOrder" :key="i">
-        <input v-model="s.level" class="ge-input ge-level" placeholder="레벨 (예: 1~11)" />
-        <input v-model="s.skill" class="ge-input" placeholder="찍을 스킬" />
-        <button type="button" class="ge-remove" aria-label="줄 삭제" @click="removeSkillRow(i)">✕</button>
+        <input v-model="s.level" class="ge-input ge-level" :placeholder="$t('레벨 (예: 1~11)')" />
+        <input v-model="s.skill" class="ge-input" :placeholder="$t('찍을 스킬')" />
+        <button type="button" class="ge-remove" :aria-label="$t('줄 삭제')" @click="removeSkillRow(i)">✕</button>
       </div>
-      <button type="button" class="ge-add" @click="addSkillRow">+ 줄 추가</button>
+      <button type="button" class="ge-add" @click="addSkillRow">{{ $t('+ 줄 추가') }}</button>
     </div>
 
     <div class="ge-field" v-for="f in LIST_FIELDS" :key="f.key">
       <span>{{ f.label }}</span>
       <div class="ge-line-row" v-for="(line, i) in form[f.key]" :key="i">
         <input v-model="form[f.key][i]" class="ge-input" :placeholder="f.placeholder" />
-        <button type="button" class="ge-remove" aria-label="줄 삭제" @click="removeLine(f.key, i)">✕</button>
+        <button type="button" class="ge-remove" :aria-label="$t('줄 삭제')" @click="removeLine(f.key, i)">✕</button>
       </div>
-      <button type="button" class="ge-add" @click="addLine(f.key)">+ 줄 추가</button>
+      <button type="button" class="ge-add" @click="addLine(f.key)">{{ $t('+ 줄 추가') }}</button>
     </div>
 
     <div class="ge-actions">
       <span class="ge-error" v-if="error">{{ error }}</span>
-      <router-link :to="editSlug ? `/guides/${editSlug}` : '/guides'" class="ge-cancel">취소</router-link>
+      <router-link :to="editSlug ? `/guides/${editSlug}` : '/guides'" class="ge-cancel">{{ $t('취소') }}</router-link>
       <button type="button" class="btn-primary" :disabled="saving" @click="submit">{{ saving ? '저장 중…' : '저장' }}</button>
     </div>
   </div>

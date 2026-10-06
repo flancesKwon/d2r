@@ -1,11 +1,13 @@
 <script setup>
+import { t } from '../i18n.js'
+import { postName, priceText as tradePriceText } from '../tradeI18n.js'
 // 프로필 카드 - 프로필 사진을 누르면 어느 화면에서든 뜸
 // 닉네임·사진·평점(리뷰 평균)·접속 중/마지막 접속·판매중/판매완료/작성글 수·최근 판매글·최근 글
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../supabase.js'
 import { authState, signIn, ROLE_LABEL } from '../profileStore.js'
-import { fetchTradePostsBy, postIconKey, postRarity, parsePriceTokens } from '../tradeStore.js'
+import { fetchTradePostsBy, postIconKey, postRarity } from '../tradeStore.js'
 import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor } from '../dealsStore.js'
 import { openConversationWith } from '../messagesStore.js'
@@ -37,7 +39,7 @@ async function load(id) {
     const { data } = await supabase.from('tb_profile')
       .select('id, nickname, avatar_url, role, created_at, last_seen_at').eq('id', id).maybeSingle()
     if (my !== seq) return
-    if (!data) { error.value = '탈퇴했거나 없는 회원'; return }
+    if (!data) { error.value = t('탈퇴했거나 없는 회원'); return }
     profile.value = data
     const [r, t, c] = await Promise.all([
       fetchReviewsFor(id).catch(() => []),
@@ -60,12 +62,12 @@ onMounted(() => window.addEventListener('keydown', onKey))
 onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 function ago(ts) {
-  if (!ts) return '기록 없음'
+  if (!ts) return t('기록 없음')
   const min = Math.floor((Date.now() - new Date(ts)) / 60000)
-  if (min < 5) return '방금 전'
-  if (min < 60) return min + '분 전'
-  if (min < 1440) return Math.floor(min / 60) + '시간 전'
-  return Math.floor(min / 1440) + '일 전'
+  if (min < 5) return t('방금 전')
+  if (min < 60) return t('{n}분 전', { n: min })
+  if (min < 1440) return t('{n}시간 전', { n: Math.floor(min / 60) })
+  return t('{n}일 전', { n: Math.floor(min / 1440) })
 }
 const fmtDay = (ts) => { if (!ts) return '-'; const d = new Date(ts); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` }
 const online = computed(() => isOnline(profile.value?.id))
@@ -74,7 +76,7 @@ const selling = computed(() => tradePosts.value.filter((p) => p.status === '판�
 const sold = computed(() => tradePosts.value.filter((p) => p.status === '거래완료').length)
 const isMe = computed(() => !!authState.user && authState.user.id === profile.value?.id)
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
-const priceText = (p) => parsePriceTokens(p.price).map((t) => t.text).join('')
+const priceText = (p) => tradePriceText(p.price)
 
 async function sendMessage() {
   error.value = ''
@@ -84,65 +86,65 @@ async function sendMessage() {
     closeProfileCard()
     router.push({ path: '/messages', query: { c: convId } })
   } catch (e) {
-    error.value = e.message || '대화방 열기 실패'
+    error.value = t(e.message || '대화방 열기 실패')
   }
 }
 </script>
 
 <template>
   <div class="modal-overlay pcard-overlay" v-if="profileCardState.userId" @click.self="closeProfileCard">
-    <div class="pcard" role="dialog" aria-label="회원 프로필">
-      <button type="button" class="pcard-close" aria-label="닫기" @click="closeProfileCard">✕</button>
-      <div class="pcard-empty" v-if="loading && !profile">불러오는 중…</div>
-      <div class="pcard-empty" v-else-if="!profile">{{ error || '불러오는 중…' }}</div>
+    <div class="pcard" role="dialog" :aria-label="$t('회원 프로필')">
+      <button type="button" class="pcard-close" :aria-label="$t('닫기')" @click="closeProfileCard">✕</button>
+      <div class="pcard-empty" v-if="loading && !profile">{{ $t('불러오는 중…') }}</div>
+      <div class="pcard-empty" v-else-if="!profile">{{ error || $t('불러오는 중…') }}</div>
       <template v-else>
         <div class="pcard-head">
           <UserAvatar :src="profile.avatar_url" :name="profile.nickname" :size="64" :user-id="profile.id" :clickable="false" />
           <div class="pcard-who">
             <div class="pcard-name">
               {{ profile.nickname }}
-              <span class="pcard-role" v-if="profile.role && profile.role !== 'user'">{{ ROLE_LABEL[profile.role] || profile.role }}</span>
+              <span class="pcard-role" v-if="profile.role && profile.role !== 'user'">{{ $t(ROLE_LABEL[profile.role] || profile.role) }}</span>
             </div>
-            <div class="pcard-seen" :class="{ on: online }">{{ online ? '● 접속 중' : '마지막 접속 ' + ago(profile.last_seen_at) }}</div>
-            <div class="pcard-joined">가입 {{ fmtDay(profile.created_at) }}</div>
+            <div class="pcard-seen" :class="{ on: online }">{{ online ? $t('● 접속 중') : $t('마지막 접속') + ' ' + ago(profile.last_seen_at) }}</div>
+            <div class="pcard-joined">{{ $t('가입') }} {{ fmtDay(profile.created_at) }}</div>
           </div>
         </div>
 
         <div class="pcard-stats">
-          <span><b>{{ avg ? '★ ' + avg : '-' }}</b><small>평점 · 리뷰 {{ reviews.length }}</small></span>
-          <span><b>{{ selling.length }}</b><small>판매중</small></span>
-          <span><b>{{ sold }}</b><small>판매완료</small></span>
-          <span><b>{{ communityPosts.length }}</b><small>작성글</small></span>
+          <span><b>{{ avg ? '★ ' + avg : '-' }}</b><small>{{ $t('평점') }} · {{ $t('리뷰') }} {{ reviews.length }}</small></span>
+          <span><b>{{ selling.length }}</b><small>{{ $t('판매중') }}</small></span>
+          <span><b>{{ sold }}</b><small>{{ $t('판매완료') }}</small></span>
+          <span><b>{{ communityPosts.length }}</b><small>{{ $t('작성글') }}</small></span>
         </div>
 
         <div class="pcard-section" v-if="selling.length">
-          <div class="pcard-title">판매중인 글</div>
+          <div class="pcard-title">{{ $t('판매중인 글') }}</div>
           <router-link v-for="p in selling.slice(0, 3)" :key="p.id" :to="`/trade/${p.id}`" class="pcard-row">
             <span class="pcard-icon" :class="postRarity(p)"><img v-if="iconUrl(postIconKey(p))" :src="iconUrl(postIconKey(p))" alt="" /></span>
-            <span class="pcard-row-name">{{ p.itemName }}</span>
+            <span class="pcard-row-name">{{ postName(p) }}</span>
             <small>{{ priceText(p) }}</small>
           </router-link>
         </div>
         <div class="pcard-section" v-if="communityPosts.length">
-          <div class="pcard-title">최근 작성글</div>
+          <div class="pcard-title">{{ $t('최근 작성글') }}</div>
           <router-link v-for="c in communityPosts.slice(0, 3)" :key="c.id" :to="`/community/${c.id}`" class="pcard-row">
             <span class="pcard-row-name">{{ c.title }}</span>
             <small>{{ c.date }}</small>
           </router-link>
         </div>
         <div class="pcard-section" v-if="reviews.length">
-          <div class="pcard-title">최근 받은 리뷰</div>
+          <div class="pcard-title">{{ $t('최근 받은 리뷰') }}</div>
           <div class="pcard-review" v-for="(r, i) in reviews.slice(0, 2)" :key="i">
             <span class="pcard-stars">{{ '★'.repeat(r.rating) }}{{ '☆'.repeat(5 - r.rating) }}</span>
-            <span class="pcard-row-name">{{ r.comment || '(내용 없음)' }}</span>
+            <span class="pcard-row-name">{{ r.comment || $t('(내용 없음)') }}</span>
             <small>{{ r.from }}</small>
           </div>
         </div>
 
         <div class="pcard-error" v-if="error">{{ error }}</div>
         <div class="pcard-actions">
-          <router-link :to="`/users/${profile.id}`" class="pcard-btn">프로필 전체 보기</router-link>
-          <button type="button" class="pcard-btn primary" v-if="!isMe" @click="sendMessage">쪽지 보내기</button>
+          <router-link :to="`/users/${profile.id}`" class="pcard-btn">{{ $t('프로필 전체 보기') }}</router-link>
+          <button type="button" class="pcard-btn primary" v-if="!isMe" @click="sendMessage">{{ $t('쪽지 보내기') }}</button>
         </div>
       </template>
     </div>

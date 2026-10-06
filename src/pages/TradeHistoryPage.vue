@@ -27,6 +27,8 @@ import {
   isSaleExpired,
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { t, locale, itemName, affixText } from '../i18n.js'
+import { postName, countText, priceTok, priceText } from '../tradeI18n.js'
 
 const route = useRoute()
 loadTradePosts()
@@ -37,7 +39,7 @@ const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
 const itemId = computed(() => (typeof route.query.item === 'string' ? route.query.item : ''))
 const freeName = computed(() => (typeof route.query.name === 'string' ? route.query.name : ''))
 const item = computed(() => (itemId.value ? getTradeItem(itemId.value) : null))
-const title = computed(() => item.value?.name_ko || freeName.value)
+const title = computed(() => (item.value ? itemName(item.value) : freeName.value))
 const hasTarget = computed(() => !!title.value)
 
 const ladder = ref('')
@@ -50,6 +52,14 @@ watch(() => route.fullPath, () => { ladder.value = ''; hardcore.value = ''; stat
 
 const allPosts = computed(() => (hasTarget.value ? tradePostsForItem({ itemId: item.value?.id, name: freeName.value }) : []))
 // 판매 기간이 끝난 판매중 글은 '기간 만료'
+// 변동 옵션 값·조합 이름 (한국어로 만든 문구) -> 지금 언어
+const tv = (x) => {
+  if (typeof x !== 'string' || locale.value === 'ko') return x
+  const a = affixText(x)
+  if (a !== x) return a
+  const m = /^(\S+) \+(\d+)$/.exec(x)
+  return m ? `${t(m[1])} +${m[2]}` : t(x)
+}
 const statusOf = (p) => (isSaleExpired(p) ? '기간 만료' : p.status)
 const STATUS_TABS = ['판매중', '예약중', '거래완료', '기간 만료']
 
@@ -100,7 +110,7 @@ const statusCount = (t) => posts.value.filter((p) => statusOf(p) === t).length
 // 글마다 변동 옵션 값 칩 (고른 값은 금색)
 const varChips = (p) => varDefs.value.map((d) => {
   const v = d.get(p)
-  return v === null || v === undefined || (d.key === 'eth' && v === '일반') || (d.key === 'unid' && v === '확인') ? null : { key: d.key, text: d.show(v), on: picks[d.key] === v }
+  return v === null || v === undefined || (d.key === 'eth' && v === '일반') || (d.key === 'unid' && v === '확인') ? null : { key: d.key, text: tv(d.show(v)), on: picks[d.key] === v }
 }).filter(Boolean)
 
 // ---- 옵션 조합별 시세: 변동 옵션 값이 같은 글끼리 묶어서 판매중·거래완료 수와 최근 거래가
@@ -112,7 +122,7 @@ const groups = computed(() => {
     const key = JSON.stringify(vals)
     const g = byKey.get(key) || {
       key, vals, selling: 0, done: 0, lastDone: null, lastSelling: null,
-      label: varDefs.value.map((d, i) => (vals[i] === null ? null : d.show(vals[i]))).filter(Boolean).join(' · ') || '옵션 정보 없음',
+      label: varDefs.value.map((d, i) => (vals[i] === null ? null : tv(d.show(vals[i])))).filter(Boolean).join(' · ') || t('옵션 정보 없음'),
     }
     const st = statusOf(p)
     if (st === '판매중') { g.selling++; if (!g.lastSelling) g.lastSelling = p }
@@ -146,30 +156,32 @@ function openItem(it) {
 }
 const summaryIcon = (s) => iconUrl(s.iconKey)
 // 묶음 판매(베르 1개 + 이스트 2개)는 가격이 묶음 전체 값이라 표시해 둠. 빈 칸은 빼고 이어 붙임
-const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.itemName : '', p.amountLabel, p.ladder, p.hardcore, p.completedAt || p.date].filter(Boolean).join(' · ')
+const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? t('묶음') + ': ' + priceText(p.itemName) : '', countText(p.amountLabel), t(p.ladder), t(p.hardcore), p.completedAt || p.date].filter(Boolean).join(' · ')
+// 요약 목록의 아이템 이름
+const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) : s.name)
 </script>
 
 <template>
   <div class="items-page trade-history-page">
     <div class="patch-hero">
       <div class="patch-hero-inner">
-        <div class="eyebrow">아이템별 거래내역</div>
+        <div class="eyebrow">{{ $t('아이템별 거래내역') }}</div>
         <template v-if="hasTarget">
           <div class="th-head">
             <span class="th-icon" :class="headerRarity"><img v-if="headerIcon" :src="headerIcon" alt="" /></span>
             <div>
               <h1>{{ title }}</h1>
-              <p v-if="item">{{ item.name_en }}<template v-if="item.category_label"> · {{ item.category_label }}</template></p>
+              <p v-if="item"><template v-if="locale === 'ko'">{{ item.name_en }} · </template><template v-if="item.category_label">{{ $t(item.category_label) }}</template></p>
             </div>
           </div>
           <div class="th-links">
-            <router-link to="/trade/history">← 다른 아이템</router-link>
-            <router-link v-if="item && item.category !== 'uber' && item.category !== 'essence'" :to="{ path: `/items/${item.id}`, query: { q: item.name_ko } }">아이템 사전에서 보기</router-link>
-            <router-link :to="{ path: '/trade', query: { q: title } }">거래게시판에서 찾기</router-link>
+            <router-link to="/trade/history">{{ $t('← 다른 아이템') }}</router-link>
+            <router-link v-if="item && item.category !== 'uber' && item.category !== 'essence'" :to="`/items/${item.id}`">{{ $t('아이템 사전에서 보기') }}</router-link>
+            <router-link :to="item ? { path: '/trade', query: { item: item.id } } : { path: '/trade', query: { q: title } }">{{ $t('거래게시판에서 찾기') }}</router-link>
           </div>
         </template>
         <template v-else>
-          <h1>아이템별 거래내역</h1>
+          <h1>{{ $t('아이템별 거래내역') }}</h1>
           
         </template>
       </div>
@@ -178,55 +190,55 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
     <div class="grid-wrap th-wrap">
       <template v-if="hasTarget">
         <div class="th-filters">
-          <select v-model="ladder" class="write-select" aria-label="레더 구분">
-            <option value="">레더·논레더 전체</option>
-            <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
+          <select v-model="ladder" class="write-select" :aria-label="$t('레더 구분')">
+            <option value="">{{ $t('레더·논레더 전체') }}</option>
+            <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
           </select>
-          <select v-model="hardcore" class="write-select" aria-label="하드코어 구분">
-            <option value="">일반·하드코어 전체</option>
-            <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
+          <select v-model="hardcore" class="write-select" :aria-label="$t('하드코어 구분')">
+            <option value="">{{ $t('일반·하드코어 전체') }}</option>
+            <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
           </select>
         </div>
 
         <section class="th-vars" v-if="varDefs.length">
           <div class="th-vars-head">
-            <div class="d-section-title">변동 옵션</div>
-            <button type="button" class="th-reset" v-if="pickedCount" @click="clearPicks">선택 해제 ({{ pickedCount }})</button>
+            <div class="d-section-title">{{ $t('변동 옵션') }}</div>
+            <button type="button" class="th-reset" v-if="pickedCount" @click="clearPicks">{{ $t('선택 해제') }} ({{ pickedCount }})</button>
           </div>
           <div class="th-var" v-for="d in varDefs" :key="d.key">
-            <span class="th-var-label">{{ d.label }}</span>
+            <span class="th-var-label">{{ tv(d.label) }}</span>
             <span class="th-var-chips">
               <button
                 type="button" class="th-chip" v-for="o in d.values" :key="String(o.v)"
                 :class="{ on: picks[d.key] === o.v }" :aria-pressed="picks[d.key] === o.v" @click="togglePick(d, o.v)"
-              >{{ o.v }}<small>{{ o.n }}</small></button>
+              >{{ tv(o.v) }}<small>{{ o.n }}</small></button>
             </span>
           </div>
         </section>
 
         <div class="th-stats">
-          <div class="th-stat"><b>{{ counts.total }}</b><span>전체 판매글</span></div>
-          <div class="th-stat"><b>{{ counts.selling }}</b><span>판매중</span></div>
-          <div class="th-stat"><b>{{ counts.reserved }}</b><span>거래중</span></div>
-          <div class="th-stat"><b>{{ counts.done }}</b><span>거래완료</span></div>
-          <div class="th-stat"><b>{{ counts.requests }}</b><span>구매신청</span></div>
+          <div class="th-stat"><b>{{ counts.total }}</b><span>{{ $t('전체 판매글') }}</span></div>
+          <div class="th-stat"><b>{{ counts.selling }}</b><span>{{ $t('판매중') }}</span></div>
+          <div class="th-stat"><b>{{ counts.reserved }}</b><span>{{ $t('거래중') }}</span></div>
+          <div class="th-stat"><b>{{ counts.done }}</b><span>{{ $t('거래완료') }}</span></div>
+          <div class="th-stat"><b>{{ counts.requests }}</b><span>{{ $t('구매신청') }}</span></div>
         </div>
 
         <section class="th-section" v-if="groups.length > 1 || (groups.length === 1 && !pickedCount)">
-          <div class="d-section-title">옵션 조합별 시세</div>
+          <div class="d-section-title">{{ $t('옵션 조합별 시세') }}</div>
           <div class="th-groups">
-            <div class="th-group th-group-head"><span>옵션</span><span class="th-group-n">판매중</span><span class="th-group-n">거래완료</span><span class="th-group-price">최근 거래가</span></div>
-            <button type="button" class="th-group" v-for="g in groups" :key="g.key" @click="applyGroup(g)" title="이 조합만 보기">
+            <div class="th-group th-group-head"><span>{{ $t('옵션') }}</span><span class="th-group-n">{{ $t('판매중') }}</span><span class="th-group-n">{{ $t('거래완료') }}</span><span class="th-group-price">{{ $t('최근 거래가') }}</span></div>
+            <button type="button" class="th-group" v-for="g in groups" :key="g.key" @click="applyGroup(g)" :title="$t('이 조합만 보기')">
               <span class="th-group-label">{{ g.label }}</span>
               <span class="th-group-n">{{ g.selling }}</span>
               <span class="th-group-n done">{{ g.done }}</span>
               <span class="th-group-price">
                 <template v-if="g.lastDone">
-                  <template v-for="(t, i) in parsePriceTokens(tradePriceOf(g.lastDone) || '거래가 미기록')" :key="i">
-                    <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
+                  <template v-for="(tk, i) in parsePriceTokens(tradePriceOf(g.lastDone) || $t('거래가 미기록'))" :key="i">
+                    <span class="price-icon" v-if="tk.item"><img v-if="iconUrl(tk.item.icon_key)" :src="iconUrl(tk.item.icon_key)" alt="" /></span>{{ priceTok(tk) }}
                   </template>
                 </template>
-                <span class="th-dim" v-else-if="g.lastSelling">희망 {{ g.lastSelling.price }}</span>
+                <span class="th-dim" v-else-if="g.lastSelling">{{ $t('희망') }} {{ priceText(g.lastSelling.price) }}</span>
                 <span class="th-dim" v-else>-</span>
               </span>
             </button>
@@ -234,12 +246,12 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
         </section>
 
         <section class="th-section" v-if="completed.length">
-          <div class="d-section-title">최근 거래완료 가격</div>
+          <div class="d-section-title">{{ $t('최근 거래완료 가격') }}</div>
           <div class="th-done-list">
             <div class="th-done" v-for="p in completed" :key="p.id">
               <span class="th-price">
-                <template v-for="(t, i) in parsePriceTokens(tradePriceOf(p) || '거래가 미기록')" :key="i">
-                  <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
+                <template v-for="(tk, i) in parsePriceTokens(tradePriceOf(p) || $t('거래가 미기록'))" :key="i">
+                  <span class="price-icon" v-if="tk.item"><img v-if="iconUrl(tk.item.icon_key)" :src="iconUrl(tk.item.icon_key)" alt="" /></span>{{ priceTok(tk) }}
                 </template>
               </span>
               <span class="th-chips" v-if="varChips(p).length"><span class="th-mini" v-for="c in varChips(p)" :key="c.key" :class="{ on: c.on }">{{ c.text }}</span></span>
@@ -250,30 +262,30 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
 
         <section class="th-section">
           <div class="th-list-head">
-            <div class="d-section-title">판매글</div>
-            <div class="th-tabs" role="tablist" aria-label="판매 상태">
-              <button type="button" role="tab" :aria-selected="!status" :class="{ on: !status }" @click="status = ''">전체 {{ posts.length }}</button>
-              <button type="button" role="tab" v-for="t in STATUS_TABS" :key="t" :aria-selected="status === t" :class="{ on: status === t }" @click="status = t">{{ statusLabel(t) }} {{ statusCount(t) }}</button>
+            <div class="d-section-title">{{ $t('판매글') }}</div>
+            <div class="th-tabs" role="tablist" :aria-label="$t('판매 상태')">
+              <button type="button" role="tab" :aria-selected="!status" :class="{ on: !status }" @click="status = ''">{{ $t('전체') }} {{ posts.length }}</button>
+              <button type="button" role="tab" v-for="t in STATUS_TABS" :key="t" :aria-selected="status === t" :class="{ on: status === t }" @click="status = t">{{ $t(statusLabel(t)) }} {{ statusCount(t) }}</button>
             </div>
           </div>
           <div class="th-list">
             <router-link class="th-row" v-for="p in shownPosts" :key="p.id" :to="`/trade/${p.id}`">
-              <span class="trade-status-badge" :class="'status-' + statusOf(p)">{{ statusLabel(statusOf(p)) }}</span>
+              <span class="trade-status-badge" :class="'status-' + statusOf(p)">{{ $t(statusLabel(statusOf(p))) }}</span>
               <div class="th-row-body">
-                <div class="th-row-title">{{ p.itemName }}<span class="ethereal-badge" v-if="p.ethereal">에테리얼</span></div>
+                <div class="th-row-title">{{ postName(p) }}<span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span></div>
                 <div class="th-row-price">
-                  {{ p.amountLabel }} ·<template v-if="p.status === '거래완료'"> 거래가</template>
-                  <template v-for="(t, i) in parsePriceTokens(tradePriceOf(p) || '거래가 미기록')" :key="i">
-                    <span class="price-icon" v-if="t.item"><img v-if="iconUrl(t.item.icon_key)" :src="iconUrl(t.item.icon_key)" alt="" /></span>{{ t.text }}
+                  {{ countText(p.amountLabel) }} ·<template v-if="p.status === '거래완료'"> {{ $t('거래가') }}</template>
+                  <template v-for="(tk, i) in parsePriceTokens(tradePriceOf(p) || $t('거래가 미기록'))" :key="i">
+                    <span class="price-icon" v-if="tk.item"><img v-if="iconUrl(tk.item.icon_key)" :src="iconUrl(tk.item.icon_key)" alt="" /></span>{{ priceTok(tk) }}
                   </template>
                 </div>
                 <div class="th-chips" v-if="varChips(p).length"><span class="th-mini" v-for="c in varChips(p)" :key="c.key" :class="{ on: c.on }">{{ c.text }}</span></div>
-                <div class="th-row-meta">{{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · {{ p.author }} · 등록 {{ p.date }}<template v-if="p.completedAt"> · 거래완료 {{ p.completedAt }}</template></div>
+                <div class="th-row-meta">{{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ p.author }} · {{ $t('{date} 등록', { date: p.date }) }}<template v-if="p.completedAt"> · {{ $t('거래완료') }} {{ p.completedAt }}</template></div>
               </div>
-              <span class="th-req" v-if="p.requests && p.requests.length">신청 {{ p.requests.length }}</span>
+              <span class="th-req" v-if="p.requests && p.requests.length">{{ $t('신청') }} {{ p.requests.length }}</span>
             </router-link>
             <div class="empty-state" v-if="!shownPosts.length">
-              거래내역 없음. <router-link to="/trade/new">판매글 등록하기</router-link>
+              {{ $t('거래내역 없음.') }} <router-link to="/trade/new">{{ $t('판매글 등록하기') }}</router-link>
             </div>
           </div>
         </section>
@@ -281,25 +293,25 @@ const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? '묶음: ' + p.ite
 
       <template v-else>
         <div class="th-search">
-          <input :value="query" @input="query = $event.target.value" type="search" class="write-input" placeholder="아이템 검색 (예: 베르 룬, 할리퀸 관모, 파괴의 열쇠)" aria-label="아이템 검색" />
+          <input :value="query" @input="query = $event.target.value" type="search" class="write-input" :placeholder="$t('아이템 검색 (예: 베르 룬, 할리퀸 관모, 파괴의 열쇠)')" :aria-label="$t('아이템 검색')" />
           <div class="th-search-hits" v-if="searchHits.length">
             <button type="button" class="th-hit" v-for="it in searchHits" :key="it.id" @click="openItem(it)">
               <span class="th-hit-icon" :class="it.category"><img v-if="iconUrl(it.icon_key)" :src="iconUrl(it.icon_key)" alt="" /></span>
-              <span>{{ it.name_ko }}</span><small>{{ it.category_label }}</small>
+              <span>{{ itemName(it) }}</span><small>{{ $t(it.category_label) }}</small>
             </button>
           </div>
         </div>
 
-        <div class="d-section-title">거래가 있는 아이템</div>
+        <div class="d-section-title">{{ $t('거래가 있는 아이템') }}</div>
         <div class="th-summary-grid">
           <button type="button" class="th-summary" v-for="s in summaries" :key="(s.itemId || '') + s.name" @click="openItem(s)">
             <span class="th-hit-icon"><img v-if="summaryIcon(s)" :src="summaryIcon(s)" alt="" /></span>
             <span class="th-summary-body">
-              <span class="th-summary-name">{{ s.name }}</span>
-              <span class="th-summary-meta">판매글 {{ s.total }} · 거래완료 {{ s.done }} · 최근 {{ s.lastDate }}</span>
+              <span class="th-summary-name">{{ summaryName(s) }}</span>
+              <span class="th-summary-meta">{{ $t('판매글') }} {{ s.total }} · {{ $t('거래완료') }} {{ s.done }} · {{ $t('최근') }} {{ s.lastDate }}</span>
             </span>
           </button>
-          <div class="empty-state" v-if="!summaries.length">판매글 없음</div>
+          <div class="empty-state" v-if="!summaries.length">{{ $t('판매글 없음') }}</div>
         </div>
       </template>
     </div>

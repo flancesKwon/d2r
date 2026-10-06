@@ -5,9 +5,10 @@ import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
-import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypesKo } from '../itemStats.js'
+import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypes } from '../itemStats.js'
 import { itemDamage, formatDamage } from '../itemDamage.js'
 import { itemLevelReq, itemStatReqs } from '../tradeStore.js'
+import { t, locale, itemName, affixText } from '../i18n.js'
 
 const items = itemsData
 const icons = ITEM_ICONS
@@ -43,8 +44,8 @@ const damageInfo = computed(() => {
   const d99 = d.perLevel ? itemDamage(it, { level: 99 }) : null
   const b = it.base_stats
   const rows = []
-  if (d.one) rows.push({ label: d.two ? '한손 피해' : '피해', value: formatDamage(d.one), at99: d99 && formatDamage(d99.one), base: `${b.mindam}~${b.maxdam}` })
-  if (d.two) rows.push({ label: '양손 피해', value: formatDamage(d.two), at99: d99 && formatDamage(d99.two), base: `${b['2handmindam']}~${b['2handmaxdam']}` })
+  if (d.one) rows.push({ label: d.two ? t('한손 피해') : t('피해'), value: formatDamage(d.one), at99: d99 && formatDamage(d99.one), base: `${b.mindam}~${b.maxdam}` })
+  if (d.two) rows.push({ label: t('양손 피해'), value: formatDamage(d.two), at99: d99 && formatDamage(d99.two), base: `${b['2handmindam']}~${b['2handmaxdam']}` })
   return rows
 })
 function isVariable(a) {
@@ -109,7 +110,9 @@ const groupOptions = computed(() => {
 applyRouteQuery()
 watch(() => [route.query, route.params.id], applyRouteQuery)
 // 열린 아이템 이름을 창 제목으로 (검색엔진·탭 제목)
-watch(selected, (it) => (document.title = it ? `${it.name_ko} (${it.name_en}) — 디아허브` : '아이템 사전 — 디아허브'), { immediate: true, flush: 'post' })
+watch([selected, locale], ([it]) => (document.title = it
+  ? (locale.value === 'ko' ? `${it.name_ko} (${it.name_en})` : it.name_en || it.name_ko) + ' — ' + t('디아허브')
+  : `${t('아이템 사전')} — ${t('디아허브')}`), { immediate: true, flush: 'post' })
 
 const subOptions = computed(() => {
   if (!activeGroup.value) return []
@@ -138,11 +141,13 @@ const filteredItems = computed(() => {
 const optionHits = computed(() => {
   const hits = new Map()
   if (searchBy.value !== 'option') return hits
-  const terms = optionTerms(searchQuery.value)
+  const terms = optionTerms(searchQuery.value, locale.value)
   if (!terms.length) return hits
   for (const it of items) {
     const extra = it.category === 'runeword' ? runewordRuneAffixes(it, runeLookup) : []
-    const m = matchOptionLines(itemOptionLines(it, extra), terms)
+    // 영어 화면은 영어 옵션 줄에서 찾음
+    const lines = itemOptionLines(it, extra)
+    const m = matchOptionLines(locale.value === 'ko' ? lines : lines.map(affixText), terms)
     if (m) hits.set(it.id, m)
   }
   return hits
@@ -155,51 +160,51 @@ const optionHits = computed(() => {
   <div class="toolbar">
     <div class="toolbar-inner">
       <div class="cat-tabs">
-        <button :class="{ active: activeCat === 'all' }" @click="setCat('all')">전체</button>
-        <button :class="{ active: activeCat === 'unique' }" @click="setCat('unique')">유니크</button>
-        <button :class="{ active: activeCat === 'set' }" @click="setCat('set')">세트</button>
-        <button :class="{ active: activeCat === 'runeword' }" @click="setCat('runeword')">룬워드</button>
-        <button :class="{ active: activeCat === 'gem' }" @click="setCat('gem')">보석·룬</button>
+        <button :class="{ active: activeCat === 'all' }" @click="setCat('all')">{{ $t('전체') }}</button>
+        <button :class="{ active: activeCat === 'unique' }" @click="setCat('unique')">{{ $t('유니크') }}</button>
+        <button :class="{ active: activeCat === 'set' }" @click="setCat('set')">{{ $t('세트') }}</button>
+        <button :class="{ active: activeCat === 'runeword' }" @click="setCat('runeword')">{{ $t('룬워드') }}</button>
+        <button :class="{ active: activeCat === 'gem' }" @click="setCat('gem')">{{ $t('보석·룬') }}</button>
       </div>
 
       <div class="cat-tabs sub-tabs" v-if="groupOptions.length">
-        <button :class="{ active: activeGroup === null }" @click="setGroup(null)">전체</button>
+        <button :class="{ active: activeGroup === null }" @click="setGroup(null)">{{ $t('전체') }}</button>
         <button
           v-for="g in groupOptions"
           :key="g"
           :class="{ active: activeGroup === g }"
           @click="setGroup(g)"
         >
-          {{ g }}
+          {{ $t(g) }}
         </button>
       </div>
       <div class="cat-tabs sub-tabs" v-if="activeGroup && subOptions.length">
-        <button :class="{ active: activeSub === null }" @click="activeSub = null">전체</button>
+        <button :class="{ active: activeSub === null }" @click="activeSub = null">{{ $t('전체') }}</button>
         <button
           v-for="s in subOptions"
           :key="s"
           :class="{ active: activeSub === s }"
           @click="activeSub = s"
         >
-          {{ s }}
+          {{ $t(s) }}
         </button>
       </div>
 
       <div class="search-row">
-        <div class="search-by" role="group" aria-label="검색 기준">
-          <button type="button" :class="{ active: searchBy === 'name' }" @click="searchBy = 'name'">이름</button>
-          <button type="button" :class="{ active: searchBy === 'option' }" @click="searchBy = 'option'">옵션</button>
+        <div class="search-by" role="group" :aria-label="$t('검색 기준')">
+          <button type="button" :class="{ active: searchBy === 'name' }" @click="searchBy = 'name'">{{ $t('이름') }}</button>
+          <button type="button" :class="{ active: searchBy === 'option' }" @click="searchBy = 'option'">{{ $t('옵션') }}</button>
         </div>
         <div class="search-input-wrap">
           <input
             type="text"
             :value="searchQuery" @input="searchQuery = $event.target.value"
-            :placeholder="searchBy === 'option' ? '옵션 검색 — 예) 패캐, 올스 (쉼표로 여러 개)' : '이름 검색 — 예) 갉아먹는 자'"
-            aria-label="아이템 검색"
+            :placeholder="searchBy === 'option' ? $t('옵션 검색 — 예) 패캐, 올스 (쉼표로 여러 개)') : $t('이름 검색 — 예) 갉아먹는 자')"
+            :aria-label="$t('아이템 검색')"
           />
         </div>
-        <span class="result-count">{{ filteredItems.length }}개</span>
-        <button class="quality-toggle" @click="showQualityInfo = !showQualityInfo">품질 수식어 정보</button>
+        <span class="result-count">{{ filteredItems.length }}{{ $t('개') }}</span>
+        <button class="quality-toggle" @click="showQualityInfo = !showQualityInfo">{{ $t('품질 수식어 정보') }}</button>
       </div>
     </div>
   </div>
@@ -207,12 +212,12 @@ const optionHits = computed(() => {
   <div class="quality-info" v-if="showQualityInfo">
     <div class="quality-info-inner">
       <div class="quality-row">
-        <b>조악한 · 파손된 · 균열이 간 · 저질 (4종 동일 효과)</b>
-        <span>방어구 방어력 75%로 감소 · 무기 데미지 75%로 감소(내림) · 내구도 약 33%로 감소</span>
+        <b>{{ $t('조악한 · 파손된 · 균열이 간 · 저질 (4종 동일 효과)') }}</b>
+        <span>{{ $t('방어구 방어력 75%로 감소 · 무기 데미지 75%로 감소(내림) · 내구도 약 33%로 감소') }}</span>
       </div>
       <div class="quality-row">
-        <b>우수한 (Superior)</b>
-        <span>무기: 피해 증가 +5~15% (또는 최대 피해 +1) · 방어구: 방어력 증가 +15% · 공격력/내구도 추가 보너스 가능</span>
+        <b>{{ $t('우수한 (Superior)') }}</b>
+        <span>{{ $t('무기: 피해 증가 +5~15% (또는 최대 피해 +1) · 방어구: 방어력 증가 +15% · 공격력/내구도 추가 보너스 가능') }}</span>
       </div>
     </div>
   </div>
@@ -243,14 +248,14 @@ const optionHits = computed(() => {
           />
           <svg v-else viewBox="0 0 24 24" v-html="ICONS[it.icon_type_key] || ICONS.unknown"></svg>
         </span>
-        <div class="card-name">{{ it.name_ko }}</div>
-        <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypesKo(it.subtitle) : it.subtitle || '' }}</div>
+        <div class="card-name">{{ itemName(it) }}</div>
+        <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypes(it.subtitle) : $t(it.subtitle || '') }}</div>
         <div class="card-level" v-if="it.level && it.level !== '0'">Lv {{ it.level }}</div>
         <div class="card-hits" v-if="optionHits.has(it.id)">
-          <span v-for="line in optionHits.get(it.id)" :key="line">{{ line }}</span>
+          <span v-for="line in optionHits.get(it.id)" :key="line">{{ affixText(line) }}</span>
         </div>
       </button>
-      <div class="empty-state" v-if="filteredItems.length === 0">검색 결과 없음</div>
+      <div class="empty-state" v-if="filteredItems.length === 0">{{ $t('검색 결과 없음') }}</div>
     </div>
   </div>
 
@@ -259,7 +264,7 @@ const optionHits = computed(() => {
       <button class="modal-close" @click="closeItem">✕</button>
 
       <template v-if="selected.category === 'unique' || selected.category === 'set'">
-        <div class="d-eyebrow">{{ selected.category_label }} · {{ selected.subtitle || '' }}</div>
+        <div class="d-eyebrow">{{ $t(selected.category_label) }} · {{ $t(selected.subtitle || '') }}</div>
         <div class="d-head">
           <span class="icon-box" :class="selected.category">
             <img
@@ -270,44 +275,44 @@ const optionHits = computed(() => {
             <svg v-else viewBox="0 0 24 24" v-html="ICONS[selected.icon_type_key] || ICONS.unknown"></svg>
           </span>
           <div>
-            <h1 class="d-name">{{ selected.name_ko }}</h1>
-            <div class="d-base">{{ selected.name_en }}</div>
+            <h1 class="d-name">{{ itemName(selected) }}</h1>
+            <div class="d-base" v-if="locale === 'ko'">{{ selected.name_en }}</div>
           </div>
         </div>
         <div class="d-meta-row">
           <div class="d-meta-item">
-            <div class="label">필요 레벨</div>
+            <div class="label">{{ $t('필요 레벨') }}</div>
             <div class="value">{{ selected.level_req || '—' }}</div>
           </div>
           <div class="d-meta-item">
-            <div class="label">아이템 레벨</div>
+            <div class="label">{{ $t('아이템 레벨') }}</div>
             <div class="value">{{ selected.level || '—' }}</div>
           </div>
           <div class="d-meta-item" v-for="row in damageInfo || []" :key="row.label">
             <div class="label">{{ row.label }}</div>
             <div class="value">{{ row.value }}</div>
-            <div class="d-meta-sub">기본 {{ row.base }}<template v-if="row.at99"> · 99레벨 {{ row.at99 }}</template></div>
+            <div class="d-meta-sub">{{ $t('기본') }} {{ row.base }}<template v-if="row.at99"> · {{ $t('99레벨') }} {{ row.at99 }}</template></div>
           </div>
           <div class="d-meta-item" v-if="selected.base_stats && selected.base_stats.category === 'armor'">
-            <div class="label">기본 방어력</div>
+            <div class="label">{{ $t('기본 방어력') }}</div>
             <div class="value">{{ selected.base_stats.minac ?? '—' }}~{{ selected.base_stats.maxac ?? '—' }}</div>
           </div>
           <div class="d-meta-item" v-if="statReqs.str">
-            <div class="label">필요 힘</div>
+            <div class="label">{{ $t('필요 힘') }}</div>
             <div class="value">{{ statReqs.str }}</div>
           </div>
           <div class="d-meta-item" v-if="statReqs.dex">
-            <div class="label">필요 민첩</div>
+            <div class="label">{{ $t('필요 민첩') }}</div>
             <div class="value">{{ statReqs.dex }}</div>
           </div>
         </div>
         <div class="note-box warn" v-if="selected.spawnable === false">
-          현재 게임에서 드랍되지 않는 아이템.
+          {{ $t('현재 게임에서 드랍되지 않는 아이템.') }}
         </div>
-        <div class="d-section-title">옵션</div>
+        <div class="d-section-title">{{ $t('옵션') }}</div>
         <div class="affix-list">
           <div v-if="shown(selected.affixes).length === 0" class="affix-line unresolved">
-            <span class="a-text">옵션 데이터 없음</span>
+            <span class="a-text">{{ $t('옵션 데이터 없음') }}</span>
           </div>
           <div
             v-for="(a, i) in shown(selected.affixes)"
@@ -315,62 +320,62 @@ const optionHits = computed(() => {
             class="affix-line"
             :class="{ unresolved: !a.text, variable: isVariable(a) }"
           >
-            <span class="a-text">{{ a.text || '추가 효과 있음 (텍스트 준비 중)' }}</span>
+            <span class="a-text">{{ a.text ? affixText(a.text) : $t('추가 효과 있음 (텍스트 준비 중)') }}</span>
             <span class="a-raw" v-if="!a.text">{{ a.prop || a.raw || '' }}</span>
           </div>
         </div>
         <template v-if="selected.extra && selected.extra.random_groups">
-          <div class="d-section-title">제작 시 무작위 옵션</div>
+          <div class="d-section-title">{{ $t('제작 시 무작위 옵션') }}</div>
           <p class="note-box" style="margin-bottom:10px">
-            큐브로 만들 때 아래 {{ selected.extra.random_groups.length }}개 그룹에서 <b>그룹마다 하나씩</b> 붙음, 수치는 범위 안에서 무작위.
+            {{ $t('큐브로 만들 때 아래 {n}개 그룹에서 그룹마다 하나씩 붙음, 수치는 범위 안에서 무작위.', { n: selected.extra.random_groups.length }) }}
           </p>
           <div class="random-group-list">
             <div class="random-group" v-for="(g, gi) in selected.extra.random_groups" :key="gi">
               <span class="random-group-no">{{ gi + 1 }}</span>
               <div class="random-group-options">
                 <template v-for="(o, oi) in g" :key="oi">
-                  <span class="random-group-or" v-if="oi > 0">또는</span>
-                  <span class="random-group-option">{{ o.text }}</span>
+                  <span class="random-group-or" v-if="oi > 0">{{ $t('또는') }}</span>
+                  <span class="random-group-option">{{ affixText(o.text) }}</span>
                 </template>
               </div>
             </div>
           </div>
         </template>
         <template v-if="selected.extra && selected.extra.icon_variants">
-          <div class="d-section-title">아이템 그림</div>
-          <p class="note-box" style="margin-bottom:10px">게임에서 아래 3가지 그림 중 하나로 무작위 (옵션과 무관).</p>
+          <div class="d-section-title">{{ $t('아이템 그림') }}</div>
+          <p class="note-box" style="margin-bottom:10px">{{ $t('게임에서 아래 3가지 그림 중 하나로 무작위 (옵션과 무관).') }}</p>
           <div class="icon-variant-row">
             <div class="icon-variant" v-for="v in selected.extra.icon_variants" :key="v.key">
               <img v-if="icons[v.key]" :src="icons[v.key]" alt="" />
-              <span>{{ v.label }}</span>
+              <span>{{ $t(v.label) }}</span>
             </div>
           </div>
         </template>
-        <div class="note-box warn" v-for="(n, ni) in (selected.extra && selected.extra.notes) || []" :key="'note' + ni">{{ n }}</div>
+        <div class="note-box warn" v-for="(n, ni) in (selected.extra && selected.extra.notes) || []" :key="'note' + ni">{{ $t(n) }}</div>
         <template v-if="selected.category === 'set' && selected.extra">
-          <div class="note-box gold">소속 세트: <b>{{ selected.extra.set_name_ko }}</b></div>
+          <div class="note-box gold">{{ $t('소속 세트') }}: <b>{{ locale === 'ko' ? selected.extra.set_name_ko : selected.extra.set_name_en || selected.extra.set_name_ko }}</b></div>
           <template v-if="selected.extra.set_item_bonus && selected.extra.set_item_bonus.length">
-            <div class="d-section-title">세트 아이템 착용 수 보너스</div>
+            <div class="d-section-title">{{ $t('세트 아이템 착용 수 보너스') }}</div>
             <div class="affix-list set-bonus-list">
               <template v-for="g in selected.extra.set_item_bonus" :key="'ib' + g.count">
                 <div class="affix-line set-bonus" v-for="(a, i) in shown(g.affixes)" :key="i">
-                  <span class="a-text">{{ a.text }}</span><span class="set-bonus-count">{{ g.count }}개 착용</span>
+                  <span class="a-text">{{ affixText(a.text) }}</span><span class="set-bonus-count">{{ $t('{n}개 착용', { n: g.count }) }}</span>
                 </div>
               </template>
             </div>
           </template>
           <template v-if="selected.extra.set_partial_bonus && selected.extra.set_partial_bonus.length">
-            <div class="d-section-title">세트 부분 착용 보너스</div>
+            <div class="d-section-title">{{ $t('세트 부분 착용 보너스') }}</div>
             <div class="affix-list set-bonus-list">
               <template v-for="g in selected.extra.set_partial_bonus" :key="'pb' + g.count">
                 <div class="affix-line set-bonus" v-for="(a, i) in shown(g.affixes)" :key="i">
-                  <span class="a-text">{{ a.text }}</span><span class="set-bonus-count">{{ g.count }}개 착용</span>
+                  <span class="a-text">{{ affixText(a.text) }}</span><span class="set-bonus-count">{{ $t('{n}개 착용', { n: g.count }) }}</span>
                 </div>
               </template>
             </div>
           </template>
           <template v-if="selected.extra.set_full_bonus && selected.extra.set_full_bonus.length">
-            <div class="d-section-title">세트 전체 착용 보너스</div>
+            <div class="d-section-title">{{ $t('세트 전체 착용 보너스') }}</div>
             <div class="affix-list">
               <div
                 v-for="(a, i) in shown(selected.extra.set_full_bonus)"
@@ -378,7 +383,7 @@ const optionHits = computed(() => {
                 class="affix-line"
                 :class="{ unresolved: !a.text, variable: isVariable(a) }"
               >
-                <span class="a-text">{{ a.text || '추가 효과 있음 (텍스트 준비 중)' }}</span>
+                <span class="a-text">{{ a.text ? affixText(a.text) : $t('추가 효과 있음 (텍스트 준비 중)') }}</span>
               </div>
             </div>
           </template>
@@ -386,7 +391,7 @@ const optionHits = computed(() => {
       </template>
 
       <template v-else-if="selected.category === 'runeword'">
-        <div class="d-eyebrow">룬워드 · 소켓 {{ selected.extra.socket_count }}개</div>
+        <div class="d-eyebrow">{{ $t('룬워드') }} · {{ $t('소켓 {n}개', { n: selected.extra.socket_count }) }}</div>
         <div class="d-head">
           <span class="icon-box" :class="selected.category" v-if="iconUrl(selected)">
             <span class="rw-icon">
@@ -405,8 +410,8 @@ const optionHits = computed(() => {
             <svg v-else viewBox="0 0 24 24" v-html="ICONS.runeword"></svg>
           </span>
           <div>
-            <h1 class="d-name">{{ selected.name_ko }}</h1>
-            <div class="d-base">{{ selected.name_en }}</div>
+            <h1 class="d-name">{{ itemName(selected) }}</h1>
+            <div class="d-base" v-if="locale === 'ko'">{{ selected.name_en }}</div>
           </div>
         </div>
         <div class="rune-pips">
@@ -416,20 +421,20 @@ const optionHits = computed(() => {
         </div>
         <div class="d-meta-row">
           <div class="d-meta-item">
-            <div class="label">필요 레벨</div>
+            <div class="label">{{ $t('필요 레벨') }}</div>
             <div class="value">{{ itemLevelReq(selected) || '—' }}</div>
-            <div class="d-meta-sub">박힌 룬 중 가장 높은 요구 레벨 · 힘·민첩은 베이스 따라</div>
+            <div class="d-meta-sub">{{ $t('박힌 룬 중 가장 높은 요구 레벨 · 힘·민첩은 베이스 따라') }}</div>
           </div>
         </div>
         <div class="note-box">
-          장착 가능 베이스: <b>{{ runewordBaseTypesKo(selected.subtitle) || '—' }}</b>
-          <span v-if="selected.extra.socket_count"> · 소켓 {{ selected.extra.socket_count }}개 필요</span>
+          {{ $t('장착 가능 베이스') }}: <b>{{ runewordBaseTypes(selected.subtitle) || '—' }}</b>
+          <span v-if="selected.extra.socket_count"> · {{ $t('소켓 {n}개 필요', { n: selected.extra.socket_count }) }}</span>
         </div>
-        <div class="d-section-title">옵션</div>
-        <p class="note-box" style="margin-bottom:10px">룬워드 고유 옵션 + 박힌 룬 효과 = 최종 옵션.</p>
+        <div class="d-section-title">{{ $t('옵션') }}</div>
+        <p class="note-box" style="margin-bottom:10px">{{ $t('룬워드 고유 옵션 + 박힌 룬 효과 = 최종 옵션.') }}</p>
         <div class="affix-list">
           <div v-if="runewordFullAffixes(selected).length === 0" class="affix-line unresolved">
-            <span class="a-text">옵션 데이터 없음</span>
+            <span class="a-text">{{ $t('옵션 데이터 없음') }}</span>
           </div>
           <div
             v-for="(a, i) in runewordFullAffixes(selected)"
@@ -437,14 +442,14 @@ const optionHits = computed(() => {
             class="affix-line"
             :class="{ unresolved: !a.text, variable: isVariable(a) }"
           >
-            <span class="a-text">{{ a.text || '추가 효과 있음 (텍스트 준비 중)' }}</span>
+            <span class="a-text">{{ a.text ? affixText(a.text) : $t('추가 효과 있음 (텍스트 준비 중)') }}</span>
             <span class="a-raw" v-if="!a.text">{{ a.prop || a.raw || '' }}</span>
           </div>
         </div>
       </template>
 
       <template v-else-if="selected.category === 'gem'">
-        <div class="d-eyebrow">보석 · 룬</div>
+        <div class="d-eyebrow">{{ $t('보석·룬') }}</div>
         <div class="d-head">
           <span class="icon-box" :class="selected.category">
             <img
@@ -455,32 +460,32 @@ const optionHits = computed(() => {
             <svg v-else viewBox="0 0 24 24" v-html="ICONS[selected.icon_type_key] || ICONS.unknown"></svg>
           </span>
           <div>
-            <h1 class="d-name">{{ selected.name_ko }}</h1>
-            <div class="d-base">{{ selected.name_en }}</div>
+            <h1 class="d-name">{{ itemName(selected) }}</h1>
+            <div class="d-base" v-if="locale === 'ko'">{{ selected.name_en }}</div>
           </div>
         </div>
-        <div class="d-section-title">장착 부위별 효과</div>
+        <div class="d-section-title">{{ $t('장착 부위별 효과') }}</div>
         <div class="slot-grid">
           <div
             class="slot-box"
             v-for="slot in [['무기', 'in_weapon'], ['투구', 'in_helm'], ['방패', 'in_shield']]"
             :key="slot[1]"
           >
-            <h4>{{ slot[0] }}</h4>
+            <h4>{{ $t(slot[0]) }}</h4>
             <div
               v-if="selected.extra[slot[1]].length === 0"
               class="a-text"
               style="color: var(--text-dim); font-size: 12px"
             >
-              효과 없음
+              {{ $t('효과 없음') }}
             </div>
             <div v-for="(a, i) in selected.extra[slot[1]]" :key="i" class="affix-line" :class="{ variable: isVariable(a) }">
-              <span class="a-text">{{ a.text }}</span>
+              <span class="a-text">{{ affixText(a.text) }}</span>
             </div>
           </div>
         </div>
       </template>
-      <router-link class="d-history-link" :to="{ path: '/trade/history', query: { item: selected.id } }">이 아이템 거래내역 보기 →</router-link>
+      <router-link class="d-history-link" :to="{ path: '/trade/history', query: { item: selected.id } }">{{ $t('이 아이템 거래내역 보기 →') }}</router-link>
     </div>
   </div>
   </div>

@@ -19,8 +19,12 @@ const dicts = { ko: {} }
 const dictVersion = ref(0)
 
 const loaders = {
-  en: () => import('./locales/en.js'),
+  en: () => Promise.all([import('./locales/en.js'), import('./locales/affixes.en.js'), import('./locales/skills.en.json')])
+    .then(([d, a, sk]) => ({ default: d.default, affixes: a, skillDesc: sk.default })),
 }
+// 아이템 옵션 문구 사전 (locales/affixes.<언어>.js), 스킬 설명 (locales/skills.<언어>.json)
+const affixDicts = {}
+const skillDescDicts = {}
 
 // 주소 앞의 언어 ('/en/trade/1' -> 'en', '/trade/1' -> 'ko')
 export function localeOfPath(path) {
@@ -44,7 +48,10 @@ export async function setLocale(code) {
   if (!LOCALES.some((l) => l.code === code)) code = DEFAULT_LOCALE
   if (!dicts[code] && loaders[code]) {
     try {
-      dicts[code] = (await loaders[code]()).default
+      const mod = await loaders[code]()
+      dicts[code] = mod.default
+      affixDicts[code] = mod.affixes || null
+      skillDescDicts[code] = mod.skillDesc || null
     } catch (e) {
       dicts[code] = {}
     }
@@ -70,11 +77,75 @@ export function itemName(it, fallback = '') {
   return it.name_ko || fallback
 }
 
+// 아이템 옵션 문구 (한국어로 저장된 '힘 +8', '시체 폭발 +1~3 (네크로맨서 전용)' 같은 줄) -> 지금 언어
+// 문구 속 숫자를 #로 바꾼 모양으로 사전을 찾고, 숫자는 원문 그대로 다시 채움. 모르는 문구는 한국어 그대로
+const NUM_RE = /(?<![\d.])-?\d+(?:\.\d+)?(?:~-?\d+(?:\.\d+)?)?/g
+const affixCache = new Map()
+function fillNums(tpl, nums, names) {
+  return tpl.replace(/\{(\+?)(\d+|S|C)\}/g, (m, plus, k) => {
+    if (k === 'S' || k === 'C') return names[k] ?? m
+    const n = nums[Number(k)]
+    if (n == null) return m
+    const [a, b] = n.split('~')
+    if (b != null) return a.startsWith('-') ? `(${a} to ${b})` : `${plus}(${a}-${b})`
+    return plus && !a.startsWith('-') ? '+' + a : a
+  })
+}
+function translateAffix(text, A) {
+  const one = translateLine(text, A)
+  if (one != null || !text.includes(', ')) return one
+  // 한 줄에 옵션 여러 개 ('시야 +1, 명중률 +10') - 각각 바꿔서 다시 이음
+  const parts = text.split(', ').map((x) => translateLine(x, A))
+  return parts.every((x) => x != null) ? parts.join(', ') : null
+}
+function translateLine(text, A) {
+  // '방어력 +0.5 (캐릭터 레벨당)'
+  const per = /^(.+) \(캐릭터 레벨당\)$/.exec(text.trim())
+  if (per) return translateLine('캐릭터 레벨당 ' + per[1], A)
+  const nums = []
+  const shape = text.trim().replace(NUM_RE, (m) => (nums.push(m), '#'))
+  if (A.PATTERNS[shape]) return fillNums(A.PATTERNS[shape], nums, {})
+  const lv = /^캐릭터 레벨당 (.+)$/.exec(shape)
+  if (lv && A.PER_LEVEL[lv[1]]) return fillNums(A.PER_LEVEL[lv[1]], nums, {}) + ' (Based on Character Level)'
+  for (const [re, tpl, kind] of A.SKILL_PATTERNS) {
+    const m = re.exec(shape)
+    if (!m) continue
+    if (kind === 'raw') return fillNums(tpl, nums, { S: m[1] })
+    if (kind === 'class') {
+      if (!A.CLASSES[m[1]]) continue
+      return fillNums(tpl, nums, { C: A.CLASSES[m[1]] })
+    }
+    const S = m[1] == null ? '' : A.SKILLS[m[1]] || A.SKILL_TABS[m[1]]
+    const C = m[2] == null ? '' : A.CLASSES[m[2]]
+    if (S === undefined || C === undefined) continue
+    return fillNums(tpl, nums, { S, C })
+  }
+  return null
+}
+export function affixText(text) {
+  void dictVersion.value
+  if (!text || locale.value === DEFAULT_LOCALE) return text
+  const A = affixDicts[locale.value]
+  if (!A) return text
+  const key = locale.value + '|' + text
+  if (!affixCache.has(key)) affixCache.set(key, translateAffix(String(text), A))
+  return affixCache.get(key) ?? text
+}
+
+// 스킬 설명 (게임 문자열 키 skillsd6 등) - 지금 언어 문구, 없으면 null
+export function skillDescText(key) {
+  void dictVersion.value
+  if (!key || locale.value === DEFAULT_LOCALE) return null
+  const text = skillDescDicts[locale.value]?.[key]
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : null
+}
+
 // 템플릿에서 $t, $itemName 으로 바로 쓰게
 export const i18nPlugin = {
   install(app) {
     app.config.globalProperties.$t = t
     app.config.globalProperties.$itemName = itemName
+    app.config.globalProperties.$affix = affixText
     app.config.globalProperties.$locale = locale
   },
 }

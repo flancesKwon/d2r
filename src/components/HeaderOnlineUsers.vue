@@ -40,28 +40,28 @@ const hideSoon = () => window.setTimeout(() => (open.value = false), 150)
 
 <template>
   <div class="online-inline" v-if="inline && isStaff()">
-    <div class="online-top">접속 중 {{ ids.length }}명 <small>운영진 전용 · 로그인한 회원만</small></div>
+    <div class="online-top">{{ $t('접속 중 {n}명', { n: ids.length }) }} <small>{{ $t('운영진 전용 · 로그인한 회원만') }}</small></div>
     <div class="online-list inline-list">
       <button type="button" class="online-row" v-for="u in list" :key="u.id" @click="pick(u)">
         <UserAvatar :src="u.avatar_url" :name="u.nickname" :size="22" :user-id="u.id" :clickable="false" />
         <span class="online-name">{{ u.nickname }}</span>
       </button>
-      <div class="online-empty" v-if="!list.length">접속 중인 회원 없음</div>
+      <div class="online-empty" v-if="!list.length">{{ $t('접속 중인 회원 없음') }}</div>
     </div>
   </div>
   <div class="online-wrap" v-else-if="!inline && isStaff()">
-    <button type="button" class="online-btn" :aria-expanded="open" title="지금 접속 중인 회원 (운영진 전용)" @click="open = !open" @blur="hideSoon">
+    <button type="button" class="online-btn" :aria-expanded="open" :title="$t('지금 접속 중인 회원 (운영진 전용)')" @click="open = !open" @blur="hideSoon">
       <span class="online-dot"></span>{{ ids.length }}
     </button>
     <div class="online-dropdown" v-if="open">
-      <div class="online-top">접속 중 {{ ids.length }}명 <small>운영진 전용 · 로그인한 회원만</small></div>
+      <div class="online-top">{{ $t('접속 중 {n}명', { n: ids.length }) }} <small>{{ $t('운영진 전용 · 로그인한 회원만') }}</small></div>
       <div class="online-list">
         <button type="button" class="online-row" v-for="u in list" :key="u.id" @mousedown.prevent="pick(u)">
           <UserAvatar :src="u.avatar_url" :name="u.nickname" :size="26" :user-id="u.id" :clickable="false" />
           <span class="online-name">{{ u.nickname }}</span>
           <small v-if="u.role && u.role !== 'user'">{{ ROLE_LABEL[u.role] || u.role }}</small>
         </button>
-        <div class="online-empty" v-if="!list.length">접속 중인 회원 없음</div>
+        <div class="online-empty" v-if="!list.length">{{ $t('접속 중인 회원 없음') }}</div>
       </div>
     </div>
   </div>

@@ -38,46 +38,46 @@ const full = computed(() => myTickets.value !== null && ev.value && myTickets.va
   <!-- 판매글 등록 화면 -->
   <router-link v-if="mode === 'post' && show && phase === 'live'" :to="`/event/${ev.id}`" class="eb-post">
     <span class="eb-gift" aria-hidden="true">🎁</span>
-    <span v-if="full"><b>{{ ev.title }}</b> 응모권 최대 {{ ev.ticketCap }}장 다 채웠어요</span>
-    <span v-else><b>{{ ev.title }}</b> 진행 중 · 이 판매글을 올리면 <b class="eb-plus">응모권 +1</b>
-      <template v-if="myTickets !== null"> (지금 {{ myTickets }}/{{ ev.ticketCap }}장)</template></span>
-    <span class="eb-time">남은 시간 <b>{{ left }}</b></span>
+    <span v-if="full"><b>{{ ev.title }}</b> {{ $t('응모권 최대 {n}장 다 채웠어요', { n: ev.ticketCap }) }}</span>
+    <span v-else><b>{{ ev.title }}</b> {{ $t('진행 중 · 이 판매글을 올리면') }} <b class="eb-plus">{{ $t('응모권 +1') }}</b>
+      <template v-if="myTickets !== null"> ({{ $t('지금') }} {{ myTickets }}/{{ ev.ticketCap }})</template></span>
+    <span class="eb-time">{{ $t('남은 시간') }} <b>{{ left }}</b></span>
   </router-link>
 
   <!-- 거래게시판 진행 중: 큰 카드 -->
   <div v-else-if="mode === 'big' && show && phase === 'live'" class="eb-big">
     <div class="eb-big-main">
-      <div class="eb-big-badge"><span class="eb-dot"></span>이벤트 진행 중</div>
+      <div class="eb-big-badge"><span class="eb-dot"></span>{{ $t('이벤트 진행 중') }}</div>
       <h2 class="eb-big-title">🎁 {{ ev.title }}</h2>
-      <p class="eb-big-desc">지금 <b>판매글을 올리면 자동 응모</b> · 판매글 1개당 응모권 1장, 1인 최대 {{ ev.ticketCap }}장 · {{ fmtEventTime(ev.drawAt) }} 공개 추첨</p>
+      <p class="eb-big-desc">{{ $t('지금') }} <b>{{ $t('판매글을 올리면 자동 응모') }}</b> · {{ $t('판매글 1개당 응모권 1장, 1인 최대 {n}장', { n: ev.ticketCap }) }} · {{ $t('{time} 공개 추첨', { time: fmtEventTime(ev.drawAt) }) }}</p>
       <div class="eb-prizes">
         <span class="eb-prize" v-for="p in ev.prizes" :key="p.rank"><em>{{ p.label }}</em> {{ p.item }}</span>
       </div>
     </div>
     <div class="eb-big-side">
       <div class="eb-clock">
-        <span>종료까지</span>
+        <span>{{ $t('종료까지') }}</span>
         <b>{{ left }}</b>
       </div>
-      <div class="eb-mine" v-if="myTickets !== null">내 응모권 <b>{{ myTickets }}</b> / {{ ev.ticketCap }}장</div>
+      <div class="eb-mine" v-if="myTickets !== null">{{ $t('내 응모권') }} <b>{{ myTickets }}</b> / {{ ev.ticketCap }}</div>
       <div class="eb-actions">
-        <router-link to="/trade/new" class="eb-cta" v-if="!full">판매글 올리고 응모하기</router-link>
-        <router-link :to="`/event/${ev.id}`" class="eb-more">응모 목록·자세히 →</router-link>
+        <router-link to="/trade/new" class="eb-cta" v-if="!full">{{ $t('판매글 올리고 응모하기') }}</router-link>
+        <router-link :to="`/event/${ev.id}`" class="eb-more">{{ $t('응모 목록·자세히 →') }}</router-link>
       </div>
     </div>
   </div>
 
   <!-- 한 줄 -->
   <router-link v-else-if="mode !== 'post' && show" :to="`/event/${ev.id}`" class="event-banner" :class="phase">
-    <span class="eb-badge">{{ phase === 'upcoming' ? '곧 시작' : PHASE_KO[phase] }}</span>
+    <span class="eb-badge">{{ $t(phase === 'upcoming' ? '곧 시작' : PHASE_KO[phase]) }}</span>
     <span class="eb-title">🎁 {{ ev.title }}</span>
-    <span class="eb-desc" v-if="phase === 'live'">판매글 올리면 자동 응모 (1인 최대 {{ ev.ticketCap }}장)<template v-if="firstPrize"> · {{ firstPrize.label }} {{ firstPrize.item }}</template></span>
-    <span class="eb-desc" v-else-if="phase === 'upcoming'">{{ fmtEventTime(ev.startsAt) }} 시작<template v-if="firstPrize"> · {{ firstPrize.label }} {{ firstPrize.item }}</template></span>
-    <span class="eb-desc" v-else-if="phase === 'review'">{{ fmtEventTime(ev.drawAt) }} 공개 난수로 추첨</span>
-    <span class="eb-desc" v-else-if="phase === 'ready'">곧 추첨 - 이벤트 페이지에서 같이 보기</span>
-    <span class="eb-desc" v-else>당첨자 확인하기</span>
-    <span class="eb-time" v-if="left">{{ { live: '남은 시간', upcoming: '시작까지', review: '추첨까지' }[phase] }} <b>{{ left }}</b></span>
-    <span class="eb-go">자세히 →</span>
+    <span class="eb-desc" v-if="phase === 'live'">{{ $t('판매글 올리면 자동 응모 (1인 최대 {n}장)', { n: ev.ticketCap }) }}<template v-if="firstPrize"> · {{ firstPrize.label }} {{ firstPrize.item }}</template></span>
+    <span class="eb-desc" v-else-if="phase === 'upcoming'">{{ $t('{time} 시작', { time: fmtEventTime(ev.startsAt) }) }}<template v-if="firstPrize"> · {{ firstPrize.label }} {{ firstPrize.item }}</template></span>
+    <span class="eb-desc" v-else-if="phase === 'review'">{{ $t('{time} 공개 난수로 추첨', { time: fmtEventTime(ev.drawAt) }) }}</span>
+    <span class="eb-desc" v-else-if="phase === 'ready'">{{ $t('곧 추첨 - 이벤트 페이지에서 같이 보기') }}</span>
+    <span class="eb-desc" v-else>{{ $t('당첨자 확인하기') }}</span>
+    <span class="eb-time" v-if="left">{{ $t({ live: '남은 시간', upcoming: '시작까지', review: '추첨까지' }[phase]) }} <b>{{ left }}</b></span>
+    <span class="eb-go">{{ $t('자세히 →') }}</span>
   </router-link>
 </template>
 

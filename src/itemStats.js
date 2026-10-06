@@ -1,6 +1,7 @@
 import skillIdMap from './data/skillIdMap.json'
 import { SKILL_TAB_BY_ID, CLASS_CODE_TO_KEY } from './data/skillTabIds.js'
 import { itemDamage } from './itemDamage.js'
+import { locale } from './i18n.js'
 
 export const SLOT_DEFS = [
   { key: 'weapon', label: '무기' },
@@ -43,6 +44,16 @@ export const RUNEWORD_TYPE_KO = {
 }
 export function runewordBaseTypesKo(subtitle) {
   return (subtitle || '').split('+').map((c) => RUNEWORD_TYPE_KO[c.trim()] || c.trim()).filter(Boolean).join('·')
+}
+export const RUNEWORD_TYPE_EN = {
+  tors: 'Body Armor', shld: 'Shields', helm: 'Helms', weap: 'Weapons', mele: 'Melee Weapons', miss: 'Missile Weapons', swor: 'Swords',
+  axe: 'Axes', hamm: 'Hammers', mace: 'Maces', club: 'Clubs', pole: 'Polearms', spea: 'Spears', staf: 'Staves', scep: 'Scepters',
+  knif: 'Daggers', wand: 'Wands', h2h: 'Claws', grim: 'Grimoires', head: 'Shrunken Heads', ashd: 'Paladin Shields', pala: 'Paladin Shields',
+}
+// 지금 화면 언어로 (영어면 'Polearms / Spears')
+export function runewordBaseTypes(subtitle) {
+  if (locale.value === 'ko') return runewordBaseTypesKo(subtitle)
+  return (subtitle || '').split('+').map((c) => RUNEWORD_TYPE_EN[c.trim()] || c.trim()).filter(Boolean).join(' / ')
 }
 
 export function runePips(seq) {

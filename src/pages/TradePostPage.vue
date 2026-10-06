@@ -20,12 +20,14 @@ import { buildTooltip } from '../itemTooltip.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
+import { t, locale, itemName, affixText } from '../i18n.js'
+import { postName, countText, priceTok, priceText } from '../tradeI18n.js'
 
 const route = useRoute()
 const router = useRouter()
 // 판매글 (목록에서 받아둔 게 있으면 바로 보여주고 DB에서 최신으로) + 구매신청(당사자만)
 const post = ref(getTradePost(route.params.id) || null)
-watch(post, (p) => { if (p) document.title = `${p.itemName} — 거래게시판 — 디아허브` }, { immediate: true, flush: 'post' })
+watch([post, locale], ([p]) => { if (p) document.title = `${postName(p)} — ${t('거래게시판')} — ${t('디아허브')}` }, { immediate: true, flush: 'post' })
 const loading = ref(!post.value)
 const actionError = ref('')
 async function load() {
@@ -69,7 +71,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리 실패'
+    actionError.value = t(e.message || '처리 실패')
   }
 }
 const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
@@ -109,7 +111,7 @@ const saleClock = computed(() => {
   const t = Math.floor(ms / 1000)
   const p = (n) => String(n).padStart(2, '0')
   const d = Math.floor(t / 86400)
-  return `${d ? d + '일 ' : ''}${p(Math.floor((t % 86400) / 3600))}:${p(Math.floor((t % 3600) / 60))}:${p(t % 60)}`
+  return `${d ? d + (locale.value === 'ko' ? '일 ' : 'd ') : ''}${p(Math.floor((t % 86400) / 3600))}:${p(Math.floor((t % 3600) / 60))}:${p(t % 60)}`
 })
 const salePct = computed(() => (saleLeft.value === null ? 0 : Math.max(0, Math.min(100, (saleLeft.value / (SALE_HOURS * 3600000)) * 100))))
 // 거래완료된 글: 상태 변경·삭제 없음 (거래내역·후기가 이 글을 가리킴)
@@ -128,11 +130,11 @@ function messageSeller() {
   })
 }
 async function removePost() {
-  if (!await askConfirm('판매글 삭제 - 되돌릴 수 없음')) return
+  if (!await askConfirm(t('판매글 삭제 - 되돌릴 수 없음'))) return
   await run(async () => {
     await deleteTradePost(post.value.id)
     router.replace('/trade')
-    showAlert('판매글 삭제 완료', { icon: 'success' })
+    showAlert(t('판매글 삭제 완료'), { icon: 'success' })
   })
 }
 
@@ -159,12 +161,12 @@ async function copyContact() {
 }
 
 const RESPOND_CONFIRM = {
-  accepted: (r) => `${r.buyer}님 구매신청 수락 - 거래방이 열리고 판매글은 거래중, 다른 대기 신청은 보류로 바뀜 (거래가 불발되면 다시 대기)`,
-  declined: (r) => `${r.buyer}님 구매신청 거절 - 신청자에게 거절 알림이 감`,
-  cancelled: () => '구매신청 취소',
+  accepted: (r) => t('{name}님 구매신청 수락 - 거래방이 열리고 판매글은 거래중, 다른 대기 신청은 보류로 바뀜 (거래가 불발되면 다시 대기)', { name: r.buyer }),
+  declined: (r) => t('{name}님 구매신청 거절 - 신청자에게 거절 알림이 감', { name: r.buyer }),
+  cancelled: () => t('구매신청 취소'),
 }
 async function respond(r, decision) {
-  if (!await askConfirm(RESPOND_CONFIRM[decision](r), decision === 'accepted' ? { confirmText: '수락' } : undefined)) return
+  if (!await askConfirm(RESPOND_CONFIRM[decision](r), decision === 'accepted' ? { confirmText: t('수락') } : undefined)) return
   return run(async () => {
     const dealId = await respondToRequest(post.value, r, decision)
     // 수락하면 거래방이 열림 - 그 거래방으로 바로
@@ -179,6 +181,13 @@ const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smo
 const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
 
 const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
+// 구매신청 메시지 (한국어로 저장: '구매하기 - 제안: 베르 룬 1개 + ...')
+const requestMessage = (m) => {
+  if (!m || locale.value === 'ko') return m
+  const mm = /^(구매하기|가격 제안)( - 제안: )(.*)$/.exec(m)
+  if (mm) return t(mm[1]) + ' - ' + t('제안') + ': ' + priceText(mm[3])
+  return t(m)
+}
 // 판매 상태는 거래 흐름으로만 바뀜 (020·021 SQL) - 판매자에겐 지금 상태와 다음 단계만 보여줌
 const activeDeal = computed(() => dealsState.deals.find((d) => d.postId === post.value?.id && d.status === '거래중') || null)
 const STATUS_HELP = {
@@ -259,68 +268,68 @@ async function confirmBuy() {
     <!-- 제목 영역: 분류·서버 칩, 아이콘 + 이름 + 뱃지, 작성 정보, 찜 -->
     <div class="post-head">
       <div class="post-chips">
-        <router-link class="post-chip cat" :to="{ path: '/trade' }">{{ post.category }}</router-link>
-        <span class="post-chip">{{ post.realm }}</span>
-        <span class="post-chip">{{ post.ladder }}</span>
-        <span class="post-chip">{{ post.hardcore }}</span>
+        <router-link class="post-chip cat" :to="{ path: '/trade' }">{{ $t(post.category) }}</router-link>
+        <span class="post-chip">{{ $t(post.realm) }}</span>
+        <span class="post-chip">{{ $t(post.ladder) }}</span>
+        <span class="post-chip">{{ $t(post.hardcore) }}</span>
       </div>
       <div class="trade-title-line">
         <span class="trade-title-icon" v-if="postIconKey(post)" :class="postRarity(post)">
           <img :src="iconUrlFor(postIconKey(post))" alt="" />
         </span>
         <div class="title-block">
-          <h1 class="d-name trade-post-title">{{ post.itemName }}</h1>
+          <h1 class="d-name trade-post-title">{{ postName(post) }}</h1>
           <div class="title-badges">
-            <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? '기간 만료' : statusLabel(post.status) }}</span>
-            <span class="ethereal-badge" v-if="post.ethereal">에테리얼</span>
-            <span class="unid-badge" v-if="post.unidentified">미확인</span>
-            <span class="negotiable-badge" v-if="post.offerOnly">제안만 받기</span>
-            <span class="negotiable-badge" v-else-if="post.negotiable">흥정 가능</span>
+            <span class="status-pill" :class="saleExpired ? 'status-만료' : 'status-' + post.status">{{ saleExpired ? $t('기간 만료') : $t(statusLabel(post.status)) }}</span>
+            <span class="ethereal-badge" v-if="post.ethereal">{{ $t('에테리얼') }}</span>
+            <span class="unid-badge" v-if="post.unidentified">{{ $t('미확인') }}</span>
+            <span class="negotiable-badge" v-if="post.offerOnly">{{ $t('제안만 받기') }}</span>
+            <span class="negotiable-badge" v-else-if="post.negotiable">{{ $t('흥정 가능') }}</span>
           </div>
         </div>
         <button
           type="button" class="favorite-star" :class="{ active: isFavorite(post.id) }"
-          :title="isFavorite(post.id) ? '찜 해제' : '찜하기'" :aria-label="isFavorite(post.id) ? '찜 해제' : '찜하기'"
+          :title="$t(isFavorite(post.id) ? '찜 해제' : '찜하기')" :aria-label="$t(isFavorite(post.id) ? '찜 해제' : '찜하기')"
           @click="toggleFavorite(post.id)"
         >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">
-        {{ post.author }} · {{ post.date }} 등록<template v-if="post.editedAt"> · 수정됨</template> · 조회 {{ post.views }} ·
-        <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">이 아이템 거래내역</router-link>
+        {{ post.author }} · {{ $t('{date} 등록', { date: post.date }) }}<template v-if="post.editedAt"> {{ $t('· 수정됨') }}</template> · {{ $t('조회 {n}', { n: post.views }) }} ·
+        <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">{{ $t('이 아이템 거래내역') }}</router-link>
       </div>
     </div>
 
     <!-- 판매 기간 (판매중일 때만) -->
     <div class="sale-timer" v-if="saleLeft !== null" :class="{ expired: saleExpired, soon: !saleExpired && saleLeft < 6 * 3600000 }">
       <template v-if="!saleExpired">
-        <span class="sale-timer-label">판매 종료까지</span>
+        <span class="sale-timer-label">{{ $t('판매 종료까지') }}</span>
         <b class="sale-timer-clock">{{ saleClock }}</b>
         <span class="sale-timer-bar"><span :style="{ width: salePct + '%' }"></span></span>
       </template>
       <template v-else>
-        <span class="sale-timer-label">판매 기간 만료 · 목록에서 내려감</span>
-        <router-link v-if="isOwner" class="sale-relist-btn" :to="`/trade/${post.id}/relist`">재등록 →</router-link>
+        <span class="sale-timer-label">{{ $t('판매 기간 만료 · 목록에서 내려감') }}</span>
+        <router-link v-if="isOwner" class="sale-relist-btn" :to="`/trade/${post.id}/relist`">{{ $t('재등록 →') }}</router-link>
       </template>
     </div>
 
     <button type="button" class="pending-banner" v-if="canManage && pendingCount" @click="scrollToRequests">
       <span class="pending-dot"></span>
-      <b>대기 중인 구매신청 {{ pendingCount }}건</b>
-      <span class="pending-go">수락·거절하러 가기 ↓</span>
+      <b>{{ $t('대기 중인 구매신청 {n}건', { n: pendingCount }) }}</b>
+      <span class="pending-go">{{ $t('수락·거절하러 가기 ↓') }}</span>
     </button>
 
     <div class="post-layout">
       <!-- 왼쪽: 아이템 이미지 + 판매자 설명 -->
       <div class="post-left">
         <section class="item-panel">
-          <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="post.itemName" />
+          <ItemTooltipCanvas ref="tooltipCanvas" :tooltip="tooltip" :file-name="postName(post)" />
           <div class="item-panel-foot">
-            <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">이미지로 저장</button>
+            <button type="button" class="tooltip-save-btn" @click="tooltipCanvas?.download()">{{ $t('이미지로 저장') }}</button>
           </div>
         </section>
 
         <section class="side-card desc-card" v-if="post.content && post.content.trim()">
-          <div class="card-title">판매자 설명</div>
+          <div class="card-title">{{ $t('판매자 설명') }}</div>
           <div class="trade-post-content rich-content" v-html="contentHtml"></div>
         </section>
       </div>
@@ -328,69 +337,69 @@ async function confirmBuy() {
       <!-- 오른쪽: 가격·구매 / 판매자 / 판매자 전용 (넓은 화면에선 스크롤해도 따라옴) -->
       <aside class="post-side">
         <section class="side-card price-card">
-          <div class="card-title">{{ showSoldPrice ? '거래가' : post.offerOnly ? '가격 제안 받는 중' : '희망 가격' }}</div>
+          <div class="card-title">{{ $t(showSoldPrice ? '거래가' : post.offerOnly ? '가격 제안 받는 중' : '희망 가격') }}</div>
           <div class="offer-only-box" v-if="post.offerOnly && !showSoldPrice">
-            <b>판매가 없음 · 제안만 받음</b>
-            <button type="button" class="offer-count-link" @click="scrollToRequests">받은 제안 {{ offerCount }}건 보기 ↓</button>
+            <b>{{ $t('판매가 없음 · 제안만 받음') }}</b>
+            <button type="button" class="offer-count-link" @click="scrollToRequests">{{ $t('받은 제안 {n}건 보기 ↓', { n: offerCount }) }}</button>
           </div>
           <div class="price-parts" v-else>
             <span class="price-part" v-for="(p, i) in priceParts" :key="i">
               <span class="price-part-icon" :class="{ empty: !p.item }"><img v-if="p.item && iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
-              <span class="price-part-text">{{ p.text }}</span>
+              <span class="price-part-text">{{ p.item ? itemName(p.item, p.text) : countText(p.text) }}</span>
               <span class="price-or" v-if="i < priceParts.length - 1">+</span>
             </span>
           </div>
-          <div class="sold-was" v-if="showSoldPrice && post.price !== post.soldPrice">희망 가격 {{ post.price }}</div>
+          <div class="sold-was" v-if="showSoldPrice && post.price !== post.soldPrice">{{ $t('희망 가격') }} {{ priceText(post.price) }}</div>
           <div class="price-meta">
-            <span>수량 <b>{{ post.amountLabel }}</b><template v-if="isLot"> · 한 번에 판매</template></span>
-            <span v-if="post.negotiable" class="nego">흥정 가능</span>
+            <span>{{ $t('수량') }} <b>{{ countText(post.amountLabel) }}</b><template v-if="isLot"> {{ $t('· 한 번에 판매') }}</template></span>
+            <span v-if="post.negotiable" class="nego">{{ $t('흥정 가능') }}</span>
           </div>
           <button
             type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
             @click="openBuyModal"
-          >{{ isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기' }}</button>
-          <p class="buy-now-hint" v-if="post.status === '예약중'">다른 구매자와 거래중 - 지금 신청하면 보류됐다가, 그 거래가 불발되면 대기로 바뀜</p>
-          <p class="buy-now-hint" v-else>{{ post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청' }}</p>
+          >{{ $t(isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기') }}</button>
+          <p class="buy-now-hint" v-if="post.status === '예약중'">{{ $t('다른 구매자와 거래중 - 지금 신청하면 보류됐다가, 그 거래가 불발되면 대기로 바뀜') }}</p>
+          <p class="buy-now-hint" v-else>{{ $t(post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청') }}</p>
         </section>
 
         <section class="side-card seller-card">
-          <div class="card-title">판매자</div>
+          <div class="card-title">{{ $t('판매자') }}</div>
           <div class="seller-row">
             <UserAvatar :src="post.avatar" :name="post.author" :size="40" :user-id="post.authorId" />
             <div class="seller-name-block">
               <router-link :to="'/users/' + post.authorId" class="seller-name user-link">{{ post.author }}</router-link>
-              <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">● 접속 중 · </span>{{ post.realm }} · {{ post.ladder }} · {{ post.hardcore }}</div>
-              <router-link :to="'/users/' + post.authorId" class="seller-profile-link">프로필·받은 리뷰 보기 →</router-link>
+              <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">{{ $t('● 접속 중 ·') }} </span>{{ $t(post.realm) }} · {{ $t(post.ladder) }} · {{ $t(post.hardcore) }}</div>
+              <router-link :to="'/users/' + post.authorId" class="seller-profile-link">{{ $t('프로필·받은 리뷰 보기 →') }}</router-link>
             </div>
           </div>
           <div class="contact-row">
-            <span class="contact-label">연락처</span>
-            <span class="contact-value">{{ post.contact || '구매신청으로 문의' }}</span>
-            <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ copied ? '복사됨' : '복사' }}</button>
+            <span class="contact-label">{{ $t('연락처') }}</span>
+            <span class="contact-value">{{ post.contact || $t('구매신청으로 문의') }}</span>
+            <button type="button" class="copy-btn" v-if="post.contact" @click="copyContact">{{ $t(copied ? '복사됨' : '복사') }}</button>
           </div>
-          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">쪽지로 문의하기</button>
-          <div class="seller-report" v-if="!isOwner"><ReportButton target-type="trade_post" :target-id="post.id" :owner-id="post.authorId" label="판매글 신고" /></div>
+          <button type="button" class="dm-btn" v-if="!isOwner" @click="messageSeller">{{ $t('쪽지로 문의하기') }}</button>
+          <div class="seller-report" v-if="!isOwner"><ReportButton target-type="trade_post" :target-id="post.id" :owner-id="post.authorId" :label="$t('판매글 신고')" /></div>
         </section>
 
         <section class="side-card owner-card done-card" v-if="isOwner && isDone">
-          <div class="card-title">거래완료 <span class="owner-tag">판매자 전용</span></div>
-          <small class="owner-bump-note">거래가 끝난 글 · 상태 변경·삭제 불가</small>
+          <div class="card-title">{{ $t('거래완료') }} <span class="owner-tag">{{ $t('판매자 전용') }}</span></div>
+          <small class="owner-bump-note">{{ $t('거래가 끝난 글 · 상태 변경·삭제 불가') }}</small>
         </section>
         <section class="side-card owner-card" v-if="(canManage || canDelete) && !isDone">
-          <div class="card-title">{{ canManage ? '판매 상태' : '운영' }} <span class="owner-tag">{{ isOwner ? '판매자 전용' : '운영진' }}</span></div>
+          <div class="card-title">{{ $t(canManage ? '판매 상태' : '운영') }} <span class="owner-tag">{{ $t(isOwner ? '판매자 전용' : '운영진') }}</span></div>
           <!-- 판매 상태는 직접 못 바꿈 (021): 신청 수락 → 예약중, 거래방에서 거래완료 / 거래불발 → 판매중 -->
           <div class="status-now" v-if="canManage">
-            <span class="status-pill" :class="'status-' + post.status">{{ statusLabel(post.status) }}</span>
-            <small>{{ STATUS_HELP[post.status] }}</small>
+            <span class="status-pill" :class="'status-' + post.status">{{ $t(statusLabel(post.status)) }}</span>
+            <small>{{ $t(STATUS_HELP[post.status] || '') }}</small>
           </div>
-          <router-link v-if="isOwner && activeDeal" class="owner-bump" :to="`/deals/${activeDeal.id}`">거래방 열기 →</router-link>
+          <router-link v-if="isOwner && activeDeal" class="owner-bump" :to="`/deals/${activeDeal.id}`">{{ $t('거래방 열기 →') }}</router-link>
           <template v-if="isOwner && post.status === '판매중'">
-            <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">✎ 판매글 수정 (가격·옵션 수치)</router-link>
-            <small v-else class="owner-bump-note">{{ editBlocked }}</small>
-            <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">재등록 (판매가 수정)</router-link>
-            <small class="owner-bump-note">판매 기간 {{ SALE_HOURS }}시간 · 끝나면 판매가만 고쳐 재등록</small>
+            <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">{{ $t('✎ 판매글 수정 (가격·옵션 수치)') }}</router-link>
+            <small v-else class="owner-bump-note">{{ $t(editBlocked) }}</small>
+            <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">{{ $t('재등록 (판매가 수정)') }}</router-link>
+            <small class="owner-bump-note">{{ $t('판매 기간 {n}시간 · 끝나면 판매가만 고쳐 재등록', { n: SALE_HOURS }) }}</small>
           </template>
-          <button type="button" class="owner-delete" @click="removePost">✕ 판매글 삭제</button>
+          <button type="button" class="owner-delete" @click="removePost">{{ $t('✕ 판매글 삭제') }}</button>
         </section>
         <div class="action-error" v-if="actionError">{{ actionError }}</div>
       </aside>
@@ -399,55 +408,55 @@ async function confirmBuy() {
     <!-- 구매신청 -->
     <section class="requests-section" ref="requestsEl">
       <div class="section-head">
-        <div class="section-title">{{ isOwner ? '받은 구매신청·제안' : '구매신청·가격 제안 내역' }} <span class="count">{{ post.requests.length }}</span></div>
-        <small class="section-note" v-if="!isOwner">다른 사람의 신청·제안도 공개 · 연락처는 판매자만</small>
-        <button type="button" class="guide-link" @click="openTradeGuide('flow')">거래는 어떻게 진행돼요?</button>
+        <div class="section-title">{{ $t(isOwner ? '받은 구매신청·제안' : '구매신청·가격 제안 내역') }} <span class="count">{{ post.requests.length }}</span></div>
+        <small class="section-note" v-if="!isOwner">{{ $t('다른 사람의 신청·제안도 공개 · 연락처는 판매자만') }}</small>
+        <button type="button" class="guide-link" @click="openTradeGuide('flow')">{{ $t('거래는 어떻게 진행돼요?') }}</button>
       </div>
       <div class="request-list">
         <div class="request-item" v-for="r in post.requests" :key="r.id" :class="{ pending: (r.status || 'pending') === 'pending' && canManage }">
           <div class="request-top" :class="{ mine: r.buyerId === authState.user?.id }">
             <UserAvatar :src="r.buyerAvatar" :name="r.buyer" :size="26" :user-id="r.buyerId" />
             <b>{{ r.buyer }}</b>
-            <span class="request-kind" v-if="REQUEST_KIND_LABEL[r.kind] && r.kind !== 'inquiry'">{{ REQUEST_KIND_LABEL[r.kind] }}</span>
-            <span class="request-mine" v-if="r.buyerId === authState.user?.id">내 신청</span>
-            <span class="request-qty">{{ r.qty }}개</span>
-            <span class="request-status" :class="'status-' + reqStatus(r)">{{ REQUEST_STATUS_LABEL[reqStatus(r)] }}</span>
+            <span class="request-kind" v-if="REQUEST_KIND_LABEL[r.kind] && r.kind !== 'inquiry'">{{ $t(REQUEST_KIND_LABEL[r.kind]) }}</span>
+            <span class="request-mine" v-if="r.buyerId === authState.user?.id">{{ $t('내 신청') }}</span>
+            <span class="request-qty">{{ countText(r.qty + '개') }}</span>
+            <span class="request-status" :class="'status-' + reqStatus(r)">{{ $t(REQUEST_STATUS_LABEL[reqStatus(r)]) }}</span>
             <span class="request-date">{{ r.date }}</span>
           </div>
           <div class="request-offer-row" v-if="r.offerItems && r.offerItems.length">
-            <span class="request-offer-label">제안</span>
+            <span class="request-offer-label">{{ $t('제안') }}</span>
             <span class="request-offer-chip" v-for="o in r.offerItems" :key="o.id">
               <span class="request-offer-icon" v-if="iconUrlFor(o.icon_key)"><img :src="iconUrlFor(o.icon_key)" alt="" /></span>
-              {{ o.name_ko }} {{ o.qty }}개
+              {{ itemName(o) }} {{ countText(o.qty + '개') }}
             </span>
           </div>
-          <div class="request-message">{{ r.message }}</div>
+          <div class="request-message">{{ requestMessage(r.message) }}</div>
           <div class="request-bottom">
-            <span class="request-contact" v-if="r.contact && (canManage || r.buyerId === authState.user?.id)">연락처 {{ r.contact }}</span>
+            <span class="request-contact" v-if="r.contact && (canManage || r.buyerId === authState.user?.id)">{{ $t('연락처') }} {{ r.contact }}</span>
             <div class="request-actions" v-if="(r.status || 'pending') === 'pending' && canManage">
-              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">수락 · 거래방 열기</button>
-              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
+              <button type="button" class="request-action-btn accept" @click="respond(r, 'accepted')">{{ $t('수락 · 거래방 열기') }}</button>
+              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">{{ $t('거절') }}</button>
             </div>
             <div class="request-actions" v-else-if="r.status === 'held' && canManage">
-              <span class="request-held-note">다른 구매자와 거래중 · 불발되면 다시 대기</span>
-              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">거절</button>
+              <span class="request-held-note">{{ $t('다른 구매자와 거래중 · 불발되면 다시 대기') }}</span>
+              <button type="button" class="request-action-btn decline" @click="respond(r, 'declined')">{{ $t('거절') }}</button>
             </div>
             <div class="request-actions" v-else-if="['pending', 'held'].includes(r.status || 'pending') && r.buyerId === authState.user?.id">
-              <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">신청 취소</button>
+              <button type="button" class="request-action-btn cancel" @click="respond(r, 'cancelled')">{{ $t('신청 취소') }}</button>
             </div>
             <div class="request-actions" v-else-if="reqStatus(r) === 'accepted' && (canManage || r.buyerId === authState.user?.id)">
-              <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : `/deals?post=${post.id}&buyer=${r.buyerId}`">거래방 열기 →</router-link>
+              <router-link class="request-action-btn accept" :to="dealFor(r) ? '/deals/' + dealFor(r).id : `/deals?post=${post.id}&buyer=${r.buyerId}`">{{ $t('거래방 열기 →') }}</router-link>
             </div>
           </div>
         </div>
-        <div class="empty-state request-empty" v-if="post.requests.length === 0">{{ isOwner ? '받은 구매신청 없음' : '아직 구매신청·제안 없음' }}</div>
+        <div class="empty-state request-empty" v-if="post.requests.length === 0">{{ $t(isOwner ? '받은 구매신청 없음' : '아직 구매신청·제안 없음') }}</div>
       </div>
 
       <!-- 문의는 쪽지로 (구매신청 목록엔 구매하기·가격 제안만) -->
       <div class="side-card request-form" v-if="!isOwner">
-        <div class="card-title">판매자에게 문의</div>
-        <p class="request-login">거래 시간·옵션 확인 같은 문의는 쪽지로 - 이 판매글이 쪽지에 같이 붙음. 사려면 위의 "{{ post.offerOnly ? '가격 제안하기' : '구매하기' }}"</p>
-        <button type="button" class="btn-primary write-submit" @click="authState.user ? messageSeller() : signIn()">{{ authState.user ? '문의하기 (쪽지)' : '로그인 후 문의하기' }}</button>
+        <div class="card-title">{{ $t('판매자에게 문의') }}</div>
+        <p class="request-login">{{ $t('거래 시간·옵션 확인 같은 문의는 쪽지로 - 이 판매글이 쪽지에 같이 붙음. 사려면 위의 "{btn}"', { btn: $t(post.offerOnly ? '가격 제안하기' : '구매하기') }) }}</p>
+        <button type="button" class="btn-primary write-submit" @click="authState.user ? messageSeller() : signIn()">{{ $t(authState.user ? '문의하기 (쪽지)' : '로그인 후 문의하기') }}</button>
       </div>
     </section>
   </div>
@@ -457,12 +466,12 @@ async function confirmBuy() {
       <button type="button" class="modal-close" @click="closeBuyModal">✕</button>
 
       <template v-if="buyStep === 'offer'">
-        <div class="d-section-title">제안할 룬·보석·재료 선택</div>
+        <div class="d-section-title">{{ $t('제안할 룬·보석·재료 선택') }}</div>
 
         <div class="item-picker offer-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" :value="offerQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
+              type="text" :value="offerQuery" :placeholder="$t('이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)')"
               class="write-input" @focus="showOfferDropdown = true"
               @input="offerQuery = $event.target.value; showOfferDropdown = true" @blur="hideOfferDropdownSoon"
             />
@@ -472,9 +481,9 @@ async function confirmBuy() {
                 @mousedown.prevent="pickOfferItem(it)"
               >
                 <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+                <span class="item-picker-name">{{ itemName(it) }} <small v-if="locale === 'ko'">{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!offerCandidates.length">일치하는 룬·보석·재료 없음</div>
+              <div class="item-picker-empty" v-if="!offerCandidates.length">{{ $t('일치하는 룬·보석·재료 없음') }}</div>
             </div>
           </div>
         </div>
@@ -482,69 +491,69 @@ async function confirmBuy() {
         <div class="offer-chip-row" v-if="offerItems.length">
           <div class="offer-chip" v-for="(o, i) in offerItems" :key="o.item.id">
             <span class="item-picker-icon gem"><img v-if="iconUrlFor(o.item.icon_key)" :src="iconUrlFor(o.item.icon_key)" alt="" /></span>
-            <span class="offer-chip-name">{{ o.item.name_ko }}</span>
+            <span class="offer-chip-name">{{ itemName(o.item) }}</span>
             <input type="number" min="1" v-model="o.qty" class="offer-chip-qty" />
-            <span class="offer-chip-unit">개</span>
+            <span class="offer-chip-unit">{{ $t('개') }}</span>
             <button type="button" @click="removeOfferItem(i)">✕</button>
           </div>
         </div>
-        <div class="empty-state offer-empty" v-else>선택 없음</div>
+        <div class="empty-state offer-empty" v-else>{{ $t('선택 없음') }}</div>
 
         <div class="modal-actions">
-          <button type="button" class="btn-primary" :disabled="!offerItems.length" @click="goToConfirm">다음</button>
+          <button type="button" class="btn-primary" :disabled="!offerItems.length" @click="goToConfirm">{{ $t('다음') }}</button>
         </div>
       </template>
 
       <template v-else>
-        <div class="d-section-title">구매 신청 확인</div>
+        <div class="d-section-title">{{ $t('구매 신청 확인') }}</div>
         <div class="confirm-row">
-          <span class="k">판매 아이템</span>
+          <span class="k">{{ $t('판매 아이템') }}</span>
           <span class="v confirm-item">
             <span class="trade-title-icon confirm-icon" v-if="postIconKey(post)" :class="postRarity(post)">
               <img :src="iconUrlFor(postIconKey(post))" alt="" />
             </span>
-            {{ post.itemName }}
+            {{ postName(post) }}
           </span>
         </div>
         <div class="confirm-row" v-if="isLot">
-          <span class="k">수량</span>
-          <span class="v">{{ post.amountLabel }} 한 번에 (나눠 사기 없음)</span>
+          <span class="k">{{ $t('수량') }}</span>
+          <span class="v">{{ $t('{n} 한 번에 (나눠 사기 없음)', { n: countText(post.amountLabel) }) }}</span>
         </div>
         <div class="confirm-row" v-if="!post.offerOnly">
-          <span class="k">희망 가격</span>
+          <span class="k">{{ $t('희망 가격') }}</span>
           <span class="v">
-            <template v-for="(t, i) in parsePriceTokens(post.price)" :key="i">
-              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+            <template v-for="(tk, i) in parsePriceTokens(post.price)" :key="i">
+              <span class="price-icon" v-if="tk.item"><img v-if="iconUrlFor(tk.item.icon_key)" :src="iconUrlFor(tk.item.icon_key)" alt="" /></span>{{ priceTok(tk) }}
             </template>
           </span>
         </div>
         <div class="confirm-row" v-if="post.negotiable">
-          <span class="k">제안 내용</span>
+          <span class="k">{{ $t('제안 내용') }}</span>
           <span class="v offer-chip-row confirm-offer-row">
             <span class="offer-chip static" v-for="o in offerItems" :key="o.item.id">
               <span class="item-picker-icon gem"><img v-if="iconUrlFor(o.item.icon_key)" :src="iconUrlFor(o.item.icon_key)" alt="" /></span>
-              {{ o.item.name_ko }} {{ o.qty }}개
+              {{ itemName(o.item) }} {{ countText(o.qty + '개') }}
             </span>
           </span>
         </div>
         <div class="confirm-row" v-else>
-          <span class="k">구매 방식</span>
-          <span class="v">즉시 구매 (가격 협의 없이 구매 신청)</span>
+          <span class="k">{{ $t('구매 방식') }}</span>
+          <span class="v">{{ $t('즉시 구매 (가격 협의 없이 구매 신청)') }}</span>
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn-ghost" v-if="post.negotiable" @click="buyStep = 'offer'">이전</button>
-          <button type="button" class="btn-primary" @click="confirmBuy">구매 신청</button>
+          <button type="button" class="btn-ghost" v-if="post.negotiable" @click="buyStep = 'offer'">{{ $t('이전') }}</button>
+          <button type="button" class="btn-primary" @click="confirmBuy">{{ $t('구매 신청') }}</button>
         </div>
       </template>
     </div>
   </div>
-  <span class="buy-sent-toast" v-if="showBuySentToast">구매 신청 완료 - 판매자에게 알림 전송</span>
+  <span class="buy-sent-toast" v-if="showBuySentToast">{{ $t('구매 신청 완료 - 판매자에게 알림 전송') }}</span>
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
-      <div class="empty-state" v-if="loading">불러오는 중…</div>
-      <div class="empty-state" v-else>판매글 없음. <router-link to="/trade">거래게시판으로</router-link></div>
+      <div class="empty-state" v-if="loading">{{ $t('불러오는 중…') }}</div>
+      <div class="empty-state" v-else>{{ $t('판매글 없음.') }} <router-link to="/trade">{{ $t('거래게시판으로') }}</router-link></div>
     </div>
   </div>
 </template>

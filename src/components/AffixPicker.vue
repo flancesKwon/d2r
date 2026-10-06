@@ -5,6 +5,7 @@
 import { computed, ref, watch, nextTick, toRaw } from 'vue'
 import { familyText, filledValues } from '../magicAffixes.js'
 import { squashText } from '../itemSearch.js'
+import { affixText } from '../i18n.js'
 
 const props = defineProps({
   families: { type: Array, required: true },
@@ -14,6 +15,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const SLOT_KO = { p: '접두사', s: '접미사' }
+// 옵션 이름 (영어 화면이면 영어 문구 - 검색·강조도 이 이름으로)
+const labelOf = (f) => affixText(f.label)
 const famByKey = computed(() => new Map(props.families.map((f) => [f.key, f])))
 
 // 화면 목록 (고른 순서 그대로, 아직 안 고른 빈 줄 포함)
@@ -43,9 +46,9 @@ const queryOf = (row) => squashText(row.q).replace(JAMO_TAIL, '')
 function optionsFor(row) {
   const taken = new Set(list.value.filter((r) => r !== row).map((r) => r.key))
   const q = queryOf(row)
-  const hits = props.families.filter((f) => !taken.has(f.key) && (!q || squashText(f.label).includes(q)))
+  const hits = props.families.filter((f) => !taken.has(f.key) && (!q || squashText(labelOf(f)).includes(q)))
   // 검색어로 시작하는 옵션 먼저 ("시전" -> 시전 속도가 "…번개 시전"보다 위)
-  if (q) hits.sort((a, b) => squashText(b.label).startsWith(q) - squashText(a.label).startsWith(q))
+  if (q) hits.sort((a, b) => squashText(labelOf(b)).startsWith(q) - squashText(labelOf(a)).startsWith(q))
   return hits.slice(0, 60)
 }
 function pick(row, f) {
@@ -134,51 +137,51 @@ function previewOf(row) {
 <template>
   <div class="affix-picker" ref="rootEl">
     <div class="affix-count">
-      옵션 <b>{{ pickedTotal }}/{{ limits.total }}</b>
-      <span>접두사 {{ count('p') }}/{{ limits.p }}</span>
-      <span>접미사 {{ count('s') }}/{{ limits.s }}</span>
+      {{ $t('옵션') }} <b>{{ pickedTotal }}/{{ limits.total }}</b>
+      <span>{{ $t('접두사') }} {{ count('p') }}/{{ limits.p }}</span>
+      <span>{{ $t('접미사') }} {{ count('s') }}/{{ limits.s }}</span>
     </div>
 
     <div class="affix-row" v-for="(row, i) in list" :key="i">
       <div class="option-row">
         <span class="affix-no">{{ i + 1 }}</span>
         <template v-if="row.key && famByKey.get(row.key)">
-          <span class="affix-picked">{{ famByKey.get(row.key).label }}</span>
-          <span class="affix-tag" :class="row.slot">{{ SLOT_KO[row.slot] }}</span>
-          <button type="button" class="affix-change" @click="change(row)">변경</button>
+          <span class="affix-picked">{{ labelOf(famByKey.get(row.key)) }}</span>
+          <span class="affix-tag" :class="row.slot">{{ $t(SLOT_KO[row.slot]) }}</span>
+          <button type="button" class="affix-change" @click="change(row)">{{ $t('변경') }}</button>
         </template>
         <div class="affix-search-wrap" v-else>
           <input
             class="write-input affix-search" type="search" :value="row.q" @focus="row.open = true" @input="onType(row, $event)" @blur="closeSoon(row)"
             @keydown="onKey(row, $event, i)" autocomplete="off" role="combobox" :aria-expanded="row.open"
-            placeholder="옵션 검색 (예: 시전, 저항, 생명력, 소서리스)" :aria-label="`옵션 ${i + 1} 검색`"
+            :placeholder="$t('옵션 검색 (예: 시전, 저항, 생명력, 소서리스)')" :aria-label="`${$t('옵션')} ${i + 1}`"
           />
           <div class="affix-drop" v-if="row.open">
             <button
               type="button" class="affix-opt" v-for="(f, fi) in optionsFor(row)" :key="f.key" :class="{ active: fi === row.active }"
               :disabled="slotFull(f.slot, row)" @mousedown.prevent="pick(row, f)" @mousemove="row.active = fi"
             >
-              <span class="affix-opt-label"><template v-for="(part, pi) in highlight(f.label, row)" :key="pi"><mark v-if="part.hit">{{ part.t }}</mark><template v-else>{{ part.t }}</template></template></span>
-              <span class="affix-tag" :class="f.slot">{{ SLOT_KO[f.slot] }}{{ slotFull(f.slot, row) ? ' 가득' : '' }}</span>
+              <span class="affix-opt-label"><template v-for="(part, pi) in highlight(labelOf(f), row)" :key="pi"><mark v-if="part.hit">{{ part.t }}</mark><template v-else>{{ part.t }}</template></template></span>
+              <span class="affix-tag" :class="f.slot">{{ $t(SLOT_KO[f.slot]) }}{{ slotFull(f.slot, row) ? ' ' + $t('가득') : '' }}</span>
             </button>
-            <div class="affix-empty" v-if="!optionsFor(row).length">일치하는 옵션 없음</div>
+            <div class="affix-empty" v-if="!optionsFor(row).length">{{ $t('일치하는 옵션 없음') }}</div>
           </div>
         </div>
-        <button type="button" class="class-skill-remove" :aria-label="`옵션 ${i + 1} 삭제`" @click="removeRow(i)">✕</button>
+        <button type="button" class="class-skill-remove" :aria-label="`${$t('옵션')} ${i + 1} ×`" @click="removeRow(i)">✕</button>
       </div>
       <div class="option-row affix-values" v-if="famByKey.get(row.key) && inputSlots(famByKey.get(row.key)).length">
         <label v-for="s in inputSlots(famByKey.get(row.key))" :key="s.i" class="affix-value">
           <input
             type="number" inputmode="numeric" :value="row.values[s.i] ?? ''" :min="s.lo" :max="s.hi" step="1" :placeholder="`${s.lo}~${s.hi}`"
-            class="write-input option-value-input" :class="{ invalid: bad(row, s) }" :aria-label="`수치 ${s.lo}~${s.hi}`"
+            class="write-input option-value-input" :class="{ invalid: bad(row, s) }" :aria-label="`${s.lo}~${s.hi}`"
             @input="setValue(row, s, $event.target.value)" @change="clampValue(row, s, $event)"
           />
           <small>{{ s.lo }}~{{ s.hi }}</small>
         </label>
       </div>
-      <div class="affix-preview" v-if="row.key">{{ previewOf(row) }}</div>
+      <div class="affix-preview" v-if="row.key">{{ affixText(previewOf(row)) }}</div>
     </div>
-    <button type="button" class="class-skill-add" v-if="canAdd" @click="addRow">+ 옵션 추가 ({{ pickedTotal }}/{{ limits.total }})</button>
+    <button type="button" class="class-skill-add" v-if="canAdd" @click="addRow">{{ $t('+ 옵션 추가') }} ({{ pickedTotal }}/{{ limits.total }})</button>
   </div>
 </template>
 

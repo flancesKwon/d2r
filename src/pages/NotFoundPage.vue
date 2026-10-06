@@ -3,8 +3,8 @@
     <div class="grid-wrap">
       <div class="empty-state not-found">
         <div class="not-found-code">404</div>
-        <p>없는 페이지</p>
-        <router-link to="/">홈으로</router-link>
+        <p>{{ $t('없는 페이지') }}</p>
+        <router-link to="/">{{ $t('홈으로') }}</router-link>
       </div>
     </div>
   </div>

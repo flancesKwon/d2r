@@ -4,6 +4,8 @@
 // 그 시각의 drand 공개 난수로 DB가 뽑음. 이 화면은 결과를 슬롯처럼 3등→1등 순서로 보여주고, 같은 계산으로 누구나 검증 가능
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { t, locale } from '../i18n.js'
+import { nameText } from '../tradeI18n.js'
 import {
   fetchEvent, fetchEntries, numberTickets, summarizeEntries, pickWinners, phaseOf, PHASE_KO,
   fmtCountdown, fmtEventTime, drandUrl, drandTimeOf,
@@ -25,11 +27,11 @@ async function load(first = false) {
     const [e, list] = await Promise.all([fetchEvent(route.params.id), fetchEntries(route.params.id)])
     ev.value = e
     entries.value = list
-    if (!e) error.value = '없는 이벤트'
+    if (!e) error.value = t('없는 이벤트')
     // 보고 있는 중에 추첨되면 바로 연출 시작
     if (!first && !prevResult && e?.result) playShow()
   } catch {
-    if (first) error.value = '이벤트 불러오기 실패'
+    if (first) error.value = t('이벤트 불러오기 실패')
   } finally {
     loading.value = false
   }
@@ -110,114 +112,114 @@ async function runVerify() {
   <div class="items-page event-page">
     <div class="patch-hero">
       <div class="patch-hero-inner">
-        <div class="eyebrow">디아허브 이벤트</div>
-        <h1>{{ ev?.title || '이벤트' }}</h1>
+        <div class="eyebrow">{{ $t('디아허브 이벤트') }}</div>
+        <h1>{{ ev?.title || $t('이벤트') }}</h1>
       </div>
     </div>
 
     <div class="grid-wrap event-wrap">
-      <p v-if="loading" class="ev-dim">불러오는 중…</p>
+      <p v-if="loading" class="ev-dim">{{ $t('불러오는 중…') }}</p>
       <p v-else-if="error" class="ev-dim">{{ error }}</p>
       <template v-else-if="ev">
         <section class="ev-card ev-status" :class="phase">
-          <span class="ev-badge">{{ PHASE_KO[phase] }}</span>
-          <div class="ev-period">{{ fmtEventTime(ev.startsAt) }} ~ {{ fmtEventTime(ev.endsAt) }} · 추첨 {{ fmtEventTime(ev.drawAt) }}</div>
+          <span class="ev-badge">{{ $t(PHASE_KO[phase]) }}</span>
+          <div class="ev-period">{{ fmtEventTime(ev.startsAt) }} ~ {{ fmtEventTime(ev.endsAt) }} · {{ $t('추첨') }} {{ fmtEventTime(ev.drawAt) }}</div>
           <div class="ev-count" v-if="target">
-            {{ { upcoming: '시작까지', live: '종료까지', review: '추첨까지' }[phase] }} <b>{{ fmtCountdown(left) }}</b>
+            {{ $t({ upcoming: '시작까지', live: '종료까지', review: '추첨까지' }[phase]) }} <b>{{ fmtCountdown(left) }}</b>
           </div>
-          <div class="ev-count" v-else-if="phase === 'ready'">운영진이 곧 추첨해요 - 이 화면을 열어두면 바로 추첨 장면이 나와요</div>
-          <router-link v-if="phase === 'live'" to="/trade/new" class="ev-cta">판매글 올리고 응모하기</router-link>
+          <div class="ev-count" v-else-if="phase === 'ready'">{{ $t('운영진이 곧 추첨해요 - 이 화면을 열어두면 바로 추첨 장면이 나와요') }}</div>
+          <router-link v-if="phase === 'live'" to="/trade/new" class="ev-cta">{{ $t('판매글 올리고 응모하기') }}</router-link>
         </section>
 
         <!-- 추첨 무대 -->
         <section class="ev-card ev-stage" v-if="ev.result">
           <div class="ev-stage-head">
-            <h2>추첨 결과</h2>
-            <button type="button" class="ev-btn" :disabled="show.playing" @click="playShow">{{ show.revealed.length ? '추첨 다시 보기' : '▶ 추첨 장면 보기' }}</button>
+            <h2>{{ $t('추첨 결과') }}</h2>
+            <button type="button" class="ev-btn" :disabled="show.playing" @click="playShow">{{ $t(show.revealed.length ? '추첨 다시 보기' : '▶ 추첨 장면 보기') }}</button>
           </div>
           <div class="ev-reel" v-if="show.playing || show.revealed.length" :class="{ spinning: show.playing && show.rank }">
             <template v-if="show.playing && show.rank">
-              <div class="ev-reel-rank">{{ show.label }} 추첨 중…</div>
+              <div class="ev-reel-rank">{{ $t('{x} 추첨 중…', { x: show.label }) }}</div>
               <div class="ev-reel-no" v-if="show.display">#{{ show.display.ticketNo }}</div>
               <div class="ev-reel-name" v-if="show.display">{{ show.display.nickname }} <small>{{ show.display.itemName }}</small></div>
             </template>
             <template v-else-if="showDone">
-              <div class="ev-reel-rank">🎉 추첨 완료</div>
+              <div class="ev-reel-rank">{{ $t('🎉 추첨 완료') }}</div>
             </template>
           </div>
           <ol class="ev-winners">
             <li v-for="w in winners" :key="w.rank">
               <span class="ev-rank">{{ w.label }}</span>
               <template v-if="showDone || revealedRanks.has(w.rank) || (!show.playing && !show.revealed.length)">
-                <b>{{ w.nickname }}</b> <span class="ev-dim">{{ w.item }} · 응모권 #{{ listNo(w) }}</span>
+                <b>{{ w.nickname }}</b> <span class="ev-dim">{{ w.item }} · {{ $t('응모권') }} #{{ listNo(w) }}</span>
               </template>
               <span v-else class="ev-dim">???</span>
             </li>
           </ol>
-          <p class="ev-mywin" v-if="myWin && (showDone || (!show.playing && !show.revealed.length))">🎉 {{ myWin.label }} 당첨! ({{ myWin.item }}) - 지급 안내는 쪽지로 드려요</p>
+          <p class="ev-mywin" v-if="myWin && (showDone || (!show.playing && !show.revealed.length))">🎉 {{ $t('{rank} 당첨! ({item}) - 지급 안내는 쪽지로 드려요', { rank: myWin.label, item: myWin.item }) }}</p>
           <details class="ev-verify">
-            <summary>공정성 검증 (누구나 직접 확인 가능)</summary>
+            <summary>{{ $t('공정성 검증 (누구나 직접 확인 가능)') }}</summary>
             <ul>
-              <li>추첨 난수: drand 라운드 <b>{{ ev.result.round }}</b> ({{ drandTimeOf(ev.result.round).toLocaleString('ko-KR') }}에 공개) - <a :href="drandUrl(ev.result.round)" target="_blank" rel="noopener">drand에서 직접 보기</a></li>
+              <li>{{ $t('추첨 난수: drand 라운드') }} <b>{{ ev.result.round }}</b> ({{ $t('{time}에 공개', { time: drandTimeOf(ev.result.round).toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US') }) }}) - <a :href="drandUrl(ev.result.round)" target="_blank" rel="noopener">{{ $t('drand에서 직접 보기') }}</a></li>
               <li class="ev-mono">randomness = {{ ev.result.randomness }}</li>
-              <li>응모권 {{ ev.result.tickets_total }}장 (아래 목록 번호 순). 등수마다 SHA-256("난수:등수") 앞 6바이트 ÷ 남은 응모권 수의 나머지 + 1 = 당첨 번호, 당첨자의 나머지 응모권은 빼고 다음 등수</li>
+              <li>{{ $t('응모권 {n}장 (아래 목록 번호 순). 등수마다 SHA-256("난수:등수") 앞 6바이트 ÷ 남은 응모권 수의 나머지 + 1 = 당첨 번호, 당첨자의 나머지 응모권은 빼고 다음 등수', { n: ev.result.tickets_total }) }}</li>
             </ul>
-            <button type="button" class="ev-btn" @click="runVerify">이 브라우저에서 직접 계산해보기</button>
+            <button type="button" class="ev-btn" @click="runVerify">{{ $t('이 브라우저에서 직접 계산해보기') }}</button>
             <p v-if="verify" :class="verify.same ? 'ev-ok' : 'ev-bad'">
-              {{ verify.same ? '✓ 발표된 결과와 똑같아요' : '✗ 결과가 달라요 - 운영진에게 알려주세요' }}
-              <span class="ev-dim">({{ verify.calc.map((w) => `${w.label}: 남은 ${w.tickets_left}장 중 ${w.ticket_no}번째 = 목록 #${listNo(w)} ${w.nickname}`).join(' · ') }})</span>
+              {{ $t(verify.same ? '✓ 발표된 결과와 똑같아요' : '✗ 결과가 달라요 - 운영진에게 알려주세요') }}
+              <span class="ev-dim">({{ verify.calc.map((w) => `${w.label}: ${$t('남은 {n}장 중 {k}번째', { n: w.tickets_left, k: w.ticket_no })} = #${listNo(w)} ${w.nickname}`).join(' · ') }})</span>
             </p>
           </details>
         </section>
 
         <section class="ev-card ev-two">
           <div>
-            <h2>상품</h2>
+            <h2>{{ $t('상품') }}</h2>
             <ul class="ev-prizes">
               <li v-for="p in ev.prizes" :key="p.rank"><span class="ev-rank">{{ p.label }}</span> {{ p.item }}</li>
             </ul>
           </div>
           <div v-if="phase !== 'upcoming'">
-            <h2>내 응모권</h2>
-            <p v-if="!authState.user" class="ev-dim">로그인하면 내 응모권이 보여요 <button type="button" class="ev-btn" @click="signIn()">로그인</button></p>
-            <p v-else class="ev-mine"><b>{{ mine?.tickets || 0 }}</b> / {{ ev.ticketCap }}장
-              <span class="ev-dim" v-if="mine && mine.entries.some((e) => e.excluded)">(제외 {{ mine.entries.filter((e) => e.excluded).length }}개)</span>
+            <h2>{{ $t('내 응모권') }}</h2>
+            <p v-if="!authState.user" class="ev-dim">{{ $t('로그인하면 내 응모권이 보여요') }} <button type="button" class="ev-btn" @click="signIn()">{{ $t('로그인') }}</button></p>
+            <p v-else class="ev-mine"><b>{{ mine?.tickets || 0 }}</b> / {{ ev.ticketCap }}
+              <span class="ev-dim" v-if="mine && mine.entries.some((e) => e.excluded)">({{ $t('제외') }} {{ mine.entries.filter((e) => e.excluded).length }})</span>
             </p>
           </div>
         </section>
 
         <section class="ev-card">
-          <h2>참여 방법</h2>
+          <h2>{{ $t('참여 방법') }}</h2>
           <ul class="ev-rules">
-            <li>이벤트 시간 안에 <b>거래게시판에 판매글을 올리면 자동으로 응모</b> - 판매글 1개당 응모권 1장, <b>1인 최대 {{ ev.ticketCap }}장</b></li>
-            <li>응모 안 되는 글: 골드, 코 룬 미만 룬, 최상급이 아닌 보석, 같은 아이템 중복 등록 · 추첨 전에 글을 지우면 그 응모권은 빠져요</li>
-            <li>거래가 거의 없는 잡템·허위 매물은 운영진이 추첨 전까지 제외할 수 있어요 (아래 목록에 이유 표시)</li>
-            <li><b>추첨은 {{ fmtEventTime(ev.drawAt) }}</b>에 공개되는 <a href="https://drand.love" target="_blank" rel="noopener">drand</a> 공개 난수로 해요. 그 시각에 응모 목록이 고정되고, 난수는 그 뒤에 나와서 운영진도 결과를 미리 알거나 바꿀 수 없어요</li>
-            <li>한 사람은 상품 하나만 당첨, 응모권이 많을수록 확률이 올라가요</li>
+            <li>{{ $t('이벤트 시간 안에') }} <b>{{ $t('거래게시판에 판매글을 올리면 자동으로 응모') }}</b> {{ $t('- 판매글 1개당 응모권 1장,') }} <b>{{ $t('1인 최대 {n}장', { n: ev.ticketCap }) }}</b></li>
+            <li>{{ $t('응모 안 되는 글: 골드, 코 룬 미만 룬, 최상급이 아닌 보석, 같은 아이템 중복 등록 · 추첨 전에 글을 지우면 그 응모권은 빠져요') }}</li>
+            <li>{{ $t('거래가 거의 없는 잡템·허위 매물은 운영진이 추첨 전까지 제외할 수 있어요 (아래 목록에 이유 표시)') }}</li>
+            <li><b>{{ $t('추첨은 {time}', { time: fmtEventTime(ev.drawAt) }) }}</b>{{ $t('에 공개되는') }} <a href="https://drand.love" target="_blank" rel="noopener">drand</a> {{ $t('공개 난수로 해요. 그 시각에 응모 목록이 고정되고, 난수는 그 뒤에 나와서 운영진도 결과를 미리 알거나 바꿀 수 없어요') }}</li>
+            <li>{{ $t('한 사람은 상품 하나만 당첨, 응모권이 많을수록 확률이 올라가요') }}</li>
           </ul>
           <p class="ev-extra" v-if="ev.rules">{{ ev.rules }}</p>
         </section>
 
         <section class="ev-card" v-if="phase !== 'upcoming'">
           <div class="ev-list-head">
-            <h2>응모 목록 <span class="ev-dim">응모자 {{ people.filter((p) => p.tickets).length }}명 · 응모권 {{ ticketTotal }}장</span></h2>
+            <h2>{{ $t('응모 목록') }} <span class="ev-dim">{{ $t('응모자 {n}명 · 응모권 {m}장', { n: people.filter((p) => p.tickets).length, m: ticketTotal }) }}</span></h2>
             <div class="ev-list-tools">
-              <input v-model="q" class="ev-input" placeholder="닉네임·아이템 찾기" aria-label="응모 목록 검색" />
-              <label v-if="authState.user"><input type="checkbox" v-model="onlyMine" /> 내 것만</label>
+              <input v-model="q" class="ev-input" :placeholder="$t('닉네임·아이템 찾기')" :aria-label="$t('응모 목록 검색')" />
+              <label v-if="authState.user"><input type="checkbox" v-model="onlyMine" /> {{ $t('내 것만') }}</label>
             </div>
           </div>
           <table class="ev-table" v-if="shownTickets.length">
-            <thead><tr><th>번호</th><th>닉네임</th><th>판매글</th><th>시각</th></tr></thead>
+            <thead><tr><th>{{ $t('번호') }}</th><th>{{ $t('닉네임') }}</th><th>{{ $t('판매글') }}</th><th>{{ $t('시각') }}</th></tr></thead>
             <tbody>
               <tr v-for="t in shownTickets" :key="t.id" :class="{ no: t.excluded, me: t.userId === authState.user?.id, win: winners.some((w) => w.entry_id === t.id) }">
                 <td class="ev-no">{{ t.ticketNo ? '#' + t.ticketNo : '-' }}</td>
                 <td>{{ t.nickname }}</td>
-                <td><router-link :to="`/trade/${t.postId}`">{{ t.itemName }}</router-link> <span class="ev-reason" v-if="t.excluded">{{ t.reason || '제외' }}</span></td>
+                <td><router-link :to="`/trade/${t.postId}`">{{ nameText(t.itemName) }}</router-link> <span class="ev-reason" v-if="t.excluded">{{ t.reason || $t('제외') }}</span></td>
                 <td class="ev-dim">{{ fmtTime(t.createdAt) }}</td>
               </tr>
             </tbody>
           </table>
-          <p v-else class="ev-dim">{{ entries.length ? '찾는 응모권 없음' : '아직 응모가 없어요' }}</p>
+          <p v-else class="ev-dim">{{ $t(entries.length ? '찾는 응모권 없음' : '아직 응모가 없어요') }}</p>
         </section>
       </template>
     </div>

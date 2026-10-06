@@ -54,6 +54,10 @@ import {
 } from '../magicAffixes.js'
 import { authState, signIn } from '../profileStore.js'
 import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
+import { t, locale, itemName, affixText } from '../i18n.js'
+// 베이스 이름 - 영어면 영어 이름만
+const baseLabel = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle || baseItemLabel(b))
+const baseNameOf = (b) => (locale.value === 'ko' ? b.name_ko || b.subtitle : b.subtitle || b.name_ko)
 // 처음 판매글을 쓰러 온 사람에게 거래 이용 안내를 한 번 (예전엔 거래게시판에 들어오자마자 떴는데, 그 화면이 첫 화면이 돼서 옮김)
 openTradeGuideOnce()
 
@@ -121,6 +125,7 @@ const isGold = computed(() => form.value.category === '골드')
 function goldReadable(v) {
   const n = Math.floor(Number(v) || 0)
   const eok = Math.floor(n / 100000000), man = Math.floor((n % 100000000) / 10000), rest = n % 10000
+  if (locale.value !== 'ko') return '= ' + n.toLocaleString('en-US') + ' gold'
   return '= ' + [eok && `${eok}억`, man && `${man}만`, rest && `${rest}`].filter(Boolean).join(' ') + ' 골드'
 }
 const showItemModal = ref(false)
@@ -243,7 +248,7 @@ function buildCraftOptions() {
 }
 const craftErrors = computed(() => {
   if (!isCrafted.value) return []
-  if (!pickedCraft.value) return ['크래프트 제작법 선택']
+  if (!pickedCraft.value) return [t('크래프트 제작법 선택')]
   return validateCraftValues(pickedCraft.value, craftPick.value.values)
 })
 const allAffixFamilies = computed(() =>
@@ -413,10 +418,10 @@ const baseItemCandidates = computed(() =>
     : searchBaseItems(baseItemQuery.value, effectiveBaseKind.value, isRuneword.value ? selectedItem.value : null)
 )
 const basePickerPlaceholder = computed(() => {
-  if (isRuneword.value) return '베이스 검색 또는 목록에서 선택 (예: 아칸 플레이트, 엘리트)'
+  if (isRuneword.value) return t('베이스 검색 또는 목록에서 선택 (예: 아칸 플레이트, 엘리트)')
   return effectiveBaseKind.value === 'weapon'
-    ? '베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)'
-    : '베이스 방어구 검색 (예: 카이트 실드, Field Plate)'
+    ? t('베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)')
+    : t('베이스 방어구 검색 (예: 카이트 실드, Field Plate)')
 })
 // 고른 베이스의 기본 방어력 범위 (에테리얼이면 1.5배) - 안내·입력 예시·범위 경고에 같이 씀
 const expectedDefense = computed(() => {
@@ -430,7 +435,7 @@ const baseDefenseWarning = computed(() => {
   const v = armorStats.value.baseDefense
   if (!exp || v === '' || v === null) return ''
   return Number(v) < exp.min || Number(v) > exp.max
-    ? `고른 베이스의 기본 방어력 범위(${exp.min}~${exp.max}${form.value.ethereal ? ', 에테리얼' : ''})를 벗어남 - 다시 확인`
+    ? t('고른 베이스의 기본 방어력 범위({r})를 벗어남 - 다시 확인', { r: `${exp.min}~${exp.max}${form.value.ethereal ? ', ' + t('에테리얼') : ''}` })
     : ''
 })
 // 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배) - 입력받지 않고 이 값을 그대로 저장
@@ -459,12 +464,12 @@ const damageRangeLabel = (r) => r.map(formatDamage).join(' / ')
 const damageError = computed(() => {
   const { dmgMin, dmgMax } = armorStats.value
   if (!filled(dmgMin) && !filled(dmgMax)) return ''
-  if (!filled(dmgMin) || !filled(dmgMax)) return '데미지 최소·최대 둘 다 입력'
+  if (!filled(dmgMin) || !filled(dmgMax)) return t('데미지 최소·최대 둘 다 입력')
   const lo = Number(dmgMin), hi = Number(dmgMax)
-  if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || hi < lo) return '데미지 최소~최대 확인'
+  if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || hi < lo) return t('데미지 최소~최대 확인')
   const r = uniqueDamageRange.value
   if (r && !r.some((d) => lo >= d.min[0] && lo <= d.min[1] && hi >= d.max[0] && hi <= d.max[1])) {
-    return `데미지 (${damageRangeLabel(r)})`
+    return `${t('데미지')} (${damageRangeLabel(r)})`
   }
   return ''
 })
@@ -607,21 +612,21 @@ const invalidInputs = computed(() => {
     if (o && !isAllowedValue(groupValues.value[gi], o)) bad.push(`${o.text} (${o.min}~${o.max})`)
   })
   if (expectedDefense.value && !isAllowedValue(armorStats.value.baseDefense, expectedDefense.value)) {
-    bad.push(`기본 방어력 (${expectedDefense.value.min}~${expectedDefense.value.max})`)
+    bad.push(`${t('기본 방어력')} (${expectedDefense.value.min}~${expectedDefense.value.max})`)
   }
   if (uniqueDefenseRange.value && !isAllowedValue(armorStats.value.baseDefense, uniqueDefenseRange.value)) {
-    bad.push(`방어력 (${uniqueDefenseRange.value.min}~${uniqueDefenseRange.value.max})`)
+    bad.push(`${t('방어력')} (${uniqueDefenseRange.value.min}~${uniqueDefenseRange.value.max})`)
   }
   if (damageError.value) bad.push(damageError.value)
-  if (isAffixQuality.value && filled(levelReq.value) && !levelReqValid.value) bad.push('요구 레벨 (1~99)')
+  if (isAffixQuality.value && filled(levelReq.value) && !levelReqValid.value) bad.push(t('요구 레벨') + ' (1~99)')
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
   for (const { fam, values } of pickedAffixes.value) {
-    if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - 수치 선택`)
+    if (filledValues(fam, values).some((v) => v === null)) bad.push(`${fam.label} - ${t('수치 선택')}`)
   }
   bad.push(...craftErrors.value, ...affixErrors.value)
-  if (hasSockets.value && !uniqueSockets.value) bad.push('소켓 개수 선택')
-  if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push('소켓 개수 선택')
+  if (hasSockets.value && !uniqueSockets.value) bad.push(t('소켓 개수 선택'))
+  if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push(t('소켓 개수 선택'))
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -809,7 +814,7 @@ async function savePost(payload) {
     const post = await addTradePost(payload)
     saving.value = false
     // 확인 = 등록한 글 보기 / 계속 등록 = 서버·레더·하드코어만 남기고 새 글 쓰기 (창 밖을 눌러 닫아도 계속 등록)
-    const view = await askConfirm('판매글 등록 완료 - 거래게시판에 올라갔어요', { confirmText: '등록한 글 보기', cancelText: '계속 등록', icon: 'success' })
+    const view = await askConfirm(t('판매글 등록 완료 - 거래게시판에 올라갔어요'), { confirmText: t('등록한 글 보기'), cancelText: t('계속 등록'), icon: 'success' })
     if (view) router.push(`/trade/${post.id}`)
     else {
       const { realm, ladder, hardcore } = form.value
@@ -817,15 +822,15 @@ async function savePost(payload) {
       window.scrollTo(0, 0)
     }
   } catch (e) {
-    formError.value = e.message || '등록 실패'
+    formError.value = t(e.message || '등록 실패')
   } finally {
     saving.value = false
   }
 }
 
 function submitBundle() {
-  if (!bundleItems.value.length) { formError.value = '팔 룬·보석·재료를 하나 이상 담을 것'; return }
-  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'; return }
+  if (!bundleItems.value.length) { formError.value = t('팔 룬·보석·재료를 하나 이상 담을 것'); return }
+  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -891,16 +896,16 @@ const previewTooltip = computed(() =>
 function submitPost() {
   if (bundleMode.value) return submitBundle()
   const amountLabel = hasQuantity.value ? buildAmountLabel(form.value.quantity, form.value.category) : '1개'
-  if (!form.value.itemName.trim()) { formError.value = '아이템 검색·선택 또는 이름 입력'; return }
-  if (!amountLabel.trim()) { formError.value = isGold.value ? '골드 액수 입력' : '개수 입력'; return }
-  if (isGold.value && Number(form.value.quantity) > GOLD_MAX) { formError.value = `골드는 한 글에 최대 ${GOLD_MAX.toLocaleString('ko-KR')} (1500만) 골드까지`; return }
+  if (!form.value.itemName.trim()) { formError.value = t('아이템 검색·선택 또는 이름 입력'); return }
+  if (!amountLabel.trim()) { formError.value = t(isGold.value ? '골드 액수 입력' : '개수 입력'); return }
+  if (isGold.value && Number(form.value.quantity) > GOLD_MAX) { formError.value = t('골드는 한 글에 최대 {n} (1500만) 골드까지', { n: GOLD_MAX.toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US') }); return }
   if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
-    formError.value = '룬워드는 베이스 아이템 선택 필수'
+    formError.value = t('룬워드는 베이스 아이템 선택 필수')
     return
   }
-  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = '희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'; return }
+  if (!form.value.offerOnly && !priceItems.value.length) { formError.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   if (invalidInputs.value.length) {
-    formError.value = `게임에서 나올 수 없는 수치: ${invalidInputs.value[0]}`
+    formError.value = `${t('게임에서 나올 수 없는 수치')}: ${affixText(invalidInputs.value[0])}`
     return
   }
   formError.value = ''
@@ -921,48 +926,48 @@ function submitPost() {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">판매글 등록 · <button type="button" class="hero-guide-link" @click="openTradeGuide('sell')">등록 방법 보기</button></div>
-      <h1>아이템 등록하기</h1>
+      <div class="eyebrow">{{ $t('판매글 등록 ·') }} <button type="button" class="hero-guide-link" @click="openTradeGuide('sell')">{{ $t('등록 방법 보기') }}</button></div>
+      <h1>{{ $t('아이템 등록하기') }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap trade-new-wrap trade-new-login" v-if="!authState.user">
-    <p>로그인 필요</p>
-    <button type="button" class="btn-primary" @click="signIn">로그인</button>
+    <p>{{ $t('로그인 필요') }}</p>
+    <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
   </div>
   <div class="grid-wrap trade-new-wrap" v-else>
     <div class="write-form trade-write-form">
       <div class="form-mode-toggle">
-        <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">단일 아이템 등록</button>
-        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">룬·보석·재료 묶음 판매</button>
+        <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">{{ $t('단일 아이템 등록') }}</button>
+        <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">{{ $t('룬·보석·재료 묶음 판매') }}</button>
       </div>
 
       <template v-if="!bundleMode">
       <div class="item-picker trade-item-input">
         <div v-if="selectedItem" class="item-picker-selected">
           <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
-          <span class="item-picker-name">{{ selectedItem.name_ko }}</span>
-          <span class="item-picker-cat">{{ form.category }}</span>
-          <button type="button" class="item-picker-change" @click="showItemModal = true">변경</button>
+          <span class="item-picker-name">{{ itemName(selectedItem) }}</span>
+          <span class="item-picker-cat">{{ $t(form.category) }}</span>
+          <button type="button" class="item-picker-change" @click="showItemModal = true">{{ $t('변경') }}</button>
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
         <div v-else-if="form.category" class="item-picker-selected">
           <span class="item-picker-name">{{ form.itemName }}</span>
-          <span class="item-picker-cat">{{ form.category }}</span>
-          <button type="button" class="item-picker-change" @click="showItemModal = true">변경</button>
+          <span class="item-picker-cat">{{ $t(form.category) }}</span>
+          <button type="button" class="item-picker-change" @click="showItemModal = true">{{ $t('변경') }}</button>
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
         <button v-else type="button" class="item-picker-trigger" @click="showItemModal = true">
-          아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)
+          {{ $t('아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)') }}
         </button>
       </div>
 
       <div class="modal-overlay" v-if="showItemModal" @click.self="showItemModal = false">
         <div class="modal-panel item-modal-panel">
           <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
-          <div class="d-section-title">아이템 선택</div>
+          <div class="d-section-title">{{ $t('아이템 선택') }}</div>
           <input
-            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" placeholder="아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)"
+            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" :placeholder="$t('아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)')"
             class="write-input" v-focus
           />
           <div class="item-modal-list">
@@ -971,104 +976,104 @@ function submitPost() {
               @click="pickItem(it)"
             >
               <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-              <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
-              <span class="item-picker-row-cat">{{ it.category_label }}</span>
+              <span class="item-picker-name">{{ itemName(it) }} <small v-if="locale === 'ko'">{{ it.name_en }}</small></span>
+              <span class="item-picker-row-cat">{{ $t(it.category_label) }}</span>
             </button>
             <template v-if="equipBaseCandidates.length">
-              <div class="item-picker-section">매직·레어·일반 장비 (베이스)</div>
+              <div class="item-picker-section">{{ $t('매직·레어·일반 장비 (베이스)') }}</div>
               <div class="item-picker-row equip-base-row" v-for="b in equipBaseCandidates" :key="'base-' + b.code">
                 <button type="button" class="equip-base-main" @click="pickEquipBase(b)">
                   <span class="item-picker-icon"><img v-if="iconUrlFor(baseIconKey(b))" :src="iconUrlFor(baseIconKey(b))" alt="" /></span>
-                  <span class="item-picker-name">{{ b.name_ko }} <small>{{ b.subtitle }}<template v-if="b.tier"> · {{ b.tier }}</template></small></span>
+                  <span class="item-picker-name">{{ baseNameOf(b) }} <small><template v-if="locale === 'ko'">{{ b.subtitle }}</template><template v-if="b.tier"> · {{ $t(b.tier) }}</template></small></span>
                 </button>
                 <span class="equip-quality-chips">
-                  <button type="button" v-for="q in baseQualities(b)" :key="q" :class="'q-' + q" @click="pickEquipBase(b, q)">{{ QUALITY_SHORT[q] }}</button>
+                  <button type="button" v-for="q in baseQualities(b)" :key="q" :class="'q-' + q" @click="pickEquipBase(b, q)">{{ $t(QUALITY_SHORT[q]) }}</button>
                 </span>
               </div>
             </template>
             <div class="item-picker-empty-block" v-if="form.itemName.trim() && !itemCandidates.length">
-              <p class="item-picker-empty">{{ equipBaseCandidates.length ? '찾는 게 없으면 종류를 골라 이 이름 그대로 등록' : '사전에 없는 아이템 - 종류를 고르면 이 이름 그대로 등록' }}</p>
+              <p class="item-picker-empty">{{ $t(equipBaseCandidates.length ? '찾는 게 없으면 종류를 골라 이 이름 그대로 등록' : '사전에 없는 아이템 - 종류를 고르면 이 이름 그대로 등록') }}</p>
               <div class="fallback-cat-row">
                 <button
                   type="button" v-for="c in FALLBACK_CATEGORIES" :key="c"
                   :class="{ active: form.category === c }" @click="pickFallbackCategory(c)"
-                >{{ c }}</button>
+                >{{ $t(c) }}</button>
               </div>
             </div>
-            <div class="item-modal-empty" v-if="!form.itemName.trim()">아이템명 입력</div>
+            <div class="item-modal-empty" v-if="!form.itemName.trim()">{{ $t('아이템명 입력') }}</div>
           </div>
         </div>
       </div>
 
       <div class="material-box" v-if="materials.length">
-        <div class="option-editor-title">필요한 룬 재료</div>
+        <div class="option-editor-title">{{ $t('필요한 룬 재료') }}</div>
         <div class="material-rune-row">
           <span class="material-rune" v-for="(r, i) in materials" :key="i">
             <span class="material-rune-icon"><img v-if="iconUrlFor(r.icon_key)" :src="iconUrlFor(r.icon_key)" alt="" /></span>
-            {{ r.name_ko }}
+            {{ itemName(r) }}
           </span>
         </div>
       </div>
 
       <div class="base-stats-ref" v-if="baseStatsRef && baseStatsRef.category !== 'misc'">
-        <div class="option-editor-title">베이스 아이템 기본 정보</div>
+        <div class="option-editor-title">{{ $t('베이스 아이템 기본 정보') }}</div>
         <div class="base-stats-ref-row" v-if="baseStatsRef.category === 'armor'">
-          <span>기본 방어력 {{ baseStatsRef.minac }}~{{ baseStatsRef.maxac }}</span>
-          <span>내구도 {{ baseStatsRef.durability }}</span>
+          <span>{{ $t('기본 방어력') }} {{ baseStatsRef.minac }}~{{ baseStatsRef.maxac }}</span>
+          <span>{{ $t('내구도') }} {{ baseStatsRef.durability }}</span>
         </div>
         <div class="base-stats-ref-row" v-else-if="baseStatsRef.category === 'weapon'">
-          <span>기본 데미지 {{ weaponDamageRange(baseStatsRef)?.min }}~{{ weaponDamageRange(baseStatsRef)?.max }}</span>
-          <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">공격 속도 {{ baseStatsRef.speed }}</span>
-          <span>내구도 {{ baseStatsRef.durability }}</span>
+          <span>{{ $t('기본 데미지') }} {{ weaponDamageRange(baseStatsRef)?.min }}~{{ weaponDamageRange(baseStatsRef)?.max }}</span>
+          <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">{{ $t('공격 속도') }} {{ baseStatsRef.speed }}</span>
+          <span>{{ $t('내구도') }} {{ baseStatsRef.durability }}</span>
         </div>
         <template v-if="isUniqueOrSet">
           <div class="base-stats-input-row" v-if="baseStatsRef.category === 'armor'">
             <label>
-              방어력 (게임에 보이는 값 · 선택)
+              {{ $t('방어력 (게임에 보이는 값 · 선택)') }}
               <input
                 type="number" v-model="armorStats.baseDefense" class="write-input"
                 :class="{ invalid: uniqueDefenseRange && outOfRange(armorStats.baseDefense, uniqueDefenseRange) }"
                 :min="uniqueDefenseRange?.min" :max="uniqueDefenseRange?.max"
-                :placeholder="uniqueDefenseRange ? `${uniqueDefenseRange.min}~${uniqueDefenseRange.max}` : '예: 141'"
+                :placeholder="uniqueDefenseRange ? `${uniqueDefenseRange.min}~${uniqueDefenseRange.max}` : $t('예: 141')"
               />
             </label>
           </div>
           <div class="base-stats-input-row" v-else-if="baseStatsRef.category === 'weapon'">
             <label>
-              최소 데미지 (게임에 보이는 값 · 선택)
-              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" placeholder="최소" />
+              {{ $t('최소 데미지 (게임에 보이는 값 · 선택)') }}
+              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="$t('최소')" />
             </label>
             <label>
-              최대 데미지
-              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" placeholder="최대" />
+              {{ $t('최대 데미지') }}
+              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="$t('최대')" />
             </label>
           </div>
-          <div class="unit-hint" v-if="baseStatsRef.category === 'weapon' && uniqueDamageRange">나올 수 있는 데미지 {{ damageRangeLabel(uniqueDamageRange) }}{{ form.ethereal ? ' (에테리얼)' : '' }}</div>
+          <div class="unit-hint" v-if="baseStatsRef.category === 'weapon' && uniqueDamageRange">{{ $t('나올 수 있는 데미지') }} {{ damageRangeLabel(uniqueDamageRange) }}{{ form.ethereal ? ` (${$t('에테리얼')})` : '' }}</div>
           <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
         </template>
       </div>
 
       <div class="manual-kind-row" v-if="!selectedItem && form.category === '매직/레어/일반' && !selectedBaseItem">
-        <div class="option-editor-title">베이스 종류 선택</div>
+        <div class="option-editor-title">{{ $t('베이스 종류 선택') }}</div>
         <div class="fallback-cat-row">
-          <button type="button" :class="{ active: manualBaseKind === 'weapon' }" @click="pickManualBaseKind('weapon')">무기</button>
-          <button type="button" :class="{ active: manualBaseKind === 'armor' }" @click="pickManualBaseKind('armor')">방어구</button>
-          <button type="button" :class="{ active: manualBaseKind === 'misc' }" @click="pickManualBaseKind('misc')">반지·목걸이·주얼·부적</button>
+          <button type="button" :class="{ active: manualBaseKind === 'weapon' }" @click="pickManualBaseKind('weapon')">{{ $t('무기') }}</button>
+          <button type="button" :class="{ active: manualBaseKind === 'armor' }" @click="pickManualBaseKind('armor')">{{ $t('방어구') }}</button>
+          <button type="button" :class="{ active: manualBaseKind === 'misc' }" @click="pickManualBaseKind('misc')">{{ $t('반지·목걸이·주얼·부적') }}</button>
         </div>
         <div class="fallback-cat-row" v-if="manualBaseKind === 'misc'">
           <button
             type="button" v-for="b in MISC_BASES" :key="b.code" :class="{ active: selectedBaseItem?.code === b.code }"
             @click="pickMiscBase(b)"
-          >{{ b.name_ko }}</button>
+          >{{ baseNameOf(b) }}</button>
         </div>
       </div>
 
       <div class="manual-kind-row" v-if="uniqueShapeVariants">
-        <div class="option-editor-title shape-title">모양 <span class="craft-sub-note">게임에서 무작위 - 실제 아이템 모양 선택</span></div>
+        <div class="option-editor-title shape-title">{{ $t('모양') }} <span class="craft-sub-note">{{ $t('게임에서 무작위 - 실제 아이템 모양 선택') }}</span></div>
         <div class="shape-row">
           <button
             type="button" v-for="k in uniqueShapeVariants" :key="k" class="shape-btn"
-            :class="{ active: (iconVariant || uniqueShapeVariants[0]) === k }" :aria-label="`모양 ${k}`"
+            :class="{ active: (iconVariant || uniqueShapeVariants[0]) === k }" :aria-label="`${$t('모양')} ${k}`"
             @click="iconVariant = k"
           ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
         </div>
@@ -1076,15 +1081,15 @@ function submitPost() {
 
       <div class="manual-kind-row" v-if="isManualEquip && selectedBaseItem && selectedBaseItem.base_stats.category === 'misc'">
         <div class="option-editor-title">
-          베이스: {{ selectedBaseItem.name_ko }}
-          <button type="button" class="base-change-btn" @click="changeMiscBase">다른 베이스</button>
+          {{ $t('베이스') }}: {{ baseNameOf(selectedBaseItem) }}
+          <button type="button" class="base-change-btn" @click="changeMiscBase">{{ $t('다른 베이스') }}</button>
         </div>
         <template v-if="ICON_VARIANTS[selectedBaseItem.code]">
-          <div class="option-editor-title shape-title">모양</div>
+          <div class="option-editor-title shape-title">{{ $t('모양') }}</div>
           <div class="shape-row">
             <button
               type="button" v-for="k in ICON_VARIANTS[selectedBaseItem.code]" :key="k" class="shape-btn"
-              :class="{ active: (iconVariant || ICON_VARIANTS[selectedBaseItem.code][0]) === k }" :aria-label="`모양 ${k}`"
+              :class="{ active: (iconVariant || ICON_VARIANTS[selectedBaseItem.code][0]) === k }" :aria-label="`${$t('모양')} ${k}`"
               @click="iconVariant = k"
             ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
           </div>
@@ -1093,15 +1098,15 @@ function submitPost() {
 
       <div class="manual-kind-row" v-if="lockedEquipBase">
         <div class="option-editor-title">
-          베이스: {{ selectedBaseItem.name_ko }}
-          <small class="base-sub">{{ selectedBaseItem.tier }} · {{ selectedBaseItem.type_sub }}</small>
-          <button type="button" class="base-change-btn" @click="changeEquipBase">다른 베이스</button>
+          {{ $t('베이스') }}: {{ baseNameOf(selectedBaseItem) }}
+          <small class="base-sub">{{ $t(selectedBaseItem.tier) }} · {{ $t(selectedBaseItem.type_sub) }}</small>
+          <button type="button" class="base-change-btn" @click="changeEquipBase">{{ $t('다른 베이스') }}</button>
         </div>
-        <div class="unit-hint" v-if="!itemQuality">품질(일반·매직·레어·크래프트) 먼저 선택</div>
+        <div class="unit-hint" v-if="!itemQuality">{{ $t('품질(일반·매직·레어·크래프트) 먼저 선택') }}</div>
       </div>
 
       <div class="option-editor" v-if="qualityChoices.length">
-        <div class="option-editor-title">아이템 품질</div>
+        <div class="option-editor-title">{{ $t('아이템 품질') }}</div>
         <div class="fallback-cat-row">
           <button
             type="button" v-for="q in qualityChoices" :key="q" :class="{ active: itemQuality === q }"
@@ -1109,7 +1114,7 @@ function submitPost() {
           >{{ QUALITY_KO[q] }}</button>
         </div>
         <template v-if="isCrafted">
-          <div class="option-editor-title">크래프트 제작법</div>
+          <div class="option-editor-title">{{ $t('크래프트 제작법') }}</div>
           <div class="fallback-cat-row">
             <button
               type="button" v-for="r in craftRecipes" :key="r.id" :class="{ active: craftPick.id === r.id }"
@@ -1117,27 +1122,27 @@ function submitPost() {
             >{{ r.name }}</button>
           </div>
           <template v-if="pickedCraft">
-            <div class="option-editor-title craft-fixed-title">고정 옵션 <span class="craft-sub-note">항상 붙음</span></div>
+            <div class="option-editor-title craft-fixed-title">{{ $t('고정 옵션') }} <span class="craft-sub-note">{{ $t('항상 붙음') }}</span></div>
             <div class="craft-fixed-list">
               <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
-                <span class="option-text fixed">{{ line.text }}</span>
+                <span class="option-text fixed">{{ affixText(line.text) }}</span>
                 <template v-for="s in craftInputSlots.filter((c) => line.slots.includes(c.i))" :key="s.i">
-                  <RangeInput v-model="craftPick.values[s.i]" :min="s.lo" :max="s.hi" :label="`${line.text} 수치 ${s.lo}~${s.hi}`" />
+                  <RangeInput v-model="craftPick.values[s.i]" :min="s.lo" :max="s.hi" :label="`${affixText(line.text)} ${s.lo}~${s.hi}`" />
                 </template>
               </div>
             </div>
           </template>
-          <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ e }}</div>
-          <div class="option-editor-title">무작위 옵션 <span class="craft-sub-note">레어 옵션 중 1~4개 · 접두사·접미사 한 목록</span></div>
+          <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ $t(e) }}</div>
+          <div class="option-editor-title">{{ $t('무작위 옵션') }} <span class="craft-sub-note">{{ $t('레어 옵션 중 1~4개 · 접두사·접미사 한 목록') }}</span></div>
         </template>
         <template v-if="isAffixQuality">
           <AffixPicker :families="affixFamilies" :limits="pickerLimits" v-model="affixPicks" />
-          <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ e }}</div>
+          <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ $t(e) }}</div>
           <div class="level-req-row">
             <label>
-              요구 레벨 <span class="craft-sub-note">선택 · 게임 툴팁의 값</span>
+              {{ $t('요구 레벨') }} <span class="craft-sub-note">{{ $t('선택 · 게임 툴팁의 값') }}</span>
               <input
-                type="number" v-model="levelReq" class="write-input" min="1" max="99" placeholder="예: 42"
+                type="number" v-model="levelReq" class="write-input" min="1" max="99" :placeholder="$t('예: 42')"
                 :class="{ invalid: filled(levelReq) && !levelReqValid }"
               />
             </label>
@@ -1147,15 +1152,15 @@ function submitPost() {
 
       <div class="base-stats-input" v-if="needsManualBaseStats">
         <div class="option-editor-title">
-          <template v-if="lockedEquipBase">기본 정보</template>
-          <template v-else>베이스 {{ effectiveBaseKind === 'armor' ? '방어구' : effectiveBaseKind === 'weapon' ? '무기' : '아이템' }} 정보</template>
-          <span class="required-mark" v-if="isRuneword">필수</span>
+          <template v-if="lockedEquipBase">{{ $t('기본 정보') }}</template>
+          <template v-else>{{ $t(effectiveBaseKind === 'armor' ? '베이스 방어구 정보' : effectiveBaseKind === 'weapon' ? '베이스 무기 정보' : '베이스 아이템 정보') }}</template>
+          <span class="required-mark" v-if="isRuneword">{{ $t('필수') }}</span>
         </div>
 
         <div class="base-item-picker" v-if="!lockedEquipBase">
           <div v-if="selectedBaseItem" class="item-picker-selected">
-            <span class="item-picker-name">{{ baseItemLabel(selectedBaseItem) }}</span>
-            <span class="item-picker-cat">{{ selectedBaseItem.tier }} · {{ selectedBaseItem.type_sub }}</span>
+            <span class="item-picker-name">{{ baseLabel(selectedBaseItem) }}</span>
+            <span class="item-picker-cat">{{ $t(selectedBaseItem.tier) }} · {{ $t(selectedBaseItem.type_sub) }}</span>
             <button type="button" class="item-picker-clear" @click="clearBaseItem">✕</button>
           </div>
           <div v-else class="item-picker-search-wrap">
@@ -1169,11 +1174,11 @@ function submitPost() {
                 type="button" class="item-picker-row" v-for="b in baseItemCandidates" :key="b.id"
                 @mousedown.prevent="pickBaseItem(b)"
               >
-                <span class="item-picker-name">{{ baseItemLabel(b) }}</span>
-                <span class="item-picker-row-cat">{{ b.tier }} · {{ b.type_sub }}{{ b.sockets ? ` · 최대 ${b.sockets}소켓` : '' }}</span>
+                <span class="item-picker-name">{{ baseLabel(b) }}</span>
+                <span class="item-picker-row-cat">{{ $t(b.tier) }} · {{ $t(b.type_sub) }}{{ b.sockets ? ' · ' + $t('최대 {n}소켓', { n: b.sockets }) : '' }}</span>
               </button>
               <div class="item-picker-empty" v-if="!baseItemCandidates.length">
-                {{ isRuneword ? '이 룬워드 베이스 중 일치 없음' : '일치하는 베이스 없음 - 아래 칸에 직접 입력' }}
+                {{ $t(isRuneword ? '이 룬워드 베이스 중 일치 없음' : '일치하는 베이스 없음 - 아래 칸에 직접 입력') }}
               </div>
             </div>
           </div>
@@ -1181,19 +1186,19 @@ function submitPost() {
 
         <template v-if="effectiveBaseKind === 'armor'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedDefense">기본 방어력 범위 {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}</span>
-            <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
-            <span v-if="selectedBaseItem.base_stats.reqstr">요구 힘 {{ selectedBaseItem.base_stats.reqstr }}</span>
-            <span v-if="selectedBaseItem.base_stats.reqdex">요구 민첩 {{ selectedBaseItem.base_stats.reqdex }}</span>
+            <span v-if="expectedDefense">{{ $t('기본 방어력 범위') }} {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' ' + $t('(에테리얼 1.5배)') : '' }}</span>
+            <span v-if="selectedBaseItem.base_stats.durability">{{ $t('내구도') }} {{ selectedBaseItem.base_stats.durability }}</span>
+            <span v-if="selectedBaseItem.base_stats.reqstr">{{ $t('요구 힘') }} {{ selectedBaseItem.base_stats.reqstr }}</span>
+            <span v-if="selectedBaseItem.base_stats.reqdex">{{ $t('요구 민첩') }} {{ selectedBaseItem.base_stats.reqdex }}</span>
           </div>
           <div class="base-stats-input-row">
             <label>
-              기본 방어력
+              {{ $t('기본 방어력') }}
               <input
                 type="number" v-model="armorStats.baseDefense" class="write-input"
                 :class="{ invalid: expectedDefense && outOfRange(armorStats.baseDefense, expectedDefense) }"
                 :min="expectedDefense?.min" :max="expectedDefense?.max"
-                :placeholder="expectedDefense ? `${expectedDefense.min}~${expectedDefense.max}` : '예: 80'"
+                :placeholder="expectedDefense ? `${expectedDefense.min}~${expectedDefense.max}` : $t('예: 80')"
               />
             </label>
           </div>
@@ -1202,143 +1207,143 @@ function submitPost() {
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedWeaponDamage">기본 데미지 {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' (에테리얼 1.5배)' : '' }}{{ isRuneword ? ' · 베이스 고정값 (자동 입력)' : '' }}</span>
-            <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">공격 속도 {{ selectedBaseItem.base_stats.speed }}</span>
-            <span v-if="selectedBaseItem.base_stats.durability">내구도 {{ selectedBaseItem.base_stats.durability }}</span>
+            <span v-if="expectedWeaponDamage">{{ $t('기본 데미지') }} {{ expectedWeaponDamage.min }}~{{ expectedWeaponDamage.max }}{{ form.ethereal ? ' ' + $t('(에테리얼 1.5배)') : '' }}{{ isRuneword ? ' · ' + $t('베이스 고정값 (자동 입력)') : '' }}</span>
+            <span v-if="selectedBaseItem.base_stats.speed !== null && selectedBaseItem.base_stats.speed !== undefined">{{ $t('공격 속도') }} {{ selectedBaseItem.base_stats.speed }}</span>
+            <span v-if="selectedBaseItem.base_stats.durability">{{ $t('내구도') }} {{ selectedBaseItem.base_stats.durability }}</span>
           </div>
           <div class="base-stats-input-row" v-if="!isRuneword">
             <label>
-              최소 데미지
-              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.min}` : '최소'" />
+              {{ $t('최소 데미지') }}
+              <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.min}` : $t('최소')" />
             </label>
             <label>
-              최대 데미지
-              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.max}` : '최대'" />
+              {{ $t('최대 데미지') }}
+              <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="expectedWeaponDamage ? `${expectedWeaponDamage.max}` : $t('최대')" />
             </label>
           </div>
-          <div class="unit-hint" v-if="!isRuneword">비워두면 베이스 기본값{{ expectedWeaponDamage ? ` ${expectedWeaponDamage.min}~${expectedWeaponDamage.max}` : '' }} - 피해 증가 등으로 바뀐 값은 게임에 보이는 그대로 입력</div>
+          <div class="unit-hint" v-if="!isRuneword">{{ $t('비워두면 베이스 기본값{r} - 피해 증가 등으로 바뀐 값은 게임에 보이는 그대로 입력', { r: expectedWeaponDamage ? ` ${expectedWeaponDamage.min}~${expectedWeaponDamage.max}` : '' }) }}</div>
           <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
         </template>
 
         <div class="base-mods" v-if="superiorCombos.length">
-          <div class="option-editor-title">상급(Superior) 베이스 옵션</div>
+          <div class="option-editor-title">{{ $t('상급(Superior) 베이스 옵션') }}</div>
           <div class="option-row">
-            <select v-model="superiorPick.combo" class="write-select random-group-select" aria-label="상급 옵션 조합">
-              <option value="">상급 아님 (일반 베이스)</option>
+            <select v-model="superiorPick.combo" class="write-select random-group-select" :aria-label="$t('상급 옵션 조합')">
+              <option value="">{{ $t('상급 아님 (일반 베이스)') }}</option>
               <option v-for="(c, ci) in superiorCombos" :key="ci" :value="ci">{{ superiorComboLabel(c) }}</option>
             </select>
           </div>
           <div class="option-row" v-for="k in pickedSuperiorCombo || []" :key="k">
             <span class="option-text">{{ SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`) }}</span>
-            <RangeInput v-model="superiorPick.values[k]" :min="SUPERIOR_MODS[k].min" :max="SUPERIOR_MODS[k].max" :label="`${SUPERIOR_MODS[k].text} 수치`" />
+            <RangeInput v-model="superiorPick.values[k]" :min="SUPERIOR_MODS[k].min" :max="SUPERIOR_MODS[k].max" :label="affixText(SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`))" />
           </div>
         </div>
 
         <div class="base-mods" v-if="lockedEquipBase && uniqueMaxSockets">
-          <div class="option-editor-title">소켓</div>
+          <div class="option-editor-title">{{ $t('소켓') }}</div>
           <div class="option-row">
-            <select v-model="hasSockets" class="write-select random-group-select" aria-label="소켓 여부">
-              <option :value="false">소켓 없음</option>
-              <option :value="true">소켓 있음 (이 베이스 최대 {{ uniqueMaxSockets }}개)</option>
+            <select v-model="hasSockets" class="write-select random-group-select" :aria-label="$t('소켓 여부')">
+              <option :value="false">{{ $t('소켓 없음') }}</option>
+              <option :value="true">{{ $t('소켓 있음 (이 베이스 최대 {n}개)', { n: uniqueMaxSockets }) }}</option>
             </select>
           </div>
           <div class="option-row" v-if="hasSockets">
-            <span class="option-text">소켓 개수 (1~{{ uniqueMaxSockets }})</span>
-            <RangeInput v-model="uniqueSockets" :min="1" :max="uniqueMaxSockets" label="소켓 개수" />
+            <span class="option-text">{{ $t('소켓 개수') }} (1~{{ uniqueMaxSockets }})</span>
+            <RangeInput v-model="uniqueSockets" :min="1" :max="uniqueMaxSockets" :label="$t('소켓 개수')" />
           </div>
         </div>
 
         <div class="base-mods" v-if="lockedEquipBase && isAffixQuality && (socketAffixFam || larzukMax)">
-          <div class="option-editor-title">소켓</div>
+          <div class="option-editor-title">{{ $t('소켓') }}</div>
           <div class="option-row">
-            <select v-model="socketSource" class="write-select random-group-select" aria-label="소켓 여부" @change="onSocketSource">
-              <option value="">소켓 없음</option>
+            <select v-model="socketSource" class="write-select random-group-select" :aria-label="$t('소켓 여부')" @change="onSocketSource">
+              <option value="">{{ $t('소켓 없음') }}</option>
               <option value="affix" v-if="socketAffixFam">
-                소켓 있음 · 옵션(접두사)으로 붙음 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }}개)
+                {{ $t('소켓 있음 · 옵션(접두사)으로 붙음 ({r}개)', { r: `${socketAffixRange[0]}~${socketAffixRange[1]}` }) }}
               </option>
-              <option value="larzuk" v-if="larzukMax">소켓 있음 · 라르주크 퀘스트로 뚫음 ({{ larzukMax > 1 ? `1~${larzukMax}` : '1' }}개)</option>
+              <option value="larzuk" v-if="larzukMax">{{ $t('소켓 있음 · 라르주크 퀘스트로 뚫음 ({r}개)', { r: larzukMax > 1 ? `1~${larzukMax}` : '1' }) }}</option>
             </select>
           </div>
-          <div class="option-editor-hint" v-if="socketSource === 'affix'">소켓 옵션이 접두사 한 칸 차지</div>
+          <div class="option-editor-hint" v-if="socketSource === 'affix'">{{ $t('소켓 옵션이 접두사 한 칸 차지') }}</div>
           <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
-            <span class="option-text">소켓 개수 ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
-            <RangeInput v-model="socketAffixCount" :min="socketAffixRange[0]" :max="socketAffixRange[1]" label="소켓 개수" />
+            <span class="option-text">{{ $t('소켓 개수') }} ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
+            <RangeInput v-model="socketAffixCount" :min="socketAffixRange[0]" :max="socketAffixRange[1]" :label="$t('소켓 개수')" />
           </div>
           <div class="option-row" v-if="socketSource === 'larzuk'">
-            <span class="option-text">소켓 개수 (1~{{ larzukMax }})</span>
-            <RangeInput v-model="uniqueSockets" :min="1" :max="larzukMax" label="소켓 개수" />
+            <span class="option-text">{{ $t('소켓 개수') }} (1~{{ larzukMax }})</span>
+            <RangeInput v-model="uniqueSockets" :min="1" :max="larzukMax" :label="$t('소켓 개수')" />
           </div>
         </div>
 
         <div class="base-mods" v-if="baseClassSkills || baseAutoMods.length">
-          <div class="option-editor-title">베이스 자체 옵션</div>
+          <div class="option-editor-title">{{ $t('베이스 자체 옵션') }}</div>
           <div class="option-row" v-if="baseAutoMods.length">
-            <select v-model="autoModPick.key" class="write-select random-group-select" aria-label="자동 옵션">
-              <option value="">자동 옵션 선택 ({{ autoModNames }})</option>
+            <select v-model="autoModPick.key" class="write-select random-group-select" :aria-label="$t('자동 옵션')">
+              <option value="">{{ $t('자동 옵션 선택') }} ({{ autoModNames }})</option>
               <option v-for="m in baseAutoMods" :key="m.key" :value="m.key">{{ m.text.replace('{v}', `${m.min}~${m.max}`) }}</option>
             </select>
-            <select v-if="pickedAutoMod && pickedAutoMod.values" v-model="autoModPick.value" class="write-select option-value-select" aria-label="자동 옵션 수치">
-              <option value="">수치</option>
+            <select v-if="pickedAutoMod && pickedAutoMod.values" v-model="autoModPick.value" class="write-select option-value-select" :aria-label="$t('자동 옵션 수치')">
+              <option value="">{{ $t('수치') }}</option>
               <option v-for="v in pickedAutoMod.values" :key="v" :value="v">{{ v }}</option>
             </select>
             <input
               v-else-if="pickedAutoMod" type="number" v-model="autoModPick.value" :min="pickedAutoMod.min" :max="pickedAutoMod.max"
               :class="{ invalid: outOfRange(autoModPick.value, pickedAutoMod) }"
-              :placeholder="`${pickedAutoMod.min}~${pickedAutoMod.max}`" class="write-input option-value-input" aria-label="자동 옵션 수치"
+              :placeholder="`${pickedAutoMod.min}~${pickedAutoMod.max}`" class="write-input option-value-input" :aria-label="$t('자동 옵션 수치')"
             />
           </div>
           <template v-if="baseClassSkills">
-            <div class="option-editor-hint">{{ baseClassSkills.name }} 스킬 최대 3개, 각 +1~3</div>
+            <div class="option-editor-hint">{{ $t('{cls} 스킬 최대 3개, 각 +1~3', { cls: $t(baseClassSkills.name) }) }}</div>
             <div class="option-row" v-for="(p, i) in classSkillPicks" :key="i">
-              <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${baseClassSkills.name} 스킬 ${i + 1}`">
-                <option value="">{{ baseClassSkills.name }} 스킬 선택</option>
+              <select v-model="p.skill" class="write-select random-group-select" :aria-label="`${$t(baseClassSkills.name)} ${i + 1}`">
+                <option value="">{{ $t('{cls} 스킬 선택', { cls: $t(baseClassSkills.name) }) }}</option>
                 <option v-for="s in classSkillOptionsFor(i)" :key="s.en" :value="s.en">{{ skillLabel(s) }}</option>
               </select>
-              <RangeInput v-if="p.skill" v-model="p.level" :min="1" :max="3" prefix="+" :label="`스킬 ${i + 1} 레벨 1~3`" />
+              <RangeInput v-if="p.skill" v-model="p.level" :min="1" :max="3" prefix="+" :label="`${$t('스킬')} ${i + 1} 1~3`" />
               <button
                 type="button" class="class-skill-remove" v-if="classSkillPicks.length > 1 || p.skill"
-                :aria-label="`스킬 ${i + 1} 삭제`" @click="removeClassSkillRow(i)"
+                :aria-label="`${$t('스킬')} ${i + 1} ×`" @click="removeClassSkillRow(i)"
               >✕</button>
             </div>
             <button
               type="button" class="class-skill-add" v-if="classSkillPicks.length < MAX_CLASS_SKILLS"
               @click="addClassSkillRow"
-            >+ 스킬 추가 ({{ classSkillPicks.length }}/{{ MAX_CLASS_SKILLS }})</button>
+            >{{ $t('+ 스킬 추가') }} ({{ classSkillPicks.length }}/{{ MAX_CLASS_SKILLS }})</button>
           </template>
         </div>
       </div>
 
       <label class="unid-check" v-if="isUniqueOrSet">
         <input type="checkbox" v-model="form.unidentified" />
-        미확인 아이템 <small>옵션 확인 전 - 수치 입력 없이 사전 범위로 표시</small>
+        {{ $t('미확인 아이템') }} <small>{{ $t('옵션 확인 전 - 수치 입력 없이 사전 범위로 표시') }}</small>
       </label>
 
       <label class="ethereal-check" v-if="hasEthereal">
         <input type="checkbox" v-model="form.ethereal" />
-        에테리얼(Ethereal) 아이템
+        {{ $t('에테리얼(Ethereal) 아이템') }}
       </label>
 
       <template v-if="selectedItem || form.category">
         <template v-if="hasQuantity">
           <input
-            type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="isGold ? '골드 액수 (예: 2500000, 최대 1500만)' : '개수 (예: 5)'"
+            type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="$t(isGold ? '골드 액수 (예: 2500000, 최대 1500만)' : '개수 (예: 5)')"
             class="write-input trade-quantity-input" :class="{ invalid: isGold && Number(form.quantity) > GOLD_MAX }"
           />
-          <div class="unit-hint" v-if="!isGold">여러 개는 한 번에 통째로 판매 - 나눠 팔려면 글을 따로 올리기</div>
+          <div class="unit-hint" v-if="!isGold">{{ $t('여러 개는 한 번에 통째로 판매 - 나눠 팔려면 글을 따로 올리기') }}</div>
           <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0" :class="{ 'affix-error': Number(form.quantity) > GOLD_MAX }">
-            {{ goldReadable(form.quantity) }}{{ Number(form.quantity) > GOLD_MAX ? ' - 최대 1500만 골드까지' : '' }}
+            {{ goldReadable(form.quantity) }}{{ Number(form.quantity) > GOLD_MAX ? ' - ' + $t('최대 1500만 골드까지') : '' }}
           </div>
         </template>
       </template>
 
       <div class="option-editor" v-if="itemAffixes.length && !isUnidentified">
-        <div class="option-editor-title">실제 옵션 값 입력</div>
+        <div class="option-editor-title">{{ $t('실제 옵션 값 입력') }}</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
-            <span class="option-text">직업 기술 레벨<template v-if="a.min === a.max"> +{{ a.min }}</template></span>
+            <span class="option-text">{{ $t('직업 기술 레벨') }}<template v-if="a.min === a.max"> +{{ a.min }}</template></span>
             <select v-model="randClassChoice[i]" class="write-select option-value-select">
-              <option :value="undefined">직업 선택</option>
-              <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ c.name }}</option>
+              <option :value="undefined">{{ $t('직업 선택') }}</option>
+              <option v-for="c in CLASS_SKILL_OPTIONS" :key="c.code" :value="c.code">{{ $t(c.name) }}</option>
             </select>
             <input
               v-if="a.min !== a.max"
@@ -1348,82 +1353,82 @@ function submitPost() {
             />
           </template>
           <template v-else-if="isRollRangeAffix(a)">
-            <span class="option-text">{{ a.text }}</span>
+            <span class="option-text">{{ affixText(a.text) }}</span>
             <input
               type="number" v-model="rolledValues[i]" :placeholder="`${a.min}~${a.max}`"
               :min="Math.min(a.min, a.max)" :max="Math.max(a.min, a.max)" :class="{ invalid: outOfRange(rolledValues[i], a) }"
               class="write-input option-value-input"
             />
           </template>
-          <span class="option-text fixed" v-else>{{ a.text }}</span>
+          <span class="option-text fixed" v-else>{{ affixText(a.text) }}</span>
         </div>
       </div>
 
       <div class="option-editor" v-if="randomGroups.length && !isUnidentified">
-        <div class="option-editor-title">제작 시 붙은 무작위 옵션</div>
+        <div class="option-editor-title">{{ $t('제작 시 붙은 무작위 옵션') }}</div>
         <div class="option-row" v-for="(g, gi) in randomGroups" :key="gi">
-          <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="`${gi + 1}그룹 옵션`">
-            <option :value="undefined">{{ gi + 1 }}그룹 옵션 선택</option>
-            <option v-for="(o, oi) in g" :key="oi" :value="oi">{{ o.text }}</option>
+          <select v-model="groupChoice[gi]" class="write-select random-group-select" :aria-label="$t('{n}그룹 옵션 선택', { n: gi + 1 })">
+            <option :value="undefined">{{ $t('{n}그룹 옵션 선택', { n: gi + 1 }) }}</option>
+            <option v-for="(o, oi) in g" :key="oi" :value="oi">{{ affixText(o.text) }}</option>
           </select>
           <input
             v-if="g[groupChoice[gi]]"
             type="number" v-model="groupValues[gi]" :placeholder="`${g[groupChoice[gi]].min}~${g[groupChoice[gi]].max}`"
             :min="g[groupChoice[gi]].min" :max="g[groupChoice[gi]].max" :class="{ invalid: outOfRange(groupValues[gi], g[groupChoice[gi]]) }"
-            class="write-input option-value-input" :aria-label="`${gi + 1}그룹 수치`"
+            class="write-input option-value-input" :aria-label="$t('{n}그룹 옵션 선택', { n: gi + 1 })"
           />
         </div>
       </div>
 
       <div class="option-editor" v-if="uniqueMaxSockets && !lockedEquipBase">
-        <div class="option-editor-title">소켓</div>
-        <div class="option-editor-hint">유니크·세트: 라르주크 퀘스트로 소켓 1개만</div>
+        <div class="option-editor-title">{{ $t('소켓') }}</div>
+        <div class="option-editor-hint">{{ $t('유니크·세트: 라르주크 퀘스트로 소켓 1개만') }}</div>
         <div class="option-row">
-          <select v-model="uniqueSockets" class="write-select random-group-select" aria-label="소켓 개수">
-            <option value="">소켓 없음</option>
-            <option :value="1">소켓 있음 · 라르주크 퀘스트로 뚫음 (1개)</option>
+          <select v-model="uniqueSockets" class="write-select random-group-select" :aria-label="$t('소켓 개수')">
+            <option value="">{{ $t('소켓 없음') }}</option>
+            <option :value="1">{{ $t('소켓 있음 · 라르주크 퀘스트로 뚫음 (1개)') }}</option>
           </select>
         </div>
       </div>
 
       <div class="option-editor" v-if="allowsCustomOptions">
-        <div class="option-editor-title">기타 옵션 직접 추가</div>
+        <div class="option-editor-title">{{ $t('기타 옵션 직접 추가') }}</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
-          <span>{{ o }}</span>
+          <span>{{ affixText(o) }}</span>
           <button type="button" @click="removeCustomOption(i)">✕</button>
         </div>
         <div class="custom-option-add-row">
           <select v-model="customOptionType" class="write-select custom-option-type-select">
-            <option v-for="p in availableOptionPresets" :key="p.key" :value="p.key">{{ p.label }}</option>
+            <option v-for="p in availableOptionPresets" :key="p.key" :value="p.key">{{ $t(p.label) }}</option>
           </select>
           <input
             :type="selectedOptionPreset.freeText ? 'text' : 'number'"
             v-model="customOptionValue"
-            :placeholder="selectedOptionPreset.freeText ? (selectedOptionPreset.placeholder || '값 입력') : '수치 입력'"
+            :placeholder="selectedOptionPreset.freeText ? $t(selectedOptionPreset.placeholder || '값 입력') : $t('수치 입력')"
             class="write-input custom-option-value-input"
             @keydown.enter.prevent="addCustomOption"
           />
-          <button type="button" class="custom-option-add-btn" @click="addCustomOption">추가</button>
+          <button type="button" class="custom-option-add-btn" @click="addCustomOption">{{ $t('추가') }}</button>
         </div>
       </div>
       </template>
 
       <template v-else>
       <div class="bundle-box">
-        <div class="option-editor-title">묶어서 팔 룬·보석·재료 추가</div>
+        <div class="option-editor-title">{{ $t('묶어서 팔 룬·보석·재료 추가') }}</div>
         <div class="bundle-chip-row" v-if="bundleItems.length">
           <div class="bundle-chip" v-for="(b, i) in bundleItems" :key="b.item.id">
             <span class="item-picker-icon" :class="rarityClass(b.item)"><img v-if="iconUrlFor(b.item.icon_key)" :src="iconUrlFor(b.item.icon_key)" alt="" /></span>
-            <span class="bundle-chip-name">{{ b.item.name_ko }}</span>
+            <span class="bundle-chip-name">{{ itemName(b.item) }}</span>
             <input type="number" min="1" v-model="b.qty" class="bundle-chip-qty" />
-            <span class="bundle-chip-unit">개</span>
+            <span class="bundle-chip-unit">{{ $t('개') }}</span>
             <button type="button" @click="removeBundleItem(i)">✕</button>
           </div>
         </div>
         <div class="item-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" :value="bundleQuery" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
+              type="text" :value="bundleQuery" :placeholder="$t('이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)')"
               class="write-input" @focus="showBundleDropdown = true"
               @input="bundleQuery = $event.target.value; showBundleDropdown = true"
               @blur="hideBundleDropdownSoon"
@@ -1434,9 +1439,9 @@ function submitPost() {
                 @mousedown.prevent="pickBundleItem(it)"
               >
                 <span class="item-picker-icon" :class="rarityClass(it)"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-                <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
+                <span class="item-picker-name">{{ itemName(it) }} <small v-if="locale === 'ko'">{{ it.name_en }}</small></span>
               </button>
-              <div class="item-picker-empty" v-if="!bundleCandidates.length">일치하는 룬·보석·재료 없음</div>
+              <div class="item-picker-empty" v-if="!bundleCandidates.length">{{ $t('일치하는 룬·보석·재료 없음') }}</div>
             </div>
           </div>
         </div>
@@ -1445,36 +1450,36 @@ function submitPost() {
 
       <label class="negotiable-check offer-only-check">
         <input type="checkbox" v-model="form.offerOnly" />
-        제안만 받기 <small>희망 가격 없이 구매자들의 가격 제안을 받음</small>
+        {{ $t('제안만 받기') }} <small>{{ $t('희망 가격 없이 구매자들의 가격 제안을 받음') }}</small>
       </label>
       <label class="negotiable-check" v-if="!form.offerOnly">
         <input type="checkbox" v-model="form.negotiable" />
-        흥정 가능
+        {{ $t('흥정 가능') }}
       </label>
 
       <div class="price-picker" v-if="!form.offerOnly">
-        <div class="option-editor-title">희망 가격</div>
+        <div class="option-editor-title">{{ $t('희망 가격') }}</div>
         <div class="bundle-chip-row" v-if="priceItems.length">
           <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
             <span class="item-picker-icon gem"><img v-if="iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
-            <span class="bundle-chip-name">{{ p.item.name_ko }}</span>
+            <span class="bundle-chip-name">{{ itemName(p.item) }}</span>
             <input type="number" min="1" v-model="p.qty" class="bundle-chip-qty" />
-            <span class="bundle-chip-unit">개</span>
+            <span class="bundle-chip-unit">{{ $t('개') }}</span>
             <button type="button" @click="removePriceItem(i)">✕</button>
           </div>
         </div>
         <button type="button" class="item-picker-trigger" @click="openPriceModal">
-          {{ priceItems.length ? '+ 더 추가하기' : '받을 룬·보석·재료 검색 (예: 이스트 룬, 파괴의 열쇠)' }}
+          {{ $t(priceItems.length ? '+ 더 추가하기' : '받을 룬·보석·재료 검색 (예: 이스트 룬, 파괴의 열쇠)') }}
         </button>
       </div>
 
       <div class="modal-overlay" v-if="showPriceModal" @click.self="showPriceModal = false">
         <div class="modal-panel item-modal-panel">
           <button type="button" class="modal-close" @click="showPriceModal = false">✕</button>
-          <div class="d-section-title">희망 가격 선택</div>
+          <div class="d-section-title">{{ $t('희망 가격 선택') }}</div>
           <input
-            type="text" :value="priceQuery" @input="priceQuery = $event.target.value" placeholder="이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)"
-            class="write-input" v-focus aria-label="룬·보석·재료 검색"
+            type="text" :value="priceQuery" @input="priceQuery = $event.target.value" :placeholder="$t('이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)')"
+            class="write-input" v-focus :aria-label="$t('룬·보석·재료 검색')"
           />
           <div class="item-modal-list">
             <button
@@ -1482,10 +1487,10 @@ function submitPost() {
               @click="pickPriceItem(it)"
             >
               <span class="item-picker-icon gem"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-              <span class="item-picker-name">{{ it.name_ko }} <small>{{ it.name_en }}</small></span>
-              <span class="item-picker-row-cat price-picked" v-if="priceQtyOf(it)">담김 {{ priceQtyOf(it) }}개</span>
+              <span class="item-picker-name">{{ itemName(it) }} <small v-if="locale === 'ko'">{{ it.name_en }}</small></span>
+              <span class="item-picker-row-cat price-picked" v-if="priceQtyOf(it)">{{ $t('담김 {n}개', { n: priceQtyOf(it) }) }}</span>
             </button>
-            <div class="item-modal-empty" v-if="!priceCandidates.length">일치하는 룬·보석·재료 없음</div>
+            <div class="item-modal-empty" v-if="!priceCandidates.length">{{ $t('일치하는 룬·보석·재료 없음') }}</div>
           </div>
         </div>
       </div>
@@ -1499,17 +1504,17 @@ function submitPost() {
         </select>
       </div>
 
-      <RichEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="220px" />
+      <RichEditor v-model="form.content" :placeholder="$t('추가 설명 (옵션 정보, 거래 방식 등)')" min-height="220px" />
 
       <div class="tooltip-preview" v-if="previewTooltip">
-        <div class="option-editor-title">미리보기</div>
+        <div class="option-editor-title">{{ $t('미리보기') }}</div>
         <ItemTooltipCanvas :tooltip="previewTooltip" :file-name="form.itemName" />
       </div>
 
       <EventBanner mode="post" />
       <div class="trade-new-actions">
-        <router-link to="/trade" class="trade-new-cancel">취소</router-link>
-        <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">등록하기</button>
+        <router-link to="/trade" class="trade-new-cancel">{{ $t('취소') }}</router-link>
+        <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">{{ $t('등록하기') }}</button>
         <span class="form-error" v-if="formError">{{ formError }}</span>
       </div>
     </div>

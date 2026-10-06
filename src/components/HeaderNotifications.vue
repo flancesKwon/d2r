@@ -1,4 +1,5 @@
 <script setup>
+import { notifText } from '../tradeI18n.js'
 import { stripLocale } from '../i18n.js'
 import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -49,7 +50,7 @@ function openNotification(n) {
   <div class="header-notif-wrap">
     <template v-if="authState.user">
     <button
-      type="button" class="header-icon-btn" title="알림"
+      type="button" class="header-icon-btn" :title="$t('알림')"
       @click="toggleDropdown" @blur="hideDropdownSoon"
     >
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 004 0"/></svg>
@@ -57,8 +58,8 @@ function openNotification(n) {
     </button>
     <div class="header-notif-dropdown" v-if="showDropdown">
       <div class="header-notif-top">
-        <span>알림</span>
-        <button type="button" class="header-notif-readall" @mousedown.prevent="markAllNotificationsRead">모두 읽음</button>
+        <span>{{ $t('알림') }}</span>
+        <button type="button" class="header-notif-readall" @mousedown.prevent="markAllNotificationsRead">{{ $t('모두 읽음') }}</button>
       </div>
       <div class="header-notif-list">
         <button
@@ -66,37 +67,37 @@ function openNotification(n) {
           :class="{ unread: !n.read }" @mousedown.prevent="openNotification(n)"
         >
           <span class="header-notif-dot" v-if="!n.read"></span>
-          <span class="header-notif-text">{{ n.text }}</span>
+          <span class="header-notif-text">{{ notifText(n.text) }}</span>
           <span class="header-notif-date">{{ n.date }}</span>
         </button>
-        <div class="header-notif-empty" v-if="!notificationsState.items.length">알림 없음</div>
+        <div class="header-notif-empty" v-if="!notificationsState.items.length">{{ $t('알림 없음') }}</div>
       </div>
     </div>
-    <router-link to="/messages" class="header-icon-btn" :class="{ here: isHere('/messages') }" title="쪽지함">
+    <router-link to="/messages" class="header-icon-btn" :class="{ here: isHere('/messages') }" :title="$t('쪽지함')">
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
       <span class="header-icon-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</span>
     </router-link>
-    <router-link to="/deals" class="header-icon-btn" :class="{ here: isHere('/deals') }" title="거래중인 품목">
+    <router-link to="/deals" class="header-icon-btn" :class="{ here: isHere('/deals') }" :title="$t('거래중인 품목')">
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><path d="M7 7h10l3 3-3 3M17 17H7l-3-3 3-3"/></svg>
       <span class="header-icon-badge" v-if="activeDealCount > 0">{{ activeDealCount > 9 ? '9+' : activeDealCount }}</span>
     </router-link>
     <div class="header-profile">
-      <button type="button" class="header-avatar" :title="authState.profile?.nickname || '내 정보'" @click="showMenu = !showMenu" @blur="hideMenuSoon">
+      <button type="button" class="header-avatar" :title="authState.profile?.nickname || $t('내 정보')" @click="showMenu = !showMenu" @blur="hideMenuSoon">
         <img v-if="avatarSrc(authState.profile?.avatar_url)" :src="avatarSrc(authState.profile?.avatar_url)" :class="{ item: presetOf(authState.profile?.avatar_url)?.item }" alt="" />
         <svg v-else viewBox="0 0 24 24" class="hi" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1-3.5 4-5 7-5s6 1.5 7 5"/></svg>
       </button>
       <div class="header-profile-menu" v-if="showMenu">
         <div class="header-profile-name">{{ authState.profile?.nickname }}</div>
-        <router-link to="/mypage" class="header-profile-link" @mousedown.prevent="showMenu = false; router.push('/mypage')">마이페이지</router-link>
-        <router-link to="/admin" class="header-profile-link" v-if="isStaff()" @mousedown.prevent="showMenu = false; router.push('/admin')">관리자</router-link>
-        <button type="button" class="header-profile-link" @mousedown.prevent="setSound(!soundState.on)">알림 소리 {{ soundState.on ? '끄기' : '켜기' }}</button>
-        <button type="button" class="header-profile-link" @mousedown.prevent="logout">로그아웃</button>
+        <router-link to="/mypage" class="header-profile-link" @mousedown.prevent="showMenu = false; router.push('/mypage')">{{ $t('마이페이지') }}</router-link>
+        <router-link to="/admin" class="header-profile-link" v-if="isStaff()" @mousedown.prevent="showMenu = false; router.push('/admin')">{{ $t('관리자') }}</router-link>
+        <button type="button" class="header-profile-link" @mousedown.prevent="setSound(!soundState.on)">{{ $t(soundState.on ? '알림 소리 끄기' : '알림 소리 켜기') }}</button>
+        <button type="button" class="header-profile-link" @mousedown.prevent="logout">{{ $t('로그아웃') }}</button>
       </div>
     </div>
     </template>
     <button type="button" class="header-login" v-else-if="supabase" @click="signIn">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1-3.5 4-5 7-5s6 1.5 7 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <span>로그인</span>
+      <span>{{ $t('로그인') }}</span>
     </button>
   </div>
 </template>

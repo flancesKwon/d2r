@@ -3,6 +3,8 @@
 // 아이템·옵션 종류는 그대로 두고 수치만, 그리고 판매가·수량·제안만 받기·흥정·레더/하드코어·설명
 // 판매 기간(48시간)은 그대로 - 수정해도 늘어나지 않음
 import { showAlert } from '../dialog.js'
+import { t, locale, itemName, affixText } from '../i18n.js'
+import { postName } from '../tradeI18n.js'
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -33,7 +35,7 @@ Promise.all([fetchTradePost(route.params.id), fetchTradeRequests(route.params.id
 const isOwner = computed(() => !!authState.user && post.value?.authorId === authState.user.id)
 const reason = computed(() => {
   if (!post.value) return ''
-  if (!isOwner.value) return '내 판매글만 수정 가능'
+  if (!isOwner.value) return t('내 판매글만 수정 가능')
   return tradeEditBlockReason(post.value, requests.value)
 })
 
@@ -91,10 +93,10 @@ const error = ref('')
 const saving = ref(false)
 async function submit() {
   error.value = ''
-  if (edited.value.errors.length) { error.value = `게임에서 나올 수 없는 수치: ${edited.value.errors[0]}`; return }
-  if (hasQty.value && !(Number(form.value.qty) > 0)) { error.value = post.value.category === '골드' ? '골드 액수 입력' : '개수 입력'; return }
-  if (post.value.category === '골드' && Number(form.value.qty) > GOLD_MAX) { error.value = '골드는 한 글에 최대 1500만 골드까지'; return }
-  if (!form.value.offerOnly && !newPrice.value) { error.value = '판매가(룬·보석·재료) 하나 이상 (또는 제안만 받기)'; return }
+  if (edited.value.errors.length) { error.value = `${t('게임에서 나올 수 없는 수치')}: ${affixText(edited.value.errors[0])}`; return }
+  if (hasQty.value && !(Number(form.value.qty) > 0)) { error.value = t(post.value.category === '골드' ? '골드 액수 입력' : '개수 입력'); return }
+  if (post.value.category === '골드' && Number(form.value.qty) > GOLD_MAX) { error.value = t('최대 1500만 골드까지'); return }
+  if (!form.value.offerOnly && !newPrice.value) { error.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   saving.value = true
   try {
     await updateTradePost(post.value, {
@@ -103,9 +105,9 @@ async function submit() {
       ladder: form.value.ladder, hardcore: form.value.hardcore, contact: post.value.contact, content: form.value.content,
     })
     router.replace(`/trade/${post.value.id}`)
-    showAlert('판매글 수정 완료', { icon: 'success' })
+    showAlert(t('판매글 수정 완료'), { icon: 'success' })
   } catch (e) {
-    error.value = e.message || '수정 실패'
+    error.value = t(e.message || '수정 실패')
   } finally {
     saving.value = false
   }
@@ -116,98 +118,99 @@ async function submit() {
   <div class="items-page relist-page edit-page">
     <div class="patch-hero">
       <div class="patch-hero-inner">
-        <div class="eyebrow">구매신청 들어오기 전까지 · 판매 기간은 그대로</div>
-        <h1>판매글 수정</h1>
+        <div class="eyebrow">{{ $t('구매신청 들어오기 전까지 · 판매 기간은 그대로') }}</div>
+        <h1>{{ $t('판매글 수정') }}</h1>
       </div>
     </div>
 
     <div class="grid-wrap relist-wrap">
       <div class="relist-login" v-if="!authState.user">
-        <p>로그인 필요</p>
-        <button type="button" class="btn-primary" @click="signIn">로그인</button>
+        <p>{{ $t('로그인 필요') }}</p>
+        <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
       </div>
-      <div class="empty-state" v-else-if="loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="!post">판매글 없음. <router-link to="/trade">거래게시판으로</router-link></div>
+      <div class="empty-state" v-else-if="loading">{{ $t('불러오는 중…') }}</div>
+      <div class="empty-state" v-else-if="!post">{{ $t('판매글 없음.') }} <router-link to="/trade">{{ $t('거래게시판으로') }}</router-link></div>
       <template v-else>
         <router-link class="relist-item" :to="`/trade/${post.id}`">
           <span class="relist-icon" :class="postRarity(post)"><img v-if="iconUrl(postIconKey(post))" :src="iconUrl(postIconKey(post))" alt="" /></span>
           <span class="relist-item-body">
-            <b>{{ post.itemName }}</b>
-            <small>{{ post.category }} · {{ post.date }} 등록</small>
+            <b>{{ postName(post) }}</b>
+            <small>{{ $t(post.category) }} · {{ $t('{date} 등록', { date: post.date }) }}</small>
           </span>
-          <span class="relist-lock">아이템은 그대로</span>
+          <span class="relist-lock">{{ $t('아이템은 그대로') }}</span>
         </router-link>
 
-        <div class="relist-blocked" v-if="reason">{{ reason }}</div>
+        <div class="relist-blocked" v-if="reason">{{ $t(reason) }}</div>
 
         <template v-else>
           <section class="relist-card" v-if="lines.length">
-            <div class="relist-title">옵션 수치 <small class="edit-sub">{{ editableCount ? '숫자 칸만 고칠 수 있음 · 범위 밖이면 저장 안 됨' : '고칠 수 있는 수치 없음' }}</small></div>
+            <div class="relist-title">{{ $t('옵션 수치') }} <small class="edit-sub">{{ $t(editableCount ? '숫자 칸만 고칠 수 있음 · 범위 밖이면 저장 안 됨' : '고칠 수 있는 수치 없음') }}</small></div>
             <div class="edit-lines">
               <div class="edit-line" v-for="(l, i) in lines" :key="i" :class="{ locked: !l.editable }">
                 <template v-for="(p, j) in l.parts" :key="j">
                   <span v-if="!('value' in p)">{{ p.text }}</span>
                   <input
                     v-else type="number" v-model="p.value" class="edit-num" :class="{ invalid: isOut(p), changed: Number(p.value) !== p.original }"
-                    :min="p.min" :max="p.max" :title="`${p.min}~${p.max}`" :aria-label="`${l.text} 수치 ${p.min}~${p.max}`"
+                    :min="p.min" :max="p.max" :title="`${p.min}~${p.max}`" :aria-label="`${affixText(l.text)} ${p.min}~${p.max}`"
                   />
                 </template>
                 <small class="edit-range" v-if="l.editable">{{ l.parts.filter((p) => 'value' in p).map((p) => `${p.min}~${p.max}`).join(' / ') }}</small>
-                <small class="edit-range" v-else>고정</small>
+                <small class="edit-range" v-else>{{ $t('고정') }}</small>
+                <small class="edit-range edit-en" v-if="locale !== 'ko' && affixText(l.text) !== l.text">{{ affixText(l.text) }}</small>
               </div>
             </div>
           </section>
 
           <section class="relist-card edit-preview" v-if="tooltip">
-            <div class="relist-title">미리보기</div>
-            <ItemTooltipCanvas :tooltip="tooltip" :file-name="post.itemName" />
+            <div class="relist-title">{{ $t('미리보기') }}</div>
+            <ItemTooltipCanvas :tooltip="tooltip" :file-name="postName(post)" />
           </section>
 
           <section class="relist-card">
-            <div class="relist-title">판매 정보</div>
+            <div class="relist-title">{{ $t('판매 정보') }}</div>
             <label class="edit-field" v-if="hasQty">
-              <span>{{ post.category === '골드' ? '골드 액수' : '개수' }}</span>
+              <span>{{ $t(post.category === '골드' ? '골드 액수' : '개수') }}</span>
               <input type="number" min="1" :max="post.category === '골드' ? GOLD_MAX : null" v-model="form.qty" class="write-input" />
             </label>
             <div class="edit-row">
-              <select v-model="form.ladder" class="write-input" aria-label="레더">
-                <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
+              <select v-model="form.ladder" class="write-input" :aria-label="$t('레더')">
+                <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
               </select>
-              <select v-model="form.hardcore" class="write-input" aria-label="하드코어">
-                <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
+              <select v-model="form.hardcore" class="write-input" :aria-label="$t('하드코어')">
+                <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
               </select>
             </div>
-            <label class="edit-check"><input type="checkbox" v-model="form.offerOnly" /> 제안만 받기 <small>판매가 없이 가격 제안을 받음</small></label>
-            <label class="edit-check" v-if="!form.offerOnly"><input type="checkbox" v-model="form.negotiable" /> 흥정 가능</label>
+            <label class="edit-check"><input type="checkbox" v-model="form.offerOnly" /> {{ $t('제안만 받기') }} <small>{{ $t('판매가 없이 가격 제안을 받음') }}</small></label>
+            <label class="edit-check" v-if="!form.offerOnly"><input type="checkbox" v-model="form.negotiable" /> {{ $t('흥정 가능') }}</label>
 
             <template v-if="!form.offerOnly">
-              <div class="relist-title small-title">판매가</div>
+              <div class="relist-title small-title">{{ $t('판매가') }}</div>
               <div class="price-chips">
                 <div class="price-chip" v-for="(p, i) in priceItems" :key="p.item.id">
                   <span class="price-chip-icon"><img v-if="iconUrl(p.item.icon_key)" :src="iconUrl(p.item.icon_key)" alt="" /></span>
-                  <span class="price-chip-name">{{ p.item.name_ko }}</span>
-                  <button type="button" class="qty-btn" @click="p.qty = Math.max(1, Number(p.qty) - 1)" aria-label="하나 빼기">−</button>
-                  <input type="number" min="1" v-model="p.qty" class="qty-input" :aria-label="p.item.name_ko + ' 개수'" />
-                  <button type="button" class="qty-btn" @click="p.qty = Number(p.qty) + 1" aria-label="하나 더">+</button>
-                  <button type="button" class="chip-del" @click="priceItems.splice(i, 1)" aria-label="빼기">✕</button>
+                  <span class="price-chip-name">{{ itemName(p.item) }}</span>
+                  <button type="button" class="qty-btn" @click="p.qty = Math.max(1, Number(p.qty) - 1)" :aria-label="$t('하나 빼기')">−</button>
+                  <input type="number" min="1" v-model="p.qty" class="qty-input" :aria-label="itemName(p.item) + ' ' + $t('수량')" />
+                  <button type="button" class="qty-btn" @click="p.qty = Number(p.qty) + 1" :aria-label="$t('하나 더')">+</button>
+                  <button type="button" class="chip-del" @click="priceItems.splice(i, 1)" :aria-label="$t('빼기')">✕</button>
                 </div>
-                <div class="empty-state small" v-if="!priceItems.length">받을 룬·보석·재료 추가</div>
+                <div class="empty-state small" v-if="!priceItems.length">{{ $t('받을 룬·보석·재료 추가') }}</div>
               </div>
-              <input type="search" :value="query" @input="query = $event.target.value" class="write-input" placeholder="룬·보석·재료 추가 (예: 이스트 룬, 파괴의 열쇠)" aria-label="룬·보석·재료 검색" />
+              <input type="search" :value="query" @input="query = $event.target.value" class="write-input" :placeholder="$t('룬·보석·재료 추가 (예: 이스트 룬, 파괴의 열쇠)')" :aria-label="$t('룬·보석·재료 검색')" />
               <div class="price-cands">
                 <button type="button" class="price-cand" v-for="it in candidates" :key="it.id" @click="addItem(it)">
-                  <span class="price-chip-icon"><img v-if="iconUrl(it.icon_key)" :src="iconUrl(it.icon_key)" alt="" /></span>{{ it.name_ko }}
+                  <span class="price-chip-icon"><img v-if="iconUrl(it.icon_key)" :src="iconUrl(it.icon_key)" alt="" /></span>{{ itemName(it) }}
                 </button>
               </div>
             </template>
 
-            <div class="relist-title small-title">설명</div>
-            <RichEditor v-model="form.content" placeholder="추가 설명 (옵션 정보, 거래 방식 등)" min-height="160px" />
+            <div class="relist-title small-title">{{ $t('설명') }}</div>
+            <RichEditor v-model="form.content" :placeholder="$t('추가 설명 (옵션 정보, 거래 방식 등)')" min-height="160px" />
 
             <div class="relist-error" v-if="error">{{ error }}</div>
             <div class="relist-actions">
-              <router-link :to="`/trade/${post.id}`" class="relist-cancel">취소</router-link>
-              <button type="button" class="relist-submit" :disabled="saving" @click="submit">{{ saving ? '저장 중…' : '수정 저장' }}</button>
+              <router-link :to="`/trade/${post.id}`" class="relist-cancel">{{ $t('취소') }}</router-link>
+              <button type="button" class="relist-submit" :disabled="saving" @click="submit">{{ $t(saving ? '저장 중…' : '수정 저장') }}</button>
             </div>
           </section>
         </template>

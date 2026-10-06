@@ -6,6 +6,8 @@ import { fetchMyTradePosts, fetchMyRequests, getTradeItem, statusLabel } from '.
 import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor, dealsState } from '../dealsStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { t } from '../i18n.js'
+import { postName, priceText } from '../tradeI18n.js'
 import { buildsState } from '../buildStore.js'
 import classStats from '../data/classStats.json'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -51,10 +53,10 @@ const fmtDay = (ts) => { if (!ts) return '-'; const d = new Date(ts); return d.g
 function ago(ts) {
   if (!ts) return '-'
   const min = Math.floor((Date.now() - new Date(ts)) / 60000)
-  if (min < 5) return '방금'
-  if (min < 60) return min + '분 전'
-  if (min < 1440) return Math.floor(min / 60) + '시간 전'
-  return Math.floor(min / 1440) + '일 전'
+  if (min < 5) return t('방금')
+  if (min < 60) return t('{n}분 전', { n: min })
+  if (min < 1440) return t('{n}시간 전', { n: Math.floor(min / 60) })
+  return t('{n}일 전', { n: Math.floor(min / 1440) })
 }
 const summary = computed(() => {
   const done = dealsState.deals.filter((d) => d.status === '거래완료').length
@@ -72,15 +74,15 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">내 정보</div>
-      <h1>마이페이지</h1>
+      <div class="eyebrow">{{ $t('내 정보') }}</div>
+      <h1>{{ $t('마이페이지') }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap mypage-wrap" v-if="!authState.user">
     <div class="mypage-login">
-      <p>로그인 필요</p>
-      <button type="button" class="btn-primary" @click="signIn">로그인</button>
+      <p>{{ $t('로그인 필요') }}</p>
+      <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
     </div>
   </div>
   <div class="grid-wrap mypage-wrap" v-else>
@@ -88,56 +90,56 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '
       <UserAvatar :src="authState.profile?.avatar_url" :name="authState.profile?.nickname" :size="64" />
       <div class="my-profile-main">
         <div class="my-profile-name">
-          {{ authState.profile?.nickname || '닉네임' }}
-          <span class="my-role" v-if="authState.profile?.role && authState.profile.role !== 'user'">{{ ROLE_LABEL[authState.profile.role] || authState.profile.role }}</span>
+          {{ authState.profile?.nickname || $t('닉네임') }}
+          <span class="my-role" v-if="authState.profile?.role && authState.profile.role !== 'user'">{{ $t(ROLE_LABEL[authState.profile.role] || authState.profile.role) }}</span>
         </div>
-        <div class="my-profile-meta">가입 {{ fmtDay(authState.profile?.created_at) }} · 마지막 활동 {{ ago(authState.profile?.last_seen_at) }}</div>
+        <div class="my-profile-meta">{{ $t('가입') }} {{ fmtDay(authState.profile?.created_at) }} · {{ $t('마지막 활동') }} {{ ago(authState.profile?.last_seen_at) }}</div>
         <div class="my-profile-stats">
-          <span>작성 <b>{{ summary.posts }}</b></span>
-          <span>거래완료 <b>{{ summary.done }}</b></span>
-          <span>받은 리뷰 <b>{{ summary.reviews }}</b><template v-if="summary.avg"> · ★{{ summary.avg }}</template></span>
+          <span>{{ $t('작성') }} <b>{{ summary.posts }}</b></span>
+          <span>{{ $t('거래완료') }} <b>{{ summary.done }}</b></span>
+          <span>{{ $t('받은 리뷰') }} <b>{{ summary.reviews }}</b><template v-if="summary.avg"> · ★{{ summary.avg }}</template></span>
         </div>
       </div>
-      <router-link to="/mypage/edit" class="my-profile-edit">프로필 수정</router-link>
+      <router-link to="/mypage/edit" class="my-profile-edit">{{ $t('프로필 수정') }}</router-link>
     </section>
 
     <div class="mypage-tabs">
-      <button v-for="t in TABS" :key="t" :class="{ active: activeTab === t }" @click="activeTab = t">{{ t }}</button>
+      <button v-for="t in TABS" :key="t" :class="{ active: activeTab === t }" @click="activeTab = t">{{ $t(t) }}</button>
     </div>
 
     <div v-if="activeTab === '내가 쓴 글'" class="mypage-panel">
       <div class="my-post-row" v-for="p in myPostsCombined" :key="p.type + p.id">
-        <span class="my-post-type" :class="'type-' + p.type">{{ p.type === 'trade' ? '거래' : '커뮤니티' }}</span>
-        <span class="my-post-cat">{{ p.category }}</span>
+        <span class="my-post-type" :class="'type-' + p.type">{{ $t(p.type === 'trade' ? '거래' : '커뮤니티') }}</span>
+        <span class="my-post-cat">{{ $t(p.category) }}</span>
         <router-link :to="p.link" class="my-post-title">{{ p.title }}</router-link>
         <span class="my-post-date">{{ p.date }}</span>
       </div>
-      <div class="empty-state" v-if="!myPostsCombined.length">작성한 글 없음</div>
+      <div class="empty-state" v-if="!myPostsCombined.length">{{ $t('작성한 글 없음') }}</div>
     </div>
 
     <div v-else-if="activeTab === '거래내역'" class="mypage-panel">
-      <div class="d-section-title">내가 등록한 판매글</div>
+      <div class="d-section-title">{{ $t('내가 등록한 판매글') }}</div>
       <div class="my-scroll">
         <div class="my-trade-row" v-for="p in myTradePosts" :key="p.id">
           <span class="my-trade-icon"><img v-if="tradeIconUrl(p)" :src="tradeIconUrl(p)" alt="" /></span>
-          <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ p.itemName }}</router-link>
-          <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : statusLabel(p.status) }}</span>
-          <router-link v-if="p.expired" :to="`/trade/${p.id}/relist`" class="my-relist">재등록</router-link>
+          <router-link :to="`/trade/${p.id}`" class="my-trade-name">{{ postName(p) }}</router-link>
+          <span class="status-badge" :class="'status-' + (p.expired ? '만료' : p.status)">{{ $t(p.expired ? '기간 만료' : statusLabel(p.status)) }}</span>
+          <router-link v-if="p.expired" :to="`/trade/${p.id}/relist`" class="my-relist">{{ $t('재등록') }}</router-link>
           <span class="my-trade-date">{{ p.date }}</span>
         </div>
       </div>
-      <div class="empty-state" v-if="!myTradePosts.length">판매글 없음</div>
+      <div class="empty-state" v-if="!myTradePosts.length">{{ $t('판매글 없음') }}</div>
 
-      <div class="d-section-title" style="margin-top:26px;">내가 구매신청 보낸 거래</div>
+      <div class="d-section-title" style="margin-top:26px;">{{ $t('내가 구매신청 보낸 거래') }}</div>
       <div class="my-scroll">
         <div class="my-trade-row" v-for="r in myRequests" :key="'buy-' + r.id">
           <span class="my-trade-icon"><img v-if="tradeIconUrl(r.post)" :src="tradeIconUrl(r.post)" alt="" /></span>
-          <router-link :to="`/trade/${r.post.id}`" class="my-trade-name">{{ r.post.itemName }}</router-link>
-          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ REQUEST_STATUS_LABEL[r.status || 'pending'] }}</span>
+          <router-link :to="`/trade/${r.post.id}`" class="my-trade-name">{{ postName(r.post) }}</router-link>
+          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ $t(REQUEST_STATUS_LABEL[r.status || 'pending']) }}</span>
           <span class="my-trade-date">{{ r.date }}</span>
         </div>
       </div>
-      <div class="empty-state" v-if="!myRequests.length">보낸 구매신청 없음</div>
+      <div class="empty-state" v-if="!myRequests.length">{{ $t('보낸 구매신청 없음') }}</div>
     </div>
 
     <div v-else-if="activeTab === '받은 리뷰'" class="mypage-panel">
@@ -145,24 +147,24 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '
         <div class="my-review-top">
           <span class="my-review-stars"><span v-for="n in 5" :key="n" class="star" :class="{ filled: n <= r.rating }">★</span></span>
           <span class="my-review-from">{{ r.from }}</span>
-          <span class="my-review-post">{{ r.postTitle }}</span>
+          <span class="my-review-post">{{ priceText(r.postTitle) }}</span>
           <span class="my-review-date">{{ r.date }}</span>
         </div>
         <div class="my-review-comment" v-if="r.comment">{{ r.comment }}</div>
       </div>
-      <div class="empty-state" v-if="!myReviews.length">받은 리뷰 없음</div>
+      <div class="empty-state" v-if="!myReviews.length">{{ $t('받은 리뷰 없음') }}</div>
     </div>
 
     <div v-else-if="activeTab === '저장한 빌드'" class="mypage-panel">
-      <div class="empty-state" v-if="buildsState.error">{{ buildsState.error }}</div>
+      <div class="empty-state" v-if="buildsState.error">{{ $t(buildsState.error) }}</div>
       <template v-else>
         <div class="my-post-row" v-for="b in buildsState.list" :key="b.id">
-          <span class="my-post-type type-community">{{ classStats[b.classKey]?.name || b.classKey }}</span>
+          <span class="my-post-type type-community">{{ $t(classStats[b.classKey]?.name || b.classKey) }}</span>
           <span class="my-post-cat">Lv {{ b.level }}</span>
           <router-link :to="{ path: '/simulator', query: { b: b.code } }" class="my-post-title">{{ b.name }}</router-link>
           <span class="my-post-date">{{ b.date }}</span>
         </div>
-        <div class="empty-state" v-if="!buildsState.list.length">저장한 빌드 없음 (시뮬레이터 "내 빌드"에서 저장)</div>
+        <div class="empty-state" v-if="!buildsState.list.length">{{ $t('저장한 빌드 없음 (시뮬레이터 "내 빌드"에서 저장)') }}</div>
       </template>
     </div>
 

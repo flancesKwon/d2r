@@ -2,6 +2,7 @@
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
+import { t } from '../i18n.js'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
@@ -13,14 +14,14 @@ const RichEditor = defineAsyncComponent(() => import('../components/RichEditor.v
 const route = useRoute()
 const router = useRouter()
 const post = ref(null)
-watch(post, (p) => { if (p) document.title = `${p.title} — 커뮤니티 — 디아허브` }, { flush: 'post' })
+watch(post, (p) => { if (p) document.title = `${p.title} — ${t('커뮤니티')} — ${t('디아허브')}` }, { flush: 'post' })
 const loading = ref(true)
 const actionError = ref('')
 
 // 운영진: 목록 맨 위 고정
 async function togglePin() {
   actionError.value = ''
-  try { await setPinned(post.value, !post.value.pinned) } catch (e) { actionError.value = e.message || '처리 실패' }
+  try { await setPinned(post.value, !post.value.pinned) } catch (e) { actionError.value = t(e.message || '처리 실패') }
 }
 
 async function load() {
@@ -55,7 +56,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리 실패'
+    actionError.value = t(e.message || '처리 실패')
   }
 }
 
@@ -76,7 +77,7 @@ async function submitComment() {
 const onVotePost = (dir) => run(() => votePost(post.value, dir))
 const onVoteComment = (c, dir) => run(() => voteComment(c, dir))
 async function onDeleteComment(c) {
-  if (!await askConfirm('댓글 삭제')) return
+  if (!await askConfirm(t('댓글 삭제'))) return
   await run(async () => {
     await deleteComment(c.id)
     post.value.comments = post.value.comments.filter((x) => x.id !== c.id)
@@ -84,7 +85,7 @@ async function onDeleteComment(c) {
   })
 }
 async function onDeletePost() {
-  if (!await askConfirm('글 삭제 - 되돌릴 수 없음')) return
+  if (!await askConfirm(t('글 삭제 - 되돌릴 수 없음'))) return
   await run(async () => {
     await deletePost(post.value.id)
     router.replace('/community')
@@ -97,9 +98,9 @@ async function onDeletePost() {
 
   <div class="grid-wrap community-detail-wrap">
     <div class="post-card">
-      <div class="d-eyebrow">{{ post.category }}</div>
+      <div class="d-eyebrow">{{ $t(post.category) }}</div>
       <h1 class="d-name community-post-title">{{ post.title }}</h1>
-      <div class="community-post-meta"><router-link :to="'/users/' + post.authorId" class="user-link"><UserAvatar :src="post.avatar" :name="post.author" :size="22" :user-id="post.authorId" /> {{ post.author }}</router-link> · {{ post.date }} · 조회 {{ post.views }}</div>
+      <div class="community-post-meta"><router-link :to="'/users/' + post.authorId" class="user-link"><UserAvatar :src="post.avatar" :name="post.author" :size="22" :user-id="post.authorId" /> {{ post.author }}</router-link> · {{ post.date }} · {{ $t('조회 {n}', { n: post.views }) }}</div>
 
       <div class="post-tag-row" v-if="post.tags.length">
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
@@ -109,29 +110,29 @@ async function onDeletePost() {
 
       <div class="vote-row">
         <button class="vote-btn up" :class="{ active: post.myVote === 'up' }" @click="onVotePost('up')">
-          👍 추천 {{ post.likes }}
+          👍 {{ $t('추천 {n}', { n: post.likes }) }}
         </button>
         <button class="vote-btn down" :class="{ active: post.myVote === 'down' }" @click="onVotePost('down')">
-          👎 비추천 {{ post.dislikes }}
+          👎 {{ $t('비추천 {n}', { n: post.dislikes }) }}
         </button>
       </div>
       <div class="post-owner-row">
-        <router-link class="owner-btn" v-if="canEdit(post)" :to="{ path: '/community/write', query: { edit: post.id } }">수정</router-link>
-        <button type="button" class="owner-btn danger" v-if="canDelete(post)" @click="onDeletePost">삭제</button>
-        <button type="button" class="owner-btn" v-if="isStaff()" @click="togglePin">{{ post.pinned ? '고정 해제' : '맨 위 고정' }}</button>
-        <ReportButton class="post-report" target-type="community_post" :target-id="post.id" :owner-id="post.authorId" label="글 신고" />
+        <router-link class="owner-btn" v-if="canEdit(post)" :to="{ path: '/community/write', query: { edit: post.id } }">{{ $t('수정') }}</router-link>
+        <button type="button" class="owner-btn danger" v-if="canDelete(post)" @click="onDeletePost">{{ $t('삭제') }}</button>
+        <button type="button" class="owner-btn" v-if="isStaff()" @click="togglePin">{{ $t(post.pinned ? '고정 해제' : '맨 위 고정') }}</button>
+        <ReportButton class="post-report" target-type="community_post" :target-id="post.id" :owner-id="post.authorId" :label="$t('글 신고')" />
       </div>
       <div class="action-error" v-if="actionError">{{ actionError }}</div>
     </div>
 
     <!-- 댓글 목록과 쓰기를 카드 하나에 (댓글마다 카드를 나누지 않고 구분선으로) -->
     <div class="comment-card">
-    <div class="d-section-title comment-card-title">댓글 {{ post.comments.length }}개</div>
+    <div class="d-section-title comment-card-title">{{ $t('댓글 {n}개', { n: post.comments.length }) }}</div>
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
           <router-link :to="'/users/' + c.authorId" class="comment-author user-link"><UserAvatar :src="c.avatar" :name="c.author" :size="22" :user-id="c.authorId" />{{ c.author }}</router-link>
-          <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">삭제</button></span>
+          <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">{{ $t('삭제') }}</button></span>
         </div>
         <div class="comment-body rich-content" v-html="renderContent(c.content)"></div>
         <div class="comment-vote-row">
@@ -140,24 +141,24 @@ async function onDeletePost() {
           <ReportButton class="comment-report" target-type="community_comment" :target-id="c.id" :owner-id="c.authorId" />
         </div>
       </div>
-      <div class="empty-state" v-if="post.comments.length === 0">댓글 없음</div>
+      <div class="empty-state" v-if="post.comments.length === 0">{{ $t('댓글 없음') }}</div>
     </div>
 
     <div class="comment-form" v-if="authState.user">
-      <RichEditor v-model="commentDraft" placeholder="댓글" min-height="90px" compact />
-      <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">댓글 등록</button>
+      <RichEditor v-model="commentDraft" :placeholder="$t('댓글')" min-height="90px" compact />
+      <button class="btn-primary write-submit" :disabled="posting" @click="submitComment">{{ $t('댓글 등록') }}</button>
     </div>
     <div class="comment-login" v-else>
-      댓글은 로그인 후 작성
-      <button type="button" class="btn-primary write-submit" @click="signIn">로그인</button>
+      {{ $t('댓글은 로그인 후 작성') }}
+      <button type="button" class="btn-primary write-submit" @click="signIn">{{ $t('로그인') }}</button>
     </div>
     </div>
   </div>
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
-      <div class="empty-state" v-if="loading">불러오는 중…</div>
-      <div class="empty-state" v-else>게시글 없음. <router-link to="/community">커뮤니티로</router-link></div>
+      <div class="empty-state" v-if="loading">{{ $t('불러오는 중…') }}</div>
+      <div class="empty-state" v-else>{{ $t('게시글 없음.') }} <router-link to="/community">{{ $t('커뮤니티로') }}</router-link></div>
     </div>
   </div>
 </template>

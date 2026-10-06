@@ -11,6 +11,7 @@ import { buildSkillTextIndex, skillDescLines } from '../skillText.js'
 import itemsData from '../data/items.json'
 import { CLASS_ICONS, SKILL_ICONS } from '../icons.js'
 import { computeSkillDamage, ELEMENT_LABELS } from '../skillMath.js'
+import { t, locale, itemName } from '../i18n.js'
 import { SLOT_DEFS, buildItemsBySlot, aggregateItemStats, itemSkillBonus, buildRuneLookup, DOLL_ICON_ASPECT } from '../itemStats.js'
 import skillIconManifest from '../data/skillIconManifest.json'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -256,11 +257,15 @@ const skillTextIndex = buildSkillTextIndex(skillText, skillIdMap, rawSkillData)
 // 스킬 이름: 게임 최신 공식 한글 이름(skill_text ko)과 예전 음역 이름(skills.json)을 같이 보여줌
 // 내부 키는 계속 예전 이름(skills.json name)을 씀 - 표시만 바뀜
 function officialSkillName(name) {
+  // 영어 화면: 화면 표시 영어 이름 (없으면 게임 내부 영어 이름)
+  if (locale.value !== 'ko') return skillTextIndex[selectedClass.value]?.[name]?.en || skillEnByName.value[name] || null
   return skillTextIndex[selectedClass.value]?.[name]?.ko || null
 }
+const skillEnByName = computed(() => Object.fromEntries(classTabs.value.flatMap((tab) => tab.skills.map((s) => [s.name, s.nameEn]))))
 // "눈보라 (블리자드)" - 공식 이름이 없거나 같으면 그냥 이름
 function skillDisplayName(name) {
   const o = officialSkillName(name)
+  if (locale.value !== 'ko') return o || name
   return o && o !== name ? `${o} (${name})` : name
 }
 // 영문도 게임 내부 이름(Dopplezon) 대신 화면 표시 이름(Decoy)
@@ -378,7 +383,7 @@ function flashBuild(msg) {
 function openBuilds() {
   if (!authState.user) return signIn()
   showBuilds.value = !showBuilds.value
-  if (!buildName.value) buildName.value = `${classStats[selectedClass.value].name} ${level.value}레벨`
+  if (!buildName.value) buildName.value = `${t(classStats[selectedClass.value].name)} ${t('{n}레벨', { n: level.value })}`
 }
 async function saveCurrentBuild(overwrite = false) {
   buildBusy.value = true
@@ -391,9 +396,9 @@ async function saveCurrentBuild(overwrite = false) {
       code: encodeShareCode(buildSharePayload()),
     })
     currentBuildId.value = b.id
-    flashBuild(overwrite ? '덮어씀' : '저장됨')
+    flashBuild(t(overwrite ? '덮어씀' : '저장됨'))
   } catch (e) {
-    flashBuild(e.message || '저장 실패')
+    flashBuild(t(e.message || '저장 실패'))
   } finally {
     buildBusy.value = false
   }
@@ -402,15 +407,15 @@ async function loadSavedBuild(b) {
   await applyShareState(decodeShareCode(b.code))
   currentBuildId.value = b.id
   buildName.value = b.name
-  flashBuild(`"${b.name}" 불러옴`)
+  flashBuild(t('"{name}" 불러옴', { name: b.name }))
 }
 async function removeSavedBuild(b) {
-  if (!await askConfirm(`"${b.name}" 빌드 삭제`)) return
+  if (!await askConfirm(t('"{name}" 빌드 삭제', { name: b.name }))) return
   try {
     await deleteBuild(b)
     if (currentBuildId.value === b.id) currentBuildId.value = null
   } catch (e) {
-    flashBuild(e.message || '삭제 실패')
+    flashBuild(t(e.message || '삭제 실패'))
   }
 }
 
@@ -600,8 +605,8 @@ const hoverTip = computed(() => {
 function dmgLine(d) {
   if (!d) return []
   const out = []
-  if (d.ele) out.push(`${ELEMENT_LABELS[d.ele.type] || ''} 데미지 ${d.ele.min}~${d.ele.max}`)
-  if (d.phy) out.push(`물리 데미지 ${d.phy.min}~${d.phy.max}`)
+  if (d.ele) out.push(`${t('{el} 데미지', { el: t(ELEMENT_LABELS[d.ele.type] || '') })} ${d.ele.min}~${d.ele.max}`)
+  if (d.phy) out.push(`${t('물리 데미지')} ${d.phy.min}~${d.phy.max}`)
   return out
 }
 
@@ -645,7 +650,7 @@ const displayStats = computed(() => {
   const g = itemAgg.value
   return STAT_KEYS.map((k) => ({
     key: k,
-    label: STAT_LABELS[k],
+    label: t(STAT_LABELS[k]),
     base: b[k],
     added: allocatedStats[k],
     gear: g[k],
@@ -681,8 +686,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">빌드 계획 도구</div>
-      <h1>스킬·스탯 시뮬레이터</h1>
+      <div class="eyebrow">{{ $t('빌드 계획 도구') }}</div>
+      <h1>{{ $t('스킬·스탯 시뮬레이터') }}</h1>
     </div>
   </div>
 
@@ -691,7 +696,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
       <div class="cat-tabs sim-class-tabs">
         <button v-for="c in classKeys" :key="c" :class="{ active: selectedClass === c }" @click="selectedClass = c">
           <span class="sim-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[c]"></svg></span>
-          {{ classStats[c].name }}
+          {{ $t(classStats[c].name) }}
         </button>
       </div>
     </div>
@@ -700,53 +705,53 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   <div class="grid-wrap sim-wrap">
     <div class="sim-controls">
       <label class="sim-field">
-        <span>캐릭터 레벨</span>
+        <span>{{ $t('캐릭터 레벨') }}</span>
         <input type="number" min="1" max="99" v-model="clampedLevel" />
       </label>
-      <button class="sim-reset-btn" @click="resetAll">빌드 초기화</button>
-      <button class="sim-reset-btn sim-share-btn" @click="shareLink">빌드 공유 링크 만들기</button>
-      <button class="sim-reset-btn sim-share-btn" @click="openBuilds">내 빌드{{ authState.user && buildsState.list.length ? ` (${buildsState.list.length})` : '' }}</button>
+      <button class="sim-reset-btn" @click="resetAll">{{ $t('빌드 초기화') }}</button>
+      <button class="sim-reset-btn sim-share-btn" @click="shareLink">{{ $t('빌드 공유 링크 만들기') }}</button>
+      <button class="sim-reset-btn sim-share-btn" @click="openBuilds">{{ $t('내 빌드') }}{{ authState.user && buildsState.list.length ? ` (${buildsState.list.length})` : '' }}</button>
     </div>
 
     <div class="sim-builds" v-if="showBuilds && authState.user">
-      <div class="sim-builds-error" v-if="buildsState.error">{{ buildsState.error }}</div>
+      <div class="sim-builds-error" v-if="buildsState.error">{{ $t(buildsState.error) }}</div>
       <template v-else>
         <div class="sim-builds-save">
-          <input v-model="buildName" class="sim-share-input" maxlength="60" placeholder="빌드 이름" aria-label="빌드 이름" @keydown.enter.prevent="saveCurrentBuild(false)" />
-          <button class="sim-reset-btn sim-share-btn" :disabled="buildBusy" @click="saveCurrentBuild(false)">새로 저장</button>
-          <button class="sim-reset-btn" v-if="currentBuildId" :disabled="buildBusy" @click="saveCurrentBuild(true)">덮어쓰기</button>
+          <input v-model="buildName" class="sim-share-input" maxlength="60" :placeholder="$t('빌드 이름')" :aria-label="$t('빌드 이름')" @keydown.enter.prevent="saveCurrentBuild(false)" />
+          <button class="sim-reset-btn sim-share-btn" :disabled="buildBusy" @click="saveCurrentBuild(false)">{{ $t('새로 저장') }}</button>
+          <button class="sim-reset-btn" v-if="currentBuildId" :disabled="buildBusy" @click="saveCurrentBuild(true)">{{ $t('덮어쓰기') }}</button>
           <span class="sim-share-status" v-if="buildMsg">{{ buildMsg }}</span>
         </div>
         <div class="sim-builds-list">
           <div class="sim-build-row" v-for="b in buildsState.list" :key="b.id" :class="{ current: b.id === currentBuildId }">
             <span class="sim-build-name">{{ b.name }}</span>
-            <span class="sim-build-meta">{{ classStats[b.classKey]?.name || b.classKey }} · Lv {{ b.level }} · {{ b.date }}</span>
-            <button class="sim-build-btn" @click="loadSavedBuild(b)">불러오기</button>
-            <button class="sim-build-btn danger" @click="removeSavedBuild(b)">삭제</button>
+            <span class="sim-build-meta">{{ $t(classStats[b.classKey]?.name || b.classKey) }} · Lv {{ b.level }} · {{ b.date }}</span>
+            <button class="sim-build-btn" @click="loadSavedBuild(b)">{{ $t('불러오기') }}</button>
+            <button class="sim-build-btn danger" @click="removeSavedBuild(b)">{{ $t('삭제') }}</button>
           </div>
-          <div class="sim-builds-empty" v-if="!buildsState.list.length">저장한 빌드 없음</div>
+          <div class="sim-builds-empty" v-if="!buildsState.list.length">{{ $t('저장한 빌드 없음') }}</div>
         </div>
       </template>
     </div>
 
     <div class="sim-share-box" v-if="shareUrl">
       <input class="sim-share-input" type="text" :value="shareUrl" readonly @focus="$event.target.select()" />
-      <span class="sim-share-status">{{ shareCopied ? '링크 복사됨' : '복사 안 되면 위 링크를 직접 복사' }}</span>
+      <span class="sim-share-status">{{ $t(shareCopied ? '링크 복사됨' : '복사 안 되면 위 링크를 직접 복사') }}</span>
     </div>
 
-    <div class="note-box sim-quest-note">퀘스트 보상 전부 클리어 기준 (스킬 포인트 +{{ MAX_QUEST_SKILL_BONUS }}, 스탯 포인트 +{{ MAX_QUEST_STAT_BONUS }} 포함).</div>
+    <div class="note-box sim-quest-note">{{ $t('퀘스트 보상 전부 클리어 기준 (스킬 포인트 +{s}, 스탯 포인트 +{t} 포함).', { s: MAX_QUEST_SKILL_BONUS, t: MAX_QUEST_STAT_BONUS }) }}</div>
 
     <div class="sim-sheet">
       <section class="sim-zone sim-zone-equip">
         <header class="sim-zone-head">
-          <h2>장비</h2>
-          <button class="sim-link-btn" @click="resetEquip">초기화</button>
+          <h2>{{ $t('장비') }}</h2>
+          <button class="sim-link-btn" @click="resetEquip">{{ $t('초기화') }}</button>
         </header>
 
         <div class="sim-doll">
           <button
             type="button" class="sim-slot" v-for="s in SLOT_DEFS" :key="s.key"
-            :style="{ gridArea: DOLL_AREA[s.key] }" :title="s.label"
+            :style="{ gridArea: DOLL_AREA[s.key] }" :title="$t(s.label)"
             @click="openSlotPicker(s.key)"
           >
             <div
@@ -757,29 +762,29 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
               <img
                 v-if="itemById[equippedItems[s.key]]"
                 class="sim-slot-art real"
-                :src="itemIconUrl(itemById[equippedItems[s.key]])" :alt="itemById[equippedItems[s.key]].name_ko" draggable="false"
+                :src="itemIconUrl(itemById[equippedItems[s.key]])" :alt="itemName(itemById[equippedItems[s.key]])" draggable="false"
               />
               <img
                 v-else
                 class="sim-slot-art" :class="{ mirror: s.key === 'shield' }"
-                :src="equipSilhouetteUrl(s.key)" :alt="s.label" draggable="false"
+                :src="equipSilhouetteUrl(s.key)" :alt="$t(s.label)" draggable="false"
               />
             </div>
           </button>
         </div>
 
         <div class="sim-charm-head">
-          <span>인벤토리 (참)</span>
-          <span class="sim-zone-meta">{{ charmCellsUsed }} / 40 칸</span>
+          <span>{{ $t('인벤토리 (참)') }}</span>
+          <span class="sim-zone-meta">{{ charmCellsUsed }} / 40</span>
         </div>
         <div class="sim-charm-controls">
           <select class="sim-charm-add" @change="onAddCharmSelect($event)">
-            <option value="">+ 참 추가</option>
+            <option value="">{{ $t('+ 참 추가') }}</option>
             <option v-for="c in charmCatalog" :key="c.id" :value="c.id" :disabled="equippedCharms.includes(c.id)">
-              {{ c.name_ko }} ({{ charmCellHeight(c) }}칸){{ equippedCharms.includes(c.id) ? ' - 장착됨' : '' }}
+              {{ itemName(c) }} ({{ charmCellHeight(c) }}){{ equippedCharms.includes(c.id) ? ' - ' + $t('장착됨') : '' }}
             </option>
           </select>
-          <span class="sim-charm-warn" v-if="charmFullNotice">칸 부족</span>
+          <span class="sim-charm-warn" v-if="charmFullNotice">{{ $t('칸 부족') }}</span>
         </div>
 
         <div class="sim-inv-grid">
@@ -788,10 +793,10 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             v-for="p in charmPlacements" :key="p.id"
             class="sim-charm-tile"
             :style="{ gridColumn: p.col + 1, gridRow: (p.row + 1) + ' / span ' + p.h }"
-            :title="p.item.name_ko + ' (클릭해서 빼기)'"
+            :title="itemName(p.item) + ' ' + $t('(클릭해서 빼기)')"
             @click="removeCharm(p.id)"
           >
-            <img :src="itemIconUrl(p.item)" :alt="p.item.name_ko" draggable="false" />
+            <img :src="itemIconUrl(p.item)" :alt="itemName(p.item)" draggable="false" />
           </button>
         </div>
       </section>
@@ -800,15 +805,15 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
       <section class="sim-zone sim-zone-tree">
         <header class="sim-zone-head">
-          <h2>스킬 포인트</h2>
-          <span class="sim-zone-meta" :class="{ warn: remainingSkillPoints < 0 }">{{ remainingSkillPoints }} / {{ totalSkillPoints }} 남음</span>
+          <h2>{{ $t('스킬 포인트') }}</h2>
+          <span class="sim-zone-meta" :class="{ warn: remainingSkillPoints < 0 }">{{ $t('{a} / {b} 남음', { a: remainingSkillPoints, b: totalSkillPoints }) }}</span>
         </header>
 
         <div class="sim-tree-row">
           <div class="sim-tab" v-for="(tab, tabIdx) in classTabs" :key="tab.name">
             <div class="sim-tab-head">
-              <span>{{ tab.name }}</span>
-              <small>{{ tabSpent[tabIdx] }} 포인트 사용</small>
+              <span>{{ $t(tab.name) }}</span>
+              <small>{{ $t('{n} 포인트 사용', { n: tabSpent[tabIdx] }) }}</small>
             </div>
             <div class="sim-tab-body">
               <svg class="sim-tab-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -838,7 +843,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 :style="{ left: n.x + '%', top: n.y + '%' }"
                 :class="{ invested: skillPoint(tabIdx, n.skillIdx) > 0, maxed: skillPoint(tabIdx, n.skillIdx) >= 20, 'req-source': isFocusReqNode(tabIdx, n.skillIdx) }"
               >
-                <span class="sim-node-req-flag" v-if="isFocusReqNode(tabIdx, n.skillIdx)">필수</span>
+                <span class="sim-node-req-flag" v-if="isFocusReqNode(tabIdx, n.skillIdx)">{{ $t('필수') }}</span>
                 <button
                   class="sim-node"
                   :class="{
@@ -847,7 +852,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                     selected: selectedNode && selectedNode.tabIdx === tabIdx && selectedNode.skillIdx === n.skillIdx,
                     'req-target': isFocusNode(tabIdx, n.skillIdx) && focusReqIdxs(tabIdx).length,
                   }"
-                  :aria-label="n.skill.name"
+                  :aria-label="skillDisplayName(n.skill.name)"
                   @click="onNodeClick(tabIdx, n.skillIdx)"
                   @mouseenter="showSkillTooltip(tabIdx, n.skillIdx, $event)"
                   @mousemove="moveSkillTooltip"
@@ -860,7 +865,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                 </button>
                 <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
               </div>
-              <button class="sim-tab-reset" title="이 계열 초기화" @click="resetTab(tabIdx)">✕</button>
+              <button class="sim-tab-reset" :title="$t('이 계열 초기화')" @click="resetTab(tabIdx)">✕</button>
             </div>
           </div>
         </div>
@@ -870,9 +875,9 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <div class="sim-detail-title">
               <strong>{{ skillDisplayName(selectedSkill.name) }}</strong>
               <span>
-                요구 레벨 {{ selectedSkill.reqLevel }}
+                {{ $t('요구 레벨') }} {{ selectedSkill.reqLevel }}
                 <template v-if="selectedSkill.reqSkills && selectedSkill.reqSkills.length">
-                  · 필수 선행: <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ skillDisplayName(r) }}</span>
+                  {{ $t('· 필수 선행:') }} <span class="sim-req-name" v-for="(r, i) in selectedSkill.reqSkills" :key="r">{{ i > 0 ? ', ' : '' }}{{ skillDisplayName(r) }}</span>
                 </template>
               </span>
             </div>
@@ -884,33 +889,33 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           </div>
           <div class="sim-detail-body" v-if="skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) > 0 && (selectedSkill.dmg || synergySources(selectedSkill).length)">
             <p v-if="effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) !== skillPoint(selectedNode.tabIdx, selectedNode.skillIdx)">
-              유효 스킬 레벨 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) }} <small>(하드 {{ skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }} + 장비 {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) - skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }})</small>
+              {{ $t('유효 스킬 레벨') }} {{ effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) }} <small>({{ $t('하드 {a} + 장비 {b}', { a: skillPoint(selectedNode.tabIdx, selectedNode.skillIdx), b: effectiveSkillLevel(selectedNode.tabIdx, selectedNode.skillIdx) - skillPoint(selectedNode.tabIdx, selectedNode.skillIdx) }) }})</small>
             </p>
             <p v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.ele">
-              {{ ELEMENT_LABELS[skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.type] }} 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.max }}
-              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent }}%)</span>
+              {{ $t('{el} 데미지', { el: $t(ELEMENT_LABELS[skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.type]) }) }} {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.max }}
+              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent">({{ $t('시너지') }} +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).ele.percent }}%)</span>
             </p>
             <p v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx)?.phy">
-              물리 데미지 {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.max }} <small>(무기 데미지 제외)</small>
-              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent">(시너지 +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent }}%)</span>
+              {{ $t('물리 데미지') }} {{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.min }}~{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.max }} <small>{{ $t('(무기 데미지 제외)') }}</small>
+              <span class="sim-detail-pct" v-if="skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent">({{ $t('시너지') }} +{{ skillDamage(selectedNode.tabIdx, selectedNode.skillIdx).phy.percent }}%)</span>
             </p>
             <p class="sim-detail-syn" v-if="synergySources(selectedSkill).length">
-              시너지 제공: <span v-for="(s, i) in synergySources(selectedSkill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ skillDisplayName(s.skill) }} +{{ s.percent }}%/lv</span>
+              {{ $t('시너지 제공:') }} <span v-for="(s, i) in synergySources(selectedSkill)" :key="s.skill">{{ i > 0 ? ', ' : '' }}{{ skillDisplayName(s.skill) }} +{{ s.percent }}%/lv</span>
             </p>
           </div>
         </div>
-        <div class="sim-detail sim-detail-empty" v-else>스킬 아이콘 클릭: 포인트 · 마우스 올리기: 설명·시너지</div>
+        <div class="sim-detail sim-detail-empty" v-else>{{ $t('스킬 아이콘 클릭: 포인트 · 마우스 올리기: 설명·시너지') }}</div>
 
         <div class="skill-tip" v-if="hoverTip" ref="tipEl" :style="tooltipStyle" role="tooltip">
           <div class="skill-tip-name">
             {{ officialSkillName(hoverTip.skill.name) || hoverTip.skill.name }}
-            <small>
+            <small v-if="locale === 'ko'">
               <template v-if="officialSkillName(hoverTip.skill.name) && officialSkillName(hoverTip.skill.name) !== hoverTip.skill.name">{{ hoverTip.skill.name }} · </template>{{ skillEnglishName(hoverTip.skill) }}
             </small>
           </div>
           <div class="skill-tip-meta">
-            {{ hoverTip.tab }} · 요구 레벨 {{ hoverTip.skill.reqLevel }}
-            <template v-if="hoverTip.skill.reqSkills && hoverTip.skill.reqSkills.length"> · 선행: {{ hoverTip.skill.reqSkills.map(skillDisplayName).join(', ') }}</template>
+            {{ $t(hoverTip.tab) }} · {{ $t('요구 레벨') }} {{ hoverTip.skill.reqLevel }}
+            <template v-if="hoverTip.skill.reqSkills && hoverTip.skill.reqSkills.length"> · {{ $t('선행') }}: {{ hoverTip.skill.reqSkills.map(skillDisplayName).join(', ') }}</template>
           </div>
           <p class="skill-tip-desc" v-if="hoverTip.desc.length">
             <template v-for="(l, i) in hoverTip.desc" :key="i">{{ l }}<br v-if="i < hoverTip.desc.length - 1" /></template>
@@ -919,31 +924,31 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <div class="skill-tip-block">
             <div class="skill-tip-level">
               <template v-if="hoverTip.hard > 0">
-                현재 레벨 <b>{{ hoverTip.eff }}</b>
-                <small v-if="hoverTip.eff !== hoverTip.hard">(하드 {{ hoverTip.hard }} + 장비 {{ hoverTip.eff - hoverTip.hard }})</small>
+                {{ $t('현재 레벨') }} <b>{{ hoverTip.eff }}</b>
+                <small v-if="hoverTip.eff !== hoverTip.hard">({{ $t('하드 {a} + 장비 {b}', { a: hoverTip.hard, b: hoverTip.eff - hoverTip.hard }) }})</small>
               </template>
-              <template v-else>투자 안 함</template>
+              <template v-else>{{ $t('투자 안 함') }}</template>
             </div>
             <div class="skill-tip-dmg" v-for="l in dmgLine(hoverTip.now)" :key="'n' + l">{{ l }}</div>
             <div class="skill-tip-next" v-for="l in dmgLine(hoverTip.next)" :key="'x' + l">
-              {{ hoverTip.hard > 0 ? '다음 레벨' : '1레벨' }}: {{ l }}
+              {{ $t(hoverTip.hard > 0 ? '다음 레벨' : '1레벨') }}: {{ l }}
             </div>
           </div>
 
           <div class="skill-tip-block" v-if="hoverTip.receives.length">
-            <div class="skill-tip-label">받는 시너지 <span v-if="hoverTip.receives.some((r) => r.bonus)">현재 +{{ hoverTip.receives.reduce((s, r) => s + r.bonus, 0) }}%</span></div>
+            <div class="skill-tip-label">{{ $t('받는 시너지') }} <span v-if="hoverTip.receives.some((r) => r.bonus)">{{ $t('현재') }} +{{ hoverTip.receives.reduce((s, r) => s + r.bonus, 0) }}%</span></div>
             <div class="skill-tip-syn" v-for="r in hoverTip.receives" :key="r.skill + r.kind">
               <span>{{ skillDisplayName(r.skill) }}</span>
-              <span>레벨당 +{{ r.percent }}% {{ r.kind === 'phy' ? '물리' : '' }}데미지<b v-if="r.points"> ({{ r.points }}레벨 → +{{ r.bonus }}%)</b></span>
+              <span>{{ $t(r.kind === 'phy' ? '레벨당 +{p}% 물리 데미지' : '레벨당 +{p}% 데미지', { p: r.percent }) }}<b v-if="r.points"> ({{ $t('{n}레벨', { n: r.points }) }} → +{{ r.bonus }}%)</b></span>
             </div>
           </div>
           <div class="skill-tip-block" v-if="hoverTip.gives.length">
-            <div class="skill-tip-label">이 스킬이 시너지를 주는 스킬</div>
+            <div class="skill-tip-label">{{ $t('이 스킬이 시너지를 주는 스킬') }}</div>
             <div class="skill-tip-syn" v-for="g in hoverTip.gives" :key="g.target + g.kind">
-              <span>{{ skillDisplayName(g.target) }}</span><span>레벨당 +{{ g.percent }}% {{ g.kind === 'phy' ? '물리' : '' }}데미지</span>
+              <span>{{ skillDisplayName(g.target) }}</span><span>{{ $t(g.kind === 'phy' ? '레벨당 +{p}% 물리 데미지' : '레벨당 +{p}% 데미지', { p: g.percent }) }}</span>
             </div>
           </div>
-          <div class="skill-tip-foot" v-if="!hoverTip.receives.length && !hoverTip.gives.length">시너지 없음</div>
+          <div class="skill-tip-foot" v-if="!hoverTip.receives.length && !hoverTip.gives.length">{{ $t('시너지 없음') }}</div>
         </div>
       </section>
 
@@ -951,8 +956,8 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
 
       <section class="sim-zone sim-zone-stats">
         <header class="sim-zone-head">
-          <h2>스탯</h2>
-          <span class="sim-zone-meta" :class="{ warn: remainingStatPoints < 0 }">{{ remainingStatPoints }} / {{ totalStatPoints }} 남음</span>
+          <h2>{{ $t('스탯') }}</h2>
+          <span class="sim-zone-meta" :class="{ warn: remainingStatPoints < 0 }">{{ $t('{a} / {b} 남음', { a: remainingStatPoints, b: totalStatPoints }) }}</span>
         </header>
         <div class="sim-stat-row" v-for="s in displayStats" :key="s.key">
           <span class="sim-stat-label">{{ s.label }}</span>
@@ -961,19 +966,19 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
             <span class="sim-step-value">{{ s.total }}</span>
             <button class="sim-step-btn" @click="increaseStat(s.key)" :disabled="remainingStatPoints <= 0">›</button>
           </div>
-          <span class="sim-stat-detail">기본 {{ s.base }}+투자 {{ s.added }}<template v-if="s.gear">+장비 {{ s.gear }}</template></span>
+          <span class="sim-stat-detail">{{ $t('기본') }} {{ s.base }}+{{ $t('투자') }} {{ s.added }}<template v-if="s.gear">+{{ $t('장비') }} {{ s.gear }}</template></span>
         </div>
 
         <header class="sim-zone-head sim-zone-head-sub">
-          <h2>예상 능력치</h2>
+          <h2>{{ $t('예상 능력치') }}</h2>
         </header>
-        <div class="sim-derived-row"><span>생명력</span><b>{{ derivedStats.life }}</b></div>
-        <div class="sim-derived-row"><span>마나</span><b>{{ derivedStats.mana }}</b></div>
-        <div class="sim-derived-row"><span>스태미나</span><b>{{ derivedStats.stamina }}</b></div>
-        <div class="sim-derived-row"><span>방어력</span><b>{{ derivedStats.armor }}</b></div>
-        <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>무기 데미지</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
+        <div class="sim-derived-row"><span>{{ $t('생명력') }}</span><b>{{ derivedStats.life }}</b></div>
+        <div class="sim-derived-row"><span>{{ $t('마나') }}</span><b>{{ derivedStats.mana }}</b></div>
+        <div class="sim-derived-row"><span>{{ $t('스태미나') }}</span><b>{{ derivedStats.stamina }}</b></div>
+        <div class="sim-derived-row"><span>{{ $t('방어력') }}</span><b>{{ derivedStats.armor }}</b></div>
+        <div class="sim-derived-row" v-if="derivedStats.weaponDamage"><span>{{ $t('무기 데미지') }}</span><b>{{ derivedStats.weaponDamage.min }}~{{ derivedStats.weaponDamage.max }}</b></div>
         <div class="sim-derived-row">
-          <span>저항 화/냉/전/독</span>
+          <span>{{ $t('저항 화/냉/전/독') }}</span>
           <b>{{ derivedStats.resist.fire }}/{{ derivedStats.resist.cold }}/{{ derivedStats.resist.ltng }}/{{ derivedStats.resist.pois }}%</b>
         </div>
       </section>
@@ -983,15 +988,15 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
   <div class="modal-overlay sim-picker-overlay" v-if="slotPicker" @click.self="closeSlotPicker">
     <div class="modal-panel sim-picker-panel">
       <button class="modal-close" @click="closeSlotPicker">✕</button>
-      <h3 class="sim-picker-title">{{ SLOT_DEFS.find((s) => s.key === slotPicker)?.label }} 선택</h3>
+      <h3 class="sim-picker-title">{{ $t('{x} 선택', { x: $t(SLOT_DEFS.find((s) => s.key === slotPicker)?.label || '') }) }}</h3>
       <input
         class="sim-picker-search" type="text" :value="slotPickerSearch" @input="slotPickerSearch = $event.target.value"
-        placeholder="아이템 이름 검색..." autofocus
+        :placeholder="$t('아이템 이름 검색...')" autofocus
       />
       <div class="sim-picker-list">
         <button class="sim-picker-row" :class="{ active: !equippedItems[slotPicker] }" @click="selectSlotItem(slotPicker, '')">
           <span class="sim-picker-icon sim-picker-icon-empty">✕</span>
-          <span class="sim-picker-name">비어있음</span>
+          <span class="sim-picker-name">{{ $t('비어있음') }}</span>
         </button>
         <button
           v-for="it in slotPickerItems" :key="it.id"
@@ -999,15 +1004,15 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           @click="selectSlotItem(slotPicker, it.id)"
         >
           <span class="sim-picker-icon">
-            <img v-if="itemIconUrl(it)" :src="itemIconUrl(it)" :alt="it.name_ko" draggable="false" />
+            <img v-if="itemIconUrl(it)" :src="itemIconUrl(it)" :alt="itemName(it)" draggable="false" />
           </span>
           <span class="sim-picker-name">
-            {{ it.name_ko }}
-            <small v-if="it.category === 'runeword'">(룬워드)</small>
+            {{ itemName(it) }}
+            <small v-if="it.category === 'runeword'">{{ $t('(룬워드)') }}</small>
           </span>
-          <span class="sim-picker-cat">{{ it.category_label }}</span>
+          <span class="sim-picker-cat">{{ $t(it.category_label) }}</span>
         </button>
-        <p class="sim-picker-empty-msg" v-if="!slotPickerItems.length">검색 결과 없음</p>
+        <p class="sim-picker-empty-msg" v-if="!slotPickerItems.length">{{ $t('검색 결과 없음') }}</p>
       </div>
     </div>
   </div>
