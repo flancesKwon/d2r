@@ -20,6 +20,7 @@ const material = (category, category_label) => (id, name_ko, name_en, icon_key, 
   ({ id: 'uber-' + id, category, category_label, name_ko, name_en, icon_key, aliases })
 const uber = material('uber', '우버 재료')
 const essence = material('essence', '정수·징표')
+const worldstone = material('worldstone', '세계석')
 export const UBER_MATERIALS = [
   uber('key-terror', '공포의 열쇠', 'Key of Terror', 'invmph__key', ['공포키', '공포 열쇠']),
   uber('key-hate', '증오의 열쇠', 'Key of Hate', 'invmph__key', ['증오키', '증오 열쇠']),
@@ -37,7 +38,17 @@ export const ESSENCE_MATERIALS = [
   essence('essence-destruction', '파괴의 부패한 정수', 'Festering Essence of Destruction', 'invfed__uber', ['파괴의 곪은 정수']),
   essence('token', '면죄의 징표', 'Token of Absolution', 'invtoa__uber', ['토큰', '면죄', '용서의 증표']),
 ]
-export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS]
+// 세계석 파편 5종 (악마술사의 군림) - 공포의 영역 전령이 떨어뜨리는 재료. 게임 그림 파일(invfile)이 면죄의 징표와 같은 invtoa
+// 거래 분류는 우버보스 재료 칸을 같이 씀 (판매글 분류 값을 새로 만들지 않음)
+// 한글 이름은 방향 그대로 옮긴 이름 - 게임 공식 한글 표기가 다르면 여기만 고치면 됨 (예전 이름은 별칭으로)
+export const WORLDSTONE_MATERIALS = [
+  worldstone('worldstone-west', '서쪽 세계석 파편', 'Western Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '서부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-east', '동쪽 세계석 파편', 'Eastern Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '동부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-south', '남쪽 세계석 파편', 'Southern Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '남부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-north', '북쪽 세계석 파편', 'Northern Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '북부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-deep', '깊은 세계석 파편', 'Deep Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '심층 세계석 파편', '파편', '샤드']),
+]
+export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS, ...WORLDSTONE_MATERIALS]
 // 골드 판매글 한 건 최대 액수
 export const GOLD_MAX = 15000000
 // 골드 - 게임 골드를 룬·보석 등을 받고 파는 글. 수량 = 골드 액수
@@ -49,7 +60,7 @@ const ALL_TRADE_ITEMS = [...itemsData, ...EXTRA_MATERIALS, GOLD_ITEM]
 // 이름별로 찾아볼 수 있게 정리해둠. 긴 이름부터 매칭해야 "최상급 다이아몬드"가
 // "다이아몬드"보다 먼저 잡힘
 // 룬·보석·우버 재료·정수는 거래에서 화폐처럼 쓰여서(희망 가격, 묶음 판매, 흥정 제안) 같은 목록으로 다룸
-export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber' || it?.category === 'essence'
+export const isCurrencyItem = (it) => it?.category === 'gem' || it?.category === 'uber' || it?.category === 'essence' || it?.category === 'worldstone'
 export const CURRENCY_ITEMS = [...itemsData.filter(isCurrencyItem), ...EXTRA_MATERIALS]
 const CURRENCY_BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
 // 흔히 쓰는 룬 이름도 아이콘이 붙게 ("움 룬" = 우움 룬, "옴 룬" = 오움 룬). 공식 이름이 더 길어서 먼저 잡힘
@@ -181,7 +192,7 @@ export function tradeCategoryForItem(item) {
   if (item.category === 'gem' && item.type_sub === '보석') return '퍼펙트 보석'
   if (item.category === 'unique' || item.category === 'set') return '유니크/세트'
   if (item.category === 'runeword') return '룬워드'
-  if (item.category === 'uber') return '우버보스 재료'
+  if (item.category === 'uber' || item.category === 'worldstone') return '우버보스 재료'
   if (item.category === 'essence') return '정수·징표'
   if (item.category === 'gold') return '골드'
   return null
