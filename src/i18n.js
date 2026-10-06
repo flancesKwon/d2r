@@ -19,10 +19,12 @@ const dicts = { ko: {} }
 const dictVersion = ref(0)
 
 const loaders = {
-  en: () => Promise.all([import('./locales/en.js'), import('./locales/affixes.en.js')]).then(([d, a]) => ({ default: d.default, affixes: a })),
+  en: () => Promise.all([import('./locales/en.js'), import('./locales/affixes.en.js'), import('./locales/skills.en.json')])
+    .then(([d, a, sk]) => ({ default: d.default, affixes: a, skillDesc: sk.default })),
 }
-// 아이템 옵션 문구 사전 (locales/affixes.<언어>.js)
+// 아이템 옵션 문구 사전 (locales/affixes.<언어>.js), 스킬 설명 (locales/skills.<언어>.json)
 const affixDicts = {}
+const skillDescDicts = {}
 
 // 주소 앞의 언어 ('/en/trade/1' -> 'en', '/trade/1' -> 'ko')
 export function localeOfPath(path) {
@@ -49,6 +51,7 @@ export async function setLocale(code) {
       const mod = await loaders[code]()
       dicts[code] = mod.default
       affixDicts[code] = mod.affixes || null
+      skillDescDicts[code] = mod.skillDesc || null
     } catch (e) {
       dicts[code] = {}
     }
@@ -127,6 +130,14 @@ export function affixText(text) {
   const key = locale.value + '|' + text
   if (!affixCache.has(key)) affixCache.set(key, translateAffix(String(text), A))
   return affixCache.get(key) ?? text
+}
+
+// 스킬 설명 (게임 문자열 키 skillsd6 등) - 지금 언어 문구, 없으면 null
+export function skillDescText(key) {
+  void dictVersion.value
+  if (!key || locale.value === DEFAULT_LOCALE) return null
+  const text = skillDescDicts[locale.value]?.[key]
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : null
 }
 
 // 템플릿에서 $t, $itemName 으로 바로 쓰게

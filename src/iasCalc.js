@@ -5,6 +5,7 @@
 //   속도 = ⌊애니메이션 속도(보통 256) × (100 + EIAS) ÷ 100⌋
 //   프레임 = ⌈256 × 동작 길이 ÷ 속도⌉ - 1   (연속 동작 스킬은 -1 없음)
 // 동작 길이(직업·무기 종류별 프레임 수)는 D2R 3.3 animdata 기준 (Warren1001 IAS Calculator 에 정리된 값)
+import { t } from './i18n.js'
 
 // f: 동작 길이, af: 타격 프레임, alt: 두 번째 공격 동작 길이(무작위로 둘 중 하나)
 const T = (f, af, alt) => ({ f, af, alt })
@@ -268,7 +269,7 @@ export function framesText(f) {
   const last = f[f.length - 1]
   const hits = f.slice(0, -1)
   const head = hits.every((x) => x === first) ? String(first) : hits.join('·')
-  return `${head} (마지막 ${last})`
+  return `${head} (${t('마지막 {n}', { n: last })})`
 }
 // 한 번 공격(여러 타 스킬은 한 사이클)에 걸리는 평균 프레임 - 비교·초당 횟수용
 export function framesAvg(f) {

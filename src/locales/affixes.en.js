@@ -22,6 +22,7 @@ export const PATTERNS = {
   '생명력 회복 +#': 'Replenish Life {+0}',
   '생명력 회복 #': 'Replenish Life {+0}',
   '마나 재생 +#%': 'Regenerate Mana {0}%',
+  '마나 재생 #%': 'Regenerate Mana {0}%',
   '지구력 회복 속도 #% 증가': 'Heal Stamina Plus {0}%',
   '지구력 고갈 속도 #% 감소': '{0}% Slower Stamina Drain',
   // 방어

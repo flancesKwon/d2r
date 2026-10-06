@@ -249,7 +249,7 @@ const optionHits = computed(() => {
           <svg v-else viewBox="0 0 24 24" v-html="ICONS[it.icon_type_key] || ICONS.unknown"></svg>
         </span>
         <div class="card-name">{{ itemName(it) }}</div>
-        <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypes(it.subtitle) : it.subtitle || '' }}</div>
+        <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypes(it.subtitle) : $t(it.subtitle || '') }}</div>
         <div class="card-level" v-if="it.level && it.level !== '0'">Lv {{ it.level }}</div>
         <div class="card-hits" v-if="optionHits.has(it.id)">
           <span v-for="line in optionHits.get(it.id)" :key="line">{{ affixText(line) }}</span>
@@ -264,7 +264,7 @@ const optionHits = computed(() => {
       <button class="modal-close" @click="closeItem">✕</button>
 
       <template v-if="selected.category === 'unique' || selected.category === 'set'">
-        <div class="d-eyebrow">{{ $t(selected.category_label) }} · {{ selected.subtitle || '' }}</div>
+        <div class="d-eyebrow">{{ $t(selected.category_label) }} · {{ $t(selected.subtitle || '') }}</div>
         <div class="d-head">
           <span class="icon-box" :class="selected.category">
             <img
