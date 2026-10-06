@@ -1,4 +1,5 @@
 <script setup>
+import { locale } from '../i18n.js'
 // 공격 속도(IAS) 계산기 - 직업·무기·스킬별로 장비 공속 몇 %에서 공격이 몇 프레임인지
 // 계산: src/iasCalc.js (게임 공식 + D2R 3.3 동작 프레임), 무기: src/data/iasWeapons.json (weapons.json)
 import { ref, computed, watch } from 'vue'
@@ -85,7 +86,8 @@ const perSec = (f) => (25 / framesAvg(f)).toFixed(2)
 const isSeq = computed(() => !!skillObj.value?.seq)
 const isRoll = computed(() => Array.isArray(nowFrames.value))
 
-const wLabel = (w) => `${w.ko} (${w.wsm > 0 ? '+' : ''}${w.wsm})`
+const wLabel = (w) => `${locale.value === 'ko' ? w.ko : w.en} (${w.wsm > 0 ? '+' : ''}${w.wsm})`
+const skillName = (s) => (locale.value === 'ko' ? s.ko : s.en)
 const totalIas = computed(() => input.value.gias + input.value.wias1)
 </script>
 
@@ -93,109 +95,109 @@ const totalIas = computed(() => input.value.gias + input.value.wias1)
   <div class="ias">
     <section class="ias-card ias-form">
       <div class="ias-field">
-        <div class="ias-label">직업</div>
+        <div class="ias-label">{{ $t('직업') }}</div>
         <div class="ias-chips">
-          <button v-for="c in charClasses" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ c.name }}</button>
+          <button v-for="c in charClasses" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ $t(c.name) }}</button>
         </div>
       </div>
       <div class="ias-field">
-        <div class="ias-label">용병</div>
+        <div class="ias-label">{{ $t('용병') }}</div>
         <div class="ias-chips">
-          <button v-for="c in mercClasses" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ c.name }}</button>
+          <button v-for="c in mercClasses" :key="c.key" type="button" :class="{ active: cls === c.key }" @click="cls = c.key">{{ $t(c.name) }}</button>
         </div>
       </div>
       <div class="ias-field" v-if="forms.length > 1">
-        <div class="ias-label">모습</div>
+        <div class="ias-label">{{ $t('모습') }}</div>
         <div class="ias-chips">
-          <button v-for="f in forms" :key="f.key" type="button" :class="{ active: form === f.key }" @click="form = f.key">{{ f.name }}</button>
+          <button v-for="f in forms" :key="f.key" type="button" :class="{ active: form === f.key }" @click="form = f.key">{{ $t(f.name) }}</button>
         </div>
       </div>
       <label class="ias-field">
-        <span class="ias-label">스킬</span>
-        <select v-model="skill" class="ias-select" aria-label="스킬">
-          <option v-for="s in skills" :key="s.key" :value="s.key">{{ s.ko }}{{ s.key === 'zeal' && cls !== 'pal' ? ' (아이템 스킬)' : '' }}</option>
+        <span class="ias-label">{{ $t('스킬') }}</span>
+        <select v-model="skill" class="ias-select" :aria-label="$t('스킬')">
+          <option v-for="s in skills" :key="s.key" :value="s.key">{{ skillName(s) }}{{ s.key === 'zeal' && cls !== 'pal' ? ' ' + $t('(아이템 스킬)') : '' }}</option>
         </select>
       </label>
 
       <div class="ias-row2">
         <label class="ias-field grow">
-          <span class="ias-label">{{ w2 || dualNeed ? '주무기 (오른손)' : '무기' }}</span>
-          <select v-model="w1Code" class="ias-select" aria-label="무기">
-            <option v-if="unarmedOk" value="">맨손</option>
-            <optgroup v-for="g in w1Groups" :key="g.sub" :label="g.sub">
+          <span class="ias-label">{{ $t(w2 || dualNeed ? '주무기 (오른손)' : '무기') }}</span>
+          <select v-model="w1Code" class="ias-select" :aria-label="$t('무기')">
+            <option v-if="unarmedOk" value="">{{ $t('맨손') }}</option>
+            <optgroup v-for="g in w1Groups" :key="g.sub" :label="$t(g.sub)">
               <option v-for="w in g.items" :key="w.code" :value="w.code">{{ wLabel(w) }}</option>
             </optgroup>
           </select>
         </label>
         <label class="ias-field num" v-if="w2">
-          <span class="ias-label">무기 공속</span>
-          <span class="ias-num"><input type="number" min="0" max="120" v-model="wias1" aria-label="주무기 공속" />%</span>
+          <span class="ias-label">{{ $t('무기 공속') }}</span>
+          <span class="ias-num"><input type="number" min="0" max="120" v-model="wias1" :aria-label="$t('주무기 공속')" />%</span>
         </label>
       </div>
       <label class="ias-check" v-if="oneHandOk">
-        <input type="checkbox" v-model="oneHand" /> 한손으로 들기 (바바리안 양손검)
+        <input type="checkbox" v-model="oneHand" /> {{ $t('한손으로 들기 (바바리안 양손검)') }}
       </label>
 
       <div class="ias-row2" v-if="dualOk">
         <label class="ias-field grow">
-          <span class="ias-label">보조 무기 (왼손){{ dualNeed ? '' : ' (선택)' }}</span>
-          <select v-model="w2Code" class="ias-select" aria-label="보조 무기">
-            <option v-if="!dualNeed" value="">없음 (방패 등)</option>
-            <optgroup v-for="g in w2Groups" :key="g.sub" :label="g.sub">
+          <span class="ias-label">{{ $t('보조 무기 (왼손)') }}{{ dualNeed ? '' : ' ' + $t('(선택)') }}</span>
+          <select v-model="w2Code" class="ias-select" :aria-label="$t('보조 무기')">
+            <option v-if="!dualNeed" value="">{{ $t('없음 (방패 등)') }}</option>
+            <optgroup v-for="g in w2Groups" :key="g.sub" :label="$t(g.sub)">
               <option v-for="w in g.items" :key="w.code" :value="w.code">{{ wLabel(w) }}</option>
             </optgroup>
           </select>
         </label>
         <label class="ias-field num" v-if="w2">
-          <span class="ias-label">무기 공속</span>
-          <span class="ias-num"><input type="number" min="0" max="120" v-model="wias2" aria-label="보조 무기 공속" />%</span>
+          <span class="ias-label">{{ $t('무기 공속') }}</span>
+          <span class="ias-num"><input type="number" min="0" max="120" v-model="wias2" :aria-label="$t('보조 무기 공속')" />%</span>
         </label>
       </div>
 
       <label class="ias-field">
-        <span class="ias-label">{{ w2 ? '무기 외 장비 공속' : '장비 공속 합계' }}</span>
-        <span class="ias-num big"><input type="number" min="0" max="999" v-model="gias" aria-label="장비 공속" />%</span>
+        <span class="ias-label">{{ $t(w2 ? '무기 외 장비 공속' : '장비 공속 합계') }}</span>
+        <span class="ias-num big"><input type="number" min="0" max="999" v-model="gias" :aria-label="$t('장비 공속')" />%</span>
       </label>
 
       <div class="ias-field" v-if="buffList.length">
-        <div class="ias-label">스킬·오라 레벨</div>
+        <div class="ias-label">{{ $t('스킬·오라 레벨') }}</div>
         <div class="ias-buffs">
           <label v-for="b in buffList" :key="b.key" class="ias-buff">
-            <span>{{ b.ko }}</span>
+            <span>{{ $t(b.ko) }}</span>
             <span class="ias-buff-val">
-              <input type="number" min="0" max="99" v-model="buffs[b.key]" :aria-label="b.ko" placeholder="0" />
+              <input type="number" min="0" max="99" v-model="buffs[b.key]" :aria-label="$t(b.ko)" placeholder="0" />
               <small v-if="num(buffs[b.key], 99)">+{{ b.calc(num(buffs[b.key], 99)) }}%</small>
             </span>
           </label>
         </div>
       </div>
       <div class="ias-field">
-        <div class="ias-label">느려짐</div>
-        <label class="ias-check"><input type="checkbox" v-model="chill" /> 냉기로 느려짐 (-50)</label>
-        <label class="ias-check"><input type="checkbox" v-model="decrep" /> 디크리피파이 (-50)</label>
+        <div class="ias-label">{{ $t('느려짐') }}</div>
+        <label class="ias-check"><input type="checkbox" v-model="chill" /> {{ $t('냉기로 느려짐 (-50)') }}</label>
+        <label class="ias-check"><input type="checkbox" v-model="decrep" /> {{ $t('디크리피파이 (-50)') }}</label>
       </div>
     </section>
 
     <section class="ias-card ias-result">
-      <div v-if="missingOffhand" class="ias-empty">무기 두 개 필요 - 보조 무기 선택</div>
+      <div v-if="missingOffhand" class="ias-empty">{{ $t('무기 두 개 필요 - 보조 무기 선택') }}</div>
       <template v-else-if="main">
         <div class="ias-now">
           <div class="ias-now-main">
-            <b>{{ isRoll ? framesText(nowFrames).split(' (')[0] : nowFrames }}</b> 프레임
-            <span v-if="isRoll" class="ias-last">· 마지막 타 {{ nowFrames[nowFrames.length - 1] }}프레임</span>
-            <small>(초당 {{ perSec(nowFrames) }}{{ isSeq ? '동작' : isRoll ? '타' : '번' }})</small>
+            <b>{{ isRoll ? framesText(nowFrames).split(' (')[0] : nowFrames }}</b> {{ $t('프레임') }}
+            <span v-if="isRoll" class="ias-last">· {{ $t('마지막 타 {n}프레임', { n: nowFrames[nowFrames.length - 1] }) }}</span>
+            <small>({{ $t(isSeq ? '초당 {n}동작' : isRoll ? '초당 {n}타' : '초당 {n}번', { n: perSec(nowFrames) }) }})</small>
           </div>
           <div class="ias-next" v-if="main.state.next">
-            다음 단계 <b>{{ main.state.next.ias }}%</b> ({{ framesText(main.state.next.frames) }}프레임)까지 <b class="up">+{{ main.state.need }}%</b>
+            {{ $t('다음 단계') }} <b>{{ main.state.next.ias }}%</b> ({{ $t('{n}프레임', { n: framesText(main.state.next.frames) }) }}) <b class="up">+{{ main.state.need }}%</b>
           </div>
-          <div class="ias-next done" v-else>최고 단계</div>
-          <div class="ias-meta">EIAS {{ result.eias }}<template v-if="!w2"> · 공속 합계 {{ totalIas }}%</template></div>
+          <div class="ias-next done" v-else>{{ $t('최고 단계') }}</div>
+          <div class="ias-meta">EIAS {{ result.eias }}<template v-if="!w2"> · {{ $t('공속 합계') }} {{ totalIas }}%</template></div>
         </div>
 
         <div class="ias-tables" :class="{ multi: tables.length > 1 }">
           <div v-for="(t, ti) in tables" :key="ti" class="ias-table">
-            <div class="ias-table-title" v-if="t.label">{{ t.label }}</div>
-            <div class="ias-table-head"><span>{{ w2 ? '무기 외 공속' : '공속' }}</span><span>프레임</span></div>
+            <div class="ias-table-title" v-if="t.label">{{ $t(t.label) }}</div>
+            <div class="ias-table-head"><span>{{ $t(w2 ? '무기 외 공속' : '공속') }}</span><span>{{ $t('프레임') }}</span></div>
             <button
               type="button" v-for="(r, i) in t.rows" :key="r.ias" class="ias-row"
               :class="{ on: i === t.state.idx, passed: i < t.state.idx }" @click="gias = r.ias"

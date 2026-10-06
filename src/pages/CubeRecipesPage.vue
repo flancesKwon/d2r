@@ -4,6 +4,7 @@ import recipesData from '../data/cubeRecipes.json'
 import runeChain from '../data/runeUpgradeChain.json'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { t, itemName } from '../i18n.js'
 
 const CATEGORIES = ['크래프트', '수리', '업그레이드', '기타']
 const activeCat = ref(null)
@@ -24,6 +25,9 @@ function iconUrlFor(iconKey) {
   return url || null
 }
 
+// 룬 이름 (룬 업그레이드 표) - 사전의 영어 이름
+const RUNE_BY_KO = new Map(itemsData.filter((it) => it.type_sub === '룬').map((it) => [it.name_ko, it]))
+const runeText = (ko) => (RUNE_BY_KO.has(ko) ? itemName(RUNE_BY_KO.get(ko), ko) : t(ko))
 const filteredRecipes = computed(() => {
   let list = recipesData
   if (activeCat.value) list = list.filter((r) => r.category === activeCat.value)
@@ -31,8 +35,7 @@ const filteredRecipes = computed(() => {
   if (q) {
     list = list.filter(
       (r) =>
-        r.title.toLowerCase().includes(q) ||
-        r.formula.some((f) => f.in.some((m) => m.toLowerCase().includes(q)) || f.out.toLowerCase().includes(q))
+        [r.title, ...r.formula.flatMap((f) => [...f.in, f.out])].some((x) => x.toLowerCase().includes(q) || t(x).toLowerCase().includes(q))
     )
   }
   return list
@@ -56,23 +59,23 @@ const filteredRuneChain = computed(() => {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">호라드림 큐브 활용법</div>
-      <h1>큐브 레시피</h1>
-      <p class="cube-sim-link"><router-link to="/craft-sim">크래프트 결과를 확률대로 굴려보기 → 크래프트 시뮬레이터</router-link></p>
+      <div class="eyebrow">{{ $t('호라드림 큐브 활용법') }}</div>
+      <h1>{{ $t('큐브 레시피') }}</h1>
+      <p class="cube-sim-link"><router-link to="/craft-sim">{{ $t('크래프트 결과를 확률대로 굴려보기 → 크래프트 시뮬레이터') }}</router-link></p>
     </div>
   </div>
 
   <div class="toolbar">
     <div class="toolbar-inner">
       <div class="cat-tabs">
-        <button :class="{ active: activeCat === null }" @click="activeCat = null">전체</button>
+        <button :class="{ active: activeCat === null }" @click="activeCat = null">{{ $t('전체') }}</button>
         <button v-for="c in CATEGORIES" :key="c" :class="{ active: activeCat === c }" @click="activeCat = c">
-          {{ c }}
+          {{ $t(c) }}
         </button>
       </div>
       <div class="search-row">
         <div class="search-input-wrap">
-          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="레시피·재료 검색 (예: 조드, 소켓, 크래프트)" aria-label="큐브 레시피 검색" />
+          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" :placeholder="$t('레시피·재료 검색 (예: 조드, 소켓, 크래프트)')" :aria-label="$t('큐브 레시피 검색')" />
         </div>
       </div>
     </div>
@@ -82,54 +85,54 @@ const filteredRuneChain = computed(() => {
     <div class="cube-list">
       <div class="cube-card" v-for="r in filteredRecipes" :key="r.id">
         <div class="cube-card-top">
-          <span class="cube-cat" :class="'cat-' + r.category">{{ r.category }}</span>
-          <span class="cube-title">{{ r.title }}</span>
+          <span class="cube-cat" :class="'cat-' + r.category">{{ $t(r.category) }}</span>
+          <span class="cube-title">{{ $t(r.title) }}</span>
         </div>
         <div class="cube-formula-row" v-for="(f, i) in r.formula" :key="i">
           <div class="cube-chip-group">
             <span class="cube-chip" v-for="(m, j) in f.in" :key="j">
               <span class="cube-chip-icon" v-if="findIconItem(m)"><img :src="iconUrlFor(findIconItem(m).icon_key)" alt="" /></span>
-              {{ m }}
+              {{ $t(m) }}
             </span>
           </div>
           <span class="cube-arrow">→</span>
           <div class="cube-result-chip">
             <span class="cube-chip-icon" v-if="findIconItem(f.out)"><img :src="iconUrlFor(findIconItem(f.out).icon_key)" alt="" /></span>
-            {{ f.out }}
+            {{ $t(f.out) }}
           </div>
         </div>
-        <div class="cube-note" v-if="r.note">{{ r.note }}</div>
+        <div class="cube-note" v-if="r.note">{{ $t(r.note) }}</div>
       </div>
 
       <div class="cube-card cube-rune-card" v-if="showRuneTable">
         <div class="cube-card-top">
-          <span class="cube-cat cat-업그레이드">업그레이드</span>
-          <span class="cube-title">룬 업그레이드 전체표 (엘 → 조드)</span>
+          <span class="cube-cat cat-업그레이드">{{ $t('업그레이드') }}</span>
+          <span class="cube-title">{{ $t('룬 업그레이드 전체표 (엘 → 조드)') }}</span>
         </div>
         <div class="cube-rune-table">
           <div class="cube-rune-row" v-for="(s, i) in filteredRuneChain" :key="i">
             <span class="cube-rune-qty">{{ s.qty }}×</span>
             <span class="cube-chip rune-chip">
               <span class="cube-chip-icon" v-if="findIconItem(s.from)"><img :src="iconUrlFor(findIconItem(s.from).icon_key)" alt="" /></span>
-              {{ s.from }}
+              {{ runeText(s.from) }}
             </span>
             <template v-if="s.gem">
               <span class="cube-plus">+</span>
               <span class="cube-chip gem-chip">
                 <span class="cube-chip-icon" v-if="findIconItem(s.gem)"><img :src="iconUrlFor(findIconItem(s.gem).icon_key)" alt="" /></span>
-                {{ s.gem }}
+                {{ $t(s.gem) }}
               </span>
             </template>
             <span class="cube-arrow">→</span>
             <span class="cube-chip rune-chip result">
               <span class="cube-chip-icon" v-if="findIconItem(s.to)"><img :src="iconUrlFor(findIconItem(s.to).icon_key)" alt="" /></span>
-              {{ s.to }}
+              {{ runeText(s.to) }}
             </span>
           </div>
         </div>
       </div>
 
-      <div class="empty-state" v-if="filteredRecipes.length === 0 && !showRuneTable">일치하는 레시피 없음</div>
+      <div class="empty-state" v-if="filteredRecipes.length === 0 && !showRuneTable">{{ $t('일치하는 레시피 없음') }}</div>
     </div>
   </div>
   </div>

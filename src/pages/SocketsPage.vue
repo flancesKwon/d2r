@@ -6,6 +6,7 @@
 import { ref, computed } from 'vue'
 import magicAffixData from '../data/magicAffixes.json'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { t, locale } from '../i18n.js'
 import { searchBaseItems, baseItemLabel, BASE_ITEMS } from '../tradeStore.js'
 
 const POPULAR = ['uit', 'utp', 'xtp', 'uui', '7cr', 'crs', '7wa', '7s8', '7wc', '7vo', '7pa', 'bsd', 'fla', 'uap', 'ci3', 'paf']
@@ -35,7 +36,7 @@ const brackets = computed(() => {
   return [
     { label: `1~${t1}`, from: 1, to: t1, max: info.value.sock[0] },
     { label: `${t1 + 1}~${t2}`, from: t1 + 1, to: t2, max: info.value.sock[1] },
-    { label: `${t2 + 1} 이상`, from: t2 + 1, to: 99, max: info.value.sock[2] },
+    { label: t('{v} 이상', { v: t2 + 1 }), from: t2 + 1, to: 99, max: info.value.sock[2] },
   ]
 })
 const current = computed(() => brackets.value.find((b) => lv.value >= b.from && lv.value <= b.to) || null)
@@ -51,6 +52,7 @@ const CUBE_BY_SLOT = {
   shld: '탈 룬 + 앰 룬 + 최상급 루비 + 일반 방패',
   helm: '랄 룬 + 주울 룬 + 최상급 사파이어 + 일반 투구',
   weap: '랄 룬 + 앰 룬 + 최상급 자수정 + 일반 무기',
+  // 영어는 en.js 사전
 }
 const cubeRecipe = computed(() => {
   const t = info.value?.types || []
@@ -82,8 +84,8 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
   <div class="items-page sockets-page">
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">룬워드 베이스 준비</div>
-      <h1>소켓 계산기</h1>
+      <div class="eyebrow">{{ $t('룬워드 베이스 준비') }}</div>
+      <h1>{{ $t('소켓 계산기') }}</h1>
     </div>
   </div>
 
@@ -92,25 +94,25 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
       <div class="sk-row">
         <div class="sk-search">
           <input
-            :value="query" type="text" class="sk-input" placeholder="베이스 검색 (예: 모너크, 페이즈 블레이드, 폴암)"
-            aria-label="베이스 검색" @focus="showList = true" @input="query = $event.target.value; showList = true" @blur="hideListSoon"
+            :value="query" type="text" class="sk-input" :placeholder="$t('베이스 검색 (예: 모너크, 페이즈 블레이드, 폴암)')"
+            :aria-label="$t('베이스 검색')" @focus="showList = true" @input="query = $event.target.value; showList = true" @blur="hideListSoon"
           />
           <div class="sk-list" v-if="showList && query.trim()">
             <button type="button" class="sk-list-row" v-for="b in candidates" :key="b.id" @mousedown.prevent="pick(b)">
               <span class="sk-thumb"><img v-if="iconUrl(b.code)" :src="iconUrl(b.code)" alt="" /><svg v-else viewBox="0 0 24 24" class="sk-glyph" v-html="glyphOf(b)"></svg></span>
-              {{ baseItemLabel(b) }} <small>{{ b.tier }} · {{ b.type_sub }}</small>
+              {{ locale === 'ko' ? baseItemLabel(b) : b.subtitle }} <small>{{ $t(b.tier) }} · {{ $t(b.type_sub) }}</small>
             </button>
-            <div class="sk-empty" v-if="!candidates.length">일치하는 베이스 없음</div>
+            <div class="sk-empty" v-if="!candidates.length">{{ $t('일치하는 베이스 없음') }}</div>
           </div>
         </div>
         <label class="sk-lv">
-          아이템 레벨
+          {{ $t('아이템 레벨') }}
           <input v-model="ilvl" type="number" min="1" max="99" class="sk-input" />
         </label>
       </div>
       <div class="sk-chips">
-        <span class="sk-chips-label">자주 쓰는 베이스</span>
-        <button type="button" v-for="b in popular" :key="b.code" :class="{ active: base?.code === b.code }" @click="pick(b)">{{ b.name_ko }}</button>
+        <span class="sk-chips-label">{{ $t('자주 쓰는 베이스') }}</span>
+        <button type="button" v-for="b in popular" :key="b.code" :class="{ active: base?.code === b.code }" @click="pick(b)">{{ locale === 'ko' ? b.name_ko : b.subtitle }}</button>
       </div>
     </section>
 
@@ -118,51 +120,51 @@ const pct = (p) => `${Math.round(p * 1000) / 10}%`
       <div class="sk-head">
         <span class="sk-big-icon"><img v-if="iconUrl(base.code)" :src="iconUrl(base.code)" alt="" /><svg v-else viewBox="0 0 24 24" class="sk-glyph big" v-html="glyphOf(base)"></svg></span>
         <div>
-          <h2>{{ base.name_ko }} <small>{{ base.subtitle }}</small></h2>
-          <div class="sk-meta">{{ base.tier }} · {{ base.type_sub }} · 품질 레벨 {{ info.qlvl }}</div>
+          <h2>{{ locale === 'ko' ? base.name_ko : base.subtitle }} <small v-if="locale === 'ko'">{{ base.subtitle }}</small></h2>
+          <div class="sk-meta">{{ $t(base.tier) }} · {{ $t(base.type_sub) }} · {{ $t('품질 레벨') }} {{ info.qlvl }}</div>
         </div>
         <div class="sk-now">
-          <span>아이템 레벨 {{ lv }}</span>
-          <b>최대 {{ maxNow }}소켓</b>
+          <span>{{ $t('아이템 레벨') }} {{ lv }}</span>
+          <b>{{ $t('최대 {n}소켓', { n: maxNow }) }}</b>
         </div>
       </div>
 
       <div class="sk-brackets">
         <div class="sk-bracket" v-for="b in brackets" :key="b.label" :class="{ on: current === b }">
-          <span class="sk-bracket-lv">아이템 레벨 {{ b.label }}</span>
+          <span class="sk-bracket-lv">{{ $t('아이템 레벨') }} {{ b.label }}</span>
           <span class="sk-sockets">
             <i v-for="n in 6" :key="n" :class="{ filled: n <= b.max }"></i>
           </span>
-          <b>{{ b.max }}소켓</b>
+          <b>{{ $t('{n}소켓', { n: b.max }) }}</b>
         </div>
       </div>
       <div class="sk-hint" v-if="minIlvlForMax">
-        최대 {{ Math.max(...info.sock) }}소켓은 아이템 레벨 <b>{{ minIlvlForMax }} 이상</b>에서 나옴.
+        {{ $t('최대 {n}소켓은 아이템 레벨 {lv} 이상에서 나옴.', { n: Math.max(...info.sock), lv: minIlvlForMax }) }}
       </div>
 
       <div class="sk-methods">
         <div class="sk-method">
-          <div class="sk-method-title">라르주크 퀘스트 (액트 5)</div>
+          <div class="sk-method-title">{{ $t('라르주크 퀘스트 (액트 5)') }}</div>
           <ul>
-            <li>일반·상급(흰색): <b>{{ maxNow }}소켓</b> (그 아이템 레벨의 최대치)</li>
-            <li>매직: <b>1~{{ Math.min(2, maxNow) }}소켓</b> 중 무작위</li>
-            <li>레어·유니크·세트: <b>1소켓</b></li>
+            <li>{{ $t('일반·상급(흰색):') }} <b>{{ $t('{n}소켓', { n: maxNow }) }}</b> {{ $t('(그 아이템 레벨의 최대치)') }}</li>
+            <li>{{ $t('매직:') }} <b>{{ $t('{n}소켓', { n: '1~' + Math.min(2, maxNow) }) }}</b> {{ $t('중 무작위') }}</li>
+            <li>{{ $t('레어·유니크·세트:') }} <b>{{ $t('1소켓') }}</b></li>
           </ul>
         </div>
         <div class="sk-method" v-if="cubeRecipe">
-          <div class="sk-method-title">큐브 소켓 레시피 (일반 등급, 소켓 없는 아이템)</div>
-          <div class="sk-recipe">{{ cubeRecipe }}</div>
+          <div class="sk-method-title">{{ $t('큐브 소켓 레시피 (일반 등급, 소켓 없는 아이템)') }}</div>
+          <div class="sk-recipe">{{ $t(cubeRecipe) }}</div>
           <div class="sk-odds">
             <div class="sk-odd" v-for="o in cubeOdds" :key="o.n" :class="{ top: o.n === maxNow }">
-              <span>{{ o.n }}소켓</span>
+              <span>{{ $t('{n}소켓', { n: o.n }) }}</span>
               <div class="sk-bar"><div :style="{ width: o.p * 100 + '%' }"></div></div>
               <span>{{ pct(o.p) }}</span>
             </div>
           </div>
         </div>
         <div class="sk-method" v-if="isWeapon">
-          <div class="sk-method-title">매직 무기 + 보석 3개</div>
-          <div class="sk-recipe">깨진 보석 3개 또는 흠 없는 보석 3개 + 매직 무기 → 같은 종류의 매직 무기로 새로 만들어지고 1~{{ Math.min(2, maxNow) }}소켓 (옵션도 새로 붙음)</div>
+          <div class="sk-method-title">{{ $t('매직 무기 + 보석 3개') }}</div>
+          <div class="sk-recipe">{{ $t('깨진 보석 3개 또는 흠 없는 보석 3개 + 매직 무기 → 같은 종류의 매직 무기로 새로 만들어지고 {n}소켓 (옵션도 새로 붙음)', { n: '1~' + Math.min(2, maxNow) }) }}</div>
         </div>
       </div>
     </section>

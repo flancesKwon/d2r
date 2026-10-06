@@ -44,21 +44,21 @@ const perSec = (frames) => (25 / frames).toFixed(2)
   <div class="items-page bp-page">
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">장비 맞추기</div>
-      <h1>브레이크포인트 계산기</h1>
+      <div class="eyebrow">{{ $t('장비 맞추기') }}</div>
+      <h1>{{ $t('브레이크포인트 계산기') }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap bp-wrap">
     <div class="bp-tabs" role="tablist">
-      <button type="button" role="tab" :aria-selected="tab === 'ias'" :class="{ active: tab === 'ias' }" @click="setTab('ias')">공격 속도 (IAS)</button>
-      <button type="button" role="tab" :aria-selected="tab === 'fcr'" :class="{ active: tab === 'fcr' }" @click="setTab('fcr')">시전 · 타격 회복 · 막기</button>
+      <button type="button" role="tab" :aria-selected="tab === 'ias'" :class="{ active: tab === 'ias' }" @click="setTab('ias')">{{ $t('공격 속도 (IAS)') }}</button>
+      <button type="button" role="tab" :aria-selected="tab === 'fcr'" :class="{ active: tab === 'fcr' }" @click="setTab('fcr')">{{ $t('시전 · 타격 회복 · 막기') }}</button>
     </div>
 
     <IasCalculator v-if="tab === 'ias'" />
     <template v-else>
     <div class="cat-tabs bp-classes">
-      <button v-for="c in bp.classes" :key="c.key" :class="{ active: clsKey === c.key }" @click="clsKey = c.key">{{ c.name }}</button>
+      <button v-for="c in bp.classes" :key="c.key" :class="{ active: clsKey === c.key }" @click="clsKey = c.key">{{ $t(c.name) }}</button>
     </div>
 
     <div class="bp-grid">
@@ -66,27 +66,27 @@ const perSec = (frames) => (25 / frames).toFixed(2)
         <template v-if="states[s.key]">
           <div class="bp-card-head">
             <div>
-              <div class="bp-title">{{ s.label }} <small>{{ s.short }}</small></div>
+              <div class="bp-title">{{ $t(s.label) }} <small>{{ s.short }}</small></div>
               <select
                 v-if="states[s.key].variants.length > 1" v-model.number="variant[s.key]" class="bp-select"
-                :aria-label="`${s.label} 종류`"
+                :aria-label="$t(s.label)"
               >
-                <option v-for="(v, i) in states[s.key].variants" :key="v.label" :value="i">{{ v.label }}</option>
+                <option v-for="(v, i) in states[s.key].variants" :key="v.label" :value="i">{{ $t(v.label) }}</option>
               </select>
-              <div class="bp-variant" v-else>{{ states[s.key].variants[0].label }}</div>
+              <div class="bp-variant" v-else>{{ $t(states[s.key].variants[0].label) }}</div>
             </div>
             <label class="bp-input">
-              지금 수치
-              <span><input type="number" min="0" max="999" v-model="values[s.key]" :aria-label="`현재 ${s.label}`" />%</span>
+              {{ $t('지금 수치') }}
+              <span><input type="number" min="0" max="999" v-model="values[s.key]" :aria-label="$t(s.label)" />%</span>
             </label>
           </div>
 
           <div class="bp-now">
-            <div><b>{{ states[s.key].frames }}</b> 프레임 <small>(초당 {{ perSec(states[s.key].frames) }}번)</small></div>
+            <div><b>{{ states[s.key].frames }}</b> {{ $t('프레임') }} <small>({{ $t('초당 {n}번', { n: perSec(states[s.key].frames) }) }})</small></div>
             <div class="bp-next" v-if="states[s.key].next">
-              다음 단계 <b>{{ states[s.key].next[0] }}%</b> ({{ states[s.key].next[1] }}프레임)까지 <b class="up">+{{ states[s.key].need }}%</b>
+              {{ $t('다음 단계') }} <b>{{ states[s.key].next[0] }}%</b> ({{ $t('{n}프레임', { n: states[s.key].next[1] }) }}) <b class="up">+{{ states[s.key].need }}%</b>
             </div>
-            <div class="bp-next done" v-else>최고 단계</div>
+            <div class="bp-next done" v-else>{{ $t('최고 단계') }}</div>
           </div>
 
           <div class="bp-table">
@@ -94,7 +94,7 @@ const perSec = (frames) => (25 / frames).toFixed(2)
               type="button" v-for="([p, f], i) in states[s.key].table" :key="p" class="bp-row"
               :class="{ on: i === states[s.key].idx, passed: i < states[s.key].idx }" @click="values[s.key] = p"
             >
-              <span>{{ p }}%</span><span>{{ f }}프레임</span>
+              <span>{{ p }}%</span><span>{{ $t('{n}프레임', { n: f }) }}</span>
             </button>
           </div>
         </template>

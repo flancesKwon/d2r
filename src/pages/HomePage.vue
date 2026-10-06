@@ -10,6 +10,7 @@ import ladder from '../data/ladder.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { fetchPosts, fetchPinnedPosts } from '../communityStore.js'
 import { AVATAR_PRESETS } from '../avatars.js'
+import { t, locale, itemName } from '../i18n.js'
 
 const router = useRouter()
 
@@ -21,12 +22,19 @@ function search() {
   if (!term) return
   router.push({ path: '/items', query: searchBy.value === 'option' ? { q: term, by: 'option' } : { q: term } })
 }
-const SUGGEST = [
+const SUGGEST_KO = [
   { label: '할리퀸 관모', to: { path: '/items', query: { q: '할리퀸 관모' } } },
   { label: '수수께끼', to: { path: '/items', query: { q: '수수께끼' } } },
   { label: '베르 룬', to: { path: '/items', query: { q: '베르 룬' } } },
   { label: '패캐 + 올스', to: { path: '/items', query: { q: '패캐, 올스', by: 'option' } } },
 ]
+const SUGGEST_EN = [
+  { label: 'Harlequin Crest', to: { path: '/items', query: { q: 'Harlequin Crest' } } },
+  { label: 'Enigma', to: { path: '/items', query: { q: 'Enigma' } } },
+  { label: 'Ber Rune', to: { path: '/items', query: { q: 'Ber Rune' } } },
+  { label: 'FCR + all skills', to: { path: '/items', query: { q: 'fcr, all skills', by: 'option' } } },
+]
+const SUGGEST = computed(() => (locale.value === 'ko' ? SUGGEST_KO : SUGGEST_EN))
 
 // ── 바로가기·도구
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
@@ -84,6 +92,9 @@ const stats = computed(() => [
   { n: guidesState.list.length, label: '빌드 가이드', to: '/guides' },
   { n: 6, label: '계산기·시뮬레이터', to: '/breakpoints' },
 ])
+// 매물 이름·가격 (영어면 사전 영어 이름) - 거래 데이터를 늦게 받아서 그 전엔 원문
+const tradeName = (p) => (trade.value ? itemName(trade.value.getTradeItem(p.itemId), p.itemName) : p.itemName)
+const tradePrice = (s) => (trade.value && locale.value !== 'ko' ? trade.value.parsePriceTokens(s).map((tk) => (tk.item ? itemName(tk.item, tk.text) : t(tk.text).replace(/(\d+)\s*개/g, '×$1'))).join('') : s)
 const shortDate = (d) => (d || '').slice(5).replace('-', '.')
 </script>
 
@@ -94,42 +105,42 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
     <div class="hm-hero-inner">
       <div class="hm-hero-main">
       <router-link to="/ladder" class="hm-season">
-        <span class="hm-dot"></span>{{ ladder.seasonName }} {{ ladder.status }} · 패치 {{ ladder.patchVersion }}
+        <span class="hm-dot"></span>{{ $t('래더 시즌 {n}', { n: ladder.seasonNumber }) }} {{ $t(ladder.status) }} · {{ $t('패치') }} {{ ladder.patchVersion }}
       </router-link>
-      <h1>디아블로 2 레저렉션<br /><span>정보 · 계산기 · 도구</span></h1>
+      <h1>{{ $t('디아블로 2 레저렉션') }}<br /><span>{{ $t('정보 · 계산기 · 도구') }}</span></h1>
       <EventBanner class="hm-event" />
 
       <form class="hm-search" role="search" @submit.prevent="search">
-        <div class="hm-search-by" role="group" aria-label="검색 기준">
-          <button type="button" :class="{ on: searchBy === 'name' }" @click="searchBy = 'name'">이름</button>
-          <button type="button" :class="{ on: searchBy === 'option' }" @click="searchBy = 'option'">옵션</button>
+        <div class="hm-search-by" role="group" :aria-label="$t('검색 기준')">
+          <button type="button" :class="{ on: searchBy === 'name' }" @click="searchBy = 'name'">{{ $t('이름') }}</button>
+          <button type="button" :class="{ on: searchBy === 'option' }" @click="searchBy = 'option'">{{ $t('옵션') }}</button>
         </div>
         <input
-          v-model="q" type="search" aria-label="아이템 검색"
-          :placeholder="searchBy === 'option' ? '옵션으로 찾기 — 예) 패캐, 올스' : '아이템 이름 — 예) 샤코, 수수께끼, 베르'"
+          v-model="q" type="search" :aria-label="$t('아이템 검색')"
+          :placeholder="$t(searchBy === 'option' ? '옵션으로 찾기 — 예) 패캐, 올스' : '아이템 이름 — 예) 샤코, 수수께끼, 베르')"
         />
-        <button type="submit" class="hm-search-go" aria-label="검색">검색</button>
+        <button type="submit" class="hm-search-go" :aria-label="$t('검색')">{{ $t('검색') }}</button>
       </form>
       <div class="hm-suggest">
-        <span>추천</span>
+        <span>{{ $t('추천') }}</span>
         <router-link v-for="s in SUGGEST" :key="s.label" :to="s.to">{{ s.label }}</router-link>
       </div>
       </div>
       <dl class="hm-stats">
-        <router-link v-for="st in stats" :key="st.label" :to="st.to" class="hm-stat"><dt>{{ st.n }}</dt><dd>{{ st.label }}</dd></router-link>
+        <router-link v-for="st in stats" :key="st.label" :to="st.to" class="hm-stat"><dt>{{ st.n }}</dt><dd>{{ $t(st.label) }}</dd></router-link>
       </dl>
     </div>
   </section>
 
   <div class="hm-wrap">
     <router-link v-if="notice" :to="`/community/${notice.id}`" class="hm-notice">
-      <span class="hm-notice-tag">공지</span><span class="hm-notice-title">{{ notice.title }}</span><span class="hm-notice-date">{{ notice.date }}</span>
+      <span class="hm-notice-tag">{{ $t('공지') }}</span><span class="hm-notice-title">{{ notice.title }}</span><span class="hm-notice-date">{{ notice.date }}</span>
     </router-link>
 
-    <nav class="hm-shortcuts" aria-label="바로가기">
+    <nav class="hm-shortcuts" :aria-label="$t('바로가기')">
       <router-link v-for="s in SHORTCUTS" :key="s.to" :to="s.to" class="hm-shortcut">
         <span class="hm-shortcut-icon"><img v-if="iconUrl(s.icon)" :src="iconUrl(s.icon)" alt="" /></span>
-        <span class="hm-shortcut-text"><b>{{ s.title }}</b><small>{{ s.desc }}</small></span>
+        <span class="hm-shortcut-text"><b>{{ $t(s.title) }}</b><small>{{ $t(s.desc) }}</small></span>
         <span class="hm-arrow" aria-hidden="true">→</span>
       </router-link>
     </nav>
@@ -137,11 +148,11 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
     <div class="hm-grid">
       <main>
         <section class="hm-section">
-          <div class="hm-head"><h2>빌드 가이드</h2><router-link to="/guides?view=tier">티어리스트 →</router-link></div>
+          <div class="hm-head"><h2>{{ $t('빌드 가이드') }}</h2><router-link to="/guides?view=tier">{{ $t('티어리스트 →') }}</router-link></div>
           <div class="hm-classes">
             <router-link v-for="c in CLASSES" :key="c.key" :to="`/guides?class=${c.key}`" class="hm-class">
               <img v-if="c.icon" :src="c.icon" alt="" />
-              <span>{{ c.name }}</span>
+              <span>{{ $t(c.name) }}</span>
               <small v-if="guideCount(c.key)">{{ guideCount(c.key) }}</small>
             </router-link>
           </div>
@@ -150,18 +161,18 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
               <span class="hm-tier" :class="'t-' + tierLetter(g.tier)">{{ tierLetter(g.tier) || '-' }}</span>
               <span class="hm-build-text">
                 <b>{{ g.title }}</b>
-                <small>{{ g.className }} · {{ g.desc }}</small>
+                <small>{{ $t(g.className) }} · {{ g.desc }}</small>
               </span>
             </router-link>
           </div>
         </section>
 
         <section class="hm-section">
-          <div class="hm-head"><h2>도구</h2></div>
+          <div class="hm-head"><h2>{{ $t('도구') }}</h2></div>
           <div class="hm-tools">
             <router-link v-for="t in TOOLS" :key="t.to" :to="t.to" class="hm-tool">
               <span class="hm-tool-icon"><img v-if="iconUrl(t.icon)" :src="iconUrl(t.icon)" alt="" /></span>
-              <span><b>{{ t.title }}</b><small>{{ t.desc }}</small></span>
+              <span><b>{{ $t(t.title) }}</b><small>{{ $t(t.desc) }}</small></span>
             </router-link>
           </div>
         </section>
@@ -169,23 +180,23 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
 
       <aside class="hm-side">
         <section class="hm-panel">
-          <div class="hm-head small"><h3>최신 매물</h3><router-link to="/trade">더보기</router-link></div>
+          <div class="hm-head small"><h3>{{ $t('최신 매물') }}</h3><router-link to="/trade">{{ $t('더보기') }}</router-link></div>
           <router-link v-for="p in latestTrades" :key="p.id" :to="`/trade/${p.id}`" class="hm-row">
-            <span class="hm-row-icon"><img v-if="iconUrl(postIconKey(p))" :src="iconUrl(postIconKey(p))" alt="" /><span v-else class="hm-row-fallback">{{ p.category.slice(0, 1) }}</span></span>
-            <span class="hm-row-text"><b>{{ p.itemName }}</b><small>{{ p.price }}</small></span>
+            <span class="hm-row-icon"><img v-if="iconUrl(postIconKey(p))" :src="iconUrl(postIconKey(p))" alt="" /><span v-else class="hm-row-fallback">{{ $t(p.category).slice(0, 1) }}</span></span>
+            <span class="hm-row-text"><b>{{ tradeName(p) }}</b><small>{{ tradePrice(p.price) }}</small></span>
           </router-link>
-          <p class="hm-empty" v-if="trade && !latestTrades.length">매물 없음</p>
+          <p class="hm-empty" v-if="trade && !latestTrades.length">{{ $t('매물 없음') }}</p>
         </section>
         <section class="hm-panel">
-          <div class="hm-head small"><h3>커뮤니티</h3><router-link to="/community">더보기</router-link></div>
+          <div class="hm-head small"><h3>{{ $t('커뮤니티') }}</h3><router-link to="/community">{{ $t('더보기') }}</router-link></div>
           <router-link v-for="c in latestCommunity" :key="c.id" :to="`/community/${c.id}`" class="hm-line">
-            <span class="hm-cat">{{ c.category }}</span><span class="hm-line-title">{{ c.title }}</span>
+            <span class="hm-cat">{{ $t(c.category) }}</span><span class="hm-line-title">{{ c.title }}</span>
             <span class="hm-count" v-if="c.commentCount">{{ c.commentCount }}</span>
           </router-link>
-          <p class="hm-empty" v-if="!latestCommunity.length">글 없음</p>
+          <p class="hm-empty" v-if="!latestCommunity.length">{{ $t('글 없음') }}</p>
         </section>
         <section class="hm-panel">
-          <div class="hm-head small"><h3>패치노트</h3><router-link to="/patch">더보기</router-link></div>
+          <div class="hm-head small"><h3>{{ $t('패치노트') }}</h3><router-link to="/patch">{{ $t('더보기') }}</router-link></div>
           <router-link v-for="n in latestPatches" :key="n.id" to="/patch" class="hm-line">
             <span class="hm-line-title">{{ n.title }}</span><span class="hm-date">{{ shortDate(n.date) }}</span>
           </router-link>
