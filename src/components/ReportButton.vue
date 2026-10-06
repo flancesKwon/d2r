@@ -45,23 +45,23 @@ async function send() {
 
 <template>
   <template v-if="!hidden">
-    <button type="button" class="report-btn" :disabled="done" @click="start">{{ done ? '신고함' : label }}</button>
+    <button type="button" class="report-btn" :disabled="done" @click="start">{{ done ? $t('신고함') : $t(label) }}</button>
     <Teleport to="body">
       <div class="modal-overlay" v-if="open" @click.self="close">
         <div class="modal-panel report-panel" role="dialog" aria-modal="true" aria-labelledby="report-title">
-          <button type="button" class="modal-close" aria-label="닫기" @click="close">✕</button>
-          <h2 id="report-title" class="report-title">{{ REPORT_TARGET_LABEL[targetType] }} 신고</h2>
-          <div class="report-reasons" role="radiogroup" aria-label="신고 사유">
+          <button type="button" class="modal-close" :aria-label="$t('닫기')" @click="close">✕</button>
+          <h2 id="report-title" class="report-title">{{ $t('{x} 신고', { x: $t(REPORT_TARGET_LABEL[targetType]) }) }}</h2>
+          <div class="report-reasons" role="radiogroup" :aria-label="$t('신고 사유')">
             <button
               v-for="r in REPORT_REASONS" :key="r.value" type="button" role="radio"
               :aria-checked="reason === r.value" :class="{ active: reason === r.value }" @click="reason = r.value"
-            >{{ r.label }}</button>
+            >{{ $t(r.label) }}</button>
           </div>
-          <textarea v-model="detail" class="report-detail" maxlength="500" rows="3" placeholder="자세한 내용 (선택)"></textarea>
-          <div class="report-error" v-if="error">{{ error }}</div>
+          <textarea v-model="detail" class="report-detail" maxlength="500" rows="3" :placeholder="$t('자세한 내용 (선택)')"></textarea>
+          <div class="report-error" v-if="error">{{ $t(error) }}</div>
           <div class="report-actions">
-            <button type="button" class="btn-ghost" @click="close">취소</button>
-            <button type="button" class="btn-primary" :disabled="!reason || sending" @click="send">신고하기</button>
+            <button type="button" class="btn-ghost" @click="close">{{ $t('취소') }}</button>
+            <button type="button" class="btn-primary" :disabled="!reason || sending" @click="send">{{ $t('신고하기') }}</button>
           </div>
         </div>
       </div>

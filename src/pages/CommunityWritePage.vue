@@ -7,6 +7,7 @@ import { writeCategories, createPost, updatePost, fetchPost, canEdit } from '../
 import { authState, signIn } from '../profileStore.js'
 import RichEditor from '../components/RichEditor.vue'
 import { plainText } from '../richText.js'
+import { t } from '../i18n.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,9 +59,9 @@ function cancel() {
   else router.push('/community')
 }
 async function submitPost() {
-  if (!form.value.title.trim()) { formError.value = '제목 입력'; return }
-  if (form.value.title.trim().length > 120) { formError.value = '제목은 120자까지'; return }
-  if (!form.value.content.trim() || (!plainText(form.value.content).trim() && !form.value.content.includes('<img'))) { formError.value = '내용 입력'; return }
+  if (!form.value.title.trim()) { formError.value = t('제목 입력'); return }
+  if (form.value.title.trim().length > 120) { formError.value = t('제목은 120자까지'); return }
+  if (!form.value.content.trim() || (!plainText(form.value.content).trim() && !form.value.content.includes('<img'))) { formError.value = t('내용 입력'); return }
   formError.value = ''
   saving.value = true
   try {
@@ -73,7 +74,7 @@ async function submitPost() {
       router.replace(`/community/${id}`)
     }
   } catch (e) {
-    formError.value = e.message || '등록 실패'
+    formError.value = t(e.message || '등록 실패')
   } finally {
     saving.value = false
   }
@@ -84,41 +85,41 @@ async function submitPost() {
   <div class="items-page community-write-page">
   <div class="write-section" v-if="!authState.user">
     <div class="write-login">
-      <p>글은 로그인 후 작성</p>
-      <button type="button" class="btn-primary" @click="signIn">로그인</button>
+      <p>{{ $t('글은 로그인 후 작성') }}</p>
+      <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
     </div>
   </div>
   <div class="write-section" v-else>
     <div class="write-form">
-      <router-link to="/community" class="write-back">← 커뮤니티</router-link>
+      <router-link to="/community" class="write-back">{{ $t('← 커뮤니티') }}</router-link>
 
       <div class="write-cat-pills">
         <button
           v-for="c in writeCategories()" :key="c" type="button" class="write-cat-pill"
           :class="[catClass(c), { active: form.category === c }]" @click="form.category = c"
-        >{{ c }}</button>
+        >{{ $t(c) }}</button>
       </div>
 
-      <input type="text" v-model="form.title" placeholder="제목" class="write-title-input" aria-label="제목" />
+      <input type="text" v-model="form.title" :placeholder="$t('제목')" class="write-title-input" :aria-label="$t('제목')" />
 
       <div class="write-meta-row">
         <span class="write-meta-author">{{ authState.profile?.nickname }}</span>
         <span class="write-meta-divider">·</span>
         <input
-          type="text" v-model="tagInput" placeholder="태그 입력 후 Enter (최대 5개)" class="write-meta-input"
-          aria-label="태그" @keydown.enter.prevent="addTagFromInput"
+          type="text" v-model="tagInput" :placeholder="$t('태그 입력 후 Enter (최대 5개)')" class="write-meta-input"
+          :aria-label="$t('태그')" @keydown.enter.prevent="addTagFromInput"
         />
       </div>
       <div class="tag-chip-row" v-if="formTags.length">
         <button v-for="(t, i) in formTags" :key="t" class="tag-chip" @click="removeFormTag(i)">#{{ t }} ✕</button>
       </div>
 
-      <RichEditor v-model="form.content" placeholder="내용 (사진은 붙여넣기·끌어다 놓기로도 첨부)" variant="plain" min-height="420px" />
+      <RichEditor v-model="form.content" :placeholder="$t('내용 (사진은 붙여넣기·끌어다 놓기로도 첨부)')" variant="plain" min-height="420px" />
 
       <div class="write-action-bar">
         <span class="write-error" v-if="formError">{{ formError }}</span>
-        <button type="button" class="write-cancel" @click="cancel">취소</button>
-        <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">{{ editId ? '수정하기' : '등록하기' }}</button>
+        <button type="button" class="write-cancel" @click="cancel">{{ $t('취소') }}</button>
+        <button class="btn-primary write-submit" :disabled="saving" @click="submitPost">{{ $t(editId ? '수정하기' : '등록하기') }}</button>
       </div>
     </div>
   </div>

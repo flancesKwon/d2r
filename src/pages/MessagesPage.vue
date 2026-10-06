@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { askConfirm } from '../dialog.js'
+import { t } from '../i18n.js'
+import { postName, countText, nameText, priceText as tradePriceText } from '../tradeI18n.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   messagesState,
@@ -16,7 +18,7 @@ import {
 import { authState, signIn } from '../profileStore.js'
 import UserAvatar from '../components/UserAvatar.vue'
 import { realtimeTick } from '../realtime.js'
-import { getTradePost, fetchTradePost, postIconKey, postRarity, parsePriceTokens } from '../tradeStore.js'
+import { getTradePost, fetchTradePost, postIconKey, postRarity } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 // 쪽지함 - ?c=대화방번호 로 들어오면 그 대화를 바로 엶 (판매글의 "쪽지 보내기")
@@ -70,17 +72,17 @@ function openConversation(id) {
 
 // 내 쪽지 삭제 / 대화방 나가기
 async function removeMessage(m) {
-  if (!await askConfirm('쪽지 삭제 - 내 화면에서만 사라짐 (상대 화면엔 남음)')) return
+  if (!await askConfirm(t('쪽지 삭제 - 내 화면에서만 사라짐 (상대 화면엔 남음)'))) return
   sendError.value = ''
-  try { await deleteMessage(activeConversation.value, m) } catch (e) { sendError.value = e.message || '삭제 실패' }
+  try { await deleteMessage(activeConversation.value, m) } catch (e) { sendError.value = t(e.message || '삭제 실패') }
 }
 async function leave() {
-  if (!await askConfirm('대화방 나가기 - 내 목록에서만 사라지고, 상대가 새 쪽지를 보내면 다시 보임')) return
+  if (!await askConfirm(t('대화방 나가기 - 내 목록에서만 사라지고, 상대가 새 쪽지를 보내면 다시 보임'))) return
   sendError.value = ''
   try {
     await leaveConversation(activeConversation.value)
     activeId.value = messagesState.conversations[0]?.id || null
-  } catch (e) { sendError.value = e.message || '나가기 실패' }
+  } catch (e) { sendError.value = t(e.message || '나가기 실패') }
 }
 
 // 판매글의 "문의하기"로 들어오면(?post=번호) 그 판매글을 입력창 위에 붙여 두고, 보내는 첫 메시지 앞에
@@ -98,7 +100,7 @@ function detachPost() {
   router.replace({ query: rest })
 }
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
-const priceText = (p) => parsePriceTokens(p.price).map((t) => t.text).join('')
+const priceText = (p) => tradePriceText(p.price)
 
 // 메시지 앞의 "[판매글 #12 이스트 룬]" -> { postId, name, rest }
 const POST_TAG = /^\[판매글 #(\d+) ([^\]]{1,80})\]\s*/
@@ -120,7 +122,7 @@ async function submitMessage() {
     if (p) detachPost()
   } catch (e) {
     draft.value = text
-    sendError.value = e.message || '전송 실패'
+    sendError.value = t(e.message || '전송 실패')
   }
 }
 </script>
@@ -130,14 +132,14 @@ async function submitMessage() {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">1:1 대화</div>
-      <h1>쪽지함</h1>
+      <div class="eyebrow">{{ $t('1:1 대화') }}</div>
+      <h1>{{ $t('쪽지함') }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap messages-wrap messages-login" v-if="!authState.user">
-    <p>로그인 필요</p>
-    <button type="button" class="btn-primary" @click="signIn">로그인</button>
+    <p>{{ $t('로그인 필요') }}</p>
+    <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
   </div>
   <div class="grid-wrap messages-wrap" v-else>
     <div class="messages-layout">
@@ -157,16 +159,16 @@ async function submitMessage() {
             <div class="conv-preview">{{ previewText(lastMessageOf(c)?.text) }}</div>
           </div>
         </button>
-        <div class="empty-state" v-if="!messagesState.conversations.length">쪽지 없음 (판매글의 "쪽지 보내기"로 시작)</div>
+        <div class="empty-state" v-if="!messagesState.conversations.length">{{ $t('쪽지 없음 (판매글의 "쪽지 보내기"로 시작)') }}</div>
       </div>
 
       <div class="conv-thread" v-if="activeConversation">
         <div class="conv-thread-header">
           <div class="conv-thread-who">
             <UserAvatar :src="activeConversation.avatar" :name="activeConversation.withName" :size="34" :user-id="activeConversation.otherId" />
-            <span><router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }}</router-link><template v-else>{{ activeConversation.withName }}</template>님과의 대화</span>
+            <span><router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }}</router-link><template v-else>{{ activeConversation.withName }}</template>{{ $t('님과의 대화') }}</span>
           </div>
-          <button type="button" class="conv-leave" @click="leave">나가기</button>
+          <button type="button" class="conv-leave" @click="leave">{{ $t('나가기') }}</button>
         </div>
         <div class="conv-thread-body" ref="bodyEl" @scroll="onScroll">
           <div
@@ -174,35 +176,35 @@ async function submitMessage() {
             :class="m.from === 'me' ? 'mine' : 'theirs'"
           >
             <router-link v-if="splitPostTag(m.text).postId" :to="`/trade/${splitPostTag(m.text).postId}`" class="conv-post-chip">
-              <span class="conv-post-label">판매글 문의</span>{{ splitPostTag(m.text).name }} →
+              <span class="conv-post-label">{{ $t('판매글 문의') }}</span>{{ nameText(splitPostTag(m.text).name) }} →
             </router-link>
             <div class="conv-bubble-text" v-if="splitPostTag(m.text).rest">{{ splitPostTag(m.text).rest }}</div>
             <div class="conv-bubble-date">
-              <span class="conv-unread" v-if="m.from === 'me' && !m.readAt" title="상대가 아직 안 읽음">1</span>
+              <span class="conv-unread" v-if="m.from === 'me' && !m.readAt" :title="$t('상대가 아직 안 읽음')">1</span>
               {{ m.date }}
-              <button type="button" class="conv-del" @click="removeMessage(m)" aria-label="내 화면에서 쪽지 삭제">삭제</button>
+              <button type="button" class="conv-del" @click="removeMessage(m)" :aria-label="$t('내 화면에서 쪽지 삭제')">{{ $t('삭제') }}</button>
             </div>
           </div>
         </div>
         <div class="conv-attached" v-if="attachedPost">
           <span class="conv-attached-icon" :class="postRarity(attachedPost)"><img v-if="iconUrl(postIconKey(attachedPost))" :src="iconUrl(postIconKey(attachedPost))" alt="" /></span>
           <span class="conv-attached-body">
-            <small>이 판매글 문의 - 보내는 메시지에 링크로 붙음</small>
-            <router-link :to="`/trade/${attachedPost.id}`">{{ attachedPost.itemName }}</router-link>
-            <small>{{ attachedPost.amountLabel }} · {{ priceText(attachedPost) }}</small>
+            <small>{{ $t('이 판매글 문의 - 보내는 메시지에 링크로 붙음') }}</small>
+            <router-link :to="`/trade/${attachedPost.id}`">{{ postName(attachedPost) }}</router-link>
+            <small>{{ countText(attachedPost.amountLabel) }} · {{ priceText(attachedPost) }}</small>
           </span>
-          <button type="button" class="conv-attached-x" aria-label="판매글 떼기" @click="detachPost">✕</button>
+          <button type="button" class="conv-attached-x" :aria-label="$t('판매글 떼기')" @click="detachPost">✕</button>
         </div>
         <div class="conv-thread-input">
           <input
-            type="text" v-model="draft" placeholder="메시지"
+            type="text" v-model="draft" :placeholder="$t('메시지')"
             class="write-input" @keydown.enter.prevent="submitMessage"
           />
-          <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">보내기</button>
+          <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">{{ $t('보내기') }}</button>
         </div>
         <div class="send-error" v-if="sendError">{{ sendError }}</div>
       </div>
-      <div class="conv-thread conv-thread-empty" v-else>대화 선택</div>
+      <div class="conv-thread conv-thread-empty" v-else>{{ $t('대화 선택') }}</div>
     </div>
   </div>
   </div>

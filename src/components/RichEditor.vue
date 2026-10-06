@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { Placeholder } from '@tiptap/extensions'
 import { toEditorHtml } from '../richText.js'
+import { t } from '../i18n.js'
 import { uploadImage } from '../imageUpload.js'
 
 const props = defineProps({
@@ -75,15 +76,15 @@ function takeFiles(list) {
 async function addImages(files) {
   uploadError.value = ''
   const room = MAX_IMAGES - imageCount() - uploading.value
-  if (room <= 0) { uploadError.value = `사진은 글 하나에 ${MAX_IMAGES}장까지`; return }
-  if (files.length > room) uploadError.value = `사진은 글 하나에 ${MAX_IMAGES}장까지 - ${room}장만 올림`
+  if (room <= 0) { uploadError.value = t('사진은 글 하나에 {n}장까지', { n: MAX_IMAGES }); return }
+  if (files.length > room) uploadError.value = t('사진은 글 하나에 {n}장까지 - {m}장만 올림', { n: MAX_IMAGES, m: room })
   for (const f of files.slice(0, room)) {
     uploading.value++
     try {
       const src = await uploadImage(f)
       editor.value?.chain().focus().setImage({ src, alt: '' }).createParagraphNear().run()
     } catch (e) {
-      uploadError.value = e.message || '사진 올리기 실패'
+      uploadError.value = t(e.message || '사진 올리기 실패')
     } finally {
       uploading.value--
     }
@@ -138,44 +139,44 @@ const ICON = {
   <div class="rich-editor" :class="[`rich-editor--${variant}`, { 'rich-editor--compact': compact }]">
     <div class="re-toolbar" v-if="editor" @mousedown.prevent>
       <template v-if="!compact">
-        <button type="button" class="re-text-btn" :class="{ on: is('heading', { level: 2 }) }" title="제목" @click="run((c) => c.toggleHeading({ level: 2 }))">제목</button>
-        <button type="button" class="re-text-btn" :class="{ on: is('heading', { level: 3 }) }" title="소제목" @click="run((c) => c.toggleHeading({ level: 3 }))">소제목</button>
+        <button type="button" class="re-text-btn" :class="{ on: is('heading', { level: 2 }) }" :title="$t('제목')" @click="run((c) => c.toggleHeading({ level: 2 }))">{{ $t('제목') }}</button>
+        <button type="button" class="re-text-btn" :class="{ on: is('heading', { level: 3 }) }" :title="$t('소제목')" @click="run((c) => c.toggleHeading({ level: 3 }))">{{ $t('소제목') }}</button>
         <span class="re-sep"></span>
       </template>
-      <button type="button" :class="{ on: is('bold') }" title="굵게 (Ctrl+B)" @click="run((c) => c.toggleBold())"><svg viewBox="0 0 24 24"><path :d="ICON.bold" /></svg></button>
-      <button type="button" :class="{ on: is('italic') }" title="기울임 (Ctrl+I)" @click="run((c) => c.toggleItalic())"><svg viewBox="0 0 24 24"><path :d="ICON.italic" /></svg></button>
-      <button type="button" v-if="!compact" :class="{ on: is('underline') }" title="밑줄 (Ctrl+U)" @click="run((c) => c.toggleUnderline())"><svg viewBox="0 0 24 24"><path :d="ICON.underline" /></svg></button>
-      <button type="button" :class="{ on: is('strike') }" title="취소선" @click="run((c) => c.toggleStrike())"><svg viewBox="0 0 24 24"><path :d="ICON.strike" /></svg></button>
+      <button type="button" :class="{ on: is('bold') }" :title="$t('굵게 (Ctrl+B)')" @click="run((c) => c.toggleBold())"><svg viewBox="0 0 24 24"><path :d="ICON.bold" /></svg></button>
+      <button type="button" :class="{ on: is('italic') }" :title="$t('기울임 (Ctrl+I)')" @click="run((c) => c.toggleItalic())"><svg viewBox="0 0 24 24"><path :d="ICON.italic" /></svg></button>
+      <button type="button" v-if="!compact" :class="{ on: is('underline') }" :title="$t('밑줄 (Ctrl+U)')" @click="run((c) => c.toggleUnderline())"><svg viewBox="0 0 24 24"><path :d="ICON.underline" /></svg></button>
+      <button type="button" :class="{ on: is('strike') }" :title="$t('취소선')" @click="run((c) => c.toggleStrike())"><svg viewBox="0 0 24 24"><path :d="ICON.strike" /></svg></button>
       <template v-if="!compact">
         <span class="re-sep"></span>
-        <button type="button" :class="{ on: is('bulletList') }" title="목록" @click="run((c) => c.toggleBulletList())"><svg viewBox="0 0 24 24"><path :d="ICON.bullet" /></svg></button>
-        <button type="button" :class="{ on: is('orderedList') }" title="번호 목록" @click="run((c) => c.toggleOrderedList())"><svg viewBox="0 0 24 24"><path :d="ICON.ordered" /></svg></button>
-        <button type="button" :class="{ on: is('blockquote') }" title="인용" @click="run((c) => c.toggleBlockquote())"><svg viewBox="0 0 24 24"><path :d="ICON.quote" /></svg></button>
-        <button type="button" title="구분선" @click="run((c) => c.setHorizontalRule())"><svg viewBox="0 0 24 24"><path :d="ICON.hr" /></svg></button>
+        <button type="button" :class="{ on: is('bulletList') }" :title="$t('목록')" @click="run((c) => c.toggleBulletList())"><svg viewBox="0 0 24 24"><path :d="ICON.bullet" /></svg></button>
+        <button type="button" :class="{ on: is('orderedList') }" :title="$t('번호 목록')" @click="run((c) => c.toggleOrderedList())"><svg viewBox="0 0 24 24"><path :d="ICON.ordered" /></svg></button>
+        <button type="button" :class="{ on: is('blockquote') }" :title="$t('인용')" @click="run((c) => c.toggleBlockquote())"><svg viewBox="0 0 24 24"><path :d="ICON.quote" /></svg></button>
+        <button type="button" :title="$t('구분선')" @click="run((c) => c.setHorizontalRule())"><svg viewBox="0 0 24 24"><path :d="ICON.hr" /></svg></button>
       </template>
       <span class="re-sep"></span>
-      <button type="button" :class="{ on: is('link') || linkOpen }" title="링크" @click="toggleLink"><svg viewBox="0 0 24 24"><path :d="ICON.link" /></svg></button>
-      <button type="button" class="re-photo" title="사진 첨부 (붙여넣기·끌어다 놓기도 가능)" @click="pickImages">
-        <svg viewBox="0 0 24 24"><path :d="ICON.image" /></svg><span>사진</span>
+      <button type="button" :class="{ on: is('link') || linkOpen }" :title="$t('링크')" @click="toggleLink"><svg viewBox="0 0 24 24"><path :d="ICON.link" /></svg></button>
+      <button type="button" class="re-photo" :title="$t('사진 첨부 (붙여넣기·끌어다 놓기도 가능)')" @click="pickImages">
+        <svg viewBox="0 0 24 24"><path :d="ICON.image" /></svg><span>{{ $t('사진') }}</span>
       </button>
       <template v-if="!compact">
         <span class="re-spacer"></span>
-        <button type="button" title="실행 취소 (Ctrl+Z)" :disabled="!editor.can().undo()" @click="run((c) => c.undo())"><svg viewBox="0 0 24 24"><path :d="ICON.undo" /></svg></button>
-        <button type="button" title="다시 실행 (Ctrl+Y)" :disabled="!editor.can().redo()" @click="run((c) => c.redo())"><svg viewBox="0 0 24 24"><path :d="ICON.redo" /></svg></button>
+        <button type="button" :title="$t('실행 취소 (Ctrl+Z)')" :disabled="!editor.can().undo()" @click="run((c) => c.undo())"><svg viewBox="0 0 24 24"><path :d="ICON.undo" /></svg></button>
+        <button type="button" :title="$t('다시 실행 (Ctrl+Y)')" :disabled="!editor.can().redo()" @click="run((c) => c.redo())"><svg viewBox="0 0 24 24"><path :d="ICON.redo" /></svg></button>
       </template>
       <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFileChange" />
     </div>
 
     <div class="re-link-bar" v-if="linkOpen">
-      <input v-model="linkUrl" type="url" placeholder="링크 주소 (https://...)" aria-label="링크 주소" @keydown.enter.prevent="applyLink" @keydown.esc="linkOpen = false" />
-      <button type="button" class="re-link-apply" @click="applyLink">적용</button>
-      <button type="button" class="re-link-cancel" @click="linkOpen = false">취소</button>
+      <input v-model="linkUrl" type="url" :placeholder="$t('링크 주소 (https://...)')" :aria-label="$t('링크 주소')" @keydown.enter.prevent="applyLink" @keydown.esc="linkOpen = false" />
+      <button type="button" class="re-link-apply" @click="applyLink">{{ $t('적용') }}</button>
+      <button type="button" class="re-link-cancel" @click="linkOpen = false">{{ $t('취소') }}</button>
     </div>
 
     <EditorContent :editor="editor" class="re-body rich-content" :style="{ '--re-min': minHeight }" />
 
     <div class="re-status" v-if="uploading || uploadError">
-      <span v-if="uploading" class="re-uploading">사진 올리는 중 · {{ uploading }}장</span>
+      <span v-if="uploading" class="re-uploading">{{ $t('사진 올리는 중 · {n}장', { n: uploading }) }}</span>
       <span v-if="uploadError" class="re-error">{{ uploadError }}</span>
     </div>
   </div>

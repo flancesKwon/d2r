@@ -2,6 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute } from 'vue-router'
+import { t } from '../i18n.js'
 import { CATEGORIES, fetchPosts, fetchPinnedPosts } from '../communityStore.js'
 
 const route = useRoute()
@@ -30,7 +31,7 @@ async function load(reset = true) {
     posts.value = reset ? res.posts : [...posts.value, ...res.posts]
     total.value = res.total
   } catch (e) {
-    if (my === seq) loadError.value = '게시글 불러오기 실패 - 잠시 뒤 다시 시도'
+    if (my === seq) loadError.value = t('게시글 불러오기 실패 - 잠시 뒤 다시 시도')
   } finally {
     if (my === seq) loading.value = false
   }
@@ -62,34 +63,34 @@ function setTagFilter(t) {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">유저 커뮤니티</div>
-      <h1>커뮤니티</h1>
+      <div class="eyebrow">{{ $t('유저 커뮤니티') }}</div>
+      <h1>{{ $t('커뮤니티') }}</h1>
     </div>
   </div>
 
   <div class="toolbar">
     <div class="toolbar-inner">
       <div class="cat-tabs">
-        <button :class="{ active: activeCat === null }" @click="activeCat = null">전체</button>
+        <button :class="{ active: activeCat === null }" @click="activeCat = null">{{ $t('전체') }}</button>
         <button v-for="c in CATEGORIES" :key="c" :class="{ active: activeCat === c }" @click="activeCat = c">
-          {{ c }}
+          {{ $t(c) }}
         </button>
       </div>
       <div class="search-row">
         <div class="search-input-wrap">
-          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" placeholder="제목·내용·태그 검색" aria-label="게시글 검색" />
+          <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" :placeholder="$t('제목·내용·태그 검색')" :aria-label="$t('게시글 검색')" />
         </div>
         <select v-model="sortBy" class="sort-select">
-          <option value="latest">최신순</option>
-          <option value="likes">추천순</option>
-          <option value="views">조회순</option>
-          <option value="comments">댓글순</option>
+          <option value="latest">{{ $t('최신순') }}</option>
+          <option value="likes">{{ $t('추천순') }}</option>
+          <option value="views">{{ $t('조회순') }}</option>
+          <option value="comments">{{ $t('댓글순') }}</option>
         </select>
-        <span class="result-count">{{ total }}개</span>
-        <router-link class="quality-toggle" :to="{ path: '/community/write', query: activeCat ? { cat: activeCat } : {} }">글쓰기</router-link>
+        <span class="result-count">{{ total }}{{ $t('개') }}</span>
+        <router-link class="quality-toggle" :to="{ path: '/community/write', query: activeCat ? { cat: activeCat } : {} }">{{ $t('글쓰기') }}</router-link>
       </div>
       <div class="active-tag-row" v-if="activeTag">
-        <span class="active-tag-label">태그 필터:</span>
+        <span class="active-tag-label">{{ $t('태그 필터:') }}</span>
         <button class="tag-chip active" @click="activeTag = null">#{{ activeTag }} ✕</button>
       </div>
     </div>
@@ -99,23 +100,23 @@ function setTagFilter(t) {
     <div class="community-list">
       <template v-if="showPinned()">
         <router-link class="community-row pinned" v-for="p in pinnedPosts" :key="'pin-' + p.id" :to="`/community/${p.id}`">
-          <span class="community-cat cat-notice">{{ p.category === '공지' ? '공지' : '고정' }}</span>
+          <span class="community-cat cat-notice">{{ $t(p.category === '공지' ? '공지' : '고정') }}</span>
           <div class="community-body">
             <div class="community-title-row"><span class="community-title">{{ p.title }}</span></div>
-            <div class="community-meta">{{ p.author }} · {{ p.date }} · 조회 {{ p.views }}</div>
+            <div class="community-meta">{{ p.author }} · {{ p.date }} · {{ $t('조회 {n}', { n: p.views }) }}</div>
           </div>
           <span class="community-comment-count" v-if="p.commentCount">{{ p.commentCount }}</span>
         </router-link>
       </template>
       <router-link class="community-row" v-for="p in posts.filter((x) => !pinnedIds().has(x.id))" :key="p.id" :to="`/community/${p.id}`">
-        <span class="community-cat" :class="{ 'cat-notice': p.category === '공지' }">{{ p.category }}</span>
+        <span class="community-cat" :class="{ 'cat-notice': p.category === '공지' }">{{ $t(p.category) }}</span>
         <div class="community-body">
           <div class="community-title-row">
             <span class="community-title">{{ p.title }}</span>
-            <span class="hot-badge" v-if="p.likes - p.dislikes >= 10">인기</span>
+            <span class="hot-badge" v-if="p.likes - p.dislikes >= 10">{{ $t('인기') }}</span>
           </div>
           <div class="community-meta">
-            {{ p.author }} · {{ p.date }} · 조회 {{ p.views }} · 추천 {{ p.likes - p.dislikes }}
+            {{ p.author }} · {{ p.date }} · {{ $t('조회 {n}', { n: p.views }) }} · {{ $t('추천 {n}', { n: p.likes - p.dislikes }) }}
           </div>
           <div class="community-tag-row" v-if="p.tags.length">
             <span
@@ -129,9 +130,9 @@ function setTagFilter(t) {
         <span class="community-comment-count" v-if="p.commentCount">{{ p.commentCount }}</span>
       </router-link>
       <div class="empty-state" v-if="loadError">{{ loadError }}</div>
-      <div class="empty-state" v-else-if="!loading && posts.length === 0">게시글 없음</div>
+      <div class="empty-state" v-else-if="!loading && posts.length === 0">{{ $t('게시글 없음') }}</div>
       <button type="button" class="more-btn" v-if="posts.length < total" :disabled="loading" @click="loadMore">
-        {{ loading ? '불러오는 중…' : '더 보기' }}
+        {{ $t(loading ? '불러오는 중…' : '더 보기') }}
       </button>
     </div>
   </div>

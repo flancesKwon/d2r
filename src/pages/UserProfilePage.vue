@@ -10,6 +10,8 @@ import { fetchPosts } from '../communityStore.js'
 import { fetchReviewsFor } from '../dealsStore.js'
 import { openConversationWith } from '../messagesStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { t } from '../i18n.js'
+import { postName, priceText } from '../tradeI18n.js'
 import UserAvatar from '../components/UserAvatar.vue'
 import { isOnline } from '../presence.js'
 import ReportButton from '../components/ReportButton.vue'
@@ -38,7 +40,7 @@ async function load(id) {
     .select('id, nickname, avatar_url, role, created_at, suspended_until, last_seen_at').eq('id', id).maybeSingle()
   if (!data) { notFound.value = true; return }
   profile.value = data
-  document.title = `${data.nickname} — 디아허브`
+  document.title = `${data.nickname} — ${t('디아허브')}`
   ;[reviews.value, tradePosts.value, communityPosts.value] = await Promise.all([
     fetchReviewsFor(id).catch(() => []),
     fetchTradePostsBy(id).catch(() => []),
@@ -51,10 +53,10 @@ const fmtDay = (ts) => { if (!ts) return '-'; const d = new Date(ts); return `${
 function ago(ts) {
   if (!ts) return '-'
   const min = Math.floor((Date.now() - new Date(ts)) / 60000)
-  if (min < 5) return '방금'
-  if (min < 60) return min + '분 전'
-  if (min < 1440) return Math.floor(min / 60) + '시간 전'
-  return Math.floor(min / 1440) + '일 전'
+  if (min < 5) return t('방금')
+  if (min < 60) return t('{n}분 전', { n: min })
+  if (min < 1440) return t('{n}시간 전', { n: Math.floor(min / 60) })
+  return t('{n}일 전', { n: Math.floor(min / 1440) })
 }
 const suspended = computed(() => profile.value?.suspended_until && new Date(profile.value.suspended_until) > new Date())
 const summary = computed(() => {
@@ -77,7 +79,7 @@ async function sendMessage() {
     const convId = await openConversationWith(userId.value)
     router.push({ path: '/messages', query: { c: convId } })
   } catch (e) {
-    actionError.value = e.message || '대화방 열기 실패'
+    actionError.value = t(e.message || '대화방 열기 실패')
   }
 }
 </script>
@@ -86,13 +88,13 @@ async function sendMessage() {
   <div class="items-page user-page">
     <div class="patch-hero">
       <div class="patch-hero-inner">
-        <div class="eyebrow">회원 정보</div>
-        <h1>{{ profile?.nickname || (notFound ? '없는 회원' : '…') }}</h1>
+        <div class="eyebrow">{{ $t('회원 정보') }}</div>
+        <h1>{{ profile?.nickname || (notFound ? $t('없는 회원') : '…') }}</h1>
       </div>
     </div>
 
     <div class="grid-wrap user-wrap" v-if="notFound">
-      <div class="empty-state">탈퇴했거나 없는 회원</div>
+      <div class="empty-state">{{ $t('탈퇴했거나 없는 회원') }}</div>
     </div>
 
     <div class="grid-wrap user-wrap" v-else-if="profile">
@@ -101,31 +103,31 @@ async function sendMessage() {
         <div class="user-main">
           <div class="user-name">
             {{ profile.nickname }}
-            <span class="user-role" v-if="profile.role && profile.role !== 'user'">{{ ROLE_LABEL[profile.role] || profile.role }}</span>
-            <span class="user-suspended" v-if="suspended">이용 정지 중</span>
+            <span class="user-role" v-if="profile.role && profile.role !== 'user'">{{ $t(ROLE_LABEL[profile.role] || profile.role) }}</span>
+            <span class="user-suspended" v-if="suspended">{{ $t('이용 정지 중') }}</span>
           </div>
-          <div class="user-meta">가입 {{ fmtDay(profile.created_at) }} · <span v-if="isOnline(profile.id)" class="online-now">● 접속 중</span><template v-else>마지막 활동 {{ ago(profile.last_seen_at) }}</template></div>
+          <div class="user-meta">{{ $t('가입') }} {{ fmtDay(profile.created_at) }} · <span v-if="isOnline(profile.id)" class="online-now">{{ $t('● 접속 중') }}</span><template v-else>{{ $t('마지막 활동') }} {{ ago(profile.last_seen_at) }}</template></div>
           <div class="user-stats">
-            <span class="user-stat"><b>{{ summary.avg ? '★ ' + summary.avg : '-' }}</b><small>평점</small></span>
-            <span class="user-stat"><b>{{ summary.reviews }}</b><small>받은 리뷰</small></span>
-            <span class="user-stat"><b>{{ summary.sold }}</b><small>판매 완료</small></span>
-            <span class="user-stat"><b>{{ summary.selling.length }}</b><small>판매 중</small></span>
+            <span class="user-stat"><b>{{ summary.avg ? '★ ' + summary.avg : '-' }}</b><small>{{ $t('평점') }}</small></span>
+            <span class="user-stat"><b>{{ summary.reviews }}</b><small>{{ $t('받은 리뷰') }}</small></span>
+            <span class="user-stat"><b>{{ summary.sold }}</b><small>{{ $t('판매 완료') }}</small></span>
+            <span class="user-stat"><b>{{ summary.selling.length }}</b><small>{{ $t('판매 중') }}</small></span>
           </div>
         </div>
         <div class="user-actions">
-          <router-link v-if="isMe" to="/mypage" class="user-btn primary">마이페이지</router-link>
+          <router-link v-if="isMe" to="/mypage" class="user-btn primary">{{ $t('마이페이지') }}</router-link>
           <template v-else>
-            <button type="button" class="user-btn primary" @click="sendMessage">쪽지 보내기</button>
-            <ReportButton target-type="profile" :target-id="profile.id" :owner-id="profile.id" label="회원 신고" />
+            <button type="button" class="user-btn primary" @click="sendMessage">{{ $t('쪽지 보내기') }}</button>
+            <ReportButton target-type="profile" :target-id="profile.id" :owner-id="profile.id" :label="$t('회원 신고')" />
           </template>
         </div>
       </section>
       <div class="action-error" v-if="actionError">{{ actionError }}</div>
 
       <div class="user-tabs">
-        <button :class="{ active: tab === 'reviews' }" @click="tab = 'reviews'">받은 리뷰 {{ reviews.length }}</button>
-        <button :class="{ active: tab === 'trade' }" @click="tab = 'trade'">판매글 {{ tradePosts.length }}</button>
-        <button :class="{ active: tab === 'community' }" @click="tab = 'community'">커뮤니티 글 {{ communityPosts.length }}</button>
+        <button :class="{ active: tab === 'reviews' }" @click="tab = 'reviews'">{{ $t('받은 리뷰') }} {{ reviews.length }}</button>
+        <button :class="{ active: tab === 'trade' }" @click="tab = 'trade'">{{ $t('판매글') }} {{ tradePosts.length }}</button>
+        <button :class="{ active: tab === 'community' }" @click="tab = 'community'">{{ $t('커뮤니티 글') }} {{ communityPosts.length }}</button>
       </div>
 
       <div class="user-panel" v-if="tab === 'reviews'">
@@ -133,32 +135,32 @@ async function sendMessage() {
           <div class="review-top">
             <span class="review-stars">{{ '★'.repeat(r.rating) }}<span class="dim">{{ '★'.repeat(5 - r.rating) }}</span></span>
             <router-link :to="`/users/${r.fromId}`" class="review-from">{{ r.from }}</router-link>
-            <span class="review-item" v-if="r.postTitle">{{ r.postTitle }}</span>
+            <span class="review-item" v-if="r.postTitle">{{ priceText(r.postTitle) }}</span>
             <span class="review-date">{{ r.date }}</span>
           </div>
           <div class="review-text" v-if="r.comment">{{ r.comment }}</div>
         </div>
-        <div class="empty-state" v-if="!reviews.length">받은 리뷰 없음</div>
+        <div class="empty-state" v-if="!reviews.length">{{ $t('받은 리뷰 없음') }}</div>
       </div>
 
       <div class="user-panel" v-else-if="tab === 'trade'">
         <router-link :to="`/trade/${p.id}`" class="post-row" v-for="p in tradePosts" :key="p.id">
           <span class="post-icon"><img v-if="iconUrl(p)" :src="iconUrl(p)" alt="" /></span>
-          <span class="post-title">{{ p.itemName }}</span>
-          <span class="post-price">{{ tradePriceOf(p) || '거래가 미기록' }}</span>
-          <span class="post-status" :class="'status-' + (p.expired ? '만료' : p.status)">{{ p.expired ? '기간 만료' : statusLabel(p.status) }}</span>
+          <span class="post-title">{{ postName(p) }}</span>
+          <span class="post-price">{{ priceText(tradePriceOf(p)) || $t('거래가 미기록') }}</span>
+          <span class="post-status" :class="'status-' + (p.expired ? '만료' : p.status)">{{ $t(p.expired ? '기간 만료' : statusLabel(p.status)) }}</span>
           <span class="post-date">{{ p.date }}</span>
         </router-link>
-        <div class="empty-state" v-if="!tradePosts.length">판매글 없음</div>
+        <div class="empty-state" v-if="!tradePosts.length">{{ $t('판매글 없음') }}</div>
       </div>
 
       <div class="user-panel" v-else>
         <router-link :to="`/community/${p.id}`" class="post-row" v-for="p in communityPosts" :key="p.id">
-          <span class="post-cat">{{ p.category }}</span>
+          <span class="post-cat">{{ $t(p.category) }}</span>
           <span class="post-title">{{ p.title }}</span>
           <span class="post-date">{{ p.date }}</span>
         </router-link>
-        <div class="empty-state" v-if="!communityPosts.length">커뮤니티 글 없음</div>
+        <div class="empty-state" v-if="!communityPosts.length">{{ $t('커뮤니티 글 없음') }}</div>
       </div>
     </div>
   </div>
