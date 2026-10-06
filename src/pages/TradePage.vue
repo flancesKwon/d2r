@@ -24,6 +24,7 @@ import {
   CLASS_SKILL_NAMES,
   uniqueDefenseRange,
   SUPERIOR_MODS,
+  TRADE_REALMS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
 import { useNow } from '../useNow.js'
@@ -42,6 +43,10 @@ onMounted(() => { loadTradePosts() })
 useAutoRefresh(() => loadTradePosts(true))
 // 종류는 여러 개 고를 수 있음 (하나라도 맞으면)
 const activeCats = ref([])
+// 배틀넷 지역 서버 (아시아·미주·유럽) - 고른 서버는 다음 방문에도 유지
+const REGION_KEY = 'd2r-trade-region'
+const activeRegion = ref((() => { try { const v = localStorage.getItem(REGION_KEY); return TRADE_REALMS.includes(v) ? v : null } catch { return null } })())
+watch(activeRegion, (v) => { try { if (v) localStorage.setItem(REGION_KEY, v); else localStorage.removeItem(REGION_KEY) } catch { /* 프라이빗 창 등 */ } })
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -283,7 +288,7 @@ const levelMax = ref('')
 
 const hasActiveFilters = computed(
   () =>
-    activeCats.value.length > 0 || activeLadder.value !== null ||
+    activeCats.value.length > 0 || activeLadder.value !== null || activeRegion.value !== null ||
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
     levelMin.value !== '' || levelMax.value !== '' || !!pickedItem.value
@@ -304,6 +309,7 @@ function toggleFilters() {
 }
 function resetFilters() {
   activeCats.value = []
+  activeRegion.value = null
   activeLadder.value = null
   activeHardcore.value = null
   etherealOnly.value = false
@@ -330,6 +336,7 @@ const filteredPosts = computed(() => {
   // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
   let list = tradeState.posts.filter((p) => (p.status === '판매중' && saleLeftMs(p, now.value) > 0) || (p.status === '예약중' && isFavorite(p.id)))
   if (activeCats.value.length) list = list.filter((p) => activeCats.value.includes(p.category))
+  if (activeRegion.value) list = list.filter((p) => p.realm === activeRegion.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -369,7 +376,7 @@ const filteredPosts = computed(() => {
 
 // 서버 구분 - 레더/논레더 × 일반/하드코어 (검색창 왼쪽)
 const REALMS = [
-  { v: '', label: '전체 서버' },
+  { v: '', label: '레더·모드 전체' },
   { v: '레더|', label: '래더' }, { v: '레더|일반', label: '래더 · 일반' }, { v: '레더|하드코어', label: '래더 · 하드코어' },
   { v: '논레더|', label: '논레더' }, { v: '논레더|일반', label: '논레더 · 일반' }, { v: '논레더|하드코어', label: '논레더 · 하드코어' },
   { v: '|일반', label: '일반(소프트코어)' }, { v: '|하드코어', label: '하드코어' },
@@ -477,7 +484,7 @@ function removeLastApplied() {
 }
 const appliedCount = computed(() =>
   activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0) +
-  (realm.value ? 1 : 0) + [etherealOnly.value, unidOnly.value, favoritesOnly.value, levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length
+  (realm.value ? 1 : 0) + (activeRegion.value ? 1 : 0) + [etherealOnly.value, unidOnly.value, favoritesOnly.value, levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length
 )
 const levelText = computed(() => {
   if (levelMin.value !== '' && levelMax.value !== '') return `${levelMin.value}~${levelMax.value}`
@@ -514,6 +521,10 @@ loadTradeBoard()
       <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
         <label class="tr-realm">
           <span class="sr-only">{{ $t('서버') }}</span>
+          <select v-model="activeRegion" class="tr-region" :aria-label="$t('지역 서버')">
+            <option :value="null">{{ $t('모든 지역') }}</option>
+            <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
+          </select>
           <select v-model="realm" :aria-label="$t('서버 구분')">
             <option v-for="r in REALMS" :key="r.v" :value="r.v">{{ $t(r.label) }}</option>
           </select>
@@ -560,6 +571,7 @@ loadTradeBoard()
 
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
+        <span class="tr-chip realm" v-if="activeRegion">{{ $t(activeRegion) }}<button type="button" :aria-label="$t('지역 조건 빼기')" @click="activeRegion = null">×</button></span>
         <span class="tr-chip realm" v-if="realm">{{ realmLabel }}<button type="button" :aria-label="$t('서버 조건 빼기')" @click="realm = ''">×</button></span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
@@ -1007,6 +1019,7 @@ loadTradeBoard()
 
 .tr-search{display:flex; align-items:stretch; min-height:60px; background:#F3EEE4; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); position:relative;}
 .tr-realm{display:flex; align-items:center; background:#E8E0D2; border-right:1px solid #D4CBBB; border-radius:16px 0 0 16px;}
+.tr-realm .tr-region{border-right:1px solid #D4CBBB;}
 .tr-realm select{height:100%; border:none; background:transparent; color:#2E2720; font-weight:700; font-size:14px; padding:0 14px; font-family:inherit; cursor:pointer;}
 .tr-realm select:focus-visible{outline:2px solid var(--gold); outline-offset:-2px;}
 .tr-search-box{flex:1 1 auto; min-width:0; position:relative; display:flex;}
@@ -1099,7 +1112,8 @@ loadTradeBoard()
   .tr-hero-sub{display:none;}
   .tr-search{display:grid; grid-template-columns:minmax(0, 1fr) auto; min-height:0; border-radius:12px;}
   .tr-realm{grid-column:1 / -1; border-radius:12px 12px 0 0; border-right:none; border-bottom:1px solid #D4CBBB; min-height:38px;}
-  .tr-realm select{width:100%;}
+  .tr-realm select{width:100%; flex:1;}
+  .tr-realm .tr-region{flex:0 0 40%;}
   .tr-search-box{min-height:48px;}
   .tr-search-box input{font-size:16px; padding:12px 14px;}
   .tr-search-go{padding:0 16px; border-radius:0 0 12px 0; font-size:0; gap:0;}

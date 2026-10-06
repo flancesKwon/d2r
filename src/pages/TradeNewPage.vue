@@ -5,6 +5,8 @@ import { askConfirm } from '../dialog.js'
 import EventBanner from '../components/EventBanner.vue'
 import {
   TRADE_REALMS,
+  guessRealm,
+  rememberRealm,
   TRADE_LADDERS,
   TRADE_HARDCORE,
   buildAmountLabel,
@@ -83,7 +85,7 @@ const emptyForm = () => ({
   // 유니크·세트를 미확인으로 팜 - 옵션 수치 입력 없이 사전 범위로
   unidentified: false,
   // "계속 등록"으로 다시 열면 앞 글의 서버·레더·하드코어를 그대로
-  realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : TRADE_REALMS[0],
+  realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : guessRealm(),
   ladder: TRADE_LADDERS.includes(route.query.ladder) ? route.query.ladder : TRADE_LADDERS[0],
   hardcore: TRADE_HARDCORE.includes(route.query.hardcore) ? route.query.hardcore : TRADE_HARDCORE[0],
   content: '',
@@ -818,6 +820,7 @@ async function savePost(payload) {
     if (view) router.push(`/trade/${post.id}`)
     else {
       const { realm, ladder, hardcore } = form.value
+      rememberRealm(realm)
       router.replace({ path: '/trade/new', query: { again: Date.now(), realm, ladder, hardcore } })
       window.scrollTo(0, 0)
     }
@@ -1496,11 +1499,14 @@ function submitPost() {
       </div>
 
       <div class="trade-form-row">
-        <select v-model="form.ladder" class="write-select trade-meta-select">
-          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
+        <select v-model="form.realm" class="write-select trade-meta-select" :aria-label="$t('서버')">
+          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
         </select>
-        <select v-model="form.hardcore" class="write-select trade-meta-select">
-          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
+        <select v-model="form.ladder" class="write-select trade-meta-select" :aria-label="$t('레더')">
+          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
+        </select>
+        <select v-model="form.hardcore" class="write-select trade-meta-select" :aria-label="$t('하드코어')">
+          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
         </select>
       </div>
 

@@ -42,7 +42,7 @@ const SHORTCUTS = [
   { to: '/items', title: '아이템 사전', desc: '유니크·세트·룬워드 옵션', icon: 'invcap__armor' },
   { to: '/runewords', title: '룬워드 찾기', desc: '룬으로 룬워드 검색', icon: 'invrjah__rune' },
   { to: '/breakpoints', title: '속도 계산기', desc: '공속·패캐·패힛·패블', icon: 'invamu__amulet' },
-  { to: '/', title: '거래 매물', desc: '아시아 서버 매물 검색', icon: 'invrber' },
+  { to: '/', title: '거래 매물', desc: '아시아·미주·유럽 서버 매물 검색', icon: 'invrber' },
 ]
 const TOOLS = [
   { to: '/simulator', title: '스킬·스탯 시뮬레이터', desc: '스킬 트리·시너지 미리 찍기', icon: 'invob2__sword' },
