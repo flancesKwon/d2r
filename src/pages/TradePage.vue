@@ -37,7 +37,7 @@ import EventBanner from '../components/EventBanner.vue'
 import { t, itemName, locale } from '../i18n.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
-// 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '? 이용 안내' 버튼)
+// 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
 onMounted(() => { loadTradePosts() })
 useAutoRefresh(() => loadTradePosts(true))
 // 종류는 여러 개 고를 수 있음 (하나라도 맞으면)
@@ -497,6 +497,22 @@ function agoText(p) {
   return h < 1 ? t('방금') : t('{n}시간 전', { n: h })
 }
 
+// 옵션 줄에서 수치만 색을 달리 주려고 조각으로 쪼갬 ("시전 속도 +24%" -> ['시전 속도 ', '+24', '%'])
+// 범위(70~115)·소수(1.5)·음수(-81)도 한 덩어리로
+const NUM_PART = /([+-]?\d+(?:\.\d+)?(?:~[+-]?\d+(?:\.\d+)?)?)/g
+// 반지·목걸이·보석 그림은 원본이 28×28 이라 칸에 꽉 채우면(3.1배) 픽셀이 뭉개짐
+// 칸의 절반보다 작으면 딱 2배로만 키움 (정수 배라 선명), 큰 그림은 CSS 가 칸에 맞춰 줄임
+function fitIcon(e) {
+  const img = e.target
+  const n = Math.max(img.naturalWidth, img.naturalHeight)
+  const box = img.parentElement?.clientWidth || 0
+  if (n && box && n * 2 <= box) { img.style.width = img.naturalWidth * 2 + `px`; img.style.height = img.naturalHeight * 2 + `px` }
+}
+
+function optParts(line) {
+  return String(line).split(NUM_PART).filter((x) => x !== '').map((x) => ({ x, num: /^[+-]?\d/.test(x) }))
+}
+
 // 같은 아이템이라도 개체마다 달라지는 줄만 보여줌
 // · 유니크·세트·룬워드: 사전에서 범위로 굴러가는 옵션 + 방어력·데미지·소켓 (고정 옵션은 다 같으니 뺌)
 // · 매직·레어·크래프트·일반(베이스): 사전에 없어서 판매자가 넣은 옵션 그대로
@@ -711,13 +727,13 @@ function variantLines(p) {
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
         <button type="button" :class="{ active: viewMode === 'grid' }" :title="$t('그리드형')" :aria-label="$t('그리드형')" @click="setViewMode('grid')">▦</button>
       </div>
-      <button type="button" class="guide-btn" @click="openTradeGuide()">? {{ $t('이용 안내') }}</button>
+      <button type="button" class="guide-btn" @click="openTradeGuide()">{{ $t('이용 안내') }}</button>
       <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
     </div>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <span class="trade-row-icon" :class="postRarity(p)">
-          <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
+          <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <div class="trade-body">
@@ -733,7 +749,7 @@ function variantLines(p) {
             </template>
           </div>
           <div class="trade-opts" v-if="variantLines(p).length">
-            <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i">{{ $affix(l) }}</span>
+            <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i"><template v-for="(q, j) in optParts($affix(l))" :key="j"><b v-if="q.num">{{ q.x }}</b><template v-else>{{ q.x }}</template></template></span>
           </div>
           <div class="trade-sub-meta">
             {{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ agoText(p) }}
@@ -753,7 +769,7 @@ function variantLines(p) {
     <div class="trade-grid" v-else>
       <router-link class="trade-card" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <span class="trade-card-icon" :class="postRarity(p)">
-          <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
+          <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
@@ -766,7 +782,7 @@ function variantLines(p) {
           </template>
         </span>
         <span class="trade-opts" v-if="variantLines(p).length">
-          <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i">{{ $affix(l) }}</span>
+          <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i"><template v-for="(q, j) in optParts($affix(l))" :key="j"><b v-if="q.num">{{ q.x }}</b><template v-else>{{ q.x }}</template></template></span>
         </span>
         <span class="stat-match-row" v-if="statConditions.length">
           <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
@@ -907,7 +923,7 @@ function variantLines(p) {
   width:68px; height:68px; flex:none; display:flex; align-items:center; justify-content:center;
   background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px;
 }
-.trade-row-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.trade-row-icon img{width:auto; height:auto; max-width:100%; max-height:100%; image-rendering:pixelated;}
 .trade-row-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 10px -3px rgba(200,163,77,0.5);}
 .trade-row-icon.set{border-color:var(--green); box-shadow:0 0 10px -3px rgba(92,138,91,0.5);}
 .trade-row-icon.runeword{border-color:var(--blood); box-shadow:0 0 10px -3px rgba(162,81,63,0.5);}
@@ -943,7 +959,8 @@ function variantLines(p) {
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 /* 그 아이템에서만 달라지는 옵션 줄 */
 .trade-opts{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
-.trade-opt{font-size:11.5px; color:#8c8cff; border:1px solid rgba(110,110,255,0.35); background:rgba(110,110,255,0.07); padding:2px 9px; border-radius:7px;}
+.trade-opt{font-size:11.5px; color:var(--text-muted); border:1px solid rgba(110,110,255,0.3); background:rgba(110,110,255,0.07); padding:2px 8px; border-radius:7px;}
+.trade-opt b{color:#9f9fff; font-weight:700;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
 .view-mode-toggle button{
@@ -967,7 +984,7 @@ function variantLines(p) {
   width:88px; height:88px; flex:none; display:flex; align-items:center; justify-content:center;
   background:var(--panel-2); border:1px solid var(--border-soft); border-radius:12px; margin-top:8px;
 }
-.trade-card-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
+.trade-card-icon img{width:auto; height:auto; max-width:100%; max-height:100%; image-rendering:pixelated;}
 .trade-card-icon.unique{border-color:var(--gold-dim); box-shadow:0 0 12px -3px rgba(200,163,77,0.5);}
 .trade-card-icon.set{border-color:var(--green); box-shadow:0 0 12px -3px rgba(92,138,91,0.5);}
 .trade-card-icon.runeword{border-color:var(--blood); box-shadow:0 0 12px -3px rgba(162,81,63,0.5);}
