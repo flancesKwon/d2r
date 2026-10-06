@@ -6,6 +6,7 @@ import LoginModal from './components/LoginModal.vue'
 import AppDialog from './components/AppDialog.vue'
 import UserProfileCard from './components/UserProfileCard.vue'
 import TradeGuideModal from './components/TradeGuideModal.vue'
+import MobileTabBar from './components/MobileTabBar.vue'
 </script>
 
 <template>
@@ -16,6 +17,7 @@ import TradeGuideModal from './components/TradeGuideModal.vue'
     <component :is="Component" :key="route.name === 'trade-new' ? route.fullPath : undefined" />
   </router-view>
   <SiteFooter />
+  <MobileTabBar />
   <LoginModal />
   <AppDialog />
   <UserProfileCard />

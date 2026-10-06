@@ -351,3 +351,6 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 /* 닉네임 -> 회원 프로필 링크 */
 .user-link{color:inherit; display:inline-flex; align-items:center; gap:6px;}
 .user-link:hover{color:var(--gold);}
+
+/* 폰: 하단 탭(MobileTabBar) 높이만큼 아래 여백 */
+@media (max-width:720px){ body{padding-bottom:calc(64px + env(safe-area-inset-bottom));} }

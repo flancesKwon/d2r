@@ -1,6 +1,9 @@
 <script setup>
-// 모든 페이지 공통 상단 메뉴 (예전엔 메인에만 메뉴가 있고 다른 페이지는 로고·경로만 있었음)
-// - 메뉴: 빌드 가이드 / 아이템 사전 / 도구 / 거래 / 커뮤니티 / 정보 (현재 페이지가 속한 메뉴 강조)
+// 모든 페이지 공통 상단 메뉴
+// - 사이트를 [거래 | DB] 두 모드로 나눔: 로고 옆 스위치로 전환, 메뉴는 지금 모드 것만
+//   거래: 매물(첫 화면) / 시세 / 거래내역 / 내 거래 / 커뮤니티
+//   DB: 빌드 가이드 / 아이템 사전 / 도구 / 정보 / 커뮤니티
+//   커뮤니티·쪽지·마이페이지처럼 양쪽 공용 화면은 마지막으로 있던 모드를 유지
 // - 통합 검색: 아이템 사전 + 사이트 페이지(도구 등)를 한 번에
 // - 좁은 화면: 햄버거 버튼으로 전체 메뉴 펼침
 import { ref, shallowRef, computed, watch } from 'vue'
@@ -10,12 +13,22 @@ import HeaderNotifications from './HeaderNotifications.vue'
 import HeaderOnlineUsers from './HeaderOnlineUsers.vue'
 import { isStaff } from '../profileStore.js'
 import { useNow } from '../useNow.js'
+import { useSiteMode, under } from '../siteMode.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
 const router = useRouter()
 
-const MENUS = [
+const TRADE_MENUS = [
+  {
+    key: 'listings', label: '매물', to: '/', match: ['/', '/trade'],
+    links: [{ label: '매물 보기', to: '/' }, { label: '판매글 등록', to: '/trade/new' }],
+  },
+  { key: 'market', label: '시세', to: '/market', match: ['/market'], links: [] },
+  { key: 'history', label: '거래내역', to: '/trade/history', match: ['/trade/history'], links: [] },
+  { key: 'deals', label: '내 거래', to: '/deals', match: ['/deals'], links: [] },
+]
+const DB_MENUS = [
   {
     key: 'guides', label: '빌드 가이드', to: '/guides', match: ['/guides'],
     links: [
@@ -49,28 +62,34 @@ const MENUS = [
     ],
   },
   {
-    key: 'trade', label: '거래', to: '/trade', match: ['/trade', '/deals', '/market'],
-    links: [
-      { label: '거래게시판', to: '/trade' }, { label: '판매글 등록', to: '/trade/new' },
-      { label: '거래중인 품목', to: '/deals' }, { label: '아이템별 거래내역', to: '/trade/history' }, { label: '시세 게시판', to: '/market' },
-    ],
-  },
-  {
-    key: 'community', label: '커뮤니티', to: '/community', match: ['/community'],
-    links: [
-      { label: '전체', to: '/community' }, { label: '공지사항', to: '/community?cat=공지' }, { label: '자유게시판', to: '/community?cat=잡담' },
-      { label: '질문게시판', to: '/community?cat=질문' }, { label: '공략 인증', to: '/community?cat=공략' },
-      { label: '건의게시판', to: '/community?cat=건의' }, { label: '버그 제보', to: '/community?cat=버그제보' },
-    ],
-  },
-  {
     key: 'info', label: '정보', to: '/patch', match: ['/patch', '/ladder'],
     links: [{ label: '패치노트', to: '/patch' }, { label: '레더 시즌 정보', to: '/ladder' }],
   },
 ]
+// 커뮤니티는 양쪽 공용 - 거래 모드에선 거래 게시판을 맨 앞에
+const COMMUNITY_LINKS = [
+  { label: '전체', to: '/community' }, { label: '공지사항', to: '/community?cat=공지' }, { label: '거래 게시판', to: '/community?cat=거래' },
+  { label: '자유게시판', to: '/community?cat=잡담' }, { label: '질문게시판', to: '/community?cat=질문' }, { label: '공략 인증', to: '/community?cat=공략' },
+  { label: '건의게시판', to: '/community?cat=건의' }, { label: '버그 제보', to: '/community?cat=버그제보' },
+]
+const communityMenu = (mode) => ({
+  key: 'community', label: '커뮤니티', to: mode === 'trade' ? '/community?cat=거래' : '/community', match: ['/community'],
+  links: mode === 'trade' ? [COMMUNITY_LINKS[2], ...COMMUNITY_LINKS.filter((l, i) => i !== 2)] : COMMUNITY_LINKS,
+})
+
+const mode = useSiteMode()
+const MENUS = computed(() => [...(mode.value === 'trade' ? TRADE_MENUS : DB_MENUS), communityMenu(mode.value)])
+const ALL_MENUS = [...TRADE_MENUS, ...DB_MENUS, communityMenu('db')]
+// 주소가 가장 길게 맞는 메뉴 ('/' 는 정확히 같을 때만 - /trade/history 는 거래내역)
 const activeKey = computed(() => {
   const p = route.path
-  return MENUS.find((m) => m.match.some((pre) => p === pre || p.startsWith(pre + '/')))?.key || (p === '/' ? 'home' : '')
+  let best = ''
+  let len = -1
+  for (const m of MENUS.value) for (const pre of m.match) {
+    const hit = pre === '/' ? p === '/' : under(p, pre)
+    if (hit && pre.length > len) { best = m.key; len = pre.length }
+  }
+  return best
 })
 
 // 지금 화면에 해당하는 하위 메뉴 하나 (드롭다운·모바일 메뉴에 표시)
@@ -86,7 +105,7 @@ function linkScore(to) {
 const activeLink = computed(() => {
   let best = null
   let top = -1
-  for (const m of MENUS) for (const l of m.links) {
+  for (const m of MENUS.value) for (const l of m.links) {
     if (!l.to) continue
     const s = linkScore(l.to)
     if (s > top) { top = s; best = l.to }
@@ -95,7 +114,8 @@ const activeLink = computed(() => {
 })
 
 // 통합 검색
-const PAGES = MENUS.flatMap((m) => m.links.filter((l) => l.to).map((l) => ({ ...l, section: m.label })))
+const PAGES = ALL_MENUS.flatMap((m) => [{ label: m.label, to: m.to }, ...m.links].filter((l) => l.to).map((l) => ({ ...l, section: m.label })))
+  .filter((l, i, a) => a.findIndex((x) => x.to === l.to) === i)
 const query = ref('')
 const searchOpen = ref(false)
 // 아이템 데이터(수 MB)는 검색을 처음 쓸 때 받음 - 모든 페이지 첫 로딩에 끼지 않게
@@ -151,11 +171,19 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   <header class="site-header">
     <div class="site-header-inner" :class="{ staff: isStaff() }">
       <router-link to="/" class="site-logo" aria-label="디아허브 홈"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
+      <nav class="mode-switch" aria-label="모드">
+        <router-link to="/" class="mode-btn trade" :class="{ on: mode === 'trade' }" :aria-current="mode === 'trade' ? 'page' : null">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" /></svg>거래
+        </router-link>
+        <router-link to="/db" class="mode-btn db" :class="{ on: mode === 'db' }" :aria-current="mode === 'db' ? 'page' : null">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></svg>DB
+        </router-link>
+      </nav>
 
       <nav class="site-nav" aria-label="주 메뉴">
         <div class="site-nav-item" v-for="m in MENUS" :key="m.key" :class="{ active: activeKey === m.key }">
-          <router-link :to="m.to" class="site-nav-link">{{ m.label }}<span class="chev" aria-hidden="true">▾</span></router-link>
-          <div class="site-dropdown" :class="{ wide: m.key === 'tools' }">
+          <router-link :to="m.to" class="site-nav-link">{{ m.label }}<span class="chev" aria-hidden="true" v-if="m.links.length">▾</span></router-link>
+          <div class="site-dropdown" :class="{ wide: m.key === 'tools' }" v-if="m.links.length">
             <template v-for="(l, i) in m.links" :key="i">
               <div class="site-dropdown-group" v-if="l.group">{{ l.group }}</div>
               <router-link v-else :to="l.to" class="site-dropdown-link" :class="{ here: activeLink === l.to }" :aria-current="activeLink === l.to ? 'page' : null">
@@ -167,7 +195,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
         </div>
       </nav>
 
-      <div class="site-search" role="search">
+      <div class="site-search" role="search" :class="{ hidden: route.path === '/' }">
         <svg viewBox="0 0 24 24" class="site-search-icon" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
         <input
           :value="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색"
@@ -208,7 +236,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
       <div class="site-mobile-group" v-for="m in MENUS" :key="m.key">
         <div class="site-mobile-title">{{ m.label }}</div>
         <div class="site-mobile-links">
-          <router-link v-for="l in m.links.filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ l.label }}</router-link>
+          <router-link v-for="l in (m.links.length ? m.links : [{ label: m.label, to: m.to }]).filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ l.label }}</router-link>
         </div>
       </div>
     </div>
@@ -219,6 +247,13 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-header{position:sticky; top:0; z-index:40; background:rgba(25,21,18,0.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--border-soft);}
 .site-header-inner{max-width:1232px; margin:0 auto; height:56px; padding:0 24px; display:flex; align-items:center; gap:22px;}
 .site-logo{display:flex; align-items:center; flex:none;}
+.mode-switch{display:flex; flex:none; padding:3px; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:999px;}
+.mode-btn{display:flex; align-items:center; gap:6px; padding:6px 16px; border-radius:999px; font-size:13.5px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+.mode-btn svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+.mode-btn:hover{color:var(--text);}
+.mode-btn.trade.on{background:var(--gold); color:#1a1408;}
+.mode-btn.db.on{background:#5FA8A8; color:#0b1a1a;}
+.site-search.hidden{visibility:hidden;}
 .site-logo img{display:block; height:46px; width:auto;}
 .site-nav{display:flex; align-items:stretch; height:100%; gap:2px;}
 .site-nav-item{position:relative; display:flex;}
@@ -296,6 +331,9 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-clock-time{font-size:12px; letter-spacing:0;}
   .site-header-inner{gap:10px; padding:0 12px;}
   .site-logo img{height:40px;}
+  .mode-btn{padding:5px 11px; font-size:13px;}
+  .mode-btn svg{display:none;}
+  .site-search.hidden{display:none;}
   .site-search-results{width:calc(100vw - 24px); right:auto; left:0;}
 }
 /* 아주 좁은 폰: 시계까지 한 줄에 들어가게 (위 560px 규칙보다 뒤에 있어야 이김) */

@@ -28,16 +28,19 @@ import {
 import itemsData from '../data/items.json'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
-import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
+import { openTradeGuide } from '../tradeGuide.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import EventBanner from '../components/EventBanner.vue'
+import { fetchPosts } from '../communityStore.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
-onMounted(() => { loadTradePosts(); openTradeGuideOnce() })
+// 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '? 이용 안내' 버튼)
+onMounted(() => { loadTradePosts() })
 useAutoRefresh(() => loadTradePosts(true))
-const activeCat = ref(null)
+// 종류는 여러 개 고를 수 있음 (하나라도 맞으면)
+const activeCats = ref([])
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -77,7 +80,7 @@ function clearPickedItem() {
 }
 function onSearchKey(e) {
   if (e.isComposing) return
-  const list = suggestions.value
+  const list = unifiedSuggestions.value
   if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && list.length) {
     e.preventDefault()
     // 닫혀 있으면 열기만 (첫 줄부터)
@@ -85,11 +88,11 @@ function onSearchKey(e) {
     suggestActive.value = (suggestActive.value + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length
   } else if (e.key === 'Enter' && suggestOpen.value && list.length) {
     e.preventDefault()
-    pickItem(list[suggestActive.value] || list[0])
+    chooseSuggestion(list[suggestActive.value] || list[0])
   } else if (e.key === 'Escape') {
     suggestOpen.value = false
-  } else if (e.key === 'Backspace' && !searchQuery.value && pickedItem.value) {
-    clearPickedItem()
+  } else if (e.key === 'Backspace' && !searchQuery.value) {
+    removeLastApplied()
   }
 }
 const closeSuggestSoon = () => setTimeout(() => (suggestOpen.value = false), 150)
@@ -279,14 +282,14 @@ const levelMax = ref('')
 
 const hasActiveFilters = computed(
   () =>
-    activeCat.value !== null || activeLadder.value !== null ||
+    activeCats.value.length > 0 || activeLadder.value !== null ||
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
     levelMin.value !== '' || levelMax.value !== '' || !!pickedItem.value
 )
 // 상세 필터(레더·하드코어·체크·요구 레벨·옵션 조건)는 접어 둠 - 걸려 있는 개수만 버튼에 표시
 const advancedCount = computed(() =>
-  [activeLadder.value !== null, activeHardcore.value !== null, etherealOnly.value, unidOnly.value, favoritesOnly.value,
+  [etherealOnly.value, unidOnly.value, favoritesOnly.value,
     levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length + statConditions.value.length
 )
 const FILTER_OPEN_KEY = 'd2r-trade-filter-open'
@@ -299,7 +302,7 @@ function toggleFilters() {
   try { localStorage.setItem(FILTER_OPEN_KEY, filtersOpen.value ? '1' : '0') } catch { /* 프라이빗 창 등 */ }
 }
 function resetFilters() {
-  activeCat.value = null
+  activeCats.value = []
   activeLadder.value = null
   activeHardcore.value = null
   etherealOnly.value = false
@@ -323,7 +326,7 @@ const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
   // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
   let list = tradeState.posts.filter((p) => (p.status === '판매중' && saleLeftMs(p, now.value) > 0) || (p.status === '예약중' && isFavorite(p.id)))
-  if (activeCat.value) list = list.filter((p) => p.category === activeCat.value)
+  if (activeCats.value.length) list = list.filter((p) => activeCats.value.includes(p.category))
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -356,61 +359,237 @@ const filteredPosts = computed(() => {
   }
   return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 })
+
+// ───────── 첫 화면(거래 모드) 검색 ─────────
+// 큰 검색창 하나에 치면 아이템·종류·옵션 후보가 같이 뜸 -> 고르면 검색창 아래 "적용된 조건" 줄로 내려감
+// (검색창 안에는 글자만 - 조건이 늘어도 입력칸이 안 밀리고, 옵션 수치는 칩의 ✎ 로 그 자리에서 고침)
+
+// 서버 구분 - 레더/논레더 × 일반/하드코어 (검색창 왼쪽)
+const REALMS = [
+  { v: '', label: '전체 서버' },
+  { v: '레더|', label: '래더' }, { v: '레더|일반', label: '래더 · 일반' }, { v: '레더|하드코어', label: '래더 · 하드코어' },
+  { v: '논레더|', label: '논레더' }, { v: '논레더|일반', label: '논레더 · 일반' }, { v: '논레더|하드코어', label: '논레더 · 하드코어' },
+  { v: '|일반', label: '일반(소프트코어)' }, { v: '|하드코어', label: '하드코어' },
+]
+const realm = computed({
+  get: () => (activeLadder.value || activeHardcore.value ? `${activeLadder.value || ''}|${activeHardcore.value || ''}` : ''),
+  set: (v) => {
+    const [l, h] = v ? v.split('|') : ['', '']
+    activeLadder.value = l || null
+    activeHardcore.value = h || null
+  },
+})
+const realmLabel = computed(() => REALMS.find((r) => r.v === realm.value)?.label || '')
+
+// 옵션 후보 - 직접 숫자를 넣는 칸(입력값)·"가장 높은 수치" 같은 특수 항목은 빼고
+const STAT_PICKS = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
+const plainLabel = (l) => l.replace('(%)', '')
+const squash = (t) => t.replace(/[\s·/]+/g, '')
+const unifiedSuggestions = computed(() => {
+  const raw = searchQuery.value.trim().replace(JAMO_TAIL, '')
+  if (!raw) return []
+  const q = squash(raw)
+  const out = []
+  for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
+  for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
+  for (const st of STAT_PICKS) if (squash(plainLabel(st.label)).includes(q)) out.push({ type: 'stat', key: 's' + st.key, st })
+  out.push({ type: 'text', key: 'text', raw })
+  out.push({ type: 'kw', key: 'kw', raw })
+  return out.slice(0, 12)
+})
+const suggestGroups = computed(() => {
+  const list = unifiedSuggestions.value
+  const groups = [
+    { name: '아이템', cls: 'g-item', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
+    { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
+  ]
+  const at = { item: 0, cat: 1, stat: 2, text: 3, kw: 3 }
+  list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
+  return groups.filter((g) => g.rows.length)
+})
+function chooseSuggestion(sug) {
+  if (sug.type === 'item') return pickItem(sug.it)
+  if (sug.type === 'text') { suggestOpen.value = false; return }
+  if (sug.type === 'cat') toggleCat(sug.c, true)
+  else if (sug.type === 'stat') addStatKey(sug.st.key, true)
+  else if (sug.type === 'kw') {
+    const cond = { key: KEYWORD_KEY, keyword: sug.raw, min: null, max: null }
+    if (!statConditions.value.some((c) => condId(c) === condId(cond))) statConditions.value.push(cond)
+  }
+  searchQuery.value = ''
+  suggestOpen.value = false
+}
+function toggleCat(c, onlyAdd = false) {
+  const i = activeCats.value.indexOf(c)
+  if (i >= 0) { if (!onlyAdd) activeCats.value.splice(i, 1) } else activeCats.value.push(c)
+}
+function addStatKey(key, edit = false) {
+  let i = statConditions.value.findIndex((c) => !c.keyword && c.key === key)
+  if (i < 0) { statConditions.value.push({ key, min: null, max: null }); i = statConditions.value.length - 1 }
+  if (edit) openEdit(i)
+}
+
+// 자주 쓰는 옵션 칩 (누르면 켜고 끔)
+const HOT_STATS = ['allskills', 'fcr', 'allres', 'mf', 'life', 'fhr', 'sockets'].map((k) => TRADE_STAT_FILTERS.find((st) => st.key === k)).filter(Boolean)
+const hotOn = (st) => statConditions.value.some((c) => !c.keyword && c.key === st.key)
+function toggleHot(st) {
+  const i = statConditions.value.findIndex((c) => !c.keyword && c.key === st.key)
+  if (i >= 0) statConditions.value.splice(i, 1)
+  else statConditions.value.push({ key: st.key, min: null, max: null })
+}
+
+// 옵션 칩 수치 고치기 (✎)
+const editIdx = ref(-1)
+const editMin = ref('')
+const editMax = ref('')
+function openEdit(i) {
+  const c = statConditions.value[i]
+  if (!c) return
+  if (editIdx.value === i) { editIdx.value = -1; return }
+  editIdx.value = i
+  editMin.value = c.min ?? ''
+  editMax.value = c.max ?? ''
+}
+function applyEdit() {
+  const c = statConditions.value[editIdx.value]
+  if (c) {
+    const num = (v) => (v === '' || v === null ? null : Number(v))
+    let mn = num(editMin.value), mx = num(editMax.value)
+    if (mn !== null && mx !== null && mn > mx) [mn, mx] = [mx, mn]
+    c.min = mn
+    c.max = mx
+  }
+  editIdx.value = -1
+}
+function removeStat(i) {
+  if (editIdx.value === i) editIdx.value = -1
+  else if (editIdx.value > i) editIdx.value--
+  statConditions.value.splice(i, 1)
+}
+// 검색창이 비었을 때 Backspace - 마지막에 걸린 조건부터 하나씩 뺌
+function removeLastApplied() {
+  if (statConditions.value.length) return removeStat(statConditions.value.length - 1)
+  if (pickedItem.value) return clearPickedItem()
+  if (activeCats.value.length) activeCats.value.pop()
+}
+const appliedCount = computed(() =>
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0) +
+  (realm.value ? 1 : 0) + [etherealOnly.value, unidOnly.value, favoritesOnly.value, levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length
+)
+const levelText = computed(() => {
+  if (levelMin.value !== '' && levelMax.value !== '') return `${levelMin.value}~${levelMax.value}`
+  return levelMin.value !== '' ? `${levelMin.value} 이상` : `${levelMax.value} 이하`
+})
+
+// ───────── 오른쪽: 고룬 매물 · 거래 게시판 최신글 ─────────
+const BY_EN = new Map(itemsData.map((it) => [it.name_en, it]))
+const HIGH_RUNES = ['Ber Rune', 'Jah Rune', 'Sur Rune', 'Lo Rune', 'Ohm Rune', 'Vex Rune', 'Gul Rune', 'Ist Rune'].map((en) => BY_EN.get(en)).filter(Boolean)
+const highRunes = computed(() =>
+  HIGH_RUNES.map((it) => ({
+    it,
+    count: tradeState.posts.filter((p) => p.itemId === it.id && p.status === '판매중' && saleLeftMs(p, now.value) > 0).length,
+  }))
+)
+function searchRune(it) {
+  searchQuery.value = it.name_ko
+  suggestOpen.value = false
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+const tradeBoard = ref([])
+const loadTradeBoard = () => fetchPosts({ category: '거래', pageSize: 5 }).then((r) => (tradeBoard.value = r.posts)).catch(() => {})
+loadTradeBoard()
 </script>
 
 <template>
   <div class="items-page trade-page">
 
-  <div class="patch-hero">
-    <div class="patch-hero-inner">
-      <div class="eyebrow">유저 간 아이템 거래</div>
-      <h1>거래게시판</h1>
-    </div>
-  </div>
+  <section class="tr-hero">
+    <div class="tr-hero-inner">
+      <h1>어떤 아이템을 찾아?</h1>
+      <p class="tr-hero-sub">아이템 이름 · 종류 · 옵션을 여러 개 골라서 한 번에 검색</p>
 
-  <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
-  <div class="trade-event-slot"><EventBanner mode="big" /></div>
-
-  <div class="toolbar">
-    <div class="toolbar-inner">
-      <div class="cat-tabs">
-        <button :class="{ active: activeCat === null }" @click="activeCat = null">전체</button>
-        <button v-for="c in TRADE_CATEGORIES" :key="c" :class="{ active: activeCat === c }" @click="activeCat = c">
-          {{ c }}
+      <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
+        <label class="tr-realm">
+          <span class="sr-only">서버</span>
+          <select v-model="realm" aria-label="서버 구분">
+            <option v-for="r in REALMS" :key="r.v" :value="r.v">{{ r.label }}</option>
+          </select>
+        </label>
+        <div class="tr-search-box">
+          <input
+            type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
+            :placeholder="pickedItem ? '옵션·내용으로 더 좁히기' : '아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)'"
+            aria-label="매물 검색" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && unifiedSuggestions.length > 0" aria-controls="tr-suggest"
+          />
+          <div class="tr-suggest" id="tr-suggest" role="listbox" v-if="suggestOpen && unifiedSuggestions.length">
+            <div class="tr-suggest-group" v-for="g in suggestGroups" :key="g.name" :class="g.cls">
+              <div class="tr-suggest-title">{{ g.name }}</div>
+              <button
+                type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: r.i === suggestActive }"
+                :aria-selected="r.i === suggestActive" @mousedown.prevent="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i"
+              >
+                <template v-if="r.sug.type === 'item'">
+                  <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
+                  <span class="item-suggest-name" :class="r.sug.it.category">{{ r.sug.it.name_ko }}</span>
+                  <small>{{ r.sug.it.category_label }}{{ r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
+                </template>
+                <template v-else-if="r.sug.type === 'cat'">
+                  <span>{{ r.sug.c }}</span><small>{{ activeCats.includes(r.sug.c) ? '이미 고름' : '종류 추가' }}</small>
+                </template>
+                <template v-else-if="r.sug.type === 'stat'">
+                  <span>{{ plainLabel(r.sug.st.label) }}</span><small>옵션 추가 · 수치는 다음에</small>
+                </template>
+                <template v-else-if="r.sug.type === 'text'">
+                  <span>"{{ r.sug.raw }}"</span><small>이름·내용에서 찾기</small>
+                </template>
+                <template v-else>
+                  <span>"{{ r.sug.raw }}"</span><small>옵션 문구에 들어간 글만</small>
+                </template>
+              </button>
+            </div>
+            <div class="tr-suggest-hint">↑↓ 이동 · Enter 추가 · 빈 칸에서 Backspace 로 마지막 조건 빼기</div>
+          </div>
+        </div>
+        <button type="submit" class="tr-search-go">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>검색
         </button>
+      </form>
+
+      <div class="tr-applied" v-if="appliedCount" aria-label="적용된 조건">
+        <span class="tr-applied-label">적용된 조건 {{ appliedCount }}</span>
+        <span class="tr-chip realm" v-if="realm">{{ realmLabel }}<button type="button" aria-label="서버 조건 빼기" @click="realm = ''">×</button></span>
+        <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>종류</em>{{ c }}<button type="button" :aria-label="`${c} 빼기`" @click="toggleCat(c)">×</button></span>
+        <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>아이템</em>{{ pickedItem.name_ko }}<button type="button" :aria-label="`${pickedItem.name_ko} 빼기`" @click="clearPickedItem">×</button></span>
+        <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>검색어</em>{{ searchQuery.trim() }}<button type="button" aria-label="검색어 지우기" @click="searchQuery = ''">×</button></span>
+        <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
+          <em>옵션</em>{{ statLabel(c) }}{{ rangeText(c) }}
+          <button type="button" :aria-label="`${statLabel(c)} 수치 바꾸기`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
+          <button type="button" :aria-label="`${statLabel(c)} 빼기`" @click="removeStat(i)">×</button>
+          <span class="tr-chip-edit" v-if="editIdx === i" @keydown.enter.prevent="applyEdit" @keydown.esc="editIdx = -1">
+            <input type="number" v-model="editMin" placeholder="최소" :aria-label="`${statLabel(c)} 최소`" />
+            <span>~</span>
+            <input type="number" v-model="editMax" placeholder="최대" :aria-label="`${statLabel(c)} 최대`" />
+            <button type="button" class="apply" @click="applyEdit">적용</button>
+          </span>
+        </span>
+        <span class="tr-chip flag" v-if="etherealOnly">에테리얼만<button type="button" aria-label="에테리얼 조건 빼기" @click="etherealOnly = false">×</button></span>
+        <span class="tr-chip flag" v-if="unidOnly">미확인만<button type="button" aria-label="미확인 조건 빼기" @click="unidOnly = false">×</button></span>
+        <span class="tr-chip flag" v-if="favoritesOnly">찜한 글만<button type="button" aria-label="찜 조건 빼기" @click="favoritesOnly = false">×</button></span>
+        <span class="tr-chip flag" v-if="levelMin !== '' || levelMax !== ''">요구 레벨 {{ levelText }}<button type="button" aria-label="요구 레벨 조건 빼기" @click="levelMin = ''; levelMax = ''">×</button></span>
+        <span class="tr-applied-gap"></span>
+        <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">모두 지우기</button>
       </div>
-      <div class="search-row">
-        <div class="trade-search">
-          <div class="search-input-wrap">
-            <span class="picked-item-chip" v-if="pickedItem" :class="pickedItem.category">
-              {{ pickedItem.name_ko }}
-              <button type="button" :aria-label="`${pickedItem.name_ko} 지정 해제`" @click="clearPickedItem">✕</button>
-            </span>
-            <input
-              type="text" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
-              :placeholder="pickedItem ? '옵션·내용으로 더 좁히기' : '아이템명·옵션·내용 검색 (유니크·룬워드는 골라서 옵션 범위 검색)'"
-              aria-label="거래글 검색" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && suggestions.length > 0"
-            />
-          </div>
-          <div class="item-suggest" v-if="suggestOpen && suggestions.length">
-            <button
-              type="button" v-for="(it, i) in suggestions" :key="it.id" class="item-suggest-row" :class="{ active: i === suggestActive }"
-              @mousedown.prevent="pickItem(it)" @mousemove="suggestActive = i"
-            >
-              <span class="item-suggest-icon" :class="it.category"><img v-if="iconUrlFor(it.icon_key)" :src="iconUrlFor(it.icon_key)" alt="" /></span>
-              <span class="item-suggest-name" :class="it.category">{{ it.name_ko }}</span>
-              <small>{{ it.category_label }}{{ it.subtitle && it.category !== 'runeword' ? ' · ' + it.subtitle : '' }}</small>
-            </button>
-            <div class="item-suggest-hint">↑↓·Enter로 고르면 이 아이템 글만 + 옵션 범위 검색 · 안 고르면 글자로 검색</div>
-          </div>
+
+      <div class="tr-quick">
+        <div class="tr-quick-row">
+          <span class="tr-quick-label">종류</span>
+          <button type="button" v-for="c in TRADE_CATEGORIES" :key="c" class="tr-qchip kind" :class="{ on: activeCats.includes(c) }" :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)">{{ c }}</button>
         </div>
-        <span class="result-count">{{ filteredPosts.length }}개</span>
-        <div class="view-mode-toggle">
-          <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" @click="setViewMode('list')">☰</button>
-          <button type="button" :class="{ active: viewMode === 'grid' }" title="그리드형" @click="setViewMode('grid')">▦</button>
+        <div class="tr-quick-row">
+          <span class="tr-quick-label">자주 쓰는 옵션</span>
+          <button type="button" v-for="st in HOT_STATS" :key="st.key" class="tr-qchip opt" :class="{ on: hotOn(st) }" :aria-pressed="hotOn(st)" @click="toggleHot(st)">{{ plainLabel(st.label) }}</button>
+          <button type="button" class="tr-qchip more" :class="{ on: filtersOpen }" :aria-expanded="filtersOpen" @click="toggleFilters">상세 필터{{ advancedCount ? ` ${advancedCount}` : '' }} {{ filtersOpen ? '▴' : '▾' }}</button>
         </div>
-        <button type="button" class="guide-btn" @click="openTradeGuide()">? 이용 안내</button>
-        <router-link class="quality-toggle" to="/trade/new">판매글 등록</router-link>
       </div>
       <div class="item-range-panel" v-if="pickedItem">
         <div class="item-range-title">
@@ -438,25 +617,7 @@ const filteredPosts = computed(() => {
         </template>
         <div class="item-range-empty" v-if="!itemVarDefs.length">변동 옵션 없음 (옵션이 고정된 아이템)</div>
       </div>
-      <div class="filter-toggle-row">
-        <button type="button" class="filter-toggle" :class="{ open: filtersOpen, on: advancedCount }" @click="toggleFilters" :aria-expanded="filtersOpen">
-          상세 필터<span class="filter-count" v-if="advancedCount">{{ advancedCount }}</span> {{ filtersOpen ? '▴' : '▾' }}
-        </button>
-        <span class="stat-chip" v-for="(c, i) in (filtersOpen ? [] : statConditions)" :key="'c' + condId(c)">
-          {{ statLabel(c) }}{{ rangeText(c) }}
-          <button type="button" :aria-label="`${statLabel(c)} 조건 삭제`" @click="removeStatCondition(i)">✕</button>
-        </span>
-        <button type="button" class="reset-filters" v-if="hasActiveFilters" @click="resetFilters">필터 초기화</button>
-      </div>
       <div class="filter-row" v-show="filtersOpen">
-        <select v-model="activeLadder" class="sort-select">
-          <option :value="null">레더·논레더 전체</option>
-          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ l }}</option>
-        </select>
-        <select v-model="activeHardcore" class="sort-select">
-          <option :value="null">일반·하드코어 전체</option>
-          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ h }}</option>
-        </select>
         <label class="ethereal-filter-check">
           <input type="checkbox" v-model="etherealOnly" />
           에테리얼만
@@ -503,10 +664,23 @@ const filteredPosts = computed(() => {
         </span>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="grid-wrap trade-list-wrap">
-    <p class="board-note">거래 대기(판매중)인 글만 보여줌 · 찜한 글은 거래중이어도 보임 · 거래완료된 글은 <router-link to="/trade/history">아이템별 거래내역</router-link>에서</p>
+  <div class="tr-body">
+  <div class="tr-main">
+    <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
+    <div class="trade-event-slot"><EventBanner mode="big" /></div>
+    <div class="tr-results-head">
+      <h2>{{ appliedCount ? '검색 결과' : '방금 올라온 매물' }} <span>{{ filteredPosts.length }}</span>개</h2>
+      <span class="tr-results-note">판매중만 · 찜한 글은 거래중이어도 표시 · 끝난 거래는 <router-link to="/trade/history">거래내역</router-link></span>
+      <span class="tr-gap"></span>
+      <div class="view-mode-toggle">
+        <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" aria-label="목록형으로 보기" @click="setViewMode('list')">☰</button>
+        <button type="button" :class="{ active: viewMode === 'grid' }" title="그리드형" aria-label="그리드형으로 보기" @click="setViewMode('grid')">▦</button>
+      </div>
+      <button type="button" class="guide-btn" @click="openTradeGuide()">? 이용 안내</button>
+      <router-link class="quality-toggle" to="/trade/new">+ 판매글 등록</router-link>
+    </div>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
@@ -581,6 +755,26 @@ const filteredPosts = computed(() => {
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
       <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
     </div>
+  </div>
+
+  <aside class="tr-side">
+    <section class="tr-card">
+      <div class="tr-card-head"><h2>고룬 매물</h2><router-link to="/market">시세 보기</router-link></div>
+      <button type="button" class="tr-rune" v-for="r in highRunes" :key="r.it.id" @click="searchRune(r.it)">
+        <span class="tr-rune-icon"><img v-if="iconUrlFor(r.it.icon_key)" :src="iconUrlFor(r.it.icon_key)" alt="" /></span>
+        <span class="tr-rune-name">{{ r.it.name_ko }}</span>
+        <span class="tr-rune-count">{{ r.count ? `판매중 ${r.count}` : '매물 없음' }}</span>
+      </button>
+    </section>
+    <section class="tr-card">
+      <div class="tr-card-head"><h2>거래 게시판 최신글</h2><router-link to="/community?cat=거래">더보기</router-link></div>
+      <router-link class="tr-board-row" v-for="b in tradeBoard" :key="b.id" :to="`/community/${b.id}`">
+        <span class="tr-board-title">{{ b.title }}</span>
+        <span class="tr-board-meta">{{ b.commentCount ? `[${b.commentCount}]` : '' }}</span>
+      </router-link>
+      <div class="tr-card-empty" v-if="!tradeBoard.length">아직 글 없음 · <router-link to="/community/write?cat=거래">첫 글 쓰기</router-link></div>
+    </section>
+  </aside>
   </div>
   </div>
 </template>
@@ -800,4 +994,118 @@ const filteredPosts = computed(() => {
 .trade-row:has(.dealing-badge), .trade-card:has(.dealing-badge){opacity:.75;}
 .guide-btn{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--panel);}
 .guide-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
+
+/* ───── 거래 모드 첫 화면 (시안: 큰 검색 + 적용된 조건 줄 + 오른쪽 사이드) ───── */
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+.tr-hero{background:var(--bg-raise); border-bottom:1px solid var(--border-soft);}
+.tr-hero-inner{max-width:1040px; margin:0 auto; padding:48px 24px 28px; display:flex; flex-direction:column; gap:14px;}
+.tr-hero h1{text-align:center; font-size:32px; margin:0;}
+.tr-hero-sub{text-align:center; color:var(--text-muted); font-size:14.5px; margin:-4px 0 6px;}
+
+.tr-search{display:flex; align-items:stretch; min-height:60px; background:#F3EEE4; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); position:relative;}
+.tr-realm{display:flex; align-items:center; background:#E8E0D2; border-right:1px solid #D4CBBB; border-radius:16px 0 0 16px;}
+.tr-realm select{height:100%; border:none; background:transparent; color:#2E2720; font-weight:700; font-size:14px; padding:0 14px; font-family:inherit; cursor:pointer;}
+.tr-realm select:focus-visible{outline:2px solid var(--gold); outline-offset:-2px;}
+.tr-search-box{flex:1 1 auto; min-width:0; position:relative; display:flex;}
+.tr-search-box input{flex:1; min-width:0; width:100%; border:none; outline:none; background:transparent; color:#1A1510; font-size:17px; padding:0 18px; font-family:'Noto Sans KR', sans-serif;}
+.tr-search-box input::placeholder{color:#6E655A;}
+.tr-search-go{display:flex; align-items:center; gap:8px; padding:0 26px; background:var(--gold); color:#1a1408; font-weight:800; font-size:16px; border-radius:0 16px 16px 0;}
+.tr-search-go svg{width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round;}
+.tr-search-go:hover{background:var(--focus);}
+
+.tr-suggest{
+  position:absolute; top:calc(100% + 8px); left:-1px; right:-1px; z-index:30; padding:8px; max-height:460px; overflow-y:auto;
+  background:var(--panel-2); border:1px solid var(--border); border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.55);
+}
+.tr-suggest-title{font-size:11px; font-weight:800; padding:6px 10px 4px; color:var(--text-dim);}
+.g-item .tr-suggest-title{color:var(--gold-dim);}
+.g-cat .tr-suggest-title{color:#C9A56B;}
+.g-stat .tr-suggest-title{color:#9FB0FF;}
+.tr-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border-radius:9px; text-align:left; font-size:14px; color:var(--text);}
+.tr-suggest-row small{margin-left:auto; font-size:11.5px; color:var(--text-dim);}
+.tr-suggest-row.active{background:rgba(200,163,77,.14);}
+.tr-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 2px; border-top:1px solid var(--border-soft); margin-top:4px;}
+
+.tr-applied{display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; border-radius:12px; background:var(--panel); border:1px solid var(--border);}
+.tr-applied-label{font-size:12px; font-weight:800; color:var(--text-dim); margin-right:2px;}
+.tr-applied-gap{flex:1;}
+.tr-clear{font-size:12.5px; color:var(--text-muted); text-decoration:underline; text-underline-offset:3px;}
+.tr-clear:hover{color:var(--gold);}
+.tr-chip{
+  position:relative; display:inline-flex; align-items:center; gap:6px; padding:4px 5px 4px 11px; border-radius:999px;
+  font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--panel-2); color:var(--text);
+}
+.tr-chip em{font-style:normal; font-size:10.5px; font-weight:800; opacity:.75;}
+.tr-chip > button{width:22px; height:22px; border-radius:7px; background:rgba(255,255,255,.07); color:inherit; font-size:13px; line-height:22px; display:inline-flex; align-items:center; justify-content:center;}
+.tr-chip > button:hover{background:rgba(255,255,255,.16);}
+.tr-chip.kind, .tr-chip.realm{background:#2A2216; border-color:#8F773D; color:#F0D9A6;}
+.tr-chip.opt{background:#1C2645; border-color:#4A5FA8; color:#DDE3FF;}
+.tr-chip.item{background:#2A2216; border-color:var(--gold-dim); color:var(--gold);}
+.tr-chip.item.set{color:var(--green);}
+.tr-chip-edit{
+  position:absolute; top:calc(100% + 6px); left:0; z-index:20; display:flex; align-items:center; gap:6px; padding:8px;
+  background:var(--panel-2); border:1px solid #4A5FA8; border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.5);
+}
+.tr-chip-edit input{width:70px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px;}
+.tr-chip-edit .apply{padding:6px 12px; border-radius:7px; background:#6E83E0; color:#0E1430; font-weight:800; font-size:12.5px;}
+
+.tr-quick{display:flex; flex-direction:column; gap:8px; margin-top:2px;}
+.tr-quick-row{display:flex; flex-wrap:wrap; align-items:center; gap:7px;}
+.tr-quick-label{width:92px; flex:none; font-size:12px; font-weight:700; color:var(--text-dim);}
+.tr-qchip{padding:6px 13px; border-radius:999px; font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--panel); color:var(--text-muted);}
+.tr-qchip:hover{color:var(--text);}
+.tr-qchip.kind.on{border-color:#8F773D; background:#2A2216; color:#F0D9A6;}
+.tr-qchip.opt.on{border-color:#4A5FA8; background:#1C2645; color:#DDE3FF;}
+.tr-qchip.more{border-style:dashed;}
+.tr-qchip.more.on{color:var(--gold); border-color:var(--gold-dim);}
+
+.tr-body{max-width:1232px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
+.tr-main{flex:999 1 620px; min-width:0;}
+.tr-main .trade-list, .tr-main .trade-grid{margin-top:12px;}
+.tr-results-head{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
+.tr-results-head h2{font-size:18px; margin:0; font-family:'Noto Sans KR', sans-serif; font-weight:800;}
+.tr-results-head h2 span{color:var(--gold);}
+.tr-results-note{font-size:12px; color:var(--text-dim);}
+.tr-results-note a{color:var(--gold-dim); text-decoration:underline;}
+.tr-gap{flex:1;}
+
+.tr-side{flex:1 1 280px; max-width:340px; display:flex; flex-direction:column; gap:14px; position:sticky; top:72px;}
+.tr-card{background:var(--panel); border:1px solid var(--border-soft); border-radius:14px; padding:16px;}
+.tr-card-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px;}
+.tr-card-head h2{font-size:15px; margin:0; font-family:'Noto Sans KR', sans-serif; font-weight:800;}
+.tr-card-head a{font-size:12px; color:var(--gold-dim);}
+.tr-rune{display:flex; align-items:center; gap:10px; width:100%; padding:6px; border-radius:8px; text-align:left;}
+.tr-rune:hover{background:var(--panel-2);}
+.tr-rune-icon{width:26px; height:26px; display:flex; align-items:center; justify-content:center;}
+.tr-rune-icon img{max-width:100%; max-height:100%; image-rendering:pixelated;}
+.tr-rune-name{flex:1; font-size:14px; font-weight:600; color:var(--text);}
+.tr-rune-count{font-size:12px; color:var(--text-muted);}
+.tr-board-row{display:flex; gap:8px; padding:8px 0; border-top:1px solid var(--border-soft); font-size:13px; color:var(--text);}
+.tr-board-row:hover .tr-board-title{color:var(--gold);}
+.tr-board-title{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.tr-board-meta{font-size:12px; color:var(--gold-dim);}
+.tr-card-empty{font-size:12.5px; color:var(--text-dim); padding:6px 0;}
+.tr-card-empty a{color:var(--gold-dim); text-decoration:underline;}
+
+@media (max-width:900px){
+  .tr-side{position:static; max-width:none;}
+}
+@media (max-width:640px){
+  .tr-hero-inner{padding:24px 14px 18px; gap:12px;}
+  .tr-hero h1{font-size:22px;}
+  .tr-hero-sub{display:none;}
+  .tr-search{display:grid; grid-template-columns:minmax(0, 1fr) auto; min-height:0; border-radius:12px;}
+  .tr-realm{grid-column:1 / -1; border-radius:12px 12px 0 0; border-right:none; border-bottom:1px solid #D4CBBB; min-height:38px;}
+  .tr-realm select{width:100%;}
+  .tr-search-box{min-height:48px;}
+  .tr-search-box input{font-size:16px; padding:12px 14px;}
+  .tr-search-go{padding:0 16px; border-radius:0 0 12px 0; font-size:0; gap:0;}
+  .tr-search-go svg{width:20px; height:20px;}
+  .tr-quick-label{width:100%;}
+  .tr-quick-row{flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;}
+  .tr-quick-row .tr-quick-label{display:none;}
+  .tr-qchip{flex:none;}
+  .tr-body{padding:16px 14px 48px;}
+  .tr-results-note{display:none;}
+}
 </style>

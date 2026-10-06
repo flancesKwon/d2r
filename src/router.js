@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { trackVisit } from './visitTracker.js'
-import HomePage from './pages/HomePage.vue'
+const HomePage = () => import('./pages/HomePage.vue')
 const ItemsPage = () => import('./pages/ItemsPage.vue')
 const GuidesPage = () => import('./pages/GuidesPage.vue')
 const GuideDetailPage = () => import('./pages/GuideDetailPage.vue')
@@ -39,7 +39,9 @@ const EventPage = () => import('./pages/EventPage.vue')
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'home', component: HomePage },
+    // 첫 화면 = 거래 (매물 검색). 정보·도구 모음은 /db
+    { path: '/', name: 'trade', component: TradePage },
+    { path: '/db', name: 'home', component: HomePage, meta: { title: 'DB' } },
     { path: '/items', name: 'items', component: ItemsPage, meta: { title: '아이템 사전' } },
     // 아이템 하나 (검색엔진·공유용 주소) - 사전 화면에서 그 아이템 상세를 열어 둠
     { path: '/items/:id', name: 'item', component: ItemsPage, meta: { title: '아이템 사전' } },
@@ -56,7 +58,8 @@ const router = createRouter({
     { path: '/simulator', name: 'simulator', component: SimulatorPage, meta: { title: '스킬·스탯 시뮬레이터' } },
     { path: '/ladder', name: 'ladder', component: LadderPage, meta: { title: '레더 시즌 정보' } },
     { path: '/market', name: 'market', component: MarketPage, meta: { title: '시세 게시판' } },
-    { path: '/trade', name: 'trade', component: TradePage, meta: { title: '거래게시판' } },
+    // 예전 거래게시판 주소 (?q= ?item= 그대로 넘김)
+    { path: '/trade', redirect: (to) => ({ path: '/', query: to.query }) },
     { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
     { path: '/trade/:id/relist', name: 'trade-relist', component: TradeRelistPage, meta: { title: '재등록' } },
@@ -90,7 +93,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 정보'
+  document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 거래·정보'
   // 방문 통계 (013 SQL) - 화면 옮길 때마다
   trackVisit(to.path)
 })
