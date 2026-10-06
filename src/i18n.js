@@ -44,6 +44,22 @@ export function withLocale(path, code = locale.value) {
   return '/' + code + (bare === '/' ? '' : bare)
 }
 
+// 처음 들어온 사람의 언어 고르기 - 직접 고른 적 있으면(KO/EN 버튼) 그대로,
+// 없으면 브라우저 언어에 한국어가 없을 때만 영어. 검색 봇은 주소 그대로 (한국어 페이지도 긁어가야 함)
+const LOCALE_PREF_KEY = 'd2r-locale'
+export function rememberLocale(code) {
+  try { localStorage.setItem(LOCALE_PREF_KEY, code) } catch { /* 프라이빗 창 등 */ }
+}
+export function autoLocaleFor(path) {
+  if (typeof navigator === 'undefined') return null
+  if (localeOfPath(path) !== DEFAULT_LOCALE) return null
+  try { if (localStorage.getItem(LOCALE_PREF_KEY)) return null } catch { return null }
+  if (/bot|crawl|spider|slurp|preview|lighthouse|headless/i.test(navigator.userAgent || '')) return null
+  const langs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']).map((l) => String(l).toLowerCase())
+  if (!langs[0] || langs.some((l) => l.startsWith('ko'))) return null
+  return 'en'
+}
+
 export async function setLocale(code) {
   if (!LOCALES.some((l) => l.code === code)) code = DEFAULT_LOCALE
   if (!dicts[code] && loaders[code]) {

@@ -17,7 +17,7 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
 const pages = [
-  { p: '', title: '디아허브 — 디아블로 2 레저렉션 거래·정보', desc: '디아블로 2 레저렉션 아시아 서버 아이템 거래 - 아이템 이름·종류·옵션으로 매물 검색, 고룬 매물, 거래 게시판' },
+  { p: '', title: '디아허브 — 디아블로 2 레저렉션 거래·정보', desc: '디아블로 2 레저렉션 아이템 거래 (아시아·미주·유럽 서버) - 아이템 이름·종류·옵션으로 매물 검색, 고룬 매물, 거래 게시판' },
   { p: 'db', title: 'DB', desc: '디아블로 2 레저렉션 정보·도구 모음 - 아이템 사전, 룬워드, 큐브 레시피, 브레이크포인트·공속 계산기, 시뮬레이터, 빌드 가이드' },
   { p: 'items', title: '아이템 사전', desc: '디아블로 2 레저렉션 유니크·세트·룬워드·보석·룬 전체 옵션. 이름·옵션(패캐·올스 등)으로 검색' },
   { p: 'runewords', title: '룬워드 찾기', desc: '룬을 고르면 그 룬이 들어가는 룬워드와 더 필요한 룬 - 디아블로 2 레저렉션' },
@@ -75,7 +75,7 @@ const privatePages = [
 
 // 영어판 (/en/...) - 화면 문구가 번역된 주요 화면 + 아이템. 가이드는 본문이 한국어라 안 만듦
 const EN_DESC = {
-  '': 'Diablo II: Resurrected item trading for the Asia realm — search listings by item, type and stats, plus a full item database and calculators.',
+  '': 'Diablo II: Resurrected item trading for the Asia, Americas and Europe realms — search listings by item, type and stats, plus a full item database and calculators.',
   db: 'Diablo II: Resurrected database and tools — items, runewords, cube recipes, breakpoint and IAS calculators, skill planner, build guides.',
   items: 'Every Diablo II: Resurrected unique, set, runeword, gem and rune with stats and variable rolls.',
   runewords: 'Pick the runes you have and see which Diablo II: Resurrected runewords they make.',

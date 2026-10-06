@@ -54,7 +54,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
       <div class="tg-body">
         <!-- 1. 장점 -->
         <template v-if="tradeGuideState.tab === 'why'">
-          <p class="tg-lead">{{ $t('아시아 서버 디아블로 2 레저렉션 유저끼리 아이템을 사고파는 곳. 등록부터 거래완료·리뷰까지 사이트 안에서 이어집니다.') }}</p>
+          <p class="tg-lead">{{ $t('디아블로 2 레저렉션 유저끼리 아이템을 사고파는 곳 (아시아·미주·유럽 서버). 등록부터 거래완료·리뷰까지 사이트 안에서 이어집니다.') }}</p>
           <div class="tg-grid">
             <div class="tg-card"><b>{{ $t('게임 그대로의 아이템 카드') }}</b><span>{{ $t('옵션을 고르면 게임 툴팁 모양으로 바로 보이고 이미지로 저장도 가능') }}</span></div>
             <div class="tg-card"><b>{{ $t('나올 수 없는 수치는 등록 불가') }}</b><span>{{ $t('옵션 수치를 게임 범위로 검사 - 잘못 적힌 매물이 없음') }}</span></div>

@@ -16,6 +16,7 @@ import {
   tradePostsForItem,
   tradedItemSummaries,
   loadTradePosts,
+  TRADE_REALMS,
   TRADE_LADDERS,
   TRADE_HARDCORE,
   TRADE_STAT_FILTERS,
@@ -42,13 +43,14 @@ const item = computed(() => (itemId.value ? getTradeItem(itemId.value) : null))
 const title = computed(() => (item.value ? itemName(item.value) : freeName.value))
 const hasTarget = computed(() => !!title.value)
 
+const region = ref('')
 const ladder = ref('')
 const hardcore = ref('')
 const status = ref('')
 // 고른 변동 옵션 {옵션 key: 값}
 const picks = reactive({})
 const clearPicks = () => Object.keys(picks).forEach((k) => delete picks[k])
-watch(() => route.fullPath, () => { ladder.value = ''; hardcore.value = ''; status.value = ''; clearPicks() })
+watch(() => route.fullPath, () => { region.value = ''; ladder.value = ''; hardcore.value = ''; status.value = ''; clearPicks() })
 
 const allPosts = computed(() => (hasTarget.value ? tradePostsForItem({ itemId: item.value?.id, name: freeName.value }) : []))
 // 판매 기간이 끝난 판매중 글은 '기간 만료'
@@ -103,7 +105,7 @@ const pickedCount = computed(() => Object.keys(picks).length)
 const matchPicks = (p) => varDefs.value.every((d) => !(d.key in picks) || d.get(p) === picks[d.key])
 
 const posts = computed(() =>
-  allPosts.value.filter((p) => (!ladder.value || p.ladder === ladder.value) && (!hardcore.value || p.hardcore === hardcore.value) && matchPicks(p))
+  allPosts.value.filter((p) => (!region.value || p.realm === region.value) && (!ladder.value || p.ladder === ladder.value) && (!hardcore.value || p.hardcore === hardcore.value) && matchPicks(p))
 )
 const shownPosts = computed(() => posts.value.filter((p) => !status.value || statusOf(p) === status.value))
 const statusCount = (t) => posts.value.filter((p) => statusOf(p) === t).length
@@ -190,6 +192,10 @@ const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) 
     <div class="grid-wrap th-wrap">
       <template v-if="hasTarget">
         <div class="th-filters">
+          <select v-model="region" class="write-select" :aria-label="$t('지역 서버')">
+            <option value="">{{ $t('모든 지역') }}</option>
+            <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
+          </select>
           <select v-model="ladder" class="write-select" :aria-label="$t('레더 구분')">
             <option value="">{{ $t('레더·논레더 전체') }}</option>
             <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>

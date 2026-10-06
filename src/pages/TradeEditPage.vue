@@ -10,7 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, fetchTradeRequests, updateTradePost, tradeEditBlockReason,
   CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, getTradeItem,
-  TRADE_LADDERS, TRADE_HARDCORE, categoryHasQuantity, buildAmountLabel, GOLD_MAX,
+  TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, categoryHasQuantity, buildAmountLabel, GOLD_MAX,
 } from '../tradeStore.js'
 import { editableOptionLines, buildEditedLines } from '../tradeEdit.js'
 import { buildTooltip } from '../itemTooltip.js'
@@ -41,7 +41,7 @@ const reason = computed(() => {
 
 // 폼 - 글을 처음 받았을 때 한 번 채움
 const lines = ref([])
-const form = ref({ qty: '', offerOnly: false, negotiable: false, ladder: '', hardcore: '', content: '' })
+const form = ref({ qty: '', offerOnly: false, negotiable: false, realm: '', ladder: '', hardcore: '', content: '' })
 const priceItems = ref([])
 const BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
 function parsePrice(text) {
@@ -60,7 +60,7 @@ watch([post, loading], ([p, l]) => {
   form.value = {
     qty: (p.amountLabel.match(/^([\d,]+)(?:개| 골드)$/)?.[1] || '').replace(/,/g, ''),
     offerOnly: p.offerOnly, negotiable: p.negotiable && !p.offerOnly,
-    ladder: p.ladder, hardcore: p.hardcore, content: p.content || '',
+    realm: p.realm, ladder: p.ladder, hardcore: p.hardcore, content: p.content || '',
   }
 }, { immediate: true })
 
@@ -102,7 +102,7 @@ async function submit() {
     await updateTradePost(post.value, {
       price: newPrice.value, options: edited.value.lines, amountLabel: amountLabel.value,
       offerOnly: form.value.offerOnly, negotiable: form.value.negotiable,
-      ladder: form.value.ladder, hardcore: form.value.hardcore, contact: post.value.contact, content: form.value.content,
+      realm: form.value.realm, ladder: form.value.ladder, hardcore: form.value.hardcore, contact: post.value.contact, content: form.value.content,
     })
     router.replace(`/trade/${post.value.id}`)
     showAlert(t('판매글 수정 완료'), { icon: 'success' })
@@ -173,6 +173,9 @@ async function submit() {
               <input type="number" min="1" :max="post.category === '골드' ? GOLD_MAX : null" v-model="form.qty" class="write-input" />
             </label>
             <div class="edit-row">
+              <select v-model="form.realm" class="write-input" :aria-label="$t('서버')">
+                <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
+              </select>
               <select v-model="form.ladder" class="write-input" :aria-label="$t('레더')">
                 <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
               </select>

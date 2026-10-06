@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { LOCALES, DEFAULT_LOCALE, locale, setLocale, localeOfPath, withLocale, t } from './i18n.js'
+import { LOCALES, DEFAULT_LOCALE, locale, setLocale, localeOfPath, withLocale, t, rememberLocale } from './i18n.js'
 import { trackVisit } from './visitTracker.js'
 const HomePage = () => import('./pages/HomePage.vue')
 const ItemsPage = () => import('./pages/ItemsPage.vue')
@@ -114,6 +114,7 @@ const router = createRouter({
 // (언어 바꾸기 버튼은 switchLocale 로 - 그때만 언어 없는 주소로 돌아감)
 let switchingTo = null
 export function switchLocale(code) {
+  rememberLocale(code)
   switchingTo = code
   const cur = router.currentRoute.value.fullPath
   return router.push(localizeFullPath(cur, code))
