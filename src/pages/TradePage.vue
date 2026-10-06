@@ -958,7 +958,7 @@ function variantLines(p) {
 .price-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 /* 그 아이템에서만 달라지는 옵션 줄 */
-.trade-opts{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+.trade-opts{display:flex; flex-wrap:wrap; justify-content:inherit; gap:5px 6px; margin-top:7px;}
 .trade-opt{font-size:11.5px; color:var(--text-muted); border:1px solid rgba(110,110,255,0.3); background:rgba(110,110,255,0.07); padding:2px 8px; border-radius:7px;}
 .trade-opt b{color:#9f9fff; font-weight:700;}
 
@@ -970,7 +970,7 @@ function variantLines(p) {
 .view-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
 
 .trade-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:16px;
 }
 .trade-card{
   position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
