@@ -291,7 +291,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-dropdown-link.here{background:rgba(200,163,77,0.12); color:var(--gold); font-weight:600; box-shadow:inset 3px 0 0 var(--gold);}
 .site-dropdown-group{padding:8px 12px 2px; font-size:10.5px; color:var(--text-dim); border-top:1px solid var(--border-soft); margin-top:4px;}
 
-.site-search{position:relative; margin-left:auto; width:240px; flex:none;}
+.site-search{position:relative; margin-left:auto; width:240px; flex:0 1 240px; min-width:120px;}
 .site-search input{
   width:100%; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--text);
   padding:8px 12px 8px 34px; font-size:13px; font-family:'Noto Sans KR', sans-serif;
@@ -333,6 +333,22 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-clock-date{display:none;}
   .site-nav-link{padding:0 8px; font-size:13.5px;}
 }
+/* 영어는 메뉴 글자가 길어서 같은 폭에 안 들어감 - 한 단계씩 먼저 좁히고 먼저 햄버거로 */
+:root:lang(en) .site-search{width:180px; flex-basis:180px;}
+@media (max-width:1460px){
+  :root:lang(en) .site-search{width:150px; flex-basis:150px;}
+  :root:lang(en) .site-nav-link{padding:0 8px; font-size:13.5px;}
+  :root:lang(en) .site-header-inner{gap:14px;}
+}
+@media (max-width:1320px){
+  :root:lang(en) .site-clock-date{display:none;}
+}
+@media (max-width:1260px){
+  :root:lang(en) .site-nav{display:none;}
+  :root:lang(en) .site-burger{display:flex;}
+  :root:lang(en) .site-search{width:auto; flex:1 1 auto; max-width:320px;}
+}
+
 /* 헤더 시계가 들어가면서 1040px 아래에선 메뉴가 한 줄에 안 들어가서 햄버거로 바꿈 */
 @media (max-width:1040px){
   .site-nav{display:none;}
