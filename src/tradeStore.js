@@ -759,7 +759,7 @@ export async function updateTradePost(post, patch) {
 // 수정할 수 있는 글인지 (화면용 - 실제 확인은 DB). requests: 이 글의 구매신청 목록
 export function tradeEditBlockReason(post, requests = []) {
   if (!post) return '판매글 없음'
-  if (post.status !== '판매중') return `${post.status} 글은 수정 불가`
+  if (post.status !== '판매중') return `${statusLabel(post.status)} 글은 수정 불가`
   if (requests.some((r) => ['pending', 'accepted'].includes(r.status || 'pending'))) return '구매신청이 들어온 글은 수정 불가 (신청을 거절하거나 취소되면 가능)'
   return ''
 }

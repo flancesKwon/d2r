@@ -31,7 +31,7 @@ function onChange(e) {
     <span class="range-prefix" v-if="prefix">{{ prefix }}</span>
     <input
       type="number" inputmode="numeric" step="1" :min="min" :max="max" :value="modelValue ?? ''"
-      :placeholder="min === max ? String(min) : `${min}~${max}`" :aria-label="label || `수치 ${min}~${max}`"
+      :placeholder="min === max ? String(min) : `${min}~${max}`" :aria-label="label || `${min}~${max}`"
       :class="{ invalid: bad() }" @input="onInput" @change="onChange"
     />
   </span>

@@ -89,6 +89,16 @@ function fillNums(tpl, nums, names) {
   })
 }
 function translateAffix(text, A) {
+  const one = translateLine(text, A)
+  if (one != null || !text.includes(', ')) return one
+  // 한 줄에 옵션 여러 개 ('시야 +1, 명중률 +10') - 각각 바꿔서 다시 이음
+  const parts = text.split(', ').map((x) => translateLine(x, A))
+  return parts.every((x) => x != null) ? parts.join(', ') : null
+}
+function translateLine(text, A) {
+  // '방어력 +0.5 (캐릭터 레벨당)'
+  const per = /^(.+) \(캐릭터 레벨당\)$/.exec(text.trim())
+  if (per) return translateLine('캐릭터 레벨당 ' + per[1], A)
   const nums = []
   const shape = text.trim().replace(NUM_RE, (m) => (nums.push(m), '#'))
   if (A.PATTERNS[shape]) return fillNums(A.PATTERNS[shape], nums, {})

@@ -1,5 +1,7 @@
 <script setup>
 import { openTradeGuide } from '../tradeGuide.js'
+import { t, locale, itemName } from '../i18n.js'
+import { priceText } from '../tradeI18n.js'
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { askConfirm } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -78,7 +80,7 @@ async function run(fn) {
   try {
     await fn()
   } catch (e) {
-    actionError.value = e.message || '처리 실패'
+    actionError.value = t(e.message || '처리 실패')
   }
 }
 
@@ -97,11 +99,11 @@ async function setStatus(status) {
   const d = activeDeal.value
   if (!d) return
   const label = status === '거래불발'
-    ? '거래불발 처리 - 판매글은 다시 판매중'
+    ? t('거래불발 처리 - 판매글은 다시 판매중')
     : d.theirDoneAt
-      ? '거래완료 - 상대도 완료를 눌러서 바로 끝남. 판매글도 거래완료, 후기 작성 가능'
-      : `거래완료 - ${d.counterpart}님도 완료를 누르면 끝남 (안 누르면 3일 뒤 자동 완료)`
-  if (!await askConfirm(label, status === '거래완료' ? { confirmText: '거래완료' } : undefined)) return
+      ? t('거래완료 - 상대도 완료를 눌러서 바로 끝남. 판매글도 거래완료, 후기 작성 가능')
+      : t('거래완료 - {name}님도 완료를 누르면 끝남 (안 누르면 3일 뒤 자동 완료)', { name: d.counterpart })
+  if (!await askConfirm(label, status === '거래완료' ? { confirmText: t('거래완료') } : undefined)) return
   return run(() => updateDealStatus(d, status))
 }
 // 남은 자동 완료 시간 (먼저 누른 쪽 기준 3일)
@@ -109,8 +111,11 @@ function autoLeft(d) {
   const first = [d.myDoneAt, d.theirDoneAt].filter(Boolean).sort()[0]
   if (!first) return ''
   const h = Math.max(0, Math.ceil((new Date(first).getTime() + 3 * 86400000 - Date.now()) / 3600000))
+  if (locale.value !== 'ko') return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h`
   return h >= 24 ? `${Math.floor(h / 24)}일 ${h % 24}시간` : `${h}시간`
 }
+// 거래 이름 (판매글 아이템 이름)
+const dealTitle = (d) => itemName(getTradeItem(d.itemId), priceText(d.postTitle))
 const waitLabel = (d) => (d.status === '거래중' && (d.myDoneAt || d.theirDoneAt) ? '확인 대기' : d.status)
 
 // 거래 단계 (수락 -> 거래중 -> 완료 확인 -> 거래완료/불발)
@@ -121,10 +126,10 @@ const steps = computed(() => {
   const failed = d.status === '거래불발'
   const confirming = d.status === '거래중' && (d.myDoneAt || d.theirDoneAt)
   return [
-    { label: '구매신청 수락', state: 'done' },
-    { label: '거래방에서 조율', state: done || failed || confirming ? 'done' : 'now' },
-    { label: '두 사람 거래완료 확인', state: done ? 'done' : confirming ? 'now' : failed ? 'skip' : 'todo' },
-    { label: failed ? '거래불발' : '거래완료 · 후기', state: done ? (d.myReview ? 'done' : 'now') : failed ? 'fail' : 'todo' },
+    { label: t('구매신청 수락'), state: 'done' },
+    { label: t('거래방에서 조율'), state: done || failed || confirming ? 'done' : 'now' },
+    { label: t('두 사람 거래완료 확인'), state: done ? 'done' : confirming ? 'now' : failed ? 'skip' : 'todo' },
+    { label: t(failed ? '거래불발' : '거래완료 · 후기'), state: done ? (d.myReview ? 'done' : 'now') : failed ? 'fail' : 'todo' },
   ]
 })
 
@@ -145,20 +150,20 @@ function submitReview() {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">구매신청이 수락된 거래</div>
-      <h1>거래중인 품목</h1>
+      <div class="eyebrow">{{ $t('구매신청이 수락된 거래') }}</div>
+      <h1>{{ $t('거래중인 품목') }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap deals-wrap deals-login" v-if="!authState.user">
-    <p>로그인 필요</p>
-    <button type="button" class="btn-primary" @click="signIn">로그인</button>
+    <p>{{ $t('로그인 필요') }}</p>
+    <button type="button" class="btn-primary" @click="signIn">{{ $t('로그인') }}</button>
   </div>
   <div class="grid-wrap deals-wrap" v-else>
     <div class="deals-layout">
       <!-- 1) 거래 목록 -->
       <div class="deal-list">
-        <div class="deal-list-title">거래방 <span>{{ dealsState.deals.length }}</span></div>
+        <div class="deal-list-title">{{ $t('거래방') }} <span>{{ dealsState.deals.length }}</span></div>
         <button
           type="button" class="deal-row" v-for="d in dealsState.deals" :key="d.id"
           :class="{ active: d.id === activeId }" :aria-current="d.id === activeId ? 'page' : null" @click="openDeal(d.id)"
@@ -166,13 +171,13 @@ function submitReview() {
           <span class="deal-row-icon"><img v-if="dealIconUrl(d)" :src="dealIconUrl(d)" alt="" /></span>
           <div class="deal-row-body">
             <div class="deal-row-top">
-              <span class="deal-row-title">{{ d.postTitle }}</span>
-              <span class="deal-status-badge" :class="'status-' + waitLabel(d)">{{ waitLabel(d) }}</span>
+              <span class="deal-row-title">{{ dealTitle(d) }}</span>
+              <span class="deal-status-badge" :class="'status-' + waitLabel(d)">{{ $t(waitLabel(d)) }}</span>
             </div>
-            <div class="deal-row-sub">{{ d.iAmSeller ? '구매자' : '판매자' }} {{ d.counterpart }} · {{ d.date }}</div>
+            <div class="deal-row-sub">{{ $t(d.iAmSeller ? '구매자' : '판매자') }} {{ d.counterpart }} · {{ d.date }}</div>
           </div>
         </button>
-        <div class="empty-state" v-if="!dealsState.deals.length">진행 중인 거래 없음 (구매신청 수락 시 생성)</div>
+        <div class="empty-state" v-if="!dealsState.deals.length">{{ $t('진행 중인 거래 없음 (구매신청 수락 시 생성)') }}</div>
       </div>
 
       <!-- 2) 채팅 -->
@@ -180,49 +185,49 @@ function submitReview() {
         <div class="deal-thread-header">
           <UserAvatar :src="activeDeal.counterpartAvatar" :name="activeDeal.counterpart" :size="36" :user-id="activeDeal.counterpartId" />
           <div class="deal-thread-who">
-            <div class="deal-thread-title"><router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }}</router-link>님과의 거래방</div>
-            <div class="deal-thread-sub">{{ activeDeal.postTitle }} · 상대는 {{ activeDeal.iAmSeller ? '구매자' : '판매자' }}</div>
+            <div class="deal-thread-title"><router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }}</router-link>{{ $t('님과의 거래방') }}</div>
+            <div class="deal-thread-sub">{{ dealTitle(activeDeal) }} · {{ $t(activeDeal.iAmSeller ? '상대는 구매자' : '상대는 판매자') }}</div>
           </div>
-          <span class="deal-status-badge big" :class="'status-' + waitLabel(activeDeal)">{{ waitLabel(activeDeal) }}</span>
+          <span class="deal-status-badge big" :class="'status-' + waitLabel(activeDeal)">{{ $t(waitLabel(activeDeal)) }}</span>
         </div>
 
         <div class="deal-thread-body" ref="bodyEl" @scroll="onScroll">
-          <div class="deal-intro">구매신청 수락됨 - 접속 시간·배틀태그 등 조율<br><small>7일 동안 대화가 없으면 자동 거래불발 · 한쪽만 거래완료를 누르면 3일 뒤 자동 완료 · <button type="button" class="guide-link" @click="openTradeGuide('flow')">거래 진행 안내</button></small></div>
+          <div class="deal-intro">{{ $t('구매신청 수락됨 - 접속 시간·배틀태그 등 조율') }}<br><small>{{ $t('7일 동안 대화가 없으면 자동 거래불발 · 한쪽만 거래완료를 누르면 3일 뒤 자동 완료 ·') }} <button type="button" class="guide-link" @click="openTradeGuide('flow')">{{ $t('거래 진행 안내') }}</button></small></div>
           <div
             class="conv-bubble" v-for="m in activeDeal.messages" :key="m.id"
             :class="m.from === 'me' ? 'mine' : 'theirs'"
           >
             <div class="conv-bubble-text">{{ m.text }}</div>
-            <div class="conv-bubble-date"><span class="conv-unread" v-if="m.from === 'me' && !m.readAt" title="상대가 아직 안 읽음">1</span>{{ m.date }}</div>
+            <div class="conv-bubble-date"><span class="conv-unread" v-if="m.from === 'me' && !m.readAt" :title="$t('상대가 아직 안 읽음')">1</span>{{ m.date }}</div>
           </div>
         </div>
 
         <div class="deal-thread-input" v-if="activeDeal.status === '거래중'">
           <input
-            type="text" v-model="draft" placeholder="메시지"
+            type="text" v-model="draft" :placeholder="$t('메시지')"
             class="write-input" @keydown.enter.prevent="submitMessage"
           />
-          <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">보내기</button>
+          <button type="button" class="btn-primary conv-send-btn" @click="submitMessage">{{ $t('보내기') }}</button>
         </div>
-        <div class="deal-closed" v-else>{{ activeDeal.status }} - 대화 종료</div>
+        <div class="deal-closed" v-else>{{ $t(activeDeal.status) }} - {{ $t('대화 종료') }}</div>
       </div>
-      <div class="deal-thread deal-thread-empty" v-else>거래 선택</div>
+      <div class="deal-thread deal-thread-empty" v-else>{{ $t('거래 선택') }}</div>
 
       <!-- 3) 거래 정보 (단계·거래 결과·후기) -->
       <aside class="deal-info" v-if="activeDeal" ref="infoEl">
         <section class="info-card">
-          <div class="info-title">거래 정보</div>
+          <div class="info-title">{{ $t('거래 정보') }}</div>
           <router-link :to="`/trade/${activeDeal.postId}`" class="info-item">
             <span class="info-item-icon"><img v-if="dealIconUrl(activeDeal)" :src="dealIconUrl(activeDeal)" alt="" /></span>
-            <span class="info-item-name">{{ activeDeal.postTitle }}<small>판매글 보기 →</small></span>
+            <span class="info-item-name">{{ dealTitle(activeDeal) }}<small>{{ $t('판매글 보기 →') }}</small></span>
           </router-link>
-          <div class="info-line"><span>{{ activeDeal.iAmSeller ? '구매자' : '판매자' }}</span><router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }} · 프로필</router-link></div>
-          <div class="info-line" v-if="activeDeal.agreedPrice"><span>거래가</span><b>{{ activeDeal.agreedPrice }}</b></div>
-          <div class="info-line"><span>시작</span><b>{{ activeDeal.date }}</b></div>
+          <div class="info-line"><span>{{ $t(activeDeal.iAmSeller ? '구매자' : '판매자') }}</span><router-link :to="'/users/' + activeDeal.counterpartId">{{ activeDeal.counterpart }} · {{ $t('프로필') }}</router-link></div>
+          <div class="info-line" v-if="activeDeal.agreedPrice"><span>{{ $t('거래가') }}</span><b>{{ priceText(activeDeal.agreedPrice) }}</b></div>
+          <div class="info-line"><span>{{ $t('시작') }}</span><b>{{ activeDeal.date }}</b></div>
         </section>
 
         <section class="info-card steps-card">
-          <div class="info-title">진행 단계</div>
+          <div class="info-title">{{ $t('진행 단계') }}</div>
           <ol class="steps">
             <li v-for="(s, i) in steps" :key="i" :class="s.state"><span class="dot">{{ s.state === 'done' ? '✓' : s.state === 'fail' ? '✕' : i + 1 }}</span>{{ s.label }}</li>
           </ol>
@@ -230,29 +235,29 @@ function submitReview() {
 
         <!-- 거래 결과: 거래완료 = 금색, 거래불발 = 빨간 테두리 -->
         <section class="info-card result" v-if="activeDeal.status === '거래중'" :class="{ waiting: activeDeal.myDoneAt, asked: !activeDeal.myDoneAt && activeDeal.theirDoneAt }">
-          <div class="info-title">거래 결과</div>
-          <p class="result-msg" v-if="activeDeal.myDoneAt"><b>✓ 거래완료 누름</b><br>{{ activeDeal.counterpart }}님 확인 대기 · {{ autoLeft(activeDeal) }} 뒤 자동 완료</p>
-          <p class="result-msg" v-else-if="activeDeal.theirDoneAt"><b>{{ activeDeal.counterpart }}님이 거래완료 누름</b><br>받았으면 거래완료 · {{ autoLeft(activeDeal) }} 뒤 자동 완료</p>
-          <p class="result-msg" v-else>거래가 끝나면 두 사람 모두 거래완료</p>
-          <button type="button" class="deal-action-btn done" v-if="!activeDeal.myDoneAt" @click="setStatus('거래완료')">✓ 거래완료</button>
-          <button type="button" class="deal-action-btn fail" @click="setStatus('거래불발')">✕ 거래불발</button>
+          <div class="info-title">{{ $t('거래 결과') }}</div>
+          <p class="result-msg" v-if="activeDeal.myDoneAt"><b>{{ $t('✓ 거래완료 누름') }}</b><br>{{ $t('{name}님 확인 대기 · {left} 뒤 자동 완료', { name: activeDeal.counterpart, left: autoLeft(activeDeal) }) }}</p>
+          <p class="result-msg" v-else-if="activeDeal.theirDoneAt"><b>{{ $t('{name}님이 거래완료 누름', { name: activeDeal.counterpart }) }}</b><br>{{ $t('받았으면 거래완료 · {left} 뒤 자동 완료', { left: autoLeft(activeDeal) }) }}</p>
+          <p class="result-msg" v-else>{{ $t('거래가 끝나면 두 사람 모두 거래완료') }}</p>
+          <button type="button" class="deal-action-btn done" v-if="!activeDeal.myDoneAt" @click="setStatus('거래완료')">{{ $t('✓ 거래완료') }}</button>
+          <button type="button" class="deal-action-btn fail" @click="setStatus('거래불발')">{{ $t('✕ 거래불발') }}</button>
         </section>
 
         <!-- 후기: 두 사람이 각자 하나씩 -->
         <section class="info-card review" v-if="activeDeal.status === '거래완료' && !activeDeal.myReview">
-          <div class="info-title">{{ activeDeal.counterpart }}님 후기 남기기</div>
+          <div class="info-title">{{ $t('{name}님 후기 남기기', { name: activeDeal.counterpart }) }}</div>
           <div class="review-stars">
             <button
               type="button" v-for="n in 5" :key="n" class="star-btn"
               :class="{ filled: n <= reviewRating }" @click="reviewRating = n"
             >★</button>
           </div>
-          <textarea v-model="reviewComment" class="review-textarea" rows="3" placeholder="거래 후기 (예: 약속 시간 잘 지킴)"></textarea>
-          <button type="button" class="btn-primary review-submit-btn" @click="submitReview">후기 등록</button>
+          <textarea v-model="reviewComment" class="review-textarea" rows="3" :placeholder="$t('거래 후기 (예: 약속 시간 잘 지킴)')"></textarea>
+          <button type="button" class="btn-primary review-submit-btn" @click="submitReview">{{ $t('후기 등록') }}</button>
         </section>
         <template v-for="(rv, ri) in [activeDeal.myReview, activeDeal.theirReview]" :key="ri">
           <section class="info-card" v-if="rv">
-            <div class="info-title">{{ rv === activeDeal.myReview ? '남긴 후기' : '받은 후기' }}</div>
+            <div class="info-title">{{ $t(rv === activeDeal.myReview ? '남긴 후기' : '받은 후기') }}</div>
             <div class="review-stars readonly">
               <span v-for="n in 5" :key="n" class="star-btn" :class="{ filled: n <= rv.rating }">★</span>
             </div>

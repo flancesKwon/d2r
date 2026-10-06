@@ -35,8 +35,8 @@ const CAT_KO = { unique: '유니크', set: '세트', runeword: '룬워드', gem:
   <div class="items-page market-page">
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">거래 참고 자료</div>
-      <h1>시세 게시판</h1>
+      <div class="eyebrow">{{ $t('거래 참고 자료') }}</div>
+      <h1>{{ $t('시세 게시판') }}</h1>
     </div>
   </div>
 
@@ -45,20 +45,20 @@ const CAT_KO = { unique: '유니크', set: '세트', runeword: '룬워드', gem:
     <div class="market-tier-list">
       <section class="market-tier-card" v-for="(t, ti) in tiers" :key="t.tier" :class="'tier-' + ti">
         <div class="market-tier-head">
-          <span class="market-tier-badge">{{ t.tier }}</span>
-          <span class="market-tier-note" v-if="t.note">{{ t.note }}</span>
+          <span class="market-tier-badge">{{ $t(t.tier) }}</span>
+          <span class="market-tier-note" v-if="t.note">{{ $t(t.note) }}</span>
         </div>
         <div class="market-items">
           <router-link
             v-for="it in t.items" :key="it.id" class="market-item" :class="it.category"
-            :to="{ path: '/trade', query: { q: it.name_ko } }"
+            :to="{ path: '/trade', query: { item: it.id } }"
           >
             <span class="market-item-icon"><img v-if="iconUrl(it)" :src="iconUrl(it)" alt="" /></span>
             <span class="market-item-text">
-              <span class="market-item-name">{{ it.name_ko }}</span>
+              <span class="market-item-name">{{ $itemName(it) }}</span>
               <span class="market-item-sub">
-                {{ it.type_sub === '룬' ? '룬' : CAT_KO[it.category] || '' }}
-                <template v-if="activeCount.get(it.id)"> · 매물 {{ activeCount.get(it.id) }}</template>
+                {{ $t(it.type_sub === '룬' ? '룬' : CAT_KO[it.category] || '') }}
+                <template v-if="activeCount.get(it.id)"> · {{ $t('판매중 {n}', { n: activeCount.get(it.id) }) }}</template>
               </span>
             </span>
           </router-link>

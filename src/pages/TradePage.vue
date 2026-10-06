@@ -1,4 +1,5 @@
 <script setup>
+import { postName, countText, priceTok, saleLeftText } from '../tradeI18n.js'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -17,7 +18,6 @@ import {
   postIconKey,
   postRarity,
   saleLeftMs,
-  fmtSaleLeft,
   getItemAffixes,
   isRollRangeAffix,
   isRandomClassSkillAffix,
@@ -321,18 +321,9 @@ function resetFilters() {
 
 // 판매 기간(48시간)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
 const now = useNow(60000)
-const leftLabel = (p) => {
-  const ms = saleLeftMs(p, now.value)
-  if (locale.value === 'ko') return fmtSaleLeft(ms)
-  if (ms === null || ms <= 0) return ''
-  const m = Math.ceil(ms / 60000)
-  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60
-  return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`
-}
-// 글의 아이템 이름·가격 (영어면 사전의 영문 이름, "2개" -> "×2")
-const postName = (p) => itemName(getTradeItem(p.itemId), p.itemName)
-const enCount = (txt) => (locale.value === 'ko' ? txt : t(txt).replace(/(\d+)\s*개/g, '×$1').replace(/개/g, ''))
-const priceTok = (tok) => (tok.item ? itemName(tok.item, tok.text) : enCount(tok.text))
+const leftLabel = (p) => saleLeftText(saleLeftMs(p, now.value))
+// 글의 아이템 이름·가격 (영어면 사전의 영문 이름, "2개" -> "×2") - tradeI18n.js
+const enCount = countText
 const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서

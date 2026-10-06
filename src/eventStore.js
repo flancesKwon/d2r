@@ -3,6 +3,7 @@
 // 추첨: 추첨 시각(draw_at)에 나오는 drand 공개 난수(누구도 미리 모름)로 DB가 뽑음 - d2r_event_draw
 //   응모권(제외 안 된 것, 기록 순 번호) × SHA-256("난수:등수") 앞 6바이트 mod 남은 장수 → 당첨 번호, 당첨자 나머지 응모권 빼고 다음 등수
 //   pickWinners() 가 같은 계산 - 이벤트 페이지 "직접 검증"에 씀
+import { locale } from './i18n.js'
 import { reactive } from 'vue'
 import { supabase } from './supabase.js'
 
@@ -169,6 +170,7 @@ export function fmtCountdown(ms) {
 export function fmtEventTime(iso) {
   const d = new Date(iso)
   const pad = (n) => String(n).padStart(2, '0')
-  const wd = '일월화수목금토'[d.getDay()]
+  const wd = (locale.value === 'ko' ? '일월화수목금토' : 'SMTWTFS')[d.getDay()]
+  if (locale.value !== 'ko') return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
