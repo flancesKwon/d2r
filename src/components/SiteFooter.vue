@@ -2,34 +2,34 @@
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="site-footer-brand">
-        <b>디아허브</b>
-        <span>비공식 팬 제작 사이트 · Blizzard Entertainment와 무관</span>
+        <b>{{ $t('디아허브') }}</b>
+        <span>{{ $t('비공식 팬 제작 사이트 · Blizzard Entertainment와 무관') }}</span>
       </div>
-      <nav class="site-footer-links" aria-label="하단 메뉴">
+      <nav class="site-footer-links" :aria-label="$t('하단 메뉴')">
         <div>
-          <b>도구</b>
-          <router-link to="/runewords">룬워드 찾기</router-link>
-          <router-link to="/simulator">스킬 시뮬레이터</router-link>
-          <router-link to="/breakpoints">브레이크포인트</router-link>
-          <router-link to="/craft-sim">크래프트 시뮬레이터</router-link>
+          <b>{{ $t('도구') }}</b>
+          <router-link to="/runewords">{{ $t('룬워드 찾기') }}</router-link>
+          <router-link to="/simulator">{{ $t('스킬 시뮬레이터') }}</router-link>
+          <router-link to="/breakpoints">{{ $t('브레이크포인트') }}</router-link>
+          <router-link to="/craft-sim">{{ $t('크래프트 시뮬레이터') }}</router-link>
         </div>
         <div>
-          <b>자료</b>
-          <router-link to="/items">아이템 사전</router-link>
-          <router-link to="/guides">빌드 가이드</router-link>
-          <router-link to="/cube">큐브 레시피</router-link>
-          <router-link to="/patch">패치노트</router-link>
+          <b>{{ $t('자료') }}</b>
+          <router-link to="/items">{{ $t('아이템 사전') }}</router-link>
+          <router-link to="/guides">{{ $t('빌드 가이드') }}</router-link>
+          <router-link to="/cube">{{ $t('큐브 레시피') }}</router-link>
+          <router-link to="/patch">{{ $t('패치노트') }}</router-link>
         </div>
         <div>
-          <b>커뮤니티</b>
-          <router-link to="/trade">거래게시판</router-link>
-          <router-link to="/community">커뮤니티</router-link>
-          <router-link to="/community?cat=공지">공지사항</router-link>
-          <router-link to="/community/write?cat=공략">가이드 제보</router-link>
-          <router-link to="/community?cat=건의">건의</router-link>
-          <router-link to="/community/write?cat=버그제보">버그 제보</router-link>
-          <router-link to="/terms">이용 규칙</router-link>
-          <router-link to="/privacy">개인정보 처리 안내</router-link>
+          <b>{{ $t('커뮤니티') }}</b>
+          <router-link to="/">{{ $t('거래게시판') }}</router-link>
+          <router-link to="/community">{{ $t('커뮤니티') }}</router-link>
+          <router-link to="/community?cat=공지">{{ $t('공지사항') }}</router-link>
+          <router-link to="/community/write?cat=공략">{{ $t('가이드 제보') }}</router-link>
+          <router-link to="/community?cat=건의">{{ $t('건의') }}</router-link>
+          <router-link to="/community/write?cat=버그제보">{{ $t('버그 제보') }}</router-link>
+          <router-link to="/terms">{{ $t('이용 규칙') }}</router-link>
+          <router-link to="/privacy">{{ $t('개인정보 처리 안내') }}</router-link>
         </div>
       </nav>
     </div>

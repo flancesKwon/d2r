@@ -1,6 +1,6 @@
 <script setup>
 import EventBanner from '../components/EventBanner.vue'
-// 메인 - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
+// DB 모드 첫 화면(/db) - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
 import { computed, shallowRef, ref } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRouter } from 'vue-router'
@@ -34,7 +34,7 @@ const SHORTCUTS = [
   { to: '/items', title: '아이템 사전', desc: '유니크·세트·룬워드 옵션', icon: 'invcap__armor' },
   { to: '/runewords', title: '룬워드 찾기', desc: '룬으로 룬워드 검색', icon: 'invrjah__rune' },
   { to: '/breakpoints', title: '속도 계산기', desc: '공속·패캐·패힛·패블', icon: 'invamu__amulet' },
-  { to: '/trade', title: '거래게시판', desc: '아시아 서버 매물', icon: 'invrber' },
+  { to: '/', title: '거래 매물', desc: '아시아 서버 매물 검색', icon: 'invrber' },
 ]
 const TOOLS = [
   { to: '/simulator', title: '스킬·스탯 시뮬레이터', desc: '스킬 트리·시너지 미리 찍기', icon: 'invob2__sword' },
@@ -96,7 +96,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
       <router-link to="/ladder" class="hm-season">
         <span class="hm-dot"></span>{{ ladder.seasonName }} {{ ladder.status }} · 패치 {{ ladder.patchVersion }}
       </router-link>
-      <h1>디아블로 2 레저렉션<br /><span>정보 · 계산기 · 거래</span></h1>
+      <h1>디아블로 2 레저렉션<br /><span>정보 · 계산기 · 도구</span></h1>
       <EventBanner class="hm-event" />
 
       <form class="hm-search" role="search" @submit.prevent="search">

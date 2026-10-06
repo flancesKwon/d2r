@@ -53,7 +53,9 @@ import {
   affixFamiliesFor, affixLimits, craftRecipesFor, familyLines, familyLineSlots, filledValues, validateAffixPicks, validateCraftValues,
 } from '../magicAffixes.js'
 import { authState, signIn } from '../profileStore.js'
-import { openTradeGuide } from '../tradeGuide.js'
+import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
+// 처음 판매글을 쓰러 온 사람에게 거래 이용 안내를 한 번 (예전엔 거래게시판에 들어오자마자 떴는데, 그 화면이 첫 화면이 돼서 옮김)
+openTradeGuideOnce()
 
 const router = useRouter()
 const route = useRoute()

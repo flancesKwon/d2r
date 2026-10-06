@@ -1,4 +1,5 @@
 <script setup>
+import { stripLocale } from '../i18n.js'
 import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
@@ -19,7 +20,7 @@ const router = useRouter()
 const route = useRoute()
 const showDropdown = ref(false)
 // 지금 보고 있는 화면의 아이콘은 금색 (/deals/번호 도 거래중인 품목)
-const isHere = (p) => route.path === p || route.path.startsWith(p + '/')
+const isHere = (p) => { const cur = stripLocale(route.path); return cur === p || cur.startsWith(p + '/') }
 // 알림이 가리키는 화면에 들어와 있으면 그 알림은 읽음 (새 알림을 받아 왔을 때도 다시 확인)
 watch(() => [route.path, notificationsState.items.length], () => markNotificationsReadFor(route.path).catch(() => {}), { immediate: true })
 
