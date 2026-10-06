@@ -14,6 +14,8 @@ import HeaderOnlineUsers from './HeaderOnlineUsers.vue'
 import { isStaff } from '../profileStore.js'
 import { useNow } from '../useNow.js'
 import { useSiteMode, under } from '../siteMode.js'
+import { LOCALES, locale, stripLocale, itemName, t } from '../i18n.js'
+import { switchLocale } from '../router.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
 const route = useRoute()
@@ -82,7 +84,7 @@ const MENUS = computed(() => [...(mode.value === 'trade' ? TRADE_MENUS : DB_MENU
 const ALL_MENUS = [...TRADE_MENUS, ...DB_MENUS, communityMenu('db')]
 // 주소가 가장 길게 맞는 메뉴 ('/' 는 정확히 같을 때만 - /trade/history 는 거래내역)
 const activeKey = computed(() => {
-  const p = route.path
+  const p = stripLocale(route.path)
   let best = ''
   let len = -1
   for (const m of MENUS.value) for (const pre of m.match) {
@@ -96,7 +98,7 @@ const activeKey = computed(() => {
 // 주소가 가장 길게 겹치는 링크, 같으면 ?cat= 같은 조건까지 맞는 링크 (/community?cat=공지 → 공지사항)
 function linkScore(to) {
   const [lp, qs = ''] = to.split('?')
-  const p = route.path
+  const p = stripLocale(route.path)
   if (p !== lp && !p.startsWith(lp + '/')) return -1
   const q = [...new URLSearchParams(qs)]
   if (q.some(([k, v]) => route.query[k] !== v)) return -1
@@ -128,13 +130,13 @@ const itemHits = computed(() => (query.value.trim() && searchAllItems.value ? se
 const pageHits = computed(() => {
   const q = query.value.trim().replace(/\s/g, '')
   if (!q) return []
-  return PAGES.filter((p) => (p.label + (p.desc || '') + p.section).replace(/\s/g, '').includes(q)).slice(0, 4)
+  return PAGES.filter((p) => [p.label, p.desc || '', p.section].flatMap((x) => [x, t(x)]).join('').replace(/\s/g, '').toLowerCase().includes(q.toLowerCase())).slice(0, 4)
 })
 const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 function goItem(it) {
   searchOpen.value = false
   query.value = ''
-  router.push({ path: `/items/${it.id}`, query: { q: it.name_ko } })
+  router.push({ path: `/items/${it.id}`, query: { q: itemName(it) } })
 }
 function goPage(p) {
   searchOpen.value = false
@@ -152,7 +154,7 @@ const hideSearchSoon = () => window.setTimeout(() => (searchOpen.value = false),
 // 모바일 메뉴
 // 지금 시각 - 어느 페이지에서든 헤더에서 보이게 (구매신청·알림 시각과 비교하기 쉽게 시:분:초까지)
 const now = useNow(1000)
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+const WEEKDAYS = { ko: ['일', '월', '화', '수', '목', '금', '토'], en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] }
 const pad2 = (n) => String(n).padStart(2, '0')
 const clockTime = computed(() => {
   const d = new Date(now.value)
@@ -160,7 +162,7 @@ const clockTime = computed(() => {
 })
 const clockDate = computed(() => {
   const d = new Date(now.value)
-  return `${d.getMonth() + 1}.${pad2(d.getDate())} (${WEEKDAYS[d.getDay()]})`
+  return `${d.getMonth() + 1}.${pad2(d.getDate())} (${(WEEKDAYS[locale.value] || WEEKDAYS.ko)[d.getDay()]})`
 })
 
 const mobileOpen = ref(false)
@@ -170,73 +172,82 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 <template>
   <header class="site-header">
     <div class="site-header-inner" :class="{ staff: isStaff() }">
-      <router-link to="/" class="site-logo" aria-label="디아허브 홈"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
-      <nav class="mode-switch" aria-label="모드">
+      <router-link to="/" class="site-logo" :aria-label="$t('디아허브 홈')"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
+      <nav class="mode-switch" :aria-label="$t('모드')">
         <router-link to="/" class="mode-btn trade" :class="{ on: mode === 'trade' }" :aria-current="mode === 'trade' ? 'page' : null">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" /></svg>거래
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" /></svg>{{ $t('거래') }}
         </router-link>
         <router-link to="/db" class="mode-btn db" :class="{ on: mode === 'db' }" :aria-current="mode === 'db' ? 'page' : null">
           <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></svg>DB
         </router-link>
       </nav>
 
-      <nav class="site-nav" aria-label="주 메뉴">
+      <nav class="site-nav" :aria-label="$t('주 메뉴')">
         <div class="site-nav-item" v-for="m in MENUS" :key="m.key" :class="{ active: activeKey === m.key }">
-          <router-link :to="m.to" class="site-nav-link">{{ m.label }}<span class="chev" aria-hidden="true" v-if="m.links.length">▾</span></router-link>
+          <router-link :to="m.to" class="site-nav-link">{{ $t(m.label) }}<span class="chev" aria-hidden="true" v-if="m.links.length">▾</span></router-link>
           <div class="site-dropdown" :class="{ wide: m.key === 'tools' }" v-if="m.links.length">
             <template v-for="(l, i) in m.links" :key="i">
-              <div class="site-dropdown-group" v-if="l.group">{{ l.group }}</div>
+              <div class="site-dropdown-group" v-if="l.group">{{ $t(l.group) }}</div>
               <router-link v-else :to="l.to" class="site-dropdown-link" :class="{ here: activeLink === l.to }" :aria-current="activeLink === l.to ? 'page' : null">
-                <span>{{ l.label }}</span>
-                <small v-if="l.desc">{{ l.desc }}</small>
+                <span>{{ $t(l.label) }}</span>
+                <small v-if="l.desc">{{ $t(l.desc) }}</small>
               </router-link>
             </template>
           </div>
         </div>
       </nav>
 
-      <div class="site-search" role="search" :class="{ hidden: route.path === '/' }">
+      <div class="site-search" role="search" :class="{ hidden: stripLocale(route.path) === '/' }">
         <svg viewBox="0 0 24 24" class="site-search-icon" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
         <input
-          :value="query" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색"
+          :value="query" type="search" :placeholder="$t('아이템·도구 검색')" :aria-label="$t('사이트 검색')"
           @focus="searchOpen = true; loadItemSearch()" @input="query = $event.target.value; searchOpen = true" @blur="hideSearchSoon" @keydown.enter.prevent="submitSearch"
         />
         <div class="site-search-results" v-if="searchOpen && (itemHits.length || pageHits.length)">
           <button type="button" class="site-search-row" v-for="p in pageHits" :key="p.to" @mousedown.prevent="goPage(p)">
-            <span class="site-search-badge">{{ p.section }}</span>{{ p.label }}
+            <span class="site-search-badge">{{ $t(p.section) }}</span>{{ $t(p.label) }}
           </button>
           <button type="button" class="site-search-row" v-for="it in itemHits" :key="it.id" @mousedown.prevent="goItem(it)">
             <span class="site-search-thumb"><img v-if="iconUrl(it)" :src="iconUrl(it)" alt="" /></span>
-            <span class="site-search-name" :class="it.category">{{ it.name_ko }}</span>
-            <small>{{ it.category_label || it.type_sub }}</small>
+            <span class="site-search-name" :class="it.category">{{ itemName(it) }}</span>
+            <small>{{ $t(it.category_label || it.type_sub || '') }}</small>
           </button>
         </div>
       </div>
 
-      <div class="site-clock" :title="`현재 시각 ${clockDate} ${clockTime}`" aria-label="현재 시각">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" v-for="l in LOCALES" :key="l.code" :class="{ on: locale === l.code }" :aria-pressed="locale === l.code" :title="l.label" @click="locale !== l.code && switchLocale(l.code)">{{ l.short }}</button>
+      </div>
+      <div class="site-clock" :title="`${$t('현재 시각')} ${clockDate} ${clockTime}`" :aria-label="$t('현재 시각')">
         <span class="site-clock-date">{{ clockDate }}</span>
         <span class="site-clock-time">{{ clockTime }}</span>
       </div>
       <HeaderOnlineUsers />
       <HeaderNotifications />
-      <button type="button" class="site-burger" :aria-expanded="mobileOpen" aria-label="메뉴 열기" @click="mobileOpen = !mobileOpen">
+      <button type="button" class="site-burger" :aria-expanded="mobileOpen" :aria-label="$t('메뉴 열기')" @click="mobileOpen = !mobileOpen">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>
     </div>
 
     <div class="site-mobile" v-if="mobileOpen">
       <div class="site-mobile-search">
-        <input :value="query" @input="query = $event.target.value" type="search" placeholder="아이템·도구 검색" aria-label="사이트 검색" @keydown.enter.prevent="submitSearch" />
+        <input :value="query" @input="query = $event.target.value" type="search" :placeholder="$t('아이템·도구 검색')" :aria-label="$t('사이트 검색')" @keydown.enter.prevent="submitSearch" />
         <div class="site-mobile-hits" v-if="itemHits.length || pageHits.length">
-          <button type="button" v-for="p in pageHits" :key="p.to" @click="goPage(p)">{{ p.section }} · {{ p.label }}</button>
-          <button type="button" v-for="it in itemHits" :key="it.id" @click="goItem(it)">{{ it.name_ko }}</button>
+          <button type="button" v-for="p in pageHits" :key="p.to" @click="goPage(p)">{{ $t(p.section) }} · {{ $t(p.label) }}</button>
+          <button type="button" v-for="it in itemHits" :key="it.id" @click="goItem(it)">{{ itemName(it) }}</button>
         </div>
       </div>
       <HeaderOnlineUsers inline class="site-mobile-online" />
       <div class="site-mobile-group" v-for="m in MENUS" :key="m.key">
-        <div class="site-mobile-title">{{ m.label }}</div>
+        <div class="site-mobile-title">{{ $t(m.label) }}</div>
         <div class="site-mobile-links">
-          <router-link v-for="l in (m.links.length ? m.links : [{ label: m.label, to: m.to }]).filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ l.label }}</router-link>
+          <router-link v-for="l in (m.links.length ? m.links : [{ label: m.label, to: m.to }]).filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ $t(l.label) }}</router-link>
+        </div>
+      </div>
+      <div class="site-mobile-group">
+        <div class="site-mobile-title">Language</div>
+        <div class="site-mobile-links">
+          <button type="button" v-for="l in LOCALES" :key="l.code" class="lang-pill" :class="{ here: locale === l.code }" @click="switchLocale(l.code)">{{ l.label }}</button>
         </div>
       </div>
     </div>
@@ -254,6 +265,12 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .mode-btn.trade.on{background:var(--gold); color:#1a1408;}
 .mode-btn.db.on{background:#5FA8A8; color:#0b1a1a;}
 .site-search.hidden{visibility:hidden;}
+.lang-switch{display:flex; flex:none; border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+.lang-switch button{padding:4px 8px; font-size:11.5px; font-weight:700; color:var(--text-dim);}
+.lang-switch button.on{background:var(--panel-2); color:var(--gold);}
+.lang-switch button:hover{color:var(--text);}
+.lang-pill{font-size:13px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
+.lang-pill.here{color:#1a1408; background:var(--gold); border-color:var(--gold); font-weight:600;}
 .site-logo img{display:block; height:46px; width:auto;}
 .site-nav{display:flex; align-items:stretch; height:100%; gap:2px;}
 .site-nav-item{position:relative; display:flex;}
@@ -333,6 +350,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-logo img{height:40px;}
   .mode-btn{padding:5px 11px; font-size:13px;}
   .mode-btn svg{display:none;}
+  .lang-switch{display:none;}
   .site-search.hidden{display:none;}
   .site-search-results{width:calc(100vw - 24px); right:auto; left:0;}
 }

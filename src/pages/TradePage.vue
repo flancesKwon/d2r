@@ -34,6 +34,7 @@ import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import EventBanner from '../components/EventBanner.vue'
 import { fetchPosts } from '../communityStore.js'
+import { t, itemName, locale } from '../i18n.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '? 이용 안내' 버튼)
@@ -231,13 +232,13 @@ const statPickMin = ref('')
 const statPickMax = ref('')
 const statPickKeyword = ref('')
 // 드롭다운 라벨의 "(%)"는 칩·배지에선 떼고 수치 뒤에 %로 붙임 ("모든 저항 20% 이상")
-const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : (TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label || c.key).replace('(%)', ''))
+const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : t((TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label || c.key).replace('(%)', '')))
 const statUnit = (c) => (!c.keyword && TRADE_STAT_FILTERS.find((s) => s.key === c.key)?.label.includes('(%)') ? '%' : '')
 function rangeText(c) {
   const u = statUnit(c)
-  if (c.min === null && c.max === null) return ' 있음'
-  if (c.max === null) return ` ${c.min}${u} 이상`
-  if (c.min === null) return ` ${c.max}${u} 이하`
+  if (c.min === null && c.max === null) return ' ' + t('있음')
+  if (c.max === null) return ' ' + t('{v} 이상', { v: c.min + u })
+  if (c.min === null) return ' ' + t('{v} 이하', { v: c.max + u })
   return c.min === c.max ? ` ${c.min}${u}` : ` ${c.min}~${c.max}${u}`
 }
 const condId = (c) => (c.keyword ? 'kw:' + c.keyword : c.key)
@@ -320,7 +321,18 @@ function resetFilters() {
 
 // 판매 기간(48시간)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
 const now = useNow(60000)
-const leftLabel = (p) => fmtSaleLeft(saleLeftMs(p, now.value))
+const leftLabel = (p) => {
+  const ms = saleLeftMs(p, now.value)
+  if (locale.value === 'ko') return fmtSaleLeft(ms)
+  if (ms === null || ms <= 0) return ''
+  const m = Math.ceil(ms / 60000)
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60
+  return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`
+}
+// 글의 아이템 이름·가격 (영어면 사전의 영문 이름, "2개" -> "×2")
+const postName = (p) => itemName(getTradeItem(p.itemId), p.itemName)
+const enCount = (txt) => (locale.value === 'ko' ? txt : t(txt).replace(/(\d+)\s*개/g, '×$1').replace(/개/g, ''))
+const priceTok = (tok) => (tok.item ? itemName(tok.item, tok.text) : enCount(tok.text))
 const soon = (p) => { const ms = saleLeftMs(p, now.value); return ms !== null && ms < 6 * 3600000 }
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
@@ -379,7 +391,7 @@ const realm = computed({
     activeHardcore.value = h || null
   },
 })
-const realmLabel = computed(() => REALMS.find((r) => r.v === realm.value)?.label || '')
+const realmLabel = computed(() => t(REALMS.find((r) => r.v === realm.value)?.label || ''))
 
 // 옵션 후보 - 직접 숫자를 넣는 칸(입력값)·"가장 높은 수치" 같은 특수 항목은 빼고
 const STAT_PICKS = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
@@ -478,7 +490,7 @@ const appliedCount = computed(() =>
 )
 const levelText = computed(() => {
   if (levelMin.value !== '' && levelMax.value !== '') return `${levelMin.value}~${levelMax.value}`
-  return levelMin.value !== '' ? `${levelMin.value} 이상` : `${levelMax.value} 이하`
+  return levelMin.value !== '' ? t('{v} 이상', { v: levelMin.value }) : t('{v} 이하', { v: levelMax.value })
 })
 
 // ───────── 오른쪽: 고룬 매물 · 거래 게시판 최신글 ─────────
@@ -505,162 +517,162 @@ loadTradeBoard()
 
   <section class="tr-hero">
     <div class="tr-hero-inner">
-      <h1>어떤 아이템을 찾아?</h1>
-      <p class="tr-hero-sub">아이템 이름 · 종류 · 옵션을 여러 개 골라서 한 번에 검색</p>
+      <h1>{{ $t('어떤 아이템을 찾아?') }}</h1>
+      <p class="tr-hero-sub">{{ $t('아이템 이름 · 종류 · 옵션을 여러 개 골라서 한 번에 검색') }}</p>
 
       <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
         <label class="tr-realm">
-          <span class="sr-only">서버</span>
-          <select v-model="realm" aria-label="서버 구분">
-            <option v-for="r in REALMS" :key="r.v" :value="r.v">{{ r.label }}</option>
+          <span class="sr-only">{{ $t('서버') }}</span>
+          <select v-model="realm" :aria-label="$t('서버 구분')">
+            <option v-for="r in REALMS" :key="r.v" :value="r.v">{{ $t(r.label) }}</option>
           </select>
         </label>
         <div class="tr-search-box">
           <input
             type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
-            :placeholder="pickedItem ? '옵션·내용으로 더 좁히기' : '아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)'"
-            aria-label="매물 검색" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && unifiedSuggestions.length > 0" aria-controls="tr-suggest"
+            :placeholder="pickedItem ? $t('옵션·내용으로 더 좁히기') : $t('아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)')"
+            :aria-label="$t('매물 검색')" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && unifiedSuggestions.length > 0" aria-controls="tr-suggest"
           />
           <div class="tr-suggest" id="tr-suggest" role="listbox" v-if="suggestOpen && unifiedSuggestions.length">
             <div class="tr-suggest-group" v-for="g in suggestGroups" :key="g.name" :class="g.cls">
-              <div class="tr-suggest-title">{{ g.name }}</div>
+              <div class="tr-suggest-title">{{ $t(g.name) }}</div>
               <button
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: r.i === suggestActive }"
                 :aria-selected="r.i === suggestActive" @mousedown.prevent="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i"
               >
                 <template v-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
-                  <span class="item-suggest-name" :class="r.sug.it.category">{{ r.sug.it.name_ko }}</span>
-                  <small>{{ r.sug.it.category_label }}{{ r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
+                  <span class="item-suggest-name" :class="r.sug.it.category">{{ $itemName(r.sug.it) }}</span>
+                  <small>{{ $t(r.sug.it.category_label) }}{{ locale === 'ko' && r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'cat'">
-                  <span>{{ r.sug.c }}</span><small>{{ activeCats.includes(r.sug.c) ? '이미 고름' : '종류 추가' }}</small>
+                  <span>{{ $t(r.sug.c) }}</span><small>{{ activeCats.includes(r.sug.c) ? $t('이미 고름') : $t('종류 추가') }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'stat'">
-                  <span>{{ plainLabel(r.sug.st.label) }}</span><small>옵션 추가 · 수치는 다음에</small>
+                  <span>{{ $t(plainLabel(r.sug.st.label)) }}</span><small>{{ $t('옵션 추가 · 수치는 다음에') }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'text'">
-                  <span>"{{ r.sug.raw }}"</span><small>이름·내용에서 찾기</small>
+                  <span>"{{ r.sug.raw }}"</span><small>{{ $t('이름·내용에서 찾기') }}</small>
                 </template>
                 <template v-else>
-                  <span>"{{ r.sug.raw }}"</span><small>옵션 문구에 들어간 글만</small>
+                  <span>"{{ r.sug.raw }}"</span><small>{{ $t('옵션 문구에 들어간 글만') }}</small>
                 </template>
               </button>
             </div>
-            <div class="tr-suggest-hint">↑↓ 이동 · Enter 추가 · 빈 칸에서 Backspace 로 마지막 조건 빼기</div>
+            <div class="tr-suggest-hint">{{ $t('↑↓ 이동 · Enter 추가 · 빈 칸에서 Backspace 로 마지막 조건 빼기') }}</div>
           </div>
         </div>
         <button type="submit" class="tr-search-go">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>검색
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>{{ $t('검색') }}
         </button>
       </form>
 
-      <div class="tr-applied" v-if="appliedCount" aria-label="적용된 조건">
-        <span class="tr-applied-label">적용된 조건 {{ appliedCount }}</span>
-        <span class="tr-chip realm" v-if="realm">{{ realmLabel }}<button type="button" aria-label="서버 조건 빼기" @click="realm = ''">×</button></span>
-        <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>종류</em>{{ c }}<button type="button" :aria-label="`${c} 빼기`" @click="toggleCat(c)">×</button></span>
-        <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>아이템</em>{{ pickedItem.name_ko }}<button type="button" :aria-label="`${pickedItem.name_ko} 빼기`" @click="clearPickedItem">×</button></span>
-        <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>검색어</em>{{ searchQuery.trim() }}<button type="button" aria-label="검색어 지우기" @click="searchQuery = ''">×</button></span>
+      <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
+        <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
+        <span class="tr-chip realm" v-if="realm">{{ realmLabel }}<button type="button" :aria-label="$t('서버 조건 빼기')" @click="realm = ''">×</button></span>
+        <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
+        <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
+        <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
-          <em>옵션</em>{{ statLabel(c) }}{{ rangeText(c) }}
-          <button type="button" :aria-label="`${statLabel(c)} 수치 바꾸기`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
-          <button type="button" :aria-label="`${statLabel(c)} 빼기`" @click="removeStat(i)">×</button>
+          <em>{{ $t('옵션') }}</em>{{ statLabel(c) }}{{ rangeText(c) }}
+          <button type="button" :aria-label="`${statLabel(c)} ✎`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
+          <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
           <span class="tr-chip-edit" v-if="editIdx === i" @keydown.enter.prevent="applyEdit" @keydown.esc="editIdx = -1">
-            <input type="number" v-model="editMin" placeholder="최소" :aria-label="`${statLabel(c)} 최소`" />
+            <input type="number" v-model="editMin" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
             <span>~</span>
-            <input type="number" v-model="editMax" placeholder="최대" :aria-label="`${statLabel(c)} 최대`" />
-            <button type="button" class="apply" @click="applyEdit">적용</button>
+            <input type="number" v-model="editMax" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+            <button type="button" class="apply" @click="applyEdit">{{ $t('적용') }}</button>
           </span>
         </span>
-        <span class="tr-chip flag" v-if="etherealOnly">에테리얼만<button type="button" aria-label="에테리얼 조건 빼기" @click="etherealOnly = false">×</button></span>
-        <span class="tr-chip flag" v-if="unidOnly">미확인만<button type="button" aria-label="미확인 조건 빼기" @click="unidOnly = false">×</button></span>
-        <span class="tr-chip flag" v-if="favoritesOnly">찜한 글만<button type="button" aria-label="찜 조건 빼기" @click="favoritesOnly = false">×</button></span>
-        <span class="tr-chip flag" v-if="levelMin !== '' || levelMax !== ''">요구 레벨 {{ levelText }}<button type="button" aria-label="요구 레벨 조건 빼기" @click="levelMin = ''; levelMax = ''">×</button></span>
+        <span class="tr-chip flag" v-if="etherealOnly">{{ $t('에테리얼만') }}<button type="button" aria-label="×" @click="etherealOnly = false">×</button></span>
+        <span class="tr-chip flag" v-if="unidOnly">{{ $t('미확인만') }}<button type="button" aria-label="×" @click="unidOnly = false">×</button></span>
+        <span class="tr-chip flag" v-if="favoritesOnly">{{ $t('찜한 글만') }}<button type="button" aria-label="×" @click="favoritesOnly = false">×</button></span>
+        <span class="tr-chip flag" v-if="levelMin !== '' || levelMax !== ''">{{ $t('요구 레벨') }} {{ levelText }}<button type="button" aria-label="×" @click="levelMin = ''; levelMax = ''">×</button></span>
         <span class="tr-applied-gap"></span>
-        <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">모두 지우기</button>
+        <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">{{ $t('모두 지우기') }}</button>
       </div>
 
       <div class="tr-quick">
         <div class="tr-quick-row">
-          <span class="tr-quick-label">종류</span>
-          <button type="button" v-for="c in TRADE_CATEGORIES" :key="c" class="tr-qchip kind" :class="{ on: activeCats.includes(c) }" :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)">{{ c }}</button>
+          <span class="tr-quick-label">{{ $t('종류') }}</span>
+          <button type="button" v-for="c in TRADE_CATEGORIES" :key="c" class="tr-qchip kind" :class="{ on: activeCats.includes(c) }" :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)">{{ $t(c) }}</button>
         </div>
         <div class="tr-quick-row">
-          <span class="tr-quick-label">자주 쓰는 옵션</span>
-          <button type="button" v-for="st in HOT_STATS" :key="st.key" class="tr-qchip opt" :class="{ on: hotOn(st) }" :aria-pressed="hotOn(st)" @click="toggleHot(st)">{{ plainLabel(st.label) }}</button>
-          <button type="button" class="tr-qchip more" :class="{ on: filtersOpen }" :aria-expanded="filtersOpen" @click="toggleFilters">상세 필터{{ advancedCount ? ` ${advancedCount}` : '' }} {{ filtersOpen ? '▴' : '▾' }}</button>
+          <span class="tr-quick-label">{{ $t('자주 쓰는 옵션') }}</span>
+          <button type="button" v-for="st in HOT_STATS" :key="st.key" class="tr-qchip opt" :class="{ on: hotOn(st) }" :aria-pressed="hotOn(st)" @click="toggleHot(st)">{{ $t(plainLabel(st.label)) }}</button>
+          <button type="button" class="tr-qchip more" :class="{ on: filtersOpen }" :aria-expanded="filtersOpen" @click="toggleFilters">{{ $t('상세 필터') }}{{ advancedCount ? ` ${advancedCount}` : '' }} {{ filtersOpen ? '▴' : '▾' }}</button>
         </div>
       </div>
       <div class="item-range-panel" v-if="pickedItem">
         <div class="item-range-title">
-          <b :class="pickedItem.category">{{ pickedItem.name_ko }}</b> 검색 옵션
-          <span>- 비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만</span>
-          <label class="ethereal-filter-check"><input type="checkbox" v-model="etherealOnly" /> 에테리얼만</label>
-          <label class="ethereal-filter-check unid-filter-check"><input type="checkbox" v-model="unidOnly" /> 미확인만</label>
+          <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b> {{ $t('검색 옵션') }}
+          <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+          <label class="ethereal-filter-check"><input type="checkbox" v-model="etherealOnly" /> {{ $t('에테리얼만') }}</label>
+          <label class="ethereal-filter-check unid-filter-check"><input type="checkbox" v-model="unidOnly" /> {{ $t('미확인만') }}</label>
         </div>
         <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
-          <div class="item-range-sec" v-if="sec.defs.length">{{ sec.name }}</div>
+          <div class="item-range-sec" v-if="sec.defs.length">{{ $t(sec.name) }}</div>
           <div class="item-range-grid" v-if="sec.defs.length">
             <div class="item-range-row" v-for="d in sec.defs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
-              <span class="item-range-label">{{ d.label }}</span>
+              <span class="item-range-label">{{ $t(d.label) }}</span>
               <select v-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
-                <option value="">전체</option>
-                <option v-for="c in d.choices" :key="c" :value="c">{{ d.key === 'sup' ? (c === '상급' ? '상급만' : '일반 베이스만') : c }}</option>
+                <option value="">{{ $t('전체') }}</option>
+                <option v-for="c in d.choices" :key="c" :value="c">{{ d.key === 'sup' ? (c === '상급' ? $t('상급만') : $t('일반 베이스만')) : $t(c) }}</option>
               </select>
               <template v-else>
-                <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="d.lo ?? '최소'" :aria-label="`${d.label} 최소`" />
+                <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="d.lo ?? $t('최소')" :aria-label="`${d.label} 최소`" />
                 <span class="level-range-sep">~</span>
-                <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="d.hi ?? '최대'" :aria-label="`${d.label} 최대`" />
+                <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="d.hi ?? $t('최대')" :aria-label="`${d.label} 최대`" />
               </template>
             </div>
           </div>
         </template>
-        <div class="item-range-empty" v-if="!itemVarDefs.length">변동 옵션 없음 (옵션이 고정된 아이템)</div>
+        <div class="item-range-empty" v-if="!itemVarDefs.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
       </div>
       <div class="filter-row" v-show="filtersOpen">
         <label class="ethereal-filter-check">
           <input type="checkbox" v-model="etherealOnly" />
-          에테리얼만
+          {{ $t('에테리얼만') }}
         </label>
         <label class="ethereal-filter-check unid-filter-check">
           <input type="checkbox" v-model="unidOnly" />
-          미확인만
+          {{ $t('미확인만') }}
         </label>
         <label class="ethereal-filter-check favorite-filter-check">
           <input type="checkbox" v-model="favoritesOnly" />
-          찜한 글만
+          {{ $t('찜한 글만') }}
         </label>
         <div class="level-range">
-          <span class="level-range-label">요구 레벨</span>
-          <input type="number" min="1" max="99" v-model="levelMin" placeholder="최소" aria-label="요구 레벨 최소" />
+          <span class="level-range-label">{{ $t('요구 레벨') }}</span>
+          <input type="number" min="1" max="99" v-model="levelMin" :placeholder="$t('최소')" :aria-label="$t('요구 레벨') + ' ' + $t('최소')" />
           <span class="level-range-sep">~</span>
-          <input type="number" min="1" max="99" v-model="levelMax" placeholder="최대" aria-label="요구 레벨 최대" />
+          <input type="number" min="1" max="99" v-model="levelMax" :placeholder="$t('최대')" :aria-label="$t('요구 레벨') + ' ' + $t('최대')" />
         </div>
       </div>
       <div class="filter-row stat-filter-row" v-show="filtersOpen">
-        <span class="stat-filter-label">옵션 조건</span>
-        <select v-model="statPickKey" class="sort-select" aria-label="옵션 종류">
-          <option :value="KEYWORD_KEY">키워드 직접 입력</option>
-          <option v-for="s in TRADE_STAT_FILTERS" :key="s.key" :value="s.key">{{ s.label }}</option>
+        <span class="stat-filter-label">{{ $t('옵션 조건') }}</span>
+        <select v-model="statPickKey" class="sort-select" :aria-label="$t('옵션 종류')">
+          <option :value="KEYWORD_KEY">{{ $t('키워드 직접 입력') }}</option>
+          <option v-for="s in TRADE_STAT_FILTERS" :key="s.key" :value="s.key">{{ $t(s.label) }}</option>
         </select>
         <input
           v-if="statPickKey === KEYWORD_KEY" type="text" v-model="statPickKeyword" class="stat-min-input stat-keyword-input"
-          placeholder="키워드 (예: 블리자드)" aria-label="옵션 키워드" @keydown.enter.prevent="addStatCondition"
+          :placeholder="$t('키워드 (예: 블리자드)')" :aria-label="$t('옵션 키워드')" @keydown.enter.prevent="addStatCondition"
         />
         <input
-          type="number" v-model="statPickMin" class="stat-min-input stat-num-input" placeholder="최소"
-          aria-label="최솟값" @keydown.enter.prevent="addStatCondition"
+          type="number" v-model="statPickMin" class="stat-min-input stat-num-input" :placeholder="$t('최소')"
+          :aria-label="$t('최소')" @keydown.enter.prevent="addStatCondition"
         />
         <span class="level-range-sep">~</span>
         <input
-          type="number" v-model="statPickMax" class="stat-min-input stat-num-input" placeholder="최대"
-          aria-label="최댓값" @keydown.enter.prevent="addStatCondition"
+          type="number" v-model="statPickMax" class="stat-min-input stat-num-input" :placeholder="$t('최대')"
+          :aria-label="$t('최대')" @keydown.enter.prevent="addStatCondition"
         />
-        <button type="button" class="stat-add-btn" :disabled="statPickKey === KEYWORD_KEY && !statPickKeyword.trim()" @click="addStatCondition">조건 추가</button>
-        <span class="stat-hint" v-if="!statConditions.length">범위를 비우면 옵션이 붙어 있기만 하면 됨 · 조건 여러 개 = 모두 만족</span>
+        <button type="button" class="stat-add-btn" :disabled="statPickKey === KEYWORD_KEY && !statPickKeyword.trim()" @click="addStatCondition">{{ $t('조건 추가') }}</button>
+        <span class="stat-hint" v-if="!statConditions.length">{{ $t('범위를 비우면 옵션이 붙어 있기만 하면 됨 · 조건 여러 개 = 모두 만족') }}</span>
         <span class="stat-chip" v-for="(c, i) in statConditions" :key="condId(c)">
           {{ statLabel(c) }}{{ rangeText(c) }}
-          <button type="button" :aria-label="`${statLabel(c)} 조건 삭제`" @click="removeStatCondition(i)">✕</button>
+          <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStatCondition(i)">✕</button>
         </span>
       </div>
     </div>
@@ -671,42 +683,42 @@ loadTradeBoard()
     <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
     <div class="tr-results-head">
-      <h2>{{ appliedCount ? '검색 결과' : '방금 올라온 매물' }} <span>{{ filteredPosts.length }}</span>개</h2>
-      <span class="tr-results-note">판매중만 · 찜한 글은 거래중이어도 표시 · 끝난 거래는 <router-link to="/trade/history">거래내역</router-link></span>
+      <h2>{{ appliedCount ? $t('검색 결과') : $t('방금 올라온 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
+      <span class="tr-results-note">{{ $t('판매중만 · 찜한 글은 거래중이어도 표시 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
-        <button type="button" :class="{ active: viewMode === 'list' }" title="목록형" aria-label="목록형으로 보기" @click="setViewMode('list')">☰</button>
-        <button type="button" :class="{ active: viewMode === 'grid' }" title="그리드형" aria-label="그리드형으로 보기" @click="setViewMode('grid')">▦</button>
+        <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
+        <button type="button" :class="{ active: viewMode === 'grid' }" :title="$t('그리드형')" :aria-label="$t('그리드형')" @click="setViewMode('grid')">▦</button>
       </div>
-      <button type="button" class="guide-btn" @click="openTradeGuide()">? 이용 안내</button>
-      <router-link class="quality-toggle" to="/trade/new">+ 판매글 등록</router-link>
+      <button type="button" class="guide-btn" @click="openTradeGuide()">? {{ $t('이용 안내') }}</button>
+      <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
     </div>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
           type="button" class="favorite-star" :class="{ active: isFavorite(p.id) }"
-          :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
+          :title="isFavorite(p.id) ? $t('찜 해제') : $t('찜하기')"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-row-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
-        <span class="trade-cat">{{ p.category }}</span>
+        <span class="trade-cat">{{ $t(p.category) }}</span>
         <div class="trade-body">
           <div class="trade-title-row">
-            <span class="trade-title">{{ p.itemName }}</span>
-            <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
-            <span class="dealing-badge" v-if="p.status === '예약중'">거래중</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
+            <span class="trade-title">{{ postName(p) }}</span>
+            <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
+            <span class="dealing-badge" v-if="p.status === '예약중'">{{ $t('거래중') }}</span><span class="sale-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" :title="$t('판매 종료까지')">⏱ {{ leftLabel(p) }}</span>
           </div>
           <div class="trade-meta">
-            {{ p.amountLabel }} ·
+            {{ enCount(p.amountLabel) }} ·
             <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
-              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+              <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
             </template>
           </div>
           <div class="trade-sub-meta">
-            {{ p.realm }} · {{ p.ladder }} · {{ p.hardcore }} · <span v-if="isOnline(p.authorId)" class="online-dot" title="판매자 접속 중">●</span>{{ p.author }} · {{ p.date }}
+            {{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · <span v-if="isOnline(p.authorId)" class="online-dot" :title="$t('판매자 접속 중')">●</span>{{ p.author }} · {{ p.date }}
           </div>
           <div class="stat-match-row" v-if="statConditions.length">
             <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
@@ -716,63 +728,63 @@ loadTradeBoard()
         </div>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
-      <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
+      <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">{{ $t('판매중인 글 없음') }}</div>
     </div>
 
     <div class="trade-grid" v-else>
       <router-link class="trade-card" v-for="p in filteredPosts" :key="p.id" :to="`/trade/${p.id}`">
         <button
           type="button" class="favorite-star trade-card-star" :class="{ active: isFavorite(p.id) }"
-          :title="isFavorite(p.id) ? '찜 해제' : '찜하기'"
+          :title="isFavorite(p.id) ? $t('찜 해제') : $t('찜하기')"
           @click.prevent.stop="toggleFavorite(p.id)"
         >{{ isFavorite(p.id) ? '★' : '☆' }}</button>
         <span class="trade-card-icon" :class="postRarity(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
-        <span class="trade-cat trade-card-cat">{{ p.category }}</span>
-        <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">거래중</span>
-        <span class="trade-card-title">{{ p.itemName }}</span>
-        <span class="ethereal-badge" v-if="p.ethereal">에테리얼</span><span class="unid-badge" v-if="p.unidentified">미확인</span>
+        <span class="trade-cat trade-card-cat">{{ $t(p.category) }}</span>
+        <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
+        <span class="trade-card-title">{{ postName(p) }}</span>
+        <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
         <span class="trade-card-price">
-          {{ p.amountLabel }} ·
+          {{ enCount(p.amountLabel) }} ·
           <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
-            <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ t.text }}
+            <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
           </template>
         </span>
-        <span class="sale-left card-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" title="판매 종료까지">⏱ {{ leftLabel(p) }}</span>
+        <span class="sale-left card-left" :class="{ soon: soon(p) }" v-if="leftLabel(p)" :title="$t('판매 종료까지')">⏱ {{ leftLabel(p) }}</span>
         <span class="stat-match-row" v-if="statConditions.length">
           <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
             {{ statLabel(c) }}{{ condValue(p, c) !== null ? ` ${condValue(p, c)}${statUnit(c)}` : '' }}
           </span>
         </span>
         <span class="trade-card-footer">
-          <span v-if="isOnline(p.authorId)" class="online-dot" title="판매자 접속 중">●</span>{{ p.author }} · {{ p.date }}
+          <span v-if="isOnline(p.authorId)" class="online-dot" :title="$t('판매자 접속 중')">●</span>{{ p.author }} · {{ p.date }}
         </span>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
-      <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">불러오는 중…</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">판매중인 글 없음</div>
+      <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">{{ $t('판매중인 글 없음') }}</div>
     </div>
   </div>
 
   <aside class="tr-side">
     <section class="tr-card">
-      <div class="tr-card-head"><h2>고룬 매물</h2><router-link to="/market">시세 보기</router-link></div>
+      <div class="tr-card-head"><h2>{{ $t('고룬 매물') }}</h2><router-link to="/market">{{ $t('시세 보기') }}</router-link></div>
       <button type="button" class="tr-rune" v-for="r in highRunes" :key="r.it.id" @click="searchRune(r.it)">
         <span class="tr-rune-icon"><img v-if="iconUrlFor(r.it.icon_key)" :src="iconUrlFor(r.it.icon_key)" alt="" /></span>
-        <span class="tr-rune-name">{{ r.it.name_ko }}</span>
-        <span class="tr-rune-count">{{ r.count ? `판매중 ${r.count}` : '매물 없음' }}</span>
+        <span class="tr-rune-name">{{ $itemName(r.it) }}</span>
+        <span class="tr-rune-count">{{ r.count ? $t('판매중 {n}', { n: r.count }) : $t('매물 없음') }}</span>
       </button>
     </section>
     <section class="tr-card">
-      <div class="tr-card-head"><h2>거래 게시판 최신글</h2><router-link to="/community?cat=거래">더보기</router-link></div>
+      <div class="tr-card-head"><h2>{{ $t('거래 게시판 최신글') }}</h2><router-link to="/community?cat=거래">{{ $t('더보기') }}</router-link></div>
       <router-link class="tr-board-row" v-for="b in tradeBoard" :key="b.id" :to="`/community/${b.id}`">
         <span class="tr-board-title">{{ b.title }}</span>
         <span class="tr-board-meta">{{ b.commentCount ? `[${b.commentCount}]` : '' }}</span>
       </router-link>
-      <div class="tr-card-empty" v-if="!tradeBoard.length">아직 글 없음 · <router-link to="/community/write?cat=거래">첫 글 쓰기</router-link></div>
+      <div class="tr-card-empty" v-if="!tradeBoard.length">{{ $t('아직 글 없음') }} · <router-link to="/community/write?cat=거래">{{ $t('첫 글 쓰기') }}</router-link></div>
     </section>
   </aside>
   </div>

@@ -2,6 +2,7 @@ import './legacyHash.js'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router.js'
+import { i18nPlugin, setLocale, localeOfPath } from './i18n.js'
 import { initAuth, takeLoginReturn, authState } from './profileStore.js'
 import './style.css'
 import './realtime.js'
@@ -26,8 +27,8 @@ function isFirstLogin() {
 }
 
 // 로그인 상태를 먼저 확인한 뒤 화면을 띄움 (새로고침 때 로그아웃처럼 깜빡이지 않게)
-initAuth().then(() => {
-  createApp(App).use(router).mount('#app')
+Promise.all([initAuth(), setLocale(localeOfPath(window.location.pathname))]).then(() => {
+  createApp(App).use(router).use(i18nPlugin).mount('#app')
   if (fromLogin) {
     // 주소창의 ?code= 를 지우고 로그인 전에 보던 화면으로 - 라우터가 이미 주소를 읽었으니 라우터로 이동
     // (저장된 값은 /mypage?tab=x 같은 전체 경로)

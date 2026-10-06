@@ -2,6 +2,7 @@
 // 헤더 스위치·메뉴와 모바일 하단 탭이 같이 씀
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { stripLocale } from './i18n.js'
 
 const TRADE_PATHS = ['/trade', '/deals', '/market', '/event']
 const DB_PATHS = ['/db', '/items', '/guides', '/runewords', '/craft-sim', '/simulator', '/cube', '/breakpoints', '/sockets', '/patch', '/ladder']
@@ -17,7 +18,7 @@ export function modeOf(path) {
 
 export function useSiteMode() {
   const route = useRoute()
-  const mode = computed(() => modeOf(route.path) || lastMode.value)
+  const mode = computed(() => modeOf(stripLocale(route.path)) || lastMode.value)
   watch(mode, (m) => {
     lastMode.value = m
     try { sessionStorage.setItem(MODE_KEY, m) } catch { /* 프라이빗 창 */ }

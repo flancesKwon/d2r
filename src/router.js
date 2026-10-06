@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { LOCALES, DEFAULT_LOCALE, locale, setLocale, localeOfPath, withLocale, t } from './i18n.js'
 import { trackVisit } from './visitTracker.js'
 const HomePage = () => import('./pages/HomePage.vue')
 const ItemsPage = () => import('./pages/ItemsPage.vue')
@@ -36,9 +37,7 @@ const AdminStatsPage = () => import('./pages/AdminStatsPage.vue')
 const AdminEventPage = () => import('./pages/AdminEventPage.vue')
 const EventPage = () => import('./pages/EventPage.vue')
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
+const baseRoutes = [
     // 첫 화면 = 거래 (매물 검색). 정보·도구 모음은 /db
     { path: '/', name: 'trade', component: TradePage },
     { path: '/db', name: 'home', component: HomePage, meta: { title: 'DB' } },
@@ -85,15 +84,57 @@ const router = createRouter({
     { path: '/users/:id', name: 'user', component: UserProfilePage, meta: { title: '회원 정보' } },
     { path: '/privacy', name: 'privacy', component: PrivacyPage, meta: { title: '개인정보 처리 안내' } },
     { path: '/terms', name: 'terms', component: TermsPage, meta: { title: '이용 규칙' } },
-    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage, meta: { title: '페이지를 찾을 수 없음' } },
-  ],
+]
+
+// 다국어: 모든 주소를 /en 아래에도 하나씩 (이름은 '이름@en', 화면은 같은 것 - 문구는 i18n.js 가 언어에 맞춰 바꿈)
+const NOT_FOUND = { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage, meta: { title: '페이지를 찾을 수 없음' } }
+function localizedRoutes(code) {
+  return baseRoutes.map((r) => {
+    const copy = { ...r, path: '/' + code + (r.path === '/' ? '' : r.path) }
+    if (r.name) copy.name = `${r.name}@${code}`
+    if (typeof r.redirect === 'function') {
+      copy.redirect = (to) => {
+        const res = r.redirect(to)
+        return typeof res === 'string' ? withLocale(res, code) : { ...res, path: withLocale(res.path, code) }
+      }
+    } else if (typeof r.redirect === 'string') copy.redirect = withLocale(r.redirect, code)
+    return copy
+  })
+}
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [...baseRoutes, ...LOCALES.filter((l) => l.code !== DEFAULT_LOCALE).flatMap((l) => localizedRoutes(l.code)), NOT_FOUND],
   scrollBehavior() {
     return { top: 0 }
   },
 })
 
+// 언어: 주소의 /en 으로 정함. 영어로 보는 중에 앱 안 링크(/trade/1 처럼 언어 없는 주소)를 누르면 /en 을 붙여 줌
+// (언어 바꾸기 버튼은 switchLocale 로 - 그때만 언어 없는 주소로 돌아감)
+let switchingTo = null
+export function switchLocale(code) {
+  switchingTo = code
+  const cur = router.currentRoute.value.fullPath
+  return router.push(localizeFullPath(cur, code))
+}
+function localizeFullPath(full, code) {
+  const i = full.search(/[?#]/)
+  const path = i < 0 ? full : full.slice(0, i)
+  return withLocale(path, code) + (i < 0 ? '' : full.slice(i))
+}
+router.beforeEach(async (to) => {
+  const urlLoc = localeOfPath(to.path)
+  const want = switchingTo ?? locale.value
+  switchingTo = null
+  if (urlLoc === DEFAULT_LOCALE && want !== DEFAULT_LOCALE && to.name !== 'not-found') {
+    return localizeFullPath(to.fullPath, want)
+  }
+  if (urlLoc !== locale.value) await setLocale(urlLoc)
+})
+
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} — 디아허브` : '디아허브 — 디아블로 2 레저렉션 거래·정보'
+  document.title = to.meta.title ? `${t(to.meta.title)} — ${t('디아허브')}` : t('디아허브 — 디아블로 2 레저렉션 거래·정보')
   // 방문 통계 (013 SQL) - 화면 옮길 때마다
   trackVisit(to.path)
 })

@@ -5,6 +5,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSiteMode, under } from '../siteMode.js'
+import { stripLocale, t } from '../i18n.js'
 
 const route = useRoute()
 const mode = useSiteMode()
@@ -34,7 +35,7 @@ const TABS = {
     { to: '/guides', label: '가이드', icon: P.guide, match: (p) => under(p, '/guides') || under(p, '/patch') || under(p, '/ladder') },
   ],
 }
-const tabs = computed(() => TABS[mode.value].map((t) => ({ ...t, here: t.match(route.path) })))
+const tabs = computed(() => TABS[mode.value].map((tab) => ({ ...tab, label: t(tab.label), here: tab.match(stripLocale(route.path)) })))
 </script>
 
 <template>
