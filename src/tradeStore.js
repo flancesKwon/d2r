@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import { itemMatchesQuery } from './itemSearch.js'
 import itemsData from './data/items.json'
+import statFilterData from './data/statFilters.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
 import baseItemsData from './data/baseItems.json'
 import classSkillsData from './data/classSkills.json'
@@ -176,6 +177,10 @@ export function rememberRealm(realm) {
 }
 export const TRADE_LADDERS = ['레더', '논레더']
 export const TRADE_HARDCORE = ['일반', '하드코어']
+// 게임 모드(확장팩) - 모드가 다르면 같은 아이템이라도 거래가 안 됨 (026 SQL 의 game_version 칸)
+// 지금 레더가 도는 건 '악마술사의 군림'이라 그걸 기본으로
+export const GAME_VERSIONS = ['악마술사의 군림', '파괴의 군주', '클래식']
+export const DEFAULT_GAME_VERSION = GAME_VERSIONS[0]
 
 // 카테고리를 미리 고르지 않아도 아이템명만 검색해서 바로 선택할 수 있게 하는
 // 통합 검색 - 사전 730종(룬·보석·유니크·세트·룬워드) + 우버보스 재료 목록을 대상으로
@@ -406,7 +411,11 @@ export const TRADE_STAT_FILTERS = [
   { key: 'defense', label: '방어력 (입력값)', pattern: '^기본 방어력 (\\d+)$', agg: 'max' },
   { key: 'maxdmg', label: '최대 데미지 (입력값)', pattern: '^기본 데미지 \\d+~(\\d+)$', agg: 'max' },
 ].map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
-const STAT_FILTER_BY_KEY = new Map(TRADE_STAT_FILTERS.map((s) => [s.key, s]))
+// 옵션 검색 전체 목록 (scripts/build-stat-filters.js 가 만듦) - 아이템 사전·매직/레어 접사·직업별 개별 스킬까지
+// 위의 TRADE_STAT_FILTERS 는 '자주 쓰는 옵션'으로 계속 씀 (여러 줄 합산 같은 특별 규칙이 있어서)
+export const ALL_STAT_FILTERS = statFilterData.map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
+const STAT_FILTER_BY_KEY = new Map([...ALL_STAT_FILTERS, ...TRADE_STAT_FILTERS].map((s) => [s.key, s]))
+export const statFilterByKey = (key) => STAT_FILTER_BY_KEY.get(key) || null
 
 // 판매글에서 해당 옵션 수치를 찾아 반환 (같은 옵션이 여러 줄이면 합산 - 무한의
 // "강타 확률 +20%"처럼 룬워드 고유 옵션과 룬 효과가 겹쳐 두 번 붙는 경우. agg: 'max'인
@@ -418,7 +427,8 @@ export function postStatValue(post, key) {
   for (const line of post.options || []) {
     const m = stat.regex.exec(line)
     if (!m) continue
-    const v = Number(m[1])
+    // 수치가 없는 옵션("대상 빙결" 등)은 붙어 있으면 1
+    const v = m[1] === undefined ? 1 : Number(m[1])
     total = total === null ? v : stat.agg === 'max' ? Math.max(total, v) : total + v
   }
   return total
@@ -638,6 +648,7 @@ export function mapTradePost(r) {
     ethereal: !!r.ethereal,
     price: r.price,
     realm: r.realm,
+    gameVersion: r.game_version || DEFAULT_GAME_VERSION,
     ladder: r.ladder,
     hardcore: r.hardcore,
     contact: r.contact || '',
@@ -722,7 +733,7 @@ export async function countTradeView(postId) {
 }
 
 export async function addTradePost({
-  category, itemId, itemName, amountLabel, price, realm, ladder, hardcore,
+  category, itemId, itemName, amountLabel, price, realm, ladder, hardcore, gameVersion,
   contact, content, options, quality, ethereal, negotiable, iconKey, unidentified, offerOnly,
 }) {
   const uid = needUser()
@@ -741,6 +752,7 @@ export async function addTradePost({
       realm,
       ladder,
       hardcore,
+      game_version: gameVersion || DEFAULT_GAME_VERSION,
       contact: (contact ?? authState.profile?.contact) || null,
       content: content || null,
     }).select(`*, ${POST_AUTHOR}`),
@@ -773,6 +785,7 @@ export async function updateTradePost(post, patch) {
     realm: patch.realm || post.realm,
     ladder: patch.ladder,
     hardcore: patch.hardcore,
+    game_version: patch.gameVersion || post.gameVersion || DEFAULT_GAME_VERSION,
     contact: patch.contact || null,
     content: patch.content || null,
     updated_at: new Date().toISOString(),
