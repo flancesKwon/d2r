@@ -6,6 +6,7 @@ import baseItemsData from '../data/baseItems.json'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { buildTooltip } from '../itemTooltip.js'
+import { t, locale, itemName, affixText } from '../i18n.js'
 import {
   craftRecipesFor, craftItemLevel, craftAffixCountOdds, craftPools, craftPoolFamilies, rollCraft, simulateCraft, familyLines, familyText,
 } from '../magicAffixes.js'
@@ -23,7 +24,10 @@ const craft = computed(() => magicAffixData.crafts.find((c) => c.name === `${kin
 // 이 제작법 재료로 쓸 수 있는 베이스 (반지·목걸이는 하나, 무기는 종류 전체)
 const MISC = magicAffixData.miscBases.map((b) => ({ ...b, sockets: 0 }))
 const ALL_BASES = [...baseItemsData, ...MISC]
-const baseLabel = (b) => (b.name_ko ? `${b.name_ko}${b.tier ? ` (${b.tier})` : ''}` : b.subtitle)
+const baseLabel = (b) => (locale.value !== 'ko' ? `${b.subtitle}${b.tier ? ` (${t(b.tier)})` : ''}` : b.name_ko ? `${b.name_ko}${b.tier ? ` (${b.tier})` : ''}` : b.subtitle)
+const baseName = (b) => (locale.value !== 'ko' ? b.subtitle : b.name_ko || b.subtitle)
+// 옵션 이름 (영어면 영어 문구)
+const lab = (f) => affixText(f.label)
 const bases = computed(() =>
   ALL_BASES.filter((b) => magicAffixData.bases[b.code] && craftRecipesFor(magicAffixData, b).some((r) => r.id === craft.value?.id))
     .sort((a, b) => magicAffixData.bases[a.code].qlvl - magicAffixData.bases[b.code].qlvl)
@@ -51,10 +55,10 @@ const iconUrl = (it) => (it?.icon_key && ITEM_ICONS[it.icon_key] || null)
 const materials = computed(() => {
   if (!craft.value || !base.value) return []
   return [
-    { name: `매직 ${base.value.name_ko || base.value.subtitle}` },
-    { name: '주얼' },
-    { name: byEn.get(craft.value.rune)?.name_ko || craft.value.rune, item: byEn.get(craft.value.rune) },
-    { name: byEn.get(craft.value.gem)?.name_ko || craft.value.gem, item: byEn.get(craft.value.gem) },
+    { name: t('매직 {name}', { name: baseName(base.value) }) },
+    { name: t('주얼') },
+    { name: itemName(byEn.get(craft.value.rune), craft.value.rune), item: byEn.get(craft.value.rune) },
+    { name: itemName(byEn.get(craft.value.gem), craft.value.gem), item: byEn.get(craft.value.gem) },
   ]
 })
 
@@ -104,7 +108,7 @@ const pct = (n, d) => (d ? (n / d) * 100 : 0)
 const fmtPct = (p) => (p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toFixed(3)) + '%'
 const topAffixes = computed(() =>
   result.value
-    ? [...result.value.keyHits].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, c]) => ({ label: famByKey.value.get(k)?.label || k, p: pct(c, result.value.runs) }))
+    ? [...result.value.keyHits].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, c]) => ({ label: famByKey.value.get(k) ? lab(famByKey.value.get(k)) : k, p: pct(c, result.value.runs) }))
     : []
 )
 const successP = computed(() => (result.value?.targets.length ? pct(result.value.targetHits, result.value.runs) : null))
@@ -137,7 +141,7 @@ const tierText = (f, t) => familyText(f, t.slots.map(([lo, hi]) => (lo === hi ? 
 const tableRows = computed(() => {
   const q = tableQuery.value.trim()
   return families.value
-    .filter((f) => (!tableSlot.value || f.slot === tableSlot.value) && (!q || f.label.includes(q)))
+    .filter((f) => (!tableSlot.value || f.slot === tableSlot.value) && (!q || f.label.includes(q) || lab(f).toLowerCase().includes(q.toLowerCase())))
     .map((f) => {
       const weight = f.tiers.reduce((s, t) => s + t.freq, 0)
       return {
@@ -156,101 +160,101 @@ const tableRows = computed(() => {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">큐브 크래프트</div>
-      <h1>크래프트 시뮬레이터</h1>
+      <div class="eyebrow">{{ $t('큐브 크래프트') }}</div>
+      <h1>{{ $t('크래프트 시뮬레이터') }}</h1>
     </div>
   </div>
 
   <div class="grid-wrap cs-wrap">
     <section class="cs-panel">
-      <div class="cs-title"><span class="cs-step">1</span>제작법</div>
+      <div class="cs-title"><span class="cs-step">1</span>{{ $t('제작법') }}</div>
       <div class="cs-kinds">
         <button v-for="k in KINDS" :key="k" class="cs-kind" :class="{ active: kind === k }" @click="kind = k">
-          <b>{{ k }}</b><small>{{ KIND_HINT[k] }}</small>
+          <b>{{ $t(k) }}</b><small>{{ $t(KIND_HINT[k]) }}</small>
         </button>
       </div>
       <div class="cat-tabs">
-        <button v-for="s in SLOTS" :key="s" :class="{ active: slot === s }" @click="slot = s">{{ s }}</button>
+        <button v-for="s in SLOTS" :key="s" :class="{ active: slot === s }" @click="slot = s">{{ $t(s) }}</button>
       </div>
       <div class="cs-recipe" v-if="recipe">
-        <div class="cs-result-line">결과: 크래프트 {{ slot }} = <span class="cs-fixed">고정 옵션</span> + 무작위 옵션 1~4개</div>
-        <div class="cs-fixed">고정 옵션: {{ recipe.fam.label }}</div>
+        <div class="cs-result-line">{{ $t('결과') }}: {{ $t('크래프트') }} {{ $t(slot) }} = <span class="cs-fixed">{{ $t('고정 옵션') }}</span> {{ $t('+ 무작위 옵션 1~4개') }}</div>
+        <div class="cs-fixed">{{ $t('고정 옵션') }}: {{ lab(recipe.fam) }}</div>
         <div class="cs-mats">
-          재료:
+          {{ $t('재료:') }}
           <span class="cs-mat" v-for="m in materials" :key="m.name">
             <img v-if="iconUrl(m.item)" :src="iconUrl(m.item)" alt="" />{{ m.name }}
           </span>
         </div>
       </div>
 
-      <div class="cs-title cs-title-sub"><span class="cs-step">2</span>재료·레벨</div>
+      <div class="cs-title cs-title-sub"><span class="cs-step">2</span>{{ $t('재료·레벨') }}</div>
       <div class="cs-row">
         <label class="cs-field cs-base">
-          재료 베이스 (매직)
+          {{ $t('재료 베이스 (매직)') }}
           <select v-model="baseCode" class="cs-input">
             <option v-for="b in bases" :key="b.code" :value="b.code">{{ baseLabel(b) }}</option>
           </select>
         </label>
         <label class="cs-field">
-          캐릭터 레벨
+          {{ $t('캐릭터 레벨') }}
           <input type="number" min="1" max="99" v-model="clvl" class="cs-input" />
         </label>
         <label class="cs-field">
-          재료 매직 아이템 레벨
+          {{ $t('재료 매직 아이템 레벨') }}
           <input type="number" min="1" max="99" v-model="inputIlvl" class="cs-input" />
         </label>
       </div>
       <div class="cs-levels" v-if="pools">
-        <span>크래프트 아이템 레벨 <b>{{ ilvl }}</b></span>
-        <span>옵션 레벨 <b>{{ pools.alvl }}</b></span>
+        <span>{{ $t('크래프트 아이템 레벨') }} <b>{{ ilvl }}</b></span>
+        <span>{{ $t('옵션 레벨') }} <b>{{ pools.alvl }}</b></span>
         <span>
-          무작위 옵션 개수:
-          <template v-for="(p, i) in odds" :key="i"><b v-if="p">{{ i + 1 }}개 {{ Math.round(p * 100) }}%</b> </template>
+          {{ $t('무작위 옵션 개수:') }}
+          <template v-for="(p, i) in odds" :key="i"><b v-if="p">{{ i + 1 }}{{ $t('개') }} {{ Math.round(p * 100) }}%</b> </template>
         </span>
       </div>
       <div class="cs-hint">
-        아이템 레벨 = 캐릭터 레벨/2 + 재료 아이템 레벨/2. 71 이상이면 무작위 옵션 항상 4개.
+        {{ $t('아이템 레벨 = 캐릭터 레벨/2 + 재료 아이템 레벨/2. 71 이상이면 무작위 옵션 항상 4개.') }}
       </div>
     </section>
 
     <div class="cs-tabs-row">
-      <div class="cs-title"><span class="cs-step">3</span>결과</div>
+      <div class="cs-title"><span class="cs-step">3</span>{{ $t('결과') }}</div>
       <div class="cat-tabs cs-tabs">
-        <button :class="{ active: tab === 'sim' }" @click="tab = 'sim'">제작 시뮬레이션</button>
-        <button :class="{ active: tab === 'table' }" @click="tab = 'table'">옵션별 확률 표</button>
+        <button :class="{ active: tab === 'sim' }" @click="tab = 'sim'">{{ $t('제작 시뮬레이션') }}</button>
+        <button :class="{ active: tab === 'table' }" @click="tab = 'table'">{{ $t('옵션별 확률 표') }}</button>
       </div>
     </div>
 
     <section class="cs-panel" v-if="tab === 'table'">
-      <div class="cs-title">옵션별 가중치 표</div>
+      <div class="cs-title">{{ $t('옵션별 가중치 표') }}</div>
       <div class="cs-hint">
-        옵션 레벨 {{ pools?.alvl }} · 한 번 뽑을 때 = 가중치 ÷ 합(접두사 {{ slotTotals.p }}, 접미사 {{ slotTotals.s }})
+        {{ $t('옵션 레벨') }} {{ pools?.alvl }} · {{ $t('한 번 뽑을 때 = 가중치 ÷ 합(접두사 {p}, 접미사 {s})', { p: slotTotals.p, s: slotTotals.s }) }}
       </div>
       <div class="cs-table-tools">
         <div class="cat-tabs">
-          <button :class="{ active: !tableSlot }" @click="tableSlot = ''">전체 {{ families.length }}</button>
-          <button :class="{ active: tableSlot === 'p' }" @click="tableSlot = 'p'">접두사</button>
-          <button :class="{ active: tableSlot === 's' }" @click="tableSlot = 's'">접미사</button>
+          <button :class="{ active: !tableSlot }" @click="tableSlot = ''">{{ $t('전체') }} {{ families.length }}</button>
+          <button :class="{ active: tableSlot === 'p' }" @click="tableSlot = 'p'">{{ $t('접두사') }}</button>
+          <button :class="{ active: tableSlot === 's' }" @click="tableSlot = 's'">{{ $t('접미사') }}</button>
         </div>
-        <input type="text" :value="tableQuery" @input="tableQuery = $event.target.value" class="cs-input cs-table-search" placeholder="옵션 검색 (예: 저항, 소서리스)" aria-label="옵션 검색" />
+        <input type="text" :value="tableQuery" @input="tableQuery = $event.target.value" class="cs-input cs-table-search" :placeholder="$t('옵션 검색 (예: 저항, 소서리스)')" :aria-label="$t('옵션 검색')" />
       </div>
       <div class="cs-table-wrap">
         <table class="cs-table">
           <thead>
-            <tr><th>구분</th><th>옵션 (수치 범위)</th><th>가중치</th><th>한 번 뽑을 때</th><th>아이템에 붙을 확률</th><th>옵션 레벨</th></tr>
+            <tr><th>{{ $t('구분') }}</th><th>{{ $t('옵션 (수치 범위)') }}</th><th>{{ $t('가중치') }}</th><th>{{ $t('한 번 뽑을 때') }}</th><th>{{ $t('아이템에 붙을 확률') }}</th><th>{{ $t('옵션 레벨') }}</th></tr>
           </thead>
           <tbody>
             <template v-for="r in tableRows" :key="r.f.key">
               <tr class="cs-trow" :class="{ open: openKey === r.f.key }" @click="openKey = openKey === r.f.key ? '' : r.f.key">
-                <td><span class="cs-slot" :class="r.f.slot">{{ r.f.slot === 'p' ? '접두' : '접미' }}</span></td>
-                <td class="cs-tlabel">{{ r.f.label }}</td>
+                <td><span class="cs-slot" :class="r.f.slot">{{ $t(r.f.slot === 'p' ? '접두' : '접미') }}</span></td>
+                <td class="cs-tlabel">{{ lab(r.f) }}</td>
                 <td class="num">{{ r.weight }}</td>
                 <td class="num">{{ fmtPct(r.pick * 100) }}</td>
                 <td class="num">
                   <template v-if="r.onItem !== null">
                     <span class="cs-tbar"><span :style="{ width: Math.min(100, r.onItem * 400) + '%' }"></span></span>{{ fmtPct(r.onItem * 100) }}
                   </template>
-                  <span v-else class="cs-dim">계산 중…</span>
+                  <span v-else class="cs-dim">{{ $t('계산 중…') }}</span>
                 </td>
                 <td class="num">{{ r.levels }}</td>
               </tr>
@@ -259,8 +263,8 @@ const tableRows = computed(() => {
                 <td colspan="5">
                   <div class="cs-tier" v-for="t in r.f.tiers" :key="t.name + t.level">
                     <span class="cs-tier-name">{{ t.name }}</span>
-                    <span>{{ tierText(r.f, t) }}</span>
-                    <span class="cs-dim">가중치 {{ t.freq }} · 레벨 {{ t.level }}~{{ t.maxlevel || 99 }}</span>
+                    <span>{{ affixText(tierText(r.f, t)) }}</span>
+                    <span class="cs-dim">{{ $t('가중치') }} {{ t.freq }} · {{ $t('레벨') }} {{ t.level }}~{{ t.maxlevel || 99 }}</span>
                   </div>
                 </td>
               </tr>
@@ -272,54 +276,54 @@ const tableRows = computed(() => {
 
     <div class="cs-cols" v-else>
       <section class="cs-panel">
-        <div class="cs-title cs-title-sub">한 번 굴려보기</div>
-        <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="craftOnce">{{ rollTooltip ? '다시 제작' : '제작하기' }}</button>
+        <div class="cs-title cs-title-sub">{{ $t('한 번 굴려보기') }}</div>
+        <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="craftOnce">{{ $t(rollTooltip ? '다시 제작' : '제작하기') }}</button>
         <div class="cs-tooltip" v-if="rollTooltip">
           <ItemTooltipCanvas :tooltip="rollTooltip" />
         </div>
-        <div class="cs-placeholder" v-else>결과 아이템 표시 자리</div>
+        <div class="cs-placeholder" v-else>{{ $t('결과 아이템 표시 자리') }}</div>
       </section>
 
       <section class="cs-panel">
-        <div class="cs-title cs-title-sub">원하는 옵션이 붙을 확률</div>
-        <div class="cs-hint">옵션 최대 3개 선택 → {{ RUNS.toLocaleString() }}번 제작해 보고 성공 확률·필요 재료 수 계산</div>
+        <div class="cs-title cs-title-sub">{{ $t('원하는 옵션이 붙을 확률') }}</div>
+        <div class="cs-hint">{{ $t('옵션 최대 3개 선택 → {n}번 제작해 보고 성공 확률·필요 재료 수 계산', { n: RUNS.toLocaleString() }) }}</div>
         <div class="cs-target" v-for="(t, i) in targets" :key="i">
-          <select v-model="t.key" class="cs-input cs-target-key" @change="t.min = ''" :aria-label="`목표 옵션 ${i + 1}`">
-            <option value="">옵션 선택 ({{ families.length }}종)</option>
-            <option v-for="f in targetOptionsFor(i)" :key="f.key" :value="f.key">{{ f.slot === 'p' ? '[접두]' : '[접미]' }} {{ f.label }}</option>
+          <select v-model="t.key" class="cs-input cs-target-key" @change="t.min = ''" :aria-label="`${$t('목표 옵션')} ${i + 1}`">
+            <option value="">{{ $t('옵션 선택 ({n}종)', { n: families.length }) }}</option>
+            <option v-for="f in targetOptionsFor(i)" :key="f.key" :value="f.key">[{{ $t(f.slot === 'p' ? '접두' : '접미') }}] {{ lab(f) }}</option>
           </select>
           <select
             v-if="firstRange(t) && firstRange(t)[0] !== firstRange(t)[1]" v-model="t.min" class="cs-input cs-target-min"
-            :aria-label="`목표 옵션 ${i + 1} 최소 수치`"
+            :aria-label="`${$t('목표 옵션')} ${i + 1}`"
           >
-            <option value="">수치 무관</option>
+            <option value="">{{ $t('수치 무관') }}</option>
             <option v-for="n in firstRange(t)[1] - firstRange(t)[0] + 1" :key="n" :value="firstRange(t)[0] + n - 1">
-              {{ firstRange(t)[0] + n - 1 }} 이상
+              {{ $t('{v} 이상', { v: firstRange(t)[0] + n - 1 }) }}
             </option>
           </select>
-          <button type="button" class="cs-x" v-if="targets.length > 1" @click="targets.splice(i, 1)" aria-label="목표 옵션 삭제">✕</button>
+          <button type="button" class="cs-x" v-if="targets.length > 1" @click="targets.splice(i, 1)" :aria-label="$t('목표 옵션 삭제')">✕</button>
         </div>
-        <button type="button" class="cs-add" v-if="targets.length < MAX_TARGETS" @click="targets.push({ key: '', min: '' })">+ 옵션 추가</button>
-        <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="runSim">{{ RUNS.toLocaleString() }}번 시뮬레이션</button>
+        <button type="button" class="cs-add" v-if="targets.length < MAX_TARGETS" @click="targets.push({ key: '', min: '' })">{{ $t('+ 옵션 추가') }}</button>
+        <button type="button" class="btn-primary cs-btn" :disabled="!recipe" @click="runSim">{{ $t('{n}번 시뮬레이션', { n: RUNS.toLocaleString() }) }}</button>
 
         <template v-if="result">
           <div class="cs-success" v-if="successP !== null">
             <div class="cs-success-p">{{ fmtPct(successP) }}</div>
             <div v-if="expectedTries">
-              평균 <b>{{ expectedTries.toLocaleString() }}번</b>에 1번.
-              재료로 치면 {{ materials.slice(2).map((m) => `${m.name} ${expectedTries.toLocaleString()}개`).join(', ') }}와 주얼·매직 {{ base.name_ko || base.subtitle }} 각각 {{ expectedTries.toLocaleString() }}개 정도.
+              {{ $t('평균 {n}번에 1번.', { n: expectedTries.toLocaleString() }) }}
+              {{ $t('재료로 치면 {mats}와 주얼·매직 {base} 각각 {n}개 정도.', { mats: materials.slice(2).map((m) => `${m.name} ×${expectedTries.toLocaleString()}`).join(', '), base: baseName(base), n: expectedTries.toLocaleString() }) }}
             </div>
-            <div v-else>{{ RUNS.toLocaleString() }}번 중 0번 - 조건을 낮춰 볼 것.</div>
+            <div v-else>{{ $t('{n}번 중 0번 - 조건을 낮춰 볼 것.', { n: RUNS.toLocaleString() }) }}</div>
           </div>
-          <div class="cs-sub">무작위 옵션 개수</div>
+          <div class="cs-sub">{{ $t('무작위 옵션 개수') }}</div>
           <div class="cs-bars">
             <div class="cs-bar" v-for="(c, i) in result.countDist" :key="i">
-              <span>{{ i + 1 }}개</span>
+              <span>{{ i + 1 }}{{ $t('개') }}</span>
               <div class="cs-bar-track"><div class="cs-bar-fill" :style="{ width: pct(c, result.runs) + '%' }"></div></div>
               <span>{{ fmtPct(pct(c, result.runs)) }}</span>
             </div>
           </div>
-          <div class="cs-sub">자주 붙는 옵션 (아이템 {{ result.runs.toLocaleString() }}개 중)</div>
+          <div class="cs-sub">{{ $t('자주 붙는 옵션 (아이템 {n}개 중)', { n: result.runs.toLocaleString() }) }}</div>
           <div class="cs-bars">
             <div class="cs-bar" v-for="a in topAffixes" :key="a.label">
               <span class="cs-bar-label">{{ a.label }}</span>

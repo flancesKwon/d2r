@@ -52,27 +52,27 @@ const filteredGuides = computed(() => {
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">직업별 빌드 가이드</div>
-      <h1>빌드 가이드</h1>
+      <div class="eyebrow">{{ $t('직업별 빌드 가이드') }}</div>
+      <h1>{{ $t('빌드 가이드') }}</h1>
     </div>
   </div>
 
   <div class="toolbar">
     <div class="toolbar-inner">
       <div class="cat-tabs view-tabs">
-        <button :class="{ active: view === 'list' }" @click="view = 'list'">목록</button>
-        <button :class="{ active: view === 'tier' }" @click="view = 'tier'">티어리스트</button>
+        <button :class="{ active: view === 'list' }" @click="view = 'list'">{{ $t('목록') }}</button>
+        <button :class="{ active: view === 'tier' }" @click="view = 'tier'">{{ $t('티어리스트') }}</button>
       </div>
-      <router-link v-if="canEditGuides" class="guide-write-btn" :to="{ path: '/guides/new', query: activeClass ? { class: activeClass } : {} }">가이드 쓰기</router-link>
+      <router-link v-if="canEditGuides" class="guide-write-btn" :to="{ path: '/guides/new', query: activeClass ? { class: activeClass } : {} }">{{ $t('가이드 쓰기') }}</router-link>
       <div class="cat-tabs">
-        <button :class="{ active: activeClass === null }" @click="activeClass = null">전체</button>
+        <button :class="{ active: activeClass === null }" @click="activeClass = null">{{ $t('전체') }}</button>
         <button
           v-for="c in classList"
           :key="c.key"
           :class="{ active: activeClass === c.key }"
           @click="setClass(c.key)"
         >
-          {{ c.name }}
+          {{ $t(c.name) }}
         </button>
       </div>
     </div>
@@ -85,24 +85,24 @@ const filteredGuides = computed(() => {
         <div class="tier-guides">
           <router-link class="tier-guide" v-for="g in r.guides" :key="g.id" :to="`/guides/${g.id}`">
             <span class="guide-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[g.classKey]"></svg></span>
-            <span class="tier-guide-text"><b>{{ g.title }}</b><small>{{ g.className }}</small></span>
+            <span class="tier-guide-text"><b>{{ g.title }}</b><small>{{ $t(g.className) }}</small></span>
           </router-link>
         </div>
       </div>
-      <div class="empty-state" v-if="!tierRows.length">가이드 없음</div>
+      <div class="empty-state" v-if="!tierRows.length">{{ $t('가이드 없음') }}</div>
     </div>
     <div class="guide-grid guide-grid-wide" v-else>
       <router-link class="guide-card" v-for="g in filteredGuides" :key="g.id" :to="`/guides/${g.id}`">
         <div class="guide-top">
           <span class="guide-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[g.classKey]"></svg></span>
-          <div class="guide-class-badge">{{ g.className }}</div>
+          <div class="guide-class-badge">{{ $t(g.className) }}</div>
           <span class="guide-tier">{{ g.tier }}</span>
         </div>
-        <div class="guide-title">{{ g.title }}<span class="guide-draft" v-if="g.published === false">비공개</span></div>
+        <div class="guide-title">{{ g.title }}<span class="guide-draft" v-if="g.published === false">{{ $t('비공개') }}</span></div>
         <div class="guide-desc">{{ g.desc }}</div>
         <div class="guide-date">{{ g.date }}</div>
       </router-link>
-      <div class="empty-state" v-if="filteredGuides.length === 0">가이드 없음</div>
+      <div class="empty-state" v-if="filteredGuides.length === 0">{{ $t('가이드 없음') }}</div>
     </div>
   </div>
   </div>

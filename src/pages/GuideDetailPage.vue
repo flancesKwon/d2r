@@ -1,4 +1,5 @@
 <script setup>
+import { t } from '../i18n.js'
 import { computed, watch } from 'vue'
 import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -33,7 +34,7 @@ const route = useRoute()
 const router = useRouter()
 loadGuides()
 const guide = computed(() => getGuide(route.params.id))
-watch(guide, (g) => { if (g) document.title = `${g.title} — 디아허브` }, { immediate: true, flush: 'post' })
+watch(guide, (g) => { if (g) document.title = `${g.title} — ${t('디아허브')}` }, { immediate: true, flush: 'post' })
 // 가이드에 나온 스킬의 예전 이름 (눈보라 = 블리자드) - 가이드는 게임 공식 이름으로 씀
 const skillPairs = computed(() => {
   const g = guide.value
@@ -44,12 +45,12 @@ const skillPairs = computed(() => {
 // 단계가 숫자(1~11, 24~)일 때만 Lv 를 붙임 (소용돌이·광분·공통 같은 이름 단계는 그대로)
 const levelLabel = (lv) => (/^\d/.test(lv || '') ? 'Lv ' + lv : lv)
 async function removeGuide() {
-  if (!await askConfirm(`"${guide.value.title}" 가이드 삭제 - 되돌릴 수 없음`)) return
+  if (!await askConfirm(t('"{title}" 가이드 삭제 - 되돌릴 수 없음', { title: guide.value.title }))) return
   try {
     await deleteGuide(guide.value)
     router.replace('/guides')
   } catch (e) {
-    await showAlert(e.message || '삭제 실패')
+    await showAlert(t(e.message || '삭제 실패'))
   }
 }
 // 목차 - 해시 라우터라 #앵커 링크 대신 버튼으로 스크롤
@@ -75,24 +76,24 @@ const related = computed(() =>
   <div class="grid-wrap guide-detail-wrap">
     <div class="d-eyebrow">
       <span class="guide-class-icon"><svg viewBox="0 0 24 24" v-html="CLASS_ICONS[guide.classKey]"></svg></span>
-      {{ guide.className }} · {{ guide.tier }}
+      {{ $t(guide.className) }} · {{ guide.tier }}
     </div>
     <h1 class="d-name guide-detail-title">{{ guide.title }}</h1>
     <div class="guide-detail-date">
-      {{ guide.date }}<span class="guide-draft" v-if="guide.published === false">비공개</span>
+      {{ guide.date }}<span class="guide-draft" v-if="guide.published === false">{{ $t('비공개') }}</span>
       <template v-if="canEditGuides">
-        <router-link class="guide-edit-link" :to="`/guides/${guide.id}/edit`">수정</router-link>
-        <button type="button" class="guide-edit-link danger" @click="removeGuide">삭제</button>
+        <router-link class="guide-edit-link" :to="`/guides/${guide.id}/edit`">{{ $t('수정') }}</router-link>
+        <button type="button" class="guide-edit-link danger" @click="removeGuide">{{ $t('삭제') }}</button>
       </template>
     </div>
     <p class="guide-detail-summary">{{ guide.summary }}</p>
 
     <div class="guide-detail-grid">
       <main class="post-card">
-        <div class="d-section-title" id="sec-stat">스탯 우선순위</div>
+        <div class="d-section-title" id="sec-stat">{{ $t('스탯 우선순위') }}</div>
         <div class="note-box">{{ guide.statPriority }}</div>
 
-        <div class="d-section-title" id="sec-skill">스킬 트리 순서</div>
+        <div class="d-section-title" id="sec-skill">{{ $t('스킬 트리 순서') }}</div>
         <div class="affix-list">
           <div class="affix-line skill-order-line" v-for="(s, i) in guide.skillOrder" :key="i">
             <span class="skill-order-level">{{ levelLabel(s.level) }}</span>
@@ -101,11 +102,11 @@ const related = computed(() =>
         </div>
 
         <div class="skill-alias-box" v-if="skillPairs.length">
-          <span class="skill-alias-title">스킬 이름 (게임 표기 = 예전에 많이 쓰던 이름)</span>
+          <span class="skill-alias-title">{{ $t('스킬 이름 (게임 표기 = 예전에 많이 쓰던 이름)') }}</span>
           <span class="skill-alias" v-for="p in skillPairs" :key="p[0]"><b>{{ p[0] }}</b> = {{ p[1] }}</span>
         </div>
 
-        <div class="d-section-title" id="sec-gear">추천 장비</div>
+        <div class="d-section-title" id="sec-gear">{{ $t('추천 장비') }}</div>
         <div class="affix-list">
           <div class="affix-line" v-for="(item, i) in guide.keyItems" :key="i">
             <span class="a-text">
@@ -119,7 +120,7 @@ const related = computed(() =>
           </div>
         </div>
 
-        <div class="d-section-title" id="sec-level">레벨링 노트</div>
+        <div class="d-section-title" id="sec-level">{{ $t('레벨링 노트') }}</div>
         <div class="affix-list">
           <div class="affix-line" v-for="(n, i) in guide.levelingNotes" :key="i">
             <span class="a-text">{{ n }}</span>
@@ -128,34 +129,34 @@ const related = computed(() =>
 
         <div class="strength-grid" id="sec-pros">
           <div class="strength-box good">
-            <h4>장점</h4>
+            <h4>{{ $t('장점') }}</h4>
             <ul><li v-for="(s, i) in guide.strengths" :key="i">{{ s }}</li></ul>
           </div>
           <div class="strength-box bad">
-            <h4>단점</h4>
+            <h4>{{ $t('단점') }}</h4>
             <ul><li v-for="(w, i) in guide.weaknesses" :key="i">{{ w }}</li></ul>
           </div>
         </div>
       </main>
 
       <aside class="guide-aside">
-        <nav class="side-block guide-toc" aria-label="가이드 목차">
-          <div class="guide-toc-title">목차</div>
-          <button type="button" v-for="s in SECTIONS" :key="s.id" @click="scrollToSection(s.id)">{{ s.label }}</button>
+        <nav class="side-block guide-toc" :aria-label="$t('가이드 목차')">
+          <div class="guide-toc-title">{{ $t('목차') }}</div>
+          <button type="button" v-for="s in SECTIONS" :key="s.id" @click="scrollToSection(s.id)">{{ $t(s.label) }}</button>
         </nav>
         <div class="side-block guide-tools">
-          <div class="guide-toc-title">이 빌드에 쓰는 도구</div>
-          <router-link to="/simulator">스킬·스탯 시뮬레이터로 찍어보기</router-link>
-          <router-link to="/breakpoints">브레이크포인트 확인하기</router-link>
-          <router-link to="/runewords">룬워드 찾기</router-link>
+          <div class="guide-toc-title">{{ $t('이 빌드에 쓰는 도구') }}</div>
+          <router-link to="/simulator">{{ $t('스킬·스탯 시뮬레이터로 찍어보기') }}</router-link>
+          <router-link to="/breakpoints">{{ $t('브레이크포인트 확인하기') }}</router-link>
+          <router-link to="/runewords">{{ $t('룬워드 찾기') }}</router-link>
         </div>
         <div class="side-block tool-box">
-          <h3>이 빌드의 아이템이 궁금하다면</h3>
-          <p>가이드 속 아이템 옵션은 아이템 사전에서</p>
-          <router-link to="/items">아이템 검색하기</router-link>
+          <h3>{{ $t('이 빌드의 아이템이 궁금하다면') }}</h3>
+          <p>{{ $t('가이드 속 아이템 옵션은 아이템 사전에서') }}</p>
+          <router-link to="/items">{{ $t('아이템 검색하기') }}</router-link>
         </div>
         <div class="side-block board-box" v-if="related.length">
-          <h3>{{ guide.className }} 다른 가이드</h3>
+          <h3>{{ $t('{cls} 다른 가이드', { cls: $t(guide.className) }) }}</h3>
           <ul>
             <li v-for="r in related" :key="r.id">
               <router-link :to="`/guides/${r.id}`">{{ r.title }}</router-link>
@@ -168,7 +169,7 @@ const related = computed(() =>
   </div>
   <div class="items-page" v-else>
     <div class="grid-wrap">
-      <div class="empty-state">가이드 없음. <router-link to="/guides">가이드 목록으로</router-link></div>
+      <div class="empty-state">{{ $t('가이드 없음.') }} <router-link to="/guides">{{ $t('가이드 목록으로') }}</router-link></div>
     </div>
   </div>
 </template>

@@ -11,8 +11,8 @@ const selected = ref(null)
 
   <div class="patch-hero">
     <div class="patch-hero-inner">
-      <div class="eyebrow">업데이트 기록</div>
-      <h1>패치노트</h1>
+      <div class="eyebrow">{{ $t('업데이트 기록') }}</div>
+      <h1>{{ $t('패치노트') }}</h1>
     </div>
   </div>
 
@@ -21,10 +21,10 @@ const selected = ref(null)
       <button class="patch-row" v-for="n in notes" :key="n.id" @click="selected = n">
         <div class="patch-row-top">
           <span class="patch-version">v{{ n.version }}</span>
-          <span class="patch-tag" v-for="t in n.tags" :key="t">{{ t }}</span>
+          <span class="patch-tag" v-for="t in n.tags" :key="t">{{ $t(t) }}</span>
         </div>
-        <div class="patch-title">{{ n.title }}</div>
-        <div class="patch-summary">{{ n.summary }}</div>
+        <div class="patch-title">{{ $t(n.title) }}</div>
+        <div class="patch-summary">{{ $t(n.summary) }}</div>
         <div class="patch-date">{{ n.date }}</div>
       </button>
     </div>
@@ -34,16 +34,16 @@ const selected = ref(null)
     <div class="modal-panel patch-modal">
       <button class="modal-close" @click="selected = null">✕</button>
       <div class="d-eyebrow">v{{ selected.version }} · {{ selected.date }}</div>
-      <h1 class="d-name patch-modal-title">{{ selected.title }}</h1>
+      <h1 class="d-name patch-modal-title">{{ $t(selected.title) }}</h1>
       <div class="patch-tag-row">
-        <span class="patch-tag" v-for="t in selected.tags" :key="t">{{ t }}</span>
+        <span class="patch-tag" v-for="t in selected.tags" :key="t">{{ $t(t) }}</span>
       </div>
-      <p class="patch-modal-summary">{{ selected.summary }}</p>
+      <p class="patch-modal-summary">{{ $t(selected.summary) }}</p>
       <div v-for="(sec, i) in selected.sections" :key="i">
-        <div class="d-section-title">{{ sec.heading }}</div>
+        <div class="d-section-title">{{ $t(sec.heading) }}</div>
         <div class="affix-list">
           <div class="affix-line" v-for="(line, j) in sec.items" :key="j">
-            <span class="a-text">{{ line }}</span>
+            <span class="a-text">{{ $t(line) }}</span>
           </div>
         </div>
       </div>
