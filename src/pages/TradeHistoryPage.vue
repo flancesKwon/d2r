@@ -178,7 +178,7 @@ const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) 
           </div>
           <div class="th-links">
             <router-link to="/trade/history">{{ $t('← 다른 아이템') }}</router-link>
-            <router-link v-if="item && item.category !== 'uber' && item.category !== 'essence'" :to="`/items/${item.id}`">{{ $t('아이템 사전에서 보기') }}</router-link>
+            <router-link v-if="item && !['uber', 'essence', 'worldstone'].includes(item.category)" :to="`/items/${item.id}`">{{ $t('아이템 사전에서 보기') }}</router-link>
             <router-link :to="item ? { path: '/trade', query: { item: item.id } } : { path: '/trade', query: { q: title } }">{{ $t('거래게시판에서 찾기') }}</router-link>
           </div>
         </template>
