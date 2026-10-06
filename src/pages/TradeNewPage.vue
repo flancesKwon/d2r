@@ -451,6 +451,13 @@ const expectedWeaponDamage = computed(() => {
 const uniqueDefenseRange = computed(() =>
   isUniqueOrSet.value ? uniqueDefenseRangeFor(selectedItem.value, form.value.ethereal) : null
 )
+// 입력한 방어력이 나올 수 있는 범위를 벗어났는지 - 벗어난 값은 그림·판매글에 쓰지 않음 (칸은 빨갛게, 등록도 막힘)
+const defenseOutOfRange = computed(() => {
+  const v = armorStats.value.baseDefense
+  if (!filled(v)) return false
+  const r = uniqueDefenseRange.value || expectedDefense.value
+  return !!r && !isAllowedValue(v, r)
+})
 // 유니크·세트 무기 데미지 범위 (한손·양손 중 아무 쪽이나 맞으면 됨, 레벨당 데미지는 99레벨까지)
 const uniqueDamageRange = computed(() => {
   if (!isUniqueOrSet.value || selectedItem.value?.base_stats?.category !== 'weapon') return null
@@ -577,7 +584,7 @@ function buildBaseStatOptions() {
   if (effectiveBaseKind.value === 'armor') {
     // 실제 방어력을 입력했으면 그 값, 안 했으면 고른 베이스의 방어력 범위를 그대로 씀
     const base = selectedBaseItem.value?.base_stats
-    const baseDefense = armorStats.value.baseDefense || (base ? `${base.minac}~${base.maxac}` : '')
+    const baseDefense = (!defenseOutOfRange.value && armorStats.value.baseDefense) || (base ? `${base.minac}~${base.maxac}` : '')
     if (baseDefense) out.push(`기본 방어력 ${baseDefense}`)
   } else if (effectiveBaseKind.value === 'weapon') {
     // 직접 입력한 데미지가 있으면 그 값, 없으면 베이스 고정값(에테리얼이면 1.5배)
@@ -593,7 +600,7 @@ function buildBaseStatOptions() {
 // 판매자가 직접 입력한 방어력·데미지 줄 (유니크·세트, 미확인 판매에도 씀 - 게임에서 미확인이어도 보이는 값)
 function enteredStatLines() {
   const s = armorStats.value
-  if (effectiveBaseKind.value === 'armor') return filled(s.baseDefense) ? [`기본 방어력 ${s.baseDefense}`] : []
+  if (effectiveBaseKind.value === 'armor') return filled(s.baseDefense) && !defenseOutOfRange.value ? [`기본 방어력 ${s.baseDefense}`] : []
   if (effectiveBaseKind.value === 'weapon') return filled(s.dmgMin) && filled(s.dmgMax) && !damageError.value ? [`기본 데미지 ${s.dmgMin}~${s.dmgMax}`] : []
   return []
 }
