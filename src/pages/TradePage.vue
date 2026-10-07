@@ -25,6 +25,8 @@ import {
   CLASS_SKILL_NAMES,
   uniqueDefenseRange,
   SUPERIOR_MODS,
+  searchBaseItems,
+  baseItemLabel,
   TRADE_REALMS,
   GAME_VERSIONS,
 } from '../tradeStore.js'
@@ -135,20 +137,41 @@ function isSuperiorPost(p, item) {
 // 이 아이템 글 (베이스 종류 고르기·방어력/데미지 칸을 보여줄지 정할 때 씀)
 const pickedItemPosts = computed(() => (pickedItem.value ? tradeState.posts.filter((p) => p.itemId === pickedItem.value.id) : []))
 const anyLine = (re) => pickedItemPosts.value.some((p) => (p.options || []).some((l) => re.test(l)))
+// 룬워드로 쓸 수 있는 베이스는 사전에서 전부 (판매글 등록 화면과 같은 목록)
+const runewordBases = computed(() => {
+  const it = pickedItem.value
+  if (it?.category !== 'runeword') return []
+  return searchBaseItems('', null, it).map(baseItemLabel).sort((a, b) => a.localeCompare(b, 'ko'))
+})
+// 룬워드 베이스가 방어구만/무기만인지 (기본 방어력 칸과 데미지 칸 중 뭘 보여줄지)
+const runewordBaseKinds = computed(() => {
+  const it = pickedItem.value
+  if (it?.category !== 'runeword') return []
+  return [...new Set(searchBaseItems('', null, it).map((b) => b.base_stats.category))]
+})
 const itemBaseDefs = computed(() => {
   const it = pickedItem.value
   if (!it) return []
   const defs = []
   const kind = it.base_stats?.category
+  const rwKinds = runewordBaseKinds.value
   if (it.category === 'runeword') {
-    const names = [...new Set(pickedItemPosts.value.map(lineMatch(BASE_LINE)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'))
-    if (names.length) defs.push({ key: 'base', label: '베이스', choices: names, get: lineMatch(BASE_LINE) })
+    // 매물에 있는 베이스만 고르던 것 -> 사전의 전체 베이스 (매물이 없어도 조건을 걸 수 있게)
+    if (runewordBases.value.length) defs.push({ key: 'base', label: '베이스', choices: runewordBases.value, get: lineMatch(BASE_LINE) })
     defs.push({ key: 'sup', label: '상급(슈페리얼) 베이스', choices: ['상급', '일반'], get: (p) => (isSuperiorPost(p, it) ? '상급' : '일반') })
+    // 상급이면 붙는 수치 - 얼마나 좋은 상급인지로 거를 수 있게
+    // 붙는 종류가 무기·방어구마다 달라서, 이 룬워드가 쓸 수 있는 베이스 종류에 맞는 것만
+    const SUP_BY_KIND = { weapon: ['dmg%', 'att', 'dur%'], armor: ['ac%', 'dur%'] }
+    const supKeys = [...new Set(rwKinds.flatMap((kk) => SUP_BY_KIND[kk] || []))]
+    for (const [k, m] of Object.entries(SUPERIOR_MODS).filter(([k]) => supKeys.includes(k))) {
+      const re = new RegExp('^' + escRe(m.text).replace('\\{v\\}', '(\\d+)') + '$')
+      defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, get: lineValue(re) })
+    }
   }
   const def = uniqueDefenseRange(it, false)
   if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: uniqueDefenseRange(it, true)?.max ?? def.max, get: lineValue(DEF_LINE) })
-  else if (kind === 'armor' || (it.category === 'runeword' && anyLine(DEF_LINE))) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
-  if (kind === 'weapon' || (it.category === 'runeword' && anyLine(DMG_LINE))) {
+  else if (kind === 'armor' || rwKinds.includes('armor')) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
+  if (kind === 'weapon' || rwKinds.includes('weapon')) {
     defs.push({ key: 'dmin', label: '기본 최소 데미지', get: lineValue(DMG_LINE, 1) })
     defs.push({ key: 'dmax', label: '기본 최대 데미지', get: lineValue(DMG_LINE, 2) })
   }
