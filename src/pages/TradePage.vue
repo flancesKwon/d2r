@@ -38,6 +38,7 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
 import { t, itemName, locale } from '../i18n.js'
+import { statParts, statSearchTexts } from '../statDisplay.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -243,7 +244,9 @@ const statPickMin = ref('')
 const statPickMax = ref('')
 const statPickKeyword = ref('')
 // 드롭다운 라벨의 "(%)"는 칩·배지에선 떼고 수치 뒤에 %로 붙임 ("모든 저항 20% 이상")
-const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : t((statFilterByKey(c.key)?.label || c.key).replace('(%)', '')))
+const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : statParts(statFilterByKey(c.key) || { label: c.key }).name)
+// 직업 전용 / 모든 직업 태그 (src/statDisplay.js)
+const statTag = (c) => (c.keyword ? null : statParts(statFilterByKey(c.key)).tag)
 const statUnit = (c) => (!c.keyword && statFilterByKey(c.key)?.label.includes('(%)') ? '%' : '')
 function rangeText(c) {
   const u = statUnit(c)
@@ -425,13 +428,14 @@ const unifiedSuggestions = computed(() => {
   const out = []
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
-  const stats = STAT_PICKS.filter((st) => squash(plainLabel(st.label)).includes(q))
+  // 한국어 이름·음차 별칭(데스 센트리)·영어 이름 어느 걸로 쳐도 찾음
+  const ql = q.toLowerCase()
+  const hitOf = (st) => statSearchTexts(st).map((x) => squash(x).toLowerCase()).find((x) => x.includes(ql))
+  const stats = STAT_PICKS.map((st) => ({ st, hit: hitOf(st) })).filter((x) => x.hit)
   // 검색어로 시작하는 옵션을 위로 ("저항" -> "저항 ..." 이 "모든 저항"보다 먼저가 아니라, 짧은 것부터)
-  stats.sort((a, b) => {
-    const la = squash(plainLabel(a.label)), lb = squash(plainLabel(b.label))
-    return (lb.startsWith(q) - la.startsWith(q)) || la.length - lb.length
-  })
-  for (const st of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
+  // 같은 이름이면 [모든 직업] -> 직업 전용 순서로 붙어 나오게
+  stats.sort((a, b) => (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
+  for (const { st } of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
   out.push({ type: 'text', key: 'text', raw })
   out.push({ type: 'kw', key: 'kw', raw })
   return out.slice(0, 20)
@@ -619,7 +623,9 @@ function variantLines(p) {
                   <span>{{ $t(r.sug.c) }}</span><small>{{ activeCats.includes(r.sug.c) ? $t('이미 고름') : $t('종류 추가') }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'stat'">
-                  <span>{{ $t(plainLabel(r.sug.st.label)) }}</span><small>{{ $t('옵션 추가 · 수치는 다음에') }}</small>
+                  <span>{{ statParts(r.sug.st).name }}</span>
+                  <span class="stat-tag" v-if="statParts(r.sug.st).tag" :style="{ '--tag': statParts(r.sug.st).tag.color }">{{ statParts(r.sug.st).tag.text }}</span>
+                  <small>{{ statParts(r.sug.st).hint || $t('옵션 추가 · 수치는 다음에') }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'text'">
                   <span>"{{ r.sug.raw }}"</span><small>{{ $t('이름·내용에서 찾기') }}</small>
@@ -646,7 +652,7 @@ function variantLines(p) {
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
-          <em>{{ $t('옵션') }}</em>{{ statLabel(c) }}{{ rangeText(c) }}
+          <em>{{ $t('옵션') }}</em>{{ statLabel(c) }}<span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>{{ rangeText(c) }}
           <button type="button" :aria-label="`${statLabel(c)} ✎`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
           <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
           <span class="tr-chip-edit" v-if="editIdx === i" @keydown.enter.prevent="applyEdit" @keydown.esc="editIdx = -1">
@@ -1024,7 +1030,7 @@ function variantLines(p) {
 /* 그 아이템에서만 달라지는 옵션 줄 */
 .trade-opts{display:flex; flex-wrap:wrap; justify-content:inherit; gap:5px 6px; margin-top:7px;}
 .trade-opt{font-size:11.5px; color:var(--text-muted); border:1px solid rgba(110,110,255,0.3); background:rgba(110,110,255,0.07); padding:2px 8px; border-radius:7px;}
-.trade-opt b{color:#9f9fff; font-weight:700;}
+.trade-opt b{color:#FF6B6B; font-weight:700;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
 .view-mode-toggle button{
@@ -1105,6 +1111,8 @@ function variantLines(p) {
 .g-stat .tr-suggest-title{color:#9FB0FF;}
 .tr-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border-radius:9px; text-align:left; font-size:14px; color:var(--text);}
 .tr-suggest-row small{margin-left:auto; font-size:11.5px; color:var(--text-dim);}
+/* 옵션 태그 - 직업 전용(직업 색) / 모든 직업(금색), 색은 src/statDisplay.js */
+.stat-tag{flex:none; display:inline-flex; align-items:center; margin:0 4px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; line-height:1.5; color:var(--tag); border:1px solid var(--tag); background:color-mix(in srgb, var(--tag) 14%, transparent); white-space:nowrap;}
 .tr-suggest-row.active{background:rgba(200,163,77,.14);}
 .tr-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 2px; border-top:1px solid var(--border-soft); margin-top:4px;}
 

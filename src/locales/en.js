@@ -1764,4 +1764,8 @@ export default {
   '게임 모드 조건 빼기': 'Remove game mode filter',
   '더 불러오는 중…': 'Loading more…',
   '세계석': 'Worldstone',
+  // 옵션 검색 태그
+  '{cls} 전용': '{cls} only',
+  '모든 직업': 'All classes',
+  '{items} 등': '{items}, etc.',
 }
