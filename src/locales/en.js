@@ -1754,6 +1754,7 @@ export default {
   '레더·모드 전체': 'Ladder & mode: all',
   '일치하는 것 없음': 'No match',
   '품질': 'Quality',
+  '매직·레어·크래프트 (베이스)': 'Magic/Rare/Crafted (base)',
   '악마술사의 군림': 'Reign of the Warlock',
   '파괴의 군주': 'Lord of Destruction',
   '클래식': 'Classic',

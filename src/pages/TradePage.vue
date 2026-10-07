@@ -33,6 +33,7 @@ import {
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
 import magicAffixData from '../data/magicAffixes.json'
+import { craftRecipesFor } from '../magicAffixes.js'
 import { familyLines } from '../magicAffixes.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
@@ -164,23 +165,65 @@ const mrQuality = ref('')
 const mrBase = ref('')
 const mrShape = ref('')
 const mrCraft = ref('')
-// 매직/레어/일반 종류를 골랐고 아이템을 지정하지 않았을 때만 (유니크는 아이템 지정으로 찾음)
-const mrOn = computed(() => !pickedItem.value && activeCats.value.includes('매직/레어/일반'))
+// 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
+const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 검색창에 뜨는 베이스 후보 - 장신구 + 무기·방어구 (등록 화면과 같은 목록)
+const QUALITY_SHORT = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
+const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
+const baseLabelOf = (b) => (b.base_stats.category === 'misc' ? b.name_ko : baseItemLabel(b))
+// 그 베이스로 나올 수 있는 품질 (등록 화면과 같은 규칙)
+function baseQualities(b) {
+  const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
+  if (magicAffixData.bases[b.code]?.rare) out.push('rare')
+  if (craftRecipesFor(magicAffixData, b).length) out.push('crafted')
+  return out
+}
+const baseCandidates = computed(() => {
+  // "레어 서클릿"처럼 품질을 앞에 붙여 쳐도 찾게 품질 단어는 빼고 검색
+  const q = searchQuery.value.trim().replace(JAMO_TAIL, '').replace(/^(매직|레어|일반|크래프트)\s*/, '')
+  if (!q || pickedItem.value) return []
+  const sq = squash(q)
+  const misc = MISC_BASES.filter((b) => squash(b.name_ko).includes(sq) || squash(b.subtitle || '').includes(sq))
+  return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
+})
+function pickBase(b, quality = '') {
+  pickedItem.value = null
+  mrBase.value = baseLabelOf(b)
+  mrQuality.value = quality
+  mrShape.value = ''
+  mrCraft.value = ''
+  searchQuery.value = ''
+  suggestOpen.value = false
+}
+const clearMrBase = () => { mrBase.value = ''; resetMr() }
 // 베이스 목록 - 장신구(반지·목걸이·주얼·부적) + 무기·방어구 전부, 판매글에 적히는 이름 그대로
 const MISC_BASES = magicAffixData.miscBases.map((b) => ({ ...b, type_sub: b.name_ko, tier: '', sockets: 0, base_stats: { category: 'misc' } }))
 const mrBaseChoices = computed(() => [
   ...MISC_BASES.map((b) => b.name_ko),
   ...searchBaseItems('', null).map(baseItemLabel),
 ].sort((a, b) => a.localeCompare(b, 'ko')))
+// 고른 베이스 객체 (모양·크래프트 후보를 뽑는 데 씀)
+const mrBaseItem = computed(() => {
+  if (!mrBase.value) return null
+  return MISC_BASES.find((b) => b.name_ko === mrBase.value)
+    || searchBaseItems('', null).find((b) => baseItemLabel(b) === mrBase.value) || null
+})
 // 고른 베이스가 반지·목걸이·주얼·부적이면 모양도 고를 수 있음 (등록 화면과 같은 목록)
 const mrShapeChoices = computed(() => {
-  const code = MISC_BASES.find((b) => b.name_ko === mrBase.value)?.code
+  const code = mrBaseItem.value?.code
   return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
+})
+// 그 베이스로 고를 수 있는 품질만
+const mrQualityPicks = computed(() => {
+  const b = mrBaseItem.value
+  const allow = b ? baseQualities(b) : QUALITY_PICKS.map((q) => q.v)
+  return QUALITY_PICKS.filter((q) => allow.includes(q.v))
 })
 // 크래프트 제작법 - 고른 베이스에 만들 수 있는 것만 (없으면 전체)
 const mrCraftChoices = computed(() => {
-  const all = [...new Set((magicAffixData.crafts || []).map((c) => c.name))]
-  return all.sort((a, b) => a.localeCompare(b, 'ko'))
+  const b = mrBaseItem.value
+  const list = b ? craftRecipesFor(magicAffixData, b).map((c) => c.name) : (magicAffixData.crafts || []).map((c) => c.name)
+  return [...new Set(list)].sort((a, b2) => a.localeCompare(b2, 'ko'))
 })
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
@@ -435,7 +478,6 @@ const catPick = computed({
   set: (v) => { activeCats.value = v ? [v] : [] },
 })
 const QUICK_SELECTS = [
-  { label: '종류', ref: catPick, options: TRADE_CATEGORIES },
   { label: '서버', ref: activeRegion, options: TRADE_REALMS },
   { label: '게임', ref: gameVersion, options: GAME_VERSIONS },
   { label: '래더', ref: activeLadder, options: TRADE_LADDERS },
@@ -466,6 +508,7 @@ const unifiedSuggestions = computed(() => {
   const q = squash(raw)
   const out = []
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
+  for (const b of baseCandidates.value) out.push({ type: 'base', key: 'b' + b.code, b })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
   // 한국어 이름·음차 별칭(데스 센트리)·영어 이름 어느 걸로 쳐도 찾음
   const ql = q.toLowerCase()
@@ -485,15 +528,16 @@ const unifiedSuggestions = computed(() => {
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
   const groups = [
-    { name: '아이템', cls: 'g-item', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
+    { name: '아이템', cls: 'g-item', rows: [] }, { name: '매직·레어·크래프트 (베이스)', cls: 'g-base', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
     { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
   ]
-  const at = { item: 0, cat: 1, stat: 2, text: 3, kw: 3 }
+  const at = { item: 0, base: 1, cat: 2, stat: 3, text: 4, kw: 4 }
   list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
   if (sug.type === 'item') return pickItem(sug.it)
+  if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; return }
   if (sug.type === 'cat') toggleCat(sug.c, true)
   else if (sug.type === 'stat') addStatKey(sug.st.key, true)
@@ -647,6 +691,16 @@ function variantLines(p) {
                   <span class="item-suggest-name" :class="r.sug.it.category">{{ $itemName(r.sug.it) }}</span>
                   <small>{{ $t(r.sug.it.category_label) }}{{ locale === 'ko' && r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
                 </template>
+                <template v-else-if="r.sug.type === 'base'">
+                  <span class="item-suggest-icon"><img v-if="iconUrlFor(baseIconKey(r.sug.b))" :src="iconUrlFor(baseIconKey(r.sug.b))" alt="" /></span>
+                  <span class="item-suggest-name">{{ baseLabelOf(r.sug.b) }}</span>
+                  <span class="base-q-chips">
+                    <button
+                      type="button" v-for="q in baseQualities(r.sug.b)" :key="q" :class="'q-' + q"
+                      @mousedown.prevent.stop="pickBase(r.sug.b, q)"
+                    >{{ $t(QUALITY_SHORT[q]) }}</button>
+                  </span>
+                </template>
                 <template v-else-if="r.sug.type === 'cat'">
                   <span>{{ $t(r.sug.c) }}</span><small>{{ activeCats.includes(r.sug.c) ? $t('이미 고름') : $t('종류 추가') }}</small>
                 </template>
@@ -671,6 +725,7 @@ function variantLines(p) {
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
+        <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBase }}<button type="button" :aria-label="`${mrBase} ×`" @click="clearMrBase">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -703,7 +758,7 @@ function variantLines(p) {
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
       <div class="item-range-panel" v-if="mrOn">
         <div class="item-range-title">
-          <b>{{ $t('매직/레어/일반') }}</b> {{ $t('검색 옵션') }}
+          <b>{{ mrBase }}</b> {{ $t('검색 옵션') }}
           <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
         </div>
         <div class="item-range-grid">
@@ -711,7 +766,7 @@ function variantLines(p) {
             <span class="item-range-label">{{ $t('품질') }}</span>
             <select v-model="mrQuality" class="sort-select" :aria-label="$t('품질')">
               <option value="">{{ $t('전체') }}</option>
-              <option v-for="q in QUALITY_PICKS" :key="q.v" :value="q.v">{{ $t(q.label) }}</option>
+              <option v-for="q in mrQualityPicks" :key="q.v" :value="q.v">{{ $t(q.label) }}</option>
             </select>
           </div>
           <div class="item-range-row" :class="{ on: mrBase }">
@@ -932,6 +987,13 @@ function variantLines(p) {
 .item-range-row .sort-select{padding:6px 10px; min-width:150px;}
 .item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:10px 18px;}
 .item-range-ss{min-width:200px; flex:1 1 200px;}
+.base-q-chips{display:inline-flex; gap:4px; margin-left:auto; flex:none;}
+.base-q-chips button{font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
+.base-q-chips button:hover{background:var(--panel);}
+.base-q-chips .q-normal{color:#cfc8bb; border-color:#5a554c;}
+.base-q-chips .q-magic{color:#8c8cff; border-color:#4c4c99;}
+.base-q-chips .q-rare{color:#e6d250; border-color:#8a7c22;}
+.base-q-chips .q-crafted{color:#e0913a; border-color:#8a5a26;}
 .mr-shapes{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
 .mr-shape{
   display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border);
