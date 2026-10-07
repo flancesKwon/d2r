@@ -1752,6 +1752,7 @@ export default {
   '디아블로 2 레저렉션 유저끼리 아이템을 사고파는 곳 (아시아·미주·유럽 서버). 등록부터 거래완료·리뷰까지 사이트 안에서 이어집니다.': 'A place for Diablo II: Resurrected players to buy and sell items (Asia, Americas and Europe realms). Everything from listing to completion and reviews happens on the site.',
   '아시아·미주·유럽 서버 매물 검색': 'Search listings on Asia, Americas and Europe',
   '레더·모드 전체': 'Ladder & mode: all',
+  '일치하는 것 없음': 'No match',
   '악마술사의 군림': 'Reign of the Warlock',
   '파괴의 군주': 'Lord of Destruction',
   '클래식': 'Classic',
