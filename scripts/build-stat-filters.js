@@ -86,13 +86,18 @@ for (const [code, list] of Object.entries(skillText)) {
   for (const s of list || []) if (s.ko) add(`${s.ko} +1 (${ko} 전용)`, '스킬(공식)')
 }
 const textIndex = buildSkillTextIndex(skillText, skillIdMap, skills)
+// 공식 스킬 이름 -> 시뮬레이터 음차 이름 ('순간이동' -> '텔레포트')
+const skillAlias = new Map()
 for (const [code, cls] of Object.entries(skills)) {
   const ko = CLASS_KO[code]
   if (!ko) throw new Error(`skills.json 의 클래스 "${code}" 한글 이름 없음 - CLASS_KO 에 추가`)
   for (const tab of cls.tabs || []) {
     for (const s of tab.skills || []) {
       const official = textIndex[code]?.[s.name]?.ko
-      if (official && official !== s.name) add(`${official} +1 (${ko} 전용)`, '스킬(공식)', { alias: s.name })
+      if (official && official !== s.name) {
+        add(`${official} +1 (${ko} 전용)`, '스킬(공식)', { alias: s.name })
+        skillAlias.set(official, s.name)
+      }
     }
   }
   add(`${ko} 기술 레벨 +1`, '스킬')
@@ -115,6 +120,8 @@ const rows = [...found.entries()].map(([key, v]) => {
   const cls = /\((.+) 전용\)$/.exec(key)?.[1]
   if (cls && Object.values(CLASS_KO).includes(cls)) row.cls = cls
   if (v.allClass && !row.cls) { row.allClass = true; row.ex = [...v.ex] }
+  // 스킬 이름이 들어간 항목은 전부 음차로도 찾을 수 있게 ('텔레포트' 로 수수께끼의 '순간이동 X' 까지)
+  for (const [official, nick] of skillAlias) if (key.includes(official)) v.aliases.add(nick)
   if (v.aliases.size) row.aliases = [...v.aliases]
   return row
 }).sort((a, b) => a.label.localeCompare(b.label, 'ko'))

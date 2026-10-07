@@ -365,10 +365,13 @@ const unifiedSuggestions = computed(() => {
   const stats = STAT_PICKS.map((st) => ({ st, hit: hitOf(st) })).filter((x) => x.hit)
   // 검색어로 시작하는 옵션을 위로 ("저항" -> "저항 ..." 이 "모든 저항"보다 먼저가 아니라, 짧은 것부터)
   // 같은 이름이면 [모든 직업] -> 직업 전용 순서로 붙어 나오게
-  stats.sort((a, b) => (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
+  // 같은 스킬이라도 본체('눈보라 +X')를 충전·확률 시전 같은 곁가지보다 먼저 보여줌
+  const form = (st) => (/\(충전/.test(st.label) ? 1 : /확률로 .* 시전$/.test(st.label) ? 2 : 0)
+  stats.sort((a, b) =>
+    (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || (form(a.st) - form(b.st)) ||
+    a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
   for (const { st } of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
   out.push({ type: 'text', key: 'text', raw })
-  out.push({ type: 'kw', key: 'kw', raw })
   return out.slice(0, 20)
 })
 const suggestGroups = computed(() => {
@@ -546,9 +549,6 @@ function variantLines(p) {
                 </template>
                 <template v-else-if="r.sug.type === 'text'">
                   <span>"{{ r.sug.raw }}"</span><small>{{ $t('이름·내용에서 찾기') }}</small>
-                </template>
-                <template v-else>
-                  <span>"{{ r.sug.raw }}"</span><small>{{ $t('옵션 문구에 들어간 글만') }}</small>
                 </template>
               </button>
             </div>
