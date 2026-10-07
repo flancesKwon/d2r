@@ -106,6 +106,14 @@ for (const [code, cls] of Object.entries(skills)) {
 // 4) 판매글이 직접 넣는 줄
 for (const t of ['기본 방어력 100', '기본 데미지 10~20', '소켓 1개', '모든 기술 +1', '요구 레벨 50']) add(t, '기본')
 
+// 5) 상급(Superior) 베이스 옵션 - tradeStore.js 의 SUPERIOR_MODS 에서 그대로 읽음
+//    ('최대 내구도 +N%' 는 사전·접사 어디에도 없어서, 손으로 안 적으면 검색에서 빠졌음)
+const storeSrc = fs.readFileSync(path.join(DIR, '..', 'src', 'tradeStore.js'), 'utf8')
+const sup = storeSrc.slice(storeSrc.indexOf('export const SUPERIOR_MODS'), storeSrc.indexOf('const SUPERIOR_COMBOS'))
+const supMods = [...sup.matchAll(/text: '([^']*\{v\}[^']*)', min: (\d+), max: (\d+)/g)]
+if (!supMods.length) throw new Error('SUPERIOR_MODS 를 못 읽음 - tradeStore.js 모양이 바뀐 듯')
+for (const [, text, min] of supMods) add(text.replace('{v}', min), '상급')
+
 // 검색 항목으로 바꾸기 - 수치 자리가 하나라도 있으면 숫자 범위 검색, 없으면 "붙어 있음" 검색
 const XCOUNT = (s) => (s.match(/X/g) || []).length
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
