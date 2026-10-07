@@ -172,7 +172,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 <template>
   <header class="site-header">
     <div class="site-header-inner" :class="{ staff: isStaff() }">
-      <router-link to="/" class="site-logo" :aria-label="$t('디아허브 홈')"><img :src="LOGO" alt="디아허브" width="127" height="46"></router-link>
+      <router-link to="/" class="site-logo" :aria-label="$t('디아허브 홈')"><img :src="LOGO" :alt="$t('디아허브')" width="127" height="46"></router-link>
       <nav class="mode-switch" :aria-label="$t('모드')">
         <router-link to="/" class="mode-btn trade" :class="{ on: mode === 'trade' }" :aria-current="mode === 'trade' ? 'page' : null">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" /></svg>{{ $t('거래') }}
