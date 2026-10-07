@@ -263,6 +263,17 @@ function CRAFT_LINES(c) {
   return res
 }
 
+// 유니크·세트 장신구의 모양 후보 (등록 화면과 같은 규칙 - 대표 아이콘으로 반지/목걸이/주얼 판별)
+const JEWELRY_CODE = Object.fromEntries(['rin', 'amu', 'jew'].map((c) => [ICON_VARIANTS[c][0], c]))
+const uniqueShapes = computed(() => {
+  const it = pickedItem.value
+  if (!it || !['unique', 'set'].includes(it.category)) return []
+  const code = JEWELRY_CODE[it.icon_key]
+  return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
+})
+const itemShape = ref('')
+watch(pickedItem, () => { itemShape.value = '' })
+
 const itemBaseDefs = computed(() => {
   const it = pickedItem.value
   if (!it) return []
@@ -418,6 +429,7 @@ const hasActiveFilters = computed(
 function resetFilters() {
   activeCats.value = []
   resetMr()
+  itemShape.value = ''
   activeRegion.value = null
   gameVersion.value = null
   activeLadder.value = null
@@ -463,6 +475,11 @@ const filteredPosts = computed(() => {
     )
   }
   if (mrOn.value && mrCount.value) list = list.filter(mrMatches)
+  // 유니크·세트 장신구 모양 - 판매자가 안 고른 글은 그 아이템의 대표 모양으로 봄
+  if (pickedItem.value && itemShape.value) {
+    const first = uniqueShapes.value[0]
+    list = list.filter((p) => (p.iconKey || first) === itemShape.value)
+  }
   for (const c of statConditions.value) list = list.filter((p) => condMatches(p, c))
   return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 })
@@ -605,7 +622,7 @@ onMounted(() => {
 onUnmounted(() => io?.disconnect())
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
 
 // ───────── 목록에 보여줄 것 ─────────
@@ -798,6 +815,21 @@ function variantLines(p) {
           <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b> {{ $t('검색 옵션') }}
           <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
         </div>
+        <template v-if="uniqueShapes.length">
+          <div class="item-range-sec">{{ $t('베이스') }}</div>
+          <div class="item-range-grid">
+            <div class="item-range-row" :class="{ on: itemShape }">
+              <span class="item-range-label">{{ $t('모양') }}</span>
+              <span class="mr-shapes">
+                <button type="button" class="mr-shape" :class="{ on: !itemShape }" :aria-pressed="!itemShape" @click="itemShape = ''">{{ $t('전체') }}</button>
+                <button
+                  type="button" class="mr-shape img" v-for="k in uniqueShapes" :key="k"
+                  :class="{ on: itemShape === k }" :aria-pressed="itemShape === k" @click="itemShape = itemShape === k ? '' : k"
+                ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
+              </span>
+            </div>
+          </div>
+        </template>
         <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
           <div class="item-range-sec" v-if="sec.defs.length">{{ $t(sec.name) }}</div>
           <div class="item-range-grid" v-if="sec.defs.length">
