@@ -110,8 +110,8 @@ export default {
   '악마술사': 'Warlock',
 
   // ── 거래 첫 화면
-  '어떤 아이템을 찾아?': 'What are you looking for?',
-  '아이템 이름 · 종류 · 옵션을 여러 개 골라서 한 번에 검색': 'Combine item names, types and stats in one search',
+  '디아블로 2 레저렉션 거래소': 'Diablo II: Resurrected Trade',
+  '유니크 · 룬워드 · 룬부터 옵션 수치까지, 한 번에 검색': 'Uniques, runewords, runes and exact stat rolls — all in one search',
   '아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)': 'Item name · type · stat (e.g. Harlequin Crest, Runewords, Faster Cast Rate)',
   '옵션·내용으로 더 좁히기': 'Narrow down by stat or text',
   '매물 검색': 'Search listings',

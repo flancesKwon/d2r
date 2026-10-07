@@ -514,8 +514,8 @@ function variantLines(p) {
 
   <section class="tr-hero">
     <div class="tr-hero-inner">
-      <h1>{{ $t('어떤 아이템을 찾아?') }}</h1>
-      <p class="tr-hero-sub">{{ $t('아이템 이름 · 종류 · 옵션을 여러 개 골라서 한 번에 검색') }}</p>
+      <h1>{{ $t('디아블로 2 레저렉션 거래소') }}</h1>
+      <p class="tr-hero-sub">{{ $t('유니크 · 룬워드 · 룬부터 옵션 수치까지, 한 번에 검색') }}</p>
 
       <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
         <div class="tr-search-box">
