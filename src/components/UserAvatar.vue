@@ -38,7 +38,7 @@ const dotSize = computed(() => Math.max(7, Math.round(props.size * 0.28)))
       <img v-if="url" :src="url" alt="" />
       <template v-else>{{ (name || '?').slice(0, 1) }}</template>
     </span>
-    <span v-if="online" class="user-online-dot" :style="{ width: dotSize + 'px', height: dotSize + 'px' }" title="접속 중" aria-label="접속 중"></span>
+    <span v-if="online" class="user-online-dot" :style="{ width: dotSize + 'px', height: dotSize + 'px' }" :title="$t('접속 중')" :aria-label="$t('접속 중')"></span>
   </span>
 </template>
 

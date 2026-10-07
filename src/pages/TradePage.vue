@@ -16,7 +16,6 @@ import {
   statFilterByKey,
   postStatValue,
   postKeywordValue,
-  postLevelReq,
   postIconKey,
   postRarity,
   saleLeftMs,
@@ -30,7 +29,6 @@ import {
   GAME_VERSIONS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
-import { isFavorite } from '../tradeFavorites.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
@@ -38,6 +36,7 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
 import { t, itemName, locale } from '../i18n.js'
+import { statParts, statSearchTexts } from '../statDisplay.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -57,7 +56,6 @@ const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
 const unidOnly = ref(false)
-const favoritesOnly = ref(false)
 // 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
 const route = useRoute()
 const router = useRouter()
@@ -238,12 +236,10 @@ function rarityClass(item) {
 // 종류 목록에 없는 옵션은 "키워드"로 옵션 문구 일부를 직접 적음 (예: 블리자드, 시전 속도) - 그 줄의 숫자로 범위 비교
 const KEYWORD_KEY = '__keyword'
 const statConditions = ref([])
-const statPickKey = ref(TRADE_STAT_FILTERS[0].key)
-const statPickMin = ref('')
-const statPickMax = ref('')
-const statPickKeyword = ref('')
 // 드롭다운 라벨의 "(%)"는 칩·배지에선 떼고 수치 뒤에 %로 붙임 ("모든 저항 20% 이상")
-const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : t((statFilterByKey(c.key)?.label || c.key).replace('(%)', '')))
+const statLabel = (c) => (c.keyword ? `"${c.keyword}"` : statParts(statFilterByKey(c.key) || { label: c.key }).name)
+// 직업 전용 / 모든 직업 태그 (src/statDisplay.js)
+const statTag = (c) => (c.keyword ? null : statParts(statFilterByKey(c.key)).tag)
 const statUnit = (c) => (!c.keyword && statFilterByKey(c.key)?.label.includes('(%)') ? '%' : '')
 function rangeText(c) {
   const u = statUnit(c)
@@ -253,20 +249,6 @@ function rangeText(c) {
   return c.min === c.max ? ` ${c.min}${u}` : ` ${c.min}~${c.max}${u}`
 }
 const condId = (c) => (c.keyword ? 'kw:' + c.keyword : c.key)
-function addStatCondition() {
-  const num = (v) => (v === '' || v === null ? null : Number(v))
-  let min = num(statPickMin.value), max = num(statPickMax.value)
-  if (min !== null && max !== null && min > max) [min, max] = [max, min]
-  const keyword = statPickKey.value === KEYWORD_KEY ? statPickKeyword.value.trim() : ''
-  if (statPickKey.value === KEYWORD_KEY && !keyword) return
-  const cond = keyword ? { key: KEYWORD_KEY, keyword, min, max } : { key: statPickKey.value, min, max }
-  const existing = statConditions.value.find((c) => condId(c) === condId(cond))
-  if (existing) Object.assign(existing, cond)
-  else statConditions.value.push(cond)
-  statPickMin.value = ''
-  statPickMax.value = ''
-  statPickKeyword.value = ''
-}
 // 글이 조건을 만족하는지 + 배지에 보여줄 값
 function condValue(p, c) {
   if (c.keyword) {
@@ -283,36 +265,13 @@ function condMatches(p, c) {
   if (v === null) return false
   return (c.min === null || v >= c.min) && (c.max === null || v <= c.max)
 }
-function removeStatCondition(i) {
-  statConditions.value.splice(i, 1)
-}
-
-// 요구 레벨 범위 - 아이템 사전에 레벨 정보가 있는 글만 걸러지고, 범위를 하나라도
-// 입력하면 레벨을 알 수 없는 글(매직/레어·기타 등)은 제외됨
-const levelMin = ref('')
-const levelMax = ref('')
 
 const hasActiveFilters = computed(
   () =>
     activeCats.value.length > 0 || activeLadder.value !== null || activeRegion.value !== null ||
-    activeHardcore.value !== null || etherealOnly.value || unidOnly.value || favoritesOnly.value ||
-    searchQuery.value.trim() !== '' || statConditions.value.length > 0 ||
-    levelMin.value !== '' || levelMax.value !== '' || !!pickedItem.value
+    activeHardcore.value !== null || etherealOnly.value || unidOnly.value ||
+    searchQuery.value.trim() !== '' || statConditions.value.length > 0 || !!pickedItem.value
 )
-// 상세 필터(레더·하드코어·체크·요구 레벨·옵션 조건)는 접어 둠 - 걸려 있는 개수만 버튼에 표시
-const advancedCount = computed(() =>
-  [etherealOnly.value, unidOnly.value, favoritesOnly.value,
-    levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length + statConditions.value.length
-)
-const FILTER_OPEN_KEY = 'd2r-trade-filter-open'
-function loadFilterOpen() {
-  try { return localStorage.getItem(FILTER_OPEN_KEY) === '1' } catch { return false }
-}
-const filtersOpen = ref(loadFilterOpen())
-function toggleFilters() {
-  filtersOpen.value = !filtersOpen.value
-  try { localStorage.setItem(FILTER_OPEN_KEY, filtersOpen.value ? '1' : '0') } catch { /* 프라이빗 창 등 */ }
-}
 function resetFilters() {
   activeCats.value = []
   activeRegion.value = null
@@ -321,14 +280,8 @@ function resetFilters() {
   activeHardcore.value = null
   etherealOnly.value = false
   unidOnly.value = false
-  favoritesOnly.value = false
   searchQuery.value = ''
   statConditions.value = []
-  statPickMin.value = ''
-  statPickMax.value = ''
-  statPickKeyword.value = ''
-  levelMin.value = ''
-  levelMax.value = ''
   pickedItem.value = null
 }
 
@@ -341,8 +294,7 @@ const PAGE = 12
 const shown = ref(PAGE)
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
-  // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
-  let list = tradeState.posts.filter((p) => (p.status === '판매중' && saleLeftMs(p, now.value) > 0) || (p.status === '예약중' && isFavorite(p.id)))
+  let list = tradeState.posts.filter((p) => p.status === '판매중' && saleLeftMs(p, now.value) > 0)
   if (activeCats.value.length) list = list.filter((p) => activeCats.value.includes(p.category))
   if (activeRegion.value) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value) list = list.filter((p) => p.gameVersion === gameVersion.value)
@@ -350,7 +302,6 @@ const filteredPosts = computed(() => {
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
   if (unidOnly.value) list = list.filter((p) => p.unidentified)
-  if (favoritesOnly.value) list = list.filter((p) => isFavorite(p.id))
   if (pickedItem.value) {
     list = list.filter((p) => p.itemId === pickedItem.value.id)
     for (const d of activeItemRanges.value) list = list.filter((p) => itemRangeMatches(p, d))
@@ -368,14 +319,6 @@ const filteredPosts = computed(() => {
     )
   }
   for (const c of statConditions.value) list = list.filter((p) => condMatches(p, c))
-  if (levelMin.value !== '' || levelMax.value !== '') {
-    const lo = levelMin.value === '' ? -Infinity : Number(levelMin.value)
-    const hi = levelMax.value === '' ? Infinity : Number(levelMax.value)
-    list = list.filter((p) => {
-      const lv = postLevelReq(p)
-      return lv !== null && lv >= lo && lv <= hi
-    })
-  }
   return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 })
 
@@ -383,22 +326,13 @@ const filteredPosts = computed(() => {
 // 큰 검색창 하나에 치면 아이템·종류·옵션 후보가 같이 뜸 -> 고르면 검색창 아래 "적용된 조건" 줄로 내려감
 // (검색창 안에는 글자만 - 조건이 늘어도 입력칸이 안 밀리고, 옵션 수치는 칩의 ✎ 로 그 자리에서 고침)
 
-// 서버 구분 - 레더/논레더 × 일반/하드코어 (검색창 왼쪽)
-const REALMS = [
-  { v: '', label: '레더·모드 전체' },
-  { v: '레더|', label: '래더' }, { v: '레더|일반', label: '래더 · 일반' }, { v: '레더|하드코어', label: '래더 · 하드코어' },
-  { v: '논레더|', label: '논레더' }, { v: '논레더|일반', label: '논레더 · 일반' }, { v: '논레더|하드코어', label: '논레더 · 하드코어' },
-  { v: '|일반', label: '일반(소프트코어)' }, { v: '|하드코어', label: '하드코어' },
+// 서버·게임·래더·모드 고르기 (검색창 아래 한 줄 드롭다운) - 고른 값은 거기서 바로 보이니 '적용된 조건' 칩은 안 만듦
+const QUICK_SELECTS = [
+  { label: '서버', ref: activeRegion, options: TRADE_REALMS },
+  { label: '게임', ref: gameVersion, options: GAME_VERSIONS },
+  { label: '래더', ref: activeLadder, options: TRADE_LADDERS },
+  { label: '모드', ref: activeHardcore, options: TRADE_HARDCORE },
 ]
-const realm = computed({
-  get: () => (activeLadder.value || activeHardcore.value ? `${activeLadder.value || ''}|${activeHardcore.value || ''}` : ''),
-  set: (v) => {
-    const [l, h] = v ? v.split('|') : ['', '']
-    activeLadder.value = l || null
-    activeHardcore.value = h || null
-  },
-})
-const realmLabel = computed(() => t(REALMS.find((r) => r.v === realm.value)?.label || ''))
 
 // 옵션 후보 - 직접 숫자를 넣는 칸(입력값)·"가장 높은 수치" 같은 특수 항목은 빼고
 // 검색창에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
@@ -425,13 +359,14 @@ const unifiedSuggestions = computed(() => {
   const out = []
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
-  const stats = STAT_PICKS.filter((st) => squash(plainLabel(st.label)).includes(q))
+  // 한국어 이름·음차 별칭(데스 센트리)·영어 이름 어느 걸로 쳐도 찾음
+  const ql = q.toLowerCase()
+  const hitOf = (st) => statSearchTexts(st).map((x) => squash(x).toLowerCase()).find((x) => x.includes(ql))
+  const stats = STAT_PICKS.map((st) => ({ st, hit: hitOf(st) })).filter((x) => x.hit)
   // 검색어로 시작하는 옵션을 위로 ("저항" -> "저항 ..." 이 "모든 저항"보다 먼저가 아니라, 짧은 것부터)
-  stats.sort((a, b) => {
-    const la = squash(plainLabel(a.label)), lb = squash(plainLabel(b.label))
-    return (lb.startsWith(q) - la.startsWith(q)) || la.length - lb.length
-  })
-  for (const st of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
+  // 같은 이름이면 [모든 직업] -> 직업 전용 순서로 붙어 나오게
+  stats.sort((a, b) => (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
+  for (const { st } of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
   out.push({ type: 'text', key: 'text', raw })
   out.push({ type: 'kw', key: 'kw', raw })
   return out.slice(0, 20)
@@ -466,15 +401,6 @@ function addStatKey(key, edit = false) {
   let i = statConditions.value.findIndex((c) => !c.keyword && c.key === key)
   if (i < 0) { statConditions.value.push({ key, min: null, max: null }); i = statConditions.value.length - 1 }
   if (edit) openEdit(i)
-}
-
-// 자주 쓰는 옵션 칩 (누르면 켜고 끔)
-const HOT_STATS = ['allskills', 'fcr', 'allres', 'mf', 'life', 'fhr', 'sockets'].map((k) => TRADE_STAT_FILTERS.find((st) => st.key === k)).filter(Boolean)
-const hotOn = (st) => statConditions.value.some((c) => !c.keyword && c.key === st.key)
-function toggleHot(st) {
-  const i = statConditions.value.findIndex((c) => !c.keyword && c.key === st.key)
-  if (i >= 0) statConditions.value.splice(i, 1)
-  else statConditions.value.push({ key: st.key, min: null, max: null })
 }
 
 // 옵션 칩 수치 고치기 (✎)
@@ -524,13 +450,8 @@ onMounted(() => {
 onUnmounted(() => io?.disconnect())
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0) +
-  (realm.value ? 1 : 0) + (activeRegion.value ? 1 : 0) + (gameVersion.value ? 1 : 0) + [etherealOnly.value, unidOnly.value, favoritesOnly.value, levelMin.value !== '' || levelMax.value !== ''].filter(Boolean).length
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
-const levelText = computed(() => {
-  if (levelMin.value !== '' && levelMax.value !== '') return `${levelMin.value}~${levelMax.value}`
-  return levelMin.value !== '' ? t('{v} 이상', { v: levelMin.value }) : t('{v} 이하', { v: levelMax.value })
-})
 
 // ───────── 목록에 보여줄 것 ─────────
 // 올린 시각: 하루 안쪽이면 "3시간 전"(1시간 미만은 "방금"), 그 뒤로는 날짜 그대로
@@ -619,7 +540,9 @@ function variantLines(p) {
                   <span>{{ $t(r.sug.c) }}</span><small>{{ activeCats.includes(r.sug.c) ? $t('이미 고름') : $t('종류 추가') }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'stat'">
-                  <span>{{ $t(plainLabel(r.sug.st.label)) }}</span><small>{{ $t('옵션 추가 · 수치는 다음에') }}</small>
+                  <span>{{ statParts(r.sug.st).name }}</span>
+                  <span class="stat-tag" v-if="statParts(r.sug.st).tag" :style="{ '--tag': statParts(r.sug.st).tag.color }">{{ statParts(r.sug.st).tag.text }}</span>
+                  <small>{{ statParts(r.sug.st).hint || $t('옵션 추가 · 수치는 다음에') }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'text'">
                   <span>"{{ r.sug.raw }}"</span><small>{{ $t('이름·내용에서 찾기') }}</small>
@@ -639,14 +562,11 @@ function variantLines(p) {
 
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
-        <span class="tr-chip realm" v-if="gameVersion">{{ $t(gameVersion) }}<button type="button" :aria-label="$t('게임 모드 조건 빼기')" @click="gameVersion = null">×</button></span>
-        <span class="tr-chip realm" v-if="activeRegion">{{ $t(activeRegion) }}<button type="button" :aria-label="$t('지역 조건 빼기')" @click="activeRegion = null">×</button></span>
-        <span class="tr-chip realm" v-if="realm">{{ realmLabel }}<button type="button" :aria-label="$t('서버 조건 빼기')" @click="realm = ''">×</button></span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
-          <em>{{ $t('옵션') }}</em>{{ statLabel(c) }}{{ rangeText(c) }}
+          <em>{{ $t('옵션') }}</em>{{ statLabel(c) }}<span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>{{ rangeText(c) }}
           <button type="button" :aria-label="`${statLabel(c)} ✎`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
           <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
           <span class="tr-chip-edit" v-if="editIdx === i" @keydown.enter.prevent="applyEdit" @keydown.esc="editIdx = -1">
@@ -656,50 +576,26 @@ function variantLines(p) {
             <button type="button" class="apply" @click="applyEdit">{{ $t('적용') }}</button>
           </span>
         </span>
-        <span class="tr-chip flag" v-if="etherealOnly">{{ $t('에테리얼만') }}<button type="button" aria-label="×" @click="etherealOnly = false">×</button></span>
-        <span class="tr-chip flag" v-if="unidOnly">{{ $t('미확인만') }}<button type="button" aria-label="×" @click="unidOnly = false">×</button></span>
-        <span class="tr-chip flag" v-if="favoritesOnly">{{ $t('찜한 글만') }}<button type="button" aria-label="×" @click="favoritesOnly = false">×</button></span>
-        <span class="tr-chip flag" v-if="levelMin !== '' || levelMax !== ''">{{ $t('요구 레벨') }} {{ levelText }}<button type="button" aria-label="×" @click="levelMin = ''; levelMax = ''">×</button></span>
         <span class="tr-applied-gap"></span>
         <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">{{ $t('모두 지우기') }}</button>
       </div>
 
+      <!-- 서버·게임·래더·모드는 한 줄 드롭다운 (고른 값은 금색), 에테리얼·미확인은 켜고 끄는 버튼 -->
       <div class="tr-quick">
-        <div class="tr-pick-row">
-          <span class="tr-pick-label">{{ $t('서버') }}</span>
-          <div class="tr-seg">
-            <button type="button" :class="{ on: !activeRegion }" @click="activeRegion = null">{{ $t('전체') }}</button>
-            <button type="button" v-for="r in TRADE_REALMS" :key="r" :class="{ on: activeRegion === r }" @click="activeRegion = r">{{ $t(r) }}</button>
-          </div>
-        </div>
-        <div class="tr-pick-row">
-          <span class="tr-pick-label">{{ $t('게임') }}</span>
-          <div class="tr-seg">
-            <button type="button" :class="{ on: !gameVersion }" @click="gameVersion = null">{{ $t('전체') }}</button>
-            <button type="button" v-for="g in GAME_VERSIONS" :key="g" :class="{ on: gameVersion === g }" @click="gameVersion = g">{{ $t(g) }}</button>
-          </div>
-        </div>
-        <div class="tr-pick-row">
-          <span class="tr-pick-label">{{ $t('래더') }}</span>
-          <div class="tr-seg">
-            <button type="button" :class="{ on: !activeLadder }" @click="activeLadder = null">{{ $t('전체') }}</button>
-            <button type="button" v-for="l in TRADE_LADDERS" :key="l" :class="{ on: activeLadder === l }" @click="activeLadder = l">{{ $t(l) }}</button>
-          </div>
-          <span class="tr-pick-label mode-label">{{ $t('모드') }}</span>
-          <div class="tr-seg">
-            <button type="button" :class="{ on: !activeHardcore }" @click="activeHardcore = null">{{ $t('전체') }}</button>
-            <button type="button" v-for="h in TRADE_HARDCORE" :key="h" :class="{ on: activeHardcore === h }" @click="activeHardcore = h">{{ $t(h) }}</button>
-          </div>
-          <span class="tr-gap"></span>
-          <button type="button" class="tr-qchip more" :class="{ on: filtersOpen }" :aria-expanded="filtersOpen" @click="toggleFilters">{{ $t('상세 필터') }}{{ advancedCount ? ` ${advancedCount}` : '' }} {{ filtersOpen ? '▴' : '▾' }}</button>
-        </div>
+        <label class="tr-pill" v-for="f in QUICK_SELECTS" :key="f.label" :class="{ on: f.ref.value }">
+          <span class="tr-pill-cap">{{ $t(f.label) }}</span>
+          <select :value="f.ref.value || ''" @change="f.ref.value = $event.target.value || null" :aria-label="$t(f.label)">
+            <option value="">{{ $t('전체') }}</option>
+            <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
+          </select>
+        </label>
+        <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
+        <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
       <div class="item-range-panel" v-if="pickedItem">
         <div class="item-range-title">
           <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b> {{ $t('검색 옵션') }}
           <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
-          <label class="ethereal-filter-check"><input type="checkbox" v-model="etherealOnly" /> {{ $t('에테리얼만') }}</label>
-          <label class="ethereal-filter-check unid-filter-check"><input type="checkbox" v-model="unidOnly" /> {{ $t('미확인만') }}</label>
         </div>
         <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
           <div class="item-range-sec" v-if="sec.defs.length">{{ $t(sec.name) }}</div>
@@ -720,60 +616,6 @@ function variantLines(p) {
         </template>
         <div class="item-range-empty" v-if="!itemVarDefs.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
       </div>
-      <div class="filter-row" v-show="filtersOpen">
-        <span class="stat-filter-label">{{ $t('종류') }}</span>
-        <button type="button" v-for="c in TRADE_CATEGORIES" :key="c" class="tr-qchip kind" :class="{ on: activeCats.includes(c) }" :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)">{{ $t(c) }}</button>
-      </div>
-      <div class="filter-row" v-show="filtersOpen">
-        <span class="stat-filter-label">{{ $t('자주 쓰는 옵션') }}</span>
-        <button type="button" v-for="st in HOT_STATS" :key="st.key" class="tr-qchip opt" :class="{ on: hotOn(st) }" :aria-pressed="hotOn(st)" @click="toggleHot(st)">{{ $t(plainLabel(st.label)) }}</button>
-      </div>
-      <div class="filter-row" v-show="filtersOpen">
-        <label class="ethereal-filter-check">
-          <input type="checkbox" v-model="etherealOnly" />
-          {{ $t('에테리얼만') }}
-        </label>
-        <label class="ethereal-filter-check unid-filter-check">
-          <input type="checkbox" v-model="unidOnly" />
-          {{ $t('미확인만') }}
-        </label>
-        <label class="ethereal-filter-check favorite-filter-check">
-          <input type="checkbox" v-model="favoritesOnly" />
-          {{ $t('찜한 글만') }}
-        </label>
-        <div class="level-range">
-          <span class="level-range-label">{{ $t('요구 레벨') }}</span>
-          <input type="number" min="1" max="99" v-model="levelMin" :placeholder="$t('최소')" :aria-label="$t('요구 레벨') + ' ' + $t('최소')" />
-          <span class="level-range-sep">~</span>
-          <input type="number" min="1" max="99" v-model="levelMax" :placeholder="$t('최대')" :aria-label="$t('요구 레벨') + ' ' + $t('최대')" />
-        </div>
-      </div>
-      <div class="filter-row stat-filter-row" v-show="filtersOpen">
-        <span class="stat-filter-label">{{ $t('옵션 조건') }}</span>
-        <select v-model="statPickKey" class="sort-select" :aria-label="$t('옵션 종류')">
-          <option :value="KEYWORD_KEY">{{ $t('키워드 직접 입력') }}</option>
-          <option v-for="s in TRADE_STAT_FILTERS" :key="s.key" :value="s.key">{{ $t(s.label) }}</option>
-        </select>
-        <input
-          v-if="statPickKey === KEYWORD_KEY" type="text" v-model="statPickKeyword" class="stat-min-input stat-keyword-input"
-          :placeholder="$t('키워드 (예: 블리자드)')" :aria-label="$t('옵션 키워드')" @keydown.enter.prevent="addStatCondition"
-        />
-        <input
-          type="number" v-model="statPickMin" class="stat-min-input stat-num-input" :placeholder="$t('최소')"
-          :aria-label="$t('최소')" @keydown.enter.prevent="addStatCondition"
-        />
-        <span class="level-range-sep">~</span>
-        <input
-          type="number" v-model="statPickMax" class="stat-min-input stat-num-input" :placeholder="$t('최대')"
-          :aria-label="$t('최대')" @keydown.enter.prevent="addStatCondition"
-        />
-        <button type="button" class="stat-add-btn" :disabled="statPickKey === KEYWORD_KEY && !statPickKeyword.trim()" @click="addStatCondition">{{ $t('조건 추가') }}</button>
-        <span class="stat-hint" v-if="!statConditions.length">{{ $t('범위를 비우면 옵션이 붙어 있기만 하면 됨 · 조건 여러 개 = 모두 만족') }}</span>
-        <span class="stat-chip" v-for="(c, i) in statConditions" :key="condId(c)">
-          {{ statLabel(c) }}{{ rangeText(c) }}
-          <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStatCondition(i)">✕</button>
-        </span>
-      </div>
     </div>
   </section>
 
@@ -783,7 +625,7 @@ function variantLines(p) {
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
     <div class="tr-results-head">
       <h2>{{ appliedCount ? $t('검색 결과') : $t('방금 올라온 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
-      <span class="tr-results-note">{{ $t('판매중만 · 찜한 글은 거래중이어도 표시 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
+      <span class="tr-results-note">{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -802,7 +644,6 @@ function variantLines(p) {
           <div class="trade-title-row">
             <span class="trade-title">{{ postName(p) }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
-            <span class="dealing-badge" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
           </div>
           <div class="trade-meta">
             {{ enCount(p.amountLabel) }} ·
@@ -835,7 +676,6 @@ function variantLines(p) {
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
-        <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
         <span class="trade-card-title">{{ postName(p) }}</span>
         <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
         <span class="trade-card-price">
@@ -876,19 +716,6 @@ function variantLines(p) {
   padding:9px 14px; font-family:'Noto Sans KR', sans-serif; border-radius:10px;
 }
 
-.filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
-.ethereal-filter-check{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--teal); cursor:pointer;}
-.ethereal-filter-check input{accent-color:var(--teal);}
-.favorite-filter-check{color:var(--gold);}
-.favorite-filter-check input{accent-color:var(--gold);}
-
-.level-range{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-muted);}
-.level-range-label{color:var(--text-dim);}
-.level-range input, .stat-min-input{
-  background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:12.5px;
-  padding:8px 10px; border-radius:10px; font-family:'Noto Sans KR', sans-serif;
-}
-.level-range input{width:64px;}
 .level-range-sep{color:var(--text-dim);}
 .reset-filters{
   font-size:12px; color:var(--text-muted); border:1px solid var(--border); padding:7px 12px;
@@ -896,25 +723,10 @@ function variantLines(p) {
 }
 .reset-filters:hover{color:var(--gold); border-color:var(--gold-dim);}
 
-.stat-filter-label{font-size:12.5px; color:var(--text-dim);}
-.stat-min-input{width:220px; max-width:100%;}
-.stat-add-btn{
-  font-size:12.5px; color:var(--gold); border:1px solid var(--gold-dim); padding:8px 14px;
-  border-radius:10px; background:var(--panel);
-}
-.stat-add-btn:hover{background:var(--panel-2);}
-.stat-chip{
-  display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--gold);
-  border:1px solid var(--gold-dim); padding:5px 8px 5px 12px; border-radius:999px; background:var(--panel-2);
-}
-.stat-chip button{color:var(--text-dim); font-size:11px; line-height:1; padding:2px;}
-.stat-chip button:hover{color:var(--text);}
-
 .stat-match-row{display:flex; flex-wrap:wrap; justify-content:inherit; gap:6px; margin-top:8px;}
 .stat-match{font-size:11px; color:var(--teal); border:1px solid var(--teal); padding:2px 10px; border-radius:999px;}
 
 @media (max-width:640px){
-  .stat-min-input{width:100%;}
   /* 폰: 카테고리 칩을 빼고 제목이 줄바꿈되게 - 예전엔 제목이 "이…"로 잘리고 본문이 한 글자씩 세로로 꺾였음 */
   .trade-row{gap:10px; padding:14px; flex-wrap:wrap;}
   .trade-cat{display:none;}
@@ -1009,8 +821,6 @@ function variantLines(p) {
 .trade-title-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
 .trade-title{font-size:16.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .unid-badge{font-size:10px; padding:2px 10px; border:1px solid var(--blood); color:#e0775f; flex:none; border-radius:999px;}
-.unid-filter-check{color:#e0775f !important;}
-.unid-filter-check input{accent-color:#e0775f;}
 .ethereal-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); flex:none; border-radius:999px;}
 .trade-status-badge{font-size:10px; padding:2px 10px; border:1px solid var(--border); flex:none; color:var(--text-dim); border-radius:999px;}
 .trade-status-badge.status-판매중{color:var(--gold); border-color:var(--gold-dim);}
@@ -1024,7 +834,7 @@ function variantLines(p) {
 /* 그 아이템에서만 달라지는 옵션 줄 */
 .trade-opts{display:flex; flex-wrap:wrap; justify-content:inherit; gap:5px 6px; margin-top:7px;}
 .trade-opt{font-size:11.5px; color:var(--text-muted); border:1px solid rgba(110,110,255,0.3); background:rgba(110,110,255,0.07); padding:2px 8px; border-radius:7px;}
-.trade-opt b{color:#9f9fff; font-weight:700;}
+.trade-opt b{color:#FF6B6B; font-weight:700;}
 
 .view-mode-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:none;}
 .view-mode-toggle button{
@@ -1062,16 +872,9 @@ function variantLines(p) {
   font-size:10.5px; color:var(--text-dim); display:flex; align-items:center; gap:6px; margin-top:4px;
  margin-top:auto; padding-top:6px;}
 .online-dot{color:#3ecf5a; margin-right:3px; font-size:10px;}
-.stat-num-input{width:76px;}
-.stat-keyword-input{width:210px; max-width:100%;}
-.stat-hint{font-size:11.5px; color:var(--text-dim);}
-.stat-add-btn:disabled{opacity:.5; cursor:default;}
 .board-note{font-size:12px; color:var(--text-dim); margin:0 0 12px;}
 .board-note a{color:var(--gold-dim);}
 .board-note a:hover{color:var(--gold);}
-.dealing-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); border-radius:999px; flex:none;}
-.trade-card-dealing{align-self:center;}
-.trade-row:has(.dealing-badge), .trade-card:has(.dealing-badge){opacity:.75;}
 .guide-btn{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--panel);}
 .guide-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
 
@@ -1083,10 +886,6 @@ function variantLines(p) {
 .tr-hero-sub{text-align:center; color:var(--text-muted); font-size:14.5px; margin:-4px 0 6px;}
 
 .tr-search{display:flex; align-items:stretch; min-height:60px; background:#F3EEE4; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); position:relative;}
-.tr-realm{display:flex; align-items:center; background:#E8E0D2; border-right:1px solid #D4CBBB; border-radius:16px 0 0 16px;}
-.tr-realm .tr-region{border-right:1px solid #D4CBBB;}
-.tr-realm select{height:100%; border:none; background:transparent; color:#2E2720; font-weight:700; font-size:14px; padding:0 14px; font-family:inherit; cursor:pointer;}
-.tr-realm select:focus-visible{outline:2px solid var(--gold); outline-offset:-2px;}
 .tr-search > .tr-search-box{border-radius:16px 0 0 16px;}
 .tr-search-box{flex:1 1 auto; min-width:0; position:relative; display:flex;}
 .tr-search-box input{flex:1; min-width:0; width:100%; border:none; outline:none; background:transparent; color:#1A1510; font-size:17px; padding:0 18px; font-family:'Noto Sans KR', sans-serif;}
@@ -1105,6 +904,8 @@ function variantLines(p) {
 .g-stat .tr-suggest-title{color:#9FB0FF;}
 .tr-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border-radius:9px; text-align:left; font-size:14px; color:var(--text);}
 .tr-suggest-row small{margin-left:auto; font-size:11.5px; color:var(--text-dim);}
+/* 옵션 태그 - 직업 전용(직업 색) / 모든 직업(금색), 색은 src/statDisplay.js */
+.stat-tag{flex:none; display:inline-flex; align-items:center; margin:0 4px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; line-height:1.5; color:var(--tag); border:1px solid var(--tag); background:color-mix(in srgb, var(--tag) 14%, transparent); white-space:nowrap;}
 .tr-suggest-row.active{background:rgba(200,163,77,.14);}
 .tr-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 2px; border-top:1px solid var(--border-soft); margin-top:4px;}
 
@@ -1131,25 +932,25 @@ function variantLines(p) {
 .tr-chip-edit input{width:70px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px;}
 .tr-chip-edit .apply{padding:6px 12px; border-radius:7px; background:#6E83E0; color:#0E1430; font-weight:800; font-size:12.5px;}
 
-.tr-quick{display:flex; flex-direction:column; gap:8px; margin-top:2px;}
-.tr-quick-row{display:flex; flex-wrap:wrap; align-items:center; gap:7px;}
-/* 서버·게임·래더·모드 고르기 - 칩보다 눈에 띄게 한 덩어리 버튼으로 */
-.tr-pick-row{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
-.tr-pick-label{width:46px; flex:none; font-size:12px; font-weight:700; color:var(--text-dim);}
-.tr-pick-label.mode-label{width:auto; margin-left:6px;}
-.tr-seg{display:inline-flex; flex:none; border:1px solid var(--border); border-radius:999px; overflow:hidden; background:var(--panel);}
-.tr-seg button{padding:7px 16px; font-size:13px; font-weight:600; color:var(--text-muted); white-space:nowrap; border-right:1px solid var(--border-soft);}
-.tr-seg button:last-child{border-right:0;}
-.tr-seg button:hover{color:var(--text); background:var(--panel-2);}
-.tr-seg button.on{background:var(--gold); color:#1a1408;}
+
 .tr-more{padding:18px; text-align:center; font-size:12.5px; color:var(--text-dim);}
-.tr-quick-label{width:92px; flex:none; font-size:12px; font-weight:700; color:var(--text-dim);}
-.tr-qchip{padding:6px 13px; border-radius:999px; font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--panel); color:var(--text-muted);}
-.tr-qchip:hover{color:var(--text);}
-.tr-qchip.kind.on{border-color:#8F773D; background:#2A2216; color:#F0D9A6;}
-.tr-qchip.opt.on{border-color:#4A5FA8; background:#1C2645; color:#DDE3FF;}
-.tr-qchip.more{border-style:dashed;}
-.tr-qchip.more.on{color:var(--gold); border-color:var(--gold-dim);}
+/* 서버·게임·래더·모드 - 한 줄 드롭다운 알약 (고르면 금색) + 에테리얼·미확인 켜고 끄기 */
+.tr-quick{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:2px;}
+.tr-pill{position:relative; display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 30px 0 14px; border:1px solid var(--border); border-radius:999px; background:var(--panel); cursor:pointer;}
+.tr-pill::after{content:''; position:absolute; right:13px; top:50%; width:6px; height:6px; margin-top:-5px; border-right:1.5px solid var(--text-dim); border-bottom:1.5px solid var(--text-dim); transform:rotate(45deg); pointer-events:none;}
+.tr-pill:hover{border-color:var(--gold-dim);}
+.tr-pill:focus-within{outline:2px solid var(--gold); outline-offset:1px;}
+.tr-pill-cap{font-size:12px; font-weight:700; color:var(--text-dim); white-space:nowrap;}
+.tr-pill select{field-sizing:content; appearance:none; -webkit-appearance:none; border:none; outline:none; background:transparent; color:var(--text-muted); font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer; padding:0;}
+.tr-pill select option{background:var(--panel); color:var(--text);}
+.tr-pill.on{border-color:var(--gold); background:#2A2216;}
+.tr-pill.on .tr-pill-cap{color:#BFA46A;}
+.tr-pill.on select{color:var(--gold);}
+.tr-pill.on::after{border-color:var(--gold);}
+.tr-toggle{height:36px; padding:0 15px; border-radius:999px; font-size:13px; font-weight:700; border:1px dashed var(--border); background:transparent; color:var(--text-dim);}
+.tr-toggle:hover{color:var(--text);}
+.tr-toggle.eth.on{border:1px solid var(--teal); color:var(--teal); background:color-mix(in srgb, var(--teal) 12%, transparent);}
+.tr-toggle.unid.on{border:1px solid #e0775f; color:#e0775f; background:color-mix(in srgb, #e0775f 12%, transparent);}
 
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 .tr-main{flex:999 1 620px; min-width:0;}
@@ -1166,17 +967,14 @@ function variantLines(p) {
   .tr-hero h1{font-size:22px;}
   .tr-hero-sub{display:none;}
   .tr-search{display:grid; grid-template-columns:minmax(0, 1fr) auto; min-height:0; border-radius:12px;}
-  .tr-realm{grid-column:1 / -1; border-radius:12px 12px 0 0; border-right:none; border-bottom:1px solid #D4CBBB; min-height:38px;}
-  .tr-realm select{width:100%; flex:1;}
-  .tr-realm .tr-region{flex:0 0 40%;}
   .tr-search-box{min-height:48px;}
   .tr-search-box input{font-size:16px; padding:12px 14px;}
   .tr-search-go{padding:0 16px; border-radius:0 0 12px 0; font-size:0; gap:0;}
   .tr-search-go svg{width:20px; height:20px;}
-  .tr-quick-label{width:100%;}
-  .tr-quick-row{flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;}
-  .tr-quick-row .tr-quick-label{display:none;}
-  .tr-qchip{flex:none;}
+  .tr-quick{gap:6px;}
+  .tr-pill{height:34px; padding:0 26px 0 12px;}
+  .tr-pill::after{right:11px;}
+  .tr-toggle{height:34px; padding:0 12px;}
   .tr-body{padding:16px 14px 48px;}
   .tr-results-note{display:none;}
 }

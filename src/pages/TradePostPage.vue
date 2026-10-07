@@ -9,7 +9,6 @@ import {
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { isFavorite, toggleFavorite } from '../tradeFavorites.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
 import { openConversationWith } from '../messagesStore.js'
 import { dealsState, loadDeals } from '../dealsStore.js'
@@ -265,7 +264,7 @@ async function confirmBuy() {
   <div class="items-page trade-detail-page" v-if="post">
 
   <div class="grid-wrap trade-detail-wrap">
-    <!-- 제목 영역: 분류·서버 칩, 아이콘 + 이름 + 뱃지, 작성 정보, 찜 -->
+    <!-- 제목 영역: 분류·서버 칩, 아이콘 + 이름 + 뱃지, 작성 정보 -->
     <div class="post-head">
       <div class="post-chips">
         <router-link class="post-chip cat" :to="{ path: '/trade' }">{{ $t(post.category) }}</router-link>
@@ -287,11 +286,6 @@ async function confirmBuy() {
             <span class="negotiable-badge" v-else-if="post.negotiable">{{ $t('흥정 가능') }}</span>
           </div>
         </div>
-        <button
-          type="button" class="favorite-star" :class="{ active: isFavorite(post.id) }"
-          :title="$t(isFavorite(post.id) ? '찜 해제' : '찜하기')" :aria-label="$t(isFavorite(post.id) ? '찜 해제' : '찜하기')"
-          @click="toggleFavorite(post.id)"
-        >{{ isFavorite(post.id) ? '★' : '☆' }}</button>
       </div>
       <div class="trade-post-meta">
         {{ post.author }} · {{ $t('{date} 등록', { date: post.date }) }}<template v-if="post.editedAt"> {{ $t('· 수정됨') }}</template> · {{ $t('조회 {n}', { n: post.views }) }} ·
@@ -594,12 +588,6 @@ async function confirmBuy() {
 .unid-badge{font-size:11px; padding:3px 11px; border:1px solid var(--blood); color:#e0775f; border-radius:999px;}
 .negotiable-badge{font-size:11px; padding:3px 11px; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:999px;}
 
-.favorite-star{
-  font-size:26px; line-height:1; color:var(--text-dim); flex:none; align-self:flex-start; padding:4px 6px;
-  border:1px solid var(--border); border-radius:12px; background:var(--panel); transition:color .1s, border-color .1s;
-}
-.favorite-star:hover{color:var(--gold-dim); border-color:var(--gold-dim);}
-.favorite-star.active{color:var(--gold); border-color:var(--gold-dim);}
 
 /* 본문 2단 */
 .post-layout{display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:22px; align-items:start; margin-bottom:34px;}

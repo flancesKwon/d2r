@@ -8,9 +8,9 @@ const until = computed(() => suspendedUntil(authState.profile))
 
 <template>
   <div class="suspended-banner" role="status" v-if="until">
-    <b>이용 정지된 계정</b>
-    <span>{{ suspensionText(until) }}<template v-if="authState.profile?.suspended_reason"> · 사유: {{ authState.profile.suspended_reason }}</template></span>
-    <span class="suspended-sub">정지 중에는 글·댓글·판매글·구매신청·쪽지 작성 불가</span>
+    <b>{{ $t('이용 정지된 계정') }}</b>
+    <span>{{ suspensionText(until) }}<template v-if="authState.profile?.suspended_reason"> · {{ $t('사유') }}: {{ authState.profile.suspended_reason }}</template></span>
+    <span class="suspended-sub">{{ $t('정지 중에는 글·댓글·판매글·구매신청·쪽지 작성 불가') }}</span>
   </div>
 </template>
 
