@@ -37,6 +37,8 @@ import { openTradeGuide } from '../tradeGuide.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
+import SearchSelect from '../components/SearchSelect.vue'
+import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
 
@@ -163,9 +165,10 @@ const itemBaseDefs = computed(() => {
     // 붙는 종류가 무기·방어구마다 달라서, 이 룬워드가 쓸 수 있는 베이스 종류에 맞는 것만
     const SUP_BY_KIND = { weapon: ['dmg%', 'att', 'dur%'], armor: ['ac%', 'dur%'] }
     const supKeys = [...new Set(rwKinds.flatMap((kk) => SUP_BY_KIND[kk] || []))]
-    for (const [k, m] of Object.entries(SUPERIOR_MODS).filter(([k]) => supKeys.includes(k))) {
+    // 상급이면 붙는 수치 - 칸은 늘 만들어 두고, '상급만' 을 골랐을 때만 화면에 보여줌 (supOnly)
+    for (const [k, m] of Object.entries(SUPERIOR_MODS).filter(([kk]) => supKeys.includes(kk))) {
       const re = new RegExp('^' + escRe(m.text).replace('\\{v\\}', '(\\d+)') + '$')
-      defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, get: lineValue(re) })
+      defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, supOnly: true, get: lineValue(re) })
     }
   }
   const def = uniqueDefenseRange(it, false)
@@ -204,6 +207,11 @@ watch(itemVarDefs, (defs) => {
   rangesItemId = pickedItem.value?.id ?? null
   itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, old[d.key] || { min: '', max: '', pick: '' }]))
 }, { immediate: true })
+const supPicked = computed(() => itemRanges.value.sup?.pick === '상급')
+watch(supPicked, (on) => {
+  if (on) return
+  for (const k of Object.keys(itemRanges.value)) if (k.startsWith('sup:')) itemRanges.value[k] = { min: '', max: '', pick: '' }
+})
 const activeItemRanges = computed(() =>
   itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (d.choices ? r.pick : r.min !== '' || r.max !== '') })
 )
@@ -350,7 +358,13 @@ const filteredPosts = computed(() => {
 // (검색창 안에는 글자만 - 조건이 늘어도 입력칸이 안 밀리고, 옵션 수치는 칩의 ✎ 로 그 자리에서 고침)
 
 // 서버·게임·래더·모드 고르기 (검색창 아래 한 줄 드롭다운) - 고른 값은 거기서 바로 보이니 '적용된 조건' 칩은 안 만듦
+// 종류는 여러 개 고를 수 있지만(activeCats) 선택칸은 하나만 - 비우면 전체
+const catPick = computed({
+  get: () => activeCats.value[0] || null,
+  set: (v) => { activeCats.value = v ? [v] : [] },
+})
 const QUICK_SELECTS = [
+  { label: '종류', ref: catPick, options: TRADE_CATEGORIES },
   { label: '서버', ref: activeRegion, options: TRADE_REALMS },
   { label: '게임', ref: gameVersion, options: GAME_VERSIONS },
   { label: '래더', ref: activeLadder, options: TRADE_LADDERS },
@@ -623,16 +637,30 @@ function variantLines(p) {
         <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
           <div class="item-range-sec" v-if="sec.defs.length">{{ $t(sec.name) }}</div>
           <div class="item-range-grid" v-if="sec.defs.length">
-            <div class="item-range-row" v-for="d in sec.defs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
+            <div
+              class="item-range-row" v-for="d in sec.defs" :key="d.key"
+              v-show="!d.supOnly || itemRanges[d.key] && supPicked" :class="{ on: activeItemRanges.includes(d) }"
+            >
               <span class="item-range-label">{{ $t(d.label) }}</span>
-              <select v-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
+              <!-- 보기가 많은 베이스는 치면서 고름 -->
+              <SearchSelect
+                v-if="d.choices && d.choices.length > 8" v-model="itemRanges[d.key].pick"
+                :options="d.choices" :label="d.label" class="item-range-ss"
+              />
+              <select v-else-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
                 <option value="">{{ $t('전체') }}</option>
                 <option v-for="c in d.choices" :key="c" :value="c">{{ d.key === 'sup' ? (c === '상급' ? $t('상급만') : $t('일반 베이스만')) : $t(c) }}</option>
               </select>
-              <template v-else>
-                <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="d.lo ?? $t('최소')" :aria-label="`${d.label} 최소`" />
+              <!-- 수치는 그 옵션에서 나올 수 있는 범위 안으로 (칸을 벗어나면 범위 끝으로) -->
+              <template v-else-if="d.lo !== undefined && d.hi !== undefined">
+                <RangeInput v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최소')}`" />
                 <span class="level-range-sep">~</span>
-                <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="d.hi ?? $t('최대')" :aria-label="`${d.label} 최대`" />
+                <RangeInput v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최대')}`" />
+              </template>
+              <template v-else>
+                <input type="number" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
+                <span class="level-range-sep">~</span>
+                <input type="number" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
               </template>
             </div>
           </div>
@@ -793,9 +821,10 @@ function variantLines(p) {
 .item-range-sec{font-size:11.5px; color:var(--gold-dim); margin:10px 0 6px; letter-spacing:.02em;}
 .item-range-empty{font-size:12px; color:var(--text-dim);}
 .item-range-row .sort-select{padding:6px 10px; min-width:150px;}
-.item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:8px 16px;}
+.item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:10px 18px;}
+.item-range-ss{min-width:200px; flex:1 1 200px;}
 .item-range-row{display:flex; align-items:center; gap:6px; font-size:12.5px;}
-.item-range-label{flex:1; min-width:0; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.item-range-label{flex:1; min-width:0; color:var(--text-muted); line-height:1.35; word-break:keep-all;}
 .item-range-row.on .item-range-label{color:var(--gold);}
 .item-range-row input{
   width:68px; background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:12.5px;
