@@ -29,7 +29,6 @@ import {
   GAME_VERSIONS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
-import { isFavorite } from '../tradeFavorites.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
@@ -295,8 +294,7 @@ const PAGE = 12
 const shown = ref(PAGE)
 const filteredPosts = computed(() => {
   // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
-  // 단, 찜한 글은 예약중이 돼도 계속 보여줌 ("거래중" 표시)
-  let list = tradeState.posts.filter((p) => (p.status === '판매중' && saleLeftMs(p, now.value) > 0) || (p.status === '예약중' && isFavorite(p.id)))
+  let list = tradeState.posts.filter((p) => p.status === '판매중' && saleLeftMs(p, now.value) > 0)
   if (activeCats.value.length) list = list.filter((p) => activeCats.value.includes(p.category))
   if (activeRegion.value) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value) list = list.filter((p) => p.gameVersion === gameVersion.value)
@@ -627,7 +625,7 @@ function variantLines(p) {
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
     <div class="tr-results-head">
       <h2>{{ appliedCount ? $t('검색 결과') : $t('방금 올라온 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
-      <span class="tr-results-note">{{ $t('판매중만 · 찜한 글은 거래중이어도 표시 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
+      <span class="tr-results-note">{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -646,7 +644,6 @@ function variantLines(p) {
           <div class="trade-title-row">
             <span class="trade-title">{{ postName(p) }}</span>
             <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
-            <span class="dealing-badge" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
           </div>
           <div class="trade-meta">
             {{ enCount(p.amountLabel) }} ·
@@ -679,7 +676,6 @@ function variantLines(p) {
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
-        <span class="dealing-badge trade-card-dealing" v-if="p.status === '예약중'">{{ $t('거래중') }}</span>
         <span class="trade-card-title">{{ postName(p) }}</span>
         <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
         <span class="trade-card-price">
@@ -879,9 +875,6 @@ function variantLines(p) {
 .board-note{font-size:12px; color:var(--text-dim); margin:0 0 12px;}
 .board-note a{color:var(--gold-dim);}
 .board-note a:hover{color:var(--gold);}
-.dealing-badge{font-size:10px; padding:2px 10px; border:1px solid var(--teal); color:var(--teal); border-radius:999px; flex:none;}
-.trade-card-dealing{align-self:center;}
-.trade-row:has(.dealing-badge), .trade-card:has(.dealing-badge){opacity:.75;}
 .guide-btn{font-size:12.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--panel);}
 .guide-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
 

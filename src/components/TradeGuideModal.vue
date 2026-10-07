@@ -67,7 +67,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
           </div>
           <figure class="tg-shot">
             <img :src="imgBoard" :alt="$t('거래게시판 - 옵션 키워드로 매물 검색')" loading="lazy" @click="zoom = imgBoard" />
-            <figcaption>{{ $t('거래게시판 - "저항 15 이상"처럼 옵션 조건으로 찾기, ★ 찜') }}</figcaption>
+            <figcaption>{{ $t('거래게시판 - "저항 15 이상"처럼 옵션 조건으로 찾기') }}</figcaption>
           </figure>
         </template>
 
@@ -124,7 +124,6 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
               <li>{{ $t('한 글에 대기 중인 신청은 한 사람당 하나 - 바꾸려면 취소 후 다시') }}</li>
               <li>{{ $t('신청·제안 내역은 누구나 볼 수 있음 (연락처는 판매자·본인만)') }}</li>
               <li>{{ $t('이미 다른 사람과 거래중인 글에 신청하면') }} <b>{{ $t('보류') }}</b> {{ $t('→ 그 거래가 불발되면 대기로 돌아옴') }}</li>
-              <li>{{ $t('☆ 찜하면 거래중이 돼도 거래게시판에서 계속 보임') }}</li>
             </ul>
           </div>
         </template>
