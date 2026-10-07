@@ -27,10 +27,13 @@ import {
   SUPERIOR_MODS,
   searchBaseItems,
   baseItemLabel,
+  ICON_VARIANTS,
   TRADE_REALMS,
   GAME_VERSIONS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
+import magicAffixData from '../data/magicAffixes.json'
+import { familyLines } from '../magicAffixes.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
@@ -151,6 +154,72 @@ const runewordBaseKinds = computed(() => {
   if (it?.category !== 'runeword') return []
   return [...new Set(searchBaseItems('', null, it).map((b) => b.base_stats.category))]
 })
+// ── 사전에 없는 아이템(매직/레어/크래프트/일반) 찾기 ──
+// 판매글에는 품질(options.quality)·베이스 줄·모양(options.iconKey)이 저장돼 있어서 그걸로 거름
+const QUALITY_PICKS = [
+  { v: 'magic', label: '매직' }, { v: 'rare', label: '레어' },
+  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반(흰색)' },
+]
+const mrQuality = ref('')
+const mrBase = ref('')
+const mrShape = ref('')
+const mrCraft = ref('')
+// 매직/레어/일반 종류를 골랐고 아이템을 지정하지 않았을 때만 (유니크는 아이템 지정으로 찾음)
+const mrOn = computed(() => !pickedItem.value && activeCats.value.includes('매직/레어/일반'))
+// 베이스 목록 - 장신구(반지·목걸이·주얼·부적) + 무기·방어구 전부, 판매글에 적히는 이름 그대로
+const MISC_BASES = magicAffixData.miscBases.map((b) => ({ ...b, type_sub: b.name_ko, tier: '', sockets: 0, base_stats: { category: 'misc' } }))
+const mrBaseChoices = computed(() => [
+  ...MISC_BASES.map((b) => b.name_ko),
+  ...searchBaseItems('', null).map(baseItemLabel),
+].sort((a, b) => a.localeCompare(b, 'ko')))
+// 고른 베이스가 반지·목걸이·주얼·부적이면 모양도 고를 수 있음 (등록 화면과 같은 목록)
+const mrShapeChoices = computed(() => {
+  const code = MISC_BASES.find((b) => b.name_ko === mrBase.value)?.code
+  return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
+})
+// 크래프트 제작법 - 고른 베이스에 만들 수 있는 것만 (없으면 전체)
+const mrCraftChoices = computed(() => {
+  const all = [...new Set((magicAffixData.crafts || []).map((c) => c.name))]
+  return all.sort((a, b) => a.localeCompare(b, 'ko'))
+})
+watch(mrBase, () => { mrShape.value = '' })
+watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
+const mrCount = computed(() => [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value].filter(Boolean).length)
+function resetMr() { mrQuality.value = ''; mrBase.value = ''; mrShape.value = ''; mrCraft.value = '' }
+// 판매글이 조건에 맞는지
+function mrMatches(p) {
+  if (!mrOn.value) return true
+  if (mrQuality.value && p.quality !== mrQuality.value) return false
+  if (mrBase.value) {
+    const line = (p.options || []).find((l) => l.startsWith('베이스: '))
+    const name = line ? line.slice('베이스: '.length) : ''
+    // 장신구는 베이스 줄이 없고 아이템 이름에 들어 있음 ("레어 반지")
+    if (!(name === mrBase.value || (!line && (p.itemName || '').includes(mrBase.value)))) return false
+  }
+  if (mrShape.value && p.iconKey !== mrShape.value) return false
+  if (mrCraft.value) {
+    // 크래프트 제작법은 그 제작법의 고정 옵션이 전부 붙어 있는지로 봄
+    const c = (magicAffixData.crafts || []).find((x) => x.name === mrCraft.value)
+    if (!c) return false
+    const lines = p.options || []
+    if (!CRAFT_LINES(c).every((re) => lines.some((l) => re.test(l)))) return false
+  }
+  return true
+}
+// 제작법 고정 옵션의 문구 패턴 (수치는 아무 값이나)
+const craftLineCache = new Map()
+function CRAFT_LINES(c) {
+  if (craftLineCache.has(c.name)) return craftLineCache.get(c.name)
+  let res = []
+  try {
+    const fam = { key: 'c', slot: 'c', mods: c.mods, slotRanges: c.mods.map((m) => [m.min, m.max]), tiers: [] }
+    res = familyLines(fam, fam.slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`)))
+      .map((l) => new RegExp('^' + escRe(String(l)).replace(/\\d+(\\\\~\\d+)?/g, '[+-]?\\\\d+') + '$'))
+  } catch { res = [] }
+  craftLineCache.set(c.name, res)
+  return res
+}
+
 const itemBaseDefs = computed(() => {
   const it = pickedItem.value
   if (!it) return []
@@ -305,6 +374,7 @@ const hasActiveFilters = computed(
 )
 function resetFilters() {
   activeCats.value = []
+  resetMr()
   activeRegion.value = null
   gameVersion.value = null
   activeLadder.value = null
@@ -349,6 +419,7 @@ const filteredPosts = computed(() => {
         (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), searchQuery.value))
     )
   }
+  if (mrOn.value && mrCount.value) list = list.filter(mrMatches)
   for (const c of statConditions.value) list = list.filter((p) => condMatches(p, c))
   return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 })
@@ -490,7 +561,7 @@ onMounted(() => {
 onUnmounted(() => io?.disconnect())
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
 
 // ───────── 목록에 보여줄 것 ─────────
@@ -629,6 +700,44 @@ function variantLines(p) {
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
+      <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
+      <div class="item-range-panel" v-if="mrOn">
+        <div class="item-range-title">
+          <b>{{ $t('매직/레어/일반') }}</b> {{ $t('검색 옵션') }}
+          <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+        </div>
+        <div class="item-range-grid">
+          <div class="item-range-row" :class="{ on: mrQuality }">
+            <span class="item-range-label">{{ $t('품질') }}</span>
+            <select v-model="mrQuality" class="sort-select" :aria-label="$t('품질')">
+              <option value="">{{ $t('전체') }}</option>
+              <option v-for="q in QUALITY_PICKS" :key="q.v" :value="q.v">{{ $t(q.label) }}</option>
+            </select>
+          </div>
+          <div class="item-range-row" :class="{ on: mrBase }">
+            <span class="item-range-label">{{ $t('베이스') }}</span>
+            <SearchSelect v-model="mrBase" :options="mrBaseChoices" :label="$t('베이스')" class="item-range-ss" />
+          </div>
+          <div class="item-range-row" v-if="mrShapeChoices.length" :class="{ on: mrShape }">
+            <span class="item-range-label">{{ $t('모양') }}</span>
+            <span class="mr-shapes">
+              <button
+                type="button" class="mr-shape" :class="{ on: !mrShape }" :aria-pressed="!mrShape"
+                :title="$t('전체')" @click="mrShape = ''"
+              >{{ $t('전체') }}</button>
+              <button
+                type="button" class="mr-shape img" v-for="k in mrShapeChoices" :key="k"
+                :class="{ on: mrShape === k }" :aria-pressed="mrShape === k" @click="mrShape = mrShape === k ? '' : k"
+              ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
+            </span>
+          </div>
+          <div class="item-range-row" v-if="mrQuality === 'crafted'" :class="{ on: mrCraft }">
+            <span class="item-range-label">{{ $t('크래프트 제작법') }}</span>
+            <SearchSelect v-model="mrCraft" :options="mrCraftChoices" :label="$t('크래프트 제작법')" class="item-range-ss" />
+          </div>
+        </div>
+      </div>
+
       <div class="item-range-panel" v-if="pickedItem">
         <div class="item-range-title">
           <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b> {{ $t('검색 옵션') }}
@@ -823,6 +932,15 @@ function variantLines(p) {
 .item-range-row .sort-select{padding:6px 10px; min-width:150px;}
 .item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:10px 18px;}
 .item-range-ss{min-width:200px; flex:1 1 200px;}
+.mr-shapes{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+.mr-shape{
+  display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border);
+  border-radius:8px; background:var(--panel); color:var(--text-dim); font-size:11.5px; padding:4px 9px;
+}
+.mr-shape.img{width:38px; height:38px; padding:2px;}
+.mr-shape img{max-width:100%; max-height:100%; image-rendering:pixelated;}
+.mr-shape:hover{border-color:var(--gold-dim);}
+.mr-shape.on{border-color:var(--gold); background:rgba(200,163,77,0.12); color:var(--gold);}
 .item-range-row{display:flex; align-items:center; gap:6px; font-size:12.5px;}
 .item-range-label{flex:1; min-width:0; color:var(--text-muted); line-height:1.35; word-break:keep-all;}
 .item-range-row.on .item-range-label{color:var(--gold);}

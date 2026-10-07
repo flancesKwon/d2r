@@ -1753,6 +1753,7 @@ export default {
   '아시아·미주·유럽 서버 매물 검색': 'Search listings on Asia, Americas and Europe',
   '레더·모드 전체': 'Ladder & mode: all',
   '일치하는 것 없음': 'No match',
+  '품질': 'Quality',
   '악마술사의 군림': 'Reign of the Warlock',
   '파괴의 군주': 'Lord of Destruction',
   '클래식': 'Classic',
