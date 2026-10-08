@@ -43,7 +43,7 @@ import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
-import { t, itemName, locale } from '../i18n.js'
+import { t, itemName, locale, affixText } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
 import { countWantsForItem } from '../wantsStore.js'
 
@@ -389,7 +389,10 @@ const itemBaseDefs = computed(() => {
   const rwKinds = runewordBaseKinds.value
   if (it.category === 'runeword') {
     // 매물에 있는 베이스만 고르던 것 -> 사전의 전체 베이스 (매물이 없어도 조건을 걸 수 있게)
-    if (runewordBases.value.length) defs.push({ key: 'base', label: '베이스', choices: runewordBases.value, get: lineMatch(BASE_LINE) })
+    // 고르는 값은 "메이지플레이트 (Mage Plate)", 판매글 줄은 "베이스: 메이지플레이트 (Mage Plate)" - 괄호 뗀 이름끼리 비교
+    // (예전엔 괄호를 뗀 이름과 괄호 붙은 값을 비교해서 베이스를 고르면 매물이 하나도 안 나왔음)
+    const byName = new Map(runewordBases.value.map((l) => [l.replace(/ \(.+\)$/, ''), l]))
+    if (runewordBases.value.length) defs.push({ key: 'base', label: '베이스', choices: runewordBases.value, get: (p) => { const n = lineMatch(BASE_LINE)(p); return n ? byName.get(n) || n : null } })
     defs.push({ key: 'sup', label: '상급(슈페리얼) 베이스', choices: ['상급', '일반'], get: (p) => (isSuperiorPost(p, it) ? '상급' : '일반') })
     // 상급이면 붙는 수치 - 얼마나 좋은 상급인지로 거를 수 있게
     // 붙는 종류가 무기·방어구마다 달라서, 이 룬워드가 쓸 수 있는 베이스 종류에 맞는 것만
@@ -428,6 +431,14 @@ const itemOptionDefs = computed(() => {
   return defs
 })
 const itemVarDefs = computed(() => [...itemBaseDefs.value, ...itemOptionDefs.value])
+// 판매글 등록과 같은 순서로 보여줌: 베이스 -> 상급 여부 -> 상급 옵션 -> 베이스 수치(방어력·데미지·소켓) -> 변동 옵션
+const pickBaseDef = computed(() => itemBaseDefs.value.find((d) => d.key === 'base') || null)
+const pickSupDef = computed(() => itemBaseDefs.value.find((d) => d.key === 'sup') || null)
+const pickSupModDefs = computed(() => itemBaseDefs.value.filter((d) => d.supOnly))
+const pickStatDefs = computed(() => itemBaseDefs.value.filter((d) => !d.supOnly && d.key !== 'base' && d.key !== 'sup'))
+// 칸 이름 - 화면 사전에 있으면("기본 방어력") 그걸로, 없으면 옵션 문구 변환("방어력 +750~775")
+const pkLabel = (l) => (t(l) !== l ? t(l) : affixText(l))
+const SUP_CHOICES = [{ v: '', label: '전체' }, { v: '상급', label: '상급만' }, { v: '일반', label: '일반 베이스만' }]
 // { [def.key]: { min, max, pick } } - 글이 새로 들어와 칸이 다시 만들어져도 입력한 값은 그대로
 // (다른 아이템을 고르면 비움)
 const itemRanges = ref({})
@@ -986,58 +997,82 @@ function variantLines(p) {
         </div>
       </div>
 
-      <div class="item-range-panel" v-if="pickedItem">
-        <div class="item-range-title">
-          <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b> {{ $t('검색 옵션') }}
-          <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+      <div class="item-range-panel mr-panel" v-if="pickedItem">
+        <div class="mr-head">
+          <span class="mr-head-icon" :class="pickedItem.category"><img v-if="iconUrlFor(pickedItem.icon_key)" :src="iconUrlFor(pickedItem.icon_key)" alt="" /></span>
+          <div class="mr-head-text">
+            <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b>
+            <span>{{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+          </div>
+          <button type="button" class="mr-change" @click="clearPickedItem(); focusSearch()">{{ $t('다른 아이템') }}</button>
         </div>
-        <template v-if="uniqueShapes.length">
-          <div class="item-range-sec">{{ $t('베이스') }}</div>
-          <div class="item-range-grid">
-            <div class="item-range-row" :class="{ on: itemShape }">
-              <span class="item-range-label">{{ $t('모양') }}</span>
-              <span class="mr-shapes">
-                <button type="button" class="mr-shape" :class="{ on: !itemShape }" :aria-pressed="!itemShape" @click="itemShape = ''">{{ $t('전체') }}</button>
-                <button
-                  type="button" class="mr-shape img" v-for="k in uniqueShapes" :key="k"
-                  :class="{ on: itemShape === k }" :aria-pressed="itemShape === k" @click="itemShape = itemShape === k ? '' : k"
-                ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
-              </span>
-            </div>
-          </div>
-        </template>
-        <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
-          <div class="item-range-sec" v-if="sec.defs.length">{{ $t(sec.name) }}</div>
-          <div class="item-range-grid" v-if="sec.defs.length">
-            <div
-              class="item-range-row" v-for="d in sec.defs" :key="d.key"
-              v-show="!d.supOnly || itemRanges[d.key] && supPicked" :class="{ on: activeItemRanges.includes(d) }"
-            >
-              <span class="item-range-label">{{ $t(d.label) }}</span>
-              <!-- 보기가 많은 베이스는 치면서 고름 -->
-              <SearchSelect
-                v-if="d.choices && d.choices.length > 8" v-model="itemRanges[d.key].pick"
-                :options="d.choices" :label="d.label" class="item-range-ss"
-              />
-              <select v-else-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
-                <option value="">{{ $t('전체') }}</option>
-                <option v-for="c in d.choices" :key="c" :value="c">{{ d.key === 'sup' ? (c === '상급' ? $t('상급만') : $t('일반 베이스만')) : $t(c) }}</option>
-              </select>
-              <!-- 수치는 그 옵션에서 나올 수 있는 범위 안으로 (칸을 벗어나면 범위 끝으로) -->
-              <template v-else-if="d.lo !== undefined && d.hi !== undefined">
+        <!-- 판매글 등록과 같은 순서: 베이스 -> 상급 -> 상급 옵션 -> 베이스 수치 -> 변동 옵션 -->
+        <div class="mr-grid">
+          <template v-if="uniqueShapes.length">
+            <span class="mr-label" :class="{ on: itemShape }">{{ $t('모양') }}</span>
+            <span class="mr-shapes">
+              <button type="button" class="mr-shape" :class="{ on: !itemShape }" :aria-pressed="!itemShape" @click="itemShape = ''">{{ $t('전체') }}</button>
+              <button
+                type="button" class="mr-shape img" v-for="k in uniqueShapes" :key="k"
+                :class="{ on: itemShape === k }" :aria-pressed="itemShape === k" @click="itemShape = itemShape === k ? '' : k"
+              ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
+            </span>
+          </template>
+
+          <template v-if="pickBaseDef && itemRanges.base">
+            <span class="mr-label" :class="{ on: itemRanges.base.pick }">{{ $t('베이스') }}</span>
+            <SearchSelect v-model="itemRanges.base.pick" :options="pickBaseDef.choices" :label="$t('베이스')" class="mr-field" />
+          </template>
+
+          <template v-if="pickSupDef && itemRanges.sup">
+            <span class="mr-label" :class="{ on: itemRanges.sup.pick }">{{ $t('상급 여부') }}</span>
+            <span class="mr-seg">
+              <button
+                type="button" v-for="c in SUP_CHOICES" :key="c.v" :class="{ on: itemRanges.sup.pick === c.v }"
+                :aria-pressed="itemRanges.sup.pick === c.v" @click="itemRanges.sup.pick = c.v"
+              >{{ $t(c.label) }}</button>
+            </span>
+          </template>
+
+          <template v-if="supPicked && pickSupModDefs.length">
+            <span class="mr-label top on">{{ $t('상급 옵션') }}</span>
+            <div class="pk-rows">
+              <div class="pk-row" v-for="d in pickSupModDefs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
+                <span class="pk-name">{{ pkLabel(d.label) }}</span>
                 <RangeInput v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최소')}`" />
-                <span class="level-range-sep">~</span>
+                <span class="mr-sep">~</span>
                 <RangeInput v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최대')}`" />
-              </template>
-              <template v-else>
-                <input type="number" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
-                <span class="level-range-sep">~</span>
-                <input type="number" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
-              </template>
+              </div>
             </div>
-          </div>
-        </template>
-        <div class="item-range-empty" v-if="!itemVarDefs.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
+          </template>
+
+          <template v-for="g in [{ label: '베이스 수치', defs: pickStatDefs }, { label: '변동 옵션', defs: itemOptionDefs }]" :key="g.label">
+            <template v-if="g.defs.length">
+              <span class="mr-label top" :class="{ on: g.defs.some((d) => activeItemRanges.includes(d)) }">{{ $t(g.label) }}</span>
+              <div class="pk-rows">
+                <div class="pk-row" v-for="d in g.defs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
+                  <span class="pk-name">{{ pkLabel(d.label) }}</span>
+                  <select v-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
+                    <option value="">{{ $t('전체') }}</option>
+                    <option v-for="c in d.choices" :key="c" :value="c">{{ $t(c) }}</option>
+                  </select>
+                  <!-- 수치는 그 옵션에서 나올 수 있는 범위 안으로 (칸을 벗어나면 범위 끝으로) -->
+                  <template v-else-if="d.lo !== undefined && d.hi !== undefined">
+                    <RangeInput v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최소')}`" />
+                    <span class="mr-sep">~</span>
+                    <RangeInput v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최대')}`" />
+                  </template>
+                  <template v-else>
+                    <input type="number" class="pk-num" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
+                    <span class="mr-sep">~</span>
+                    <input type="number" class="pk-num" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
+                  </template>
+                </div>
+              </div>
+            </template>
+          </template>
+        </div>
+        <div class="item-range-empty" v-if="!itemVarDefs.length && !uniqueShapes.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
       </div>
     </div>
   </section>
@@ -1233,6 +1268,14 @@ function variantLines(p) {
 .mr-craft.on{border-color:#e0913a; background:rgba(224,145,58,0.1);}
 .mr-opt.fixed{border-color:#8a5a26; color:#f0b56a;}
 .chip-shape{width:18px; height:18px; image-rendering:pixelated; vertical-align:middle;}
+.pk-rows{display:flex; flex-direction:column; gap:6px; min-width:0;}
+.pk-row{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:5px 8px 5px 12px; border:1px solid var(--border-soft); border-radius:10px; background:var(--panel-2); font-size:12.5px;}
+.pk-row.on{border-color:var(--gold-dim);}
+.pk-name{margin-right:auto; color:var(--text-muted); line-height:1.4;}
+.pk-row.on .pk-name{color:var(--gold);}
+.pk-num{width:84px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12.5px;}
+.mr-head-icon.unique, .mr-head-icon.runeword{border-color:#6b5f3c;} .mr-head-icon.set{border-color:#1f6b1f;}
+.mr-head-text b.unique, .mr-head-text b.runeword{color:#c7b377;} .mr-head-text b.set{color:#00c400;}
 .mr-fixed{font-style:normal; font-size:10.5px; font-weight:700; margin-left:5px; color:#e0913a;}
 .mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
@@ -1255,8 +1298,13 @@ function variantLines(p) {
 .mr-opt.more{border-style:dashed;}
 .mr-opt-none, .mr-opt-help{font-size:11.5px; color:var(--text-dim); margin:0;}
 @media (max-width:640px){
-  .mr-grid{grid-template-columns:52px minmax(0, 1fr); gap:10px;}
-  .mr-cond-name{flex-basis:100%;}
+  /* 폰: 이름을 위에, 칸을 아래에 (좁은 이름 칸에서 글자가 꺾이던 것) */
+  .mr-grid{grid-template-columns:minmax(0, 1fr); gap:6px;}
+  .mr-label{margin-top:8px;}
+  .mr-label.top{padding-top:0;}
+  .mr-cond-name, .pk-name{flex-basis:100%;}
+  .pk-row :deep(input), .pk-num{width:auto; flex:1; min-width:0;}
+  .pk-row :deep(.range-input){flex:1; min-width:0;}
 }
 .mr-shape{
   display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border);

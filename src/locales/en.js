@@ -1872,4 +1872,8 @@ export default {
   '레어: 접두 3 + 접미 3, 옵션 최대 6줄': 'Rare: up to 3 prefixes + 3 suffixes, up to 6 stats',
   '크래프트: 제작법 고정 옵션 + 레어 옵션 1~4줄 - 아래에서 제작법을 고르면 그 제작법으로 만든 것만': 'Crafted: fixed recipe stats + 1–4 rare stats — pick a recipe below to see only items made with it',
   '일반(흰색): 옵션 없음 - 소켓·베이스로만 찾음': 'Normal (white): no stats — search by sockets and base only',
+  '다른 아이템': 'Other item',
+  '상급 옵션': 'Superior stats',
+  '베이스 수치': 'Base stats',
+  '상급 여부': 'Superior',
 }
