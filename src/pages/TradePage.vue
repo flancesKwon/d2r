@@ -25,16 +25,24 @@ import {
   CLASS_SKILL_NAMES,
   uniqueDefenseRange,
   SUPERIOR_MODS,
+  searchBaseItems,
+  baseItemLabel,
+  ICON_VARIANTS,
   TRADE_REALMS,
   GAME_VERSIONS,
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
+import magicAffixData from '../data/magicAffixes.json'
+import { craftRecipesFor } from '../magicAffixes.js'
+import { familyLines } from '../magicAffixes.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
+import SearchSelect from '../components/SearchSelect.vue'
+import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
 import { countWantsForItem } from '../wantsStore.js'
@@ -136,20 +144,161 @@ function isSuperiorPost(p, item) {
 // 이 아이템 글 (베이스 종류 고르기·방어력/데미지 칸을 보여줄지 정할 때 씀)
 const pickedItemPosts = computed(() => (pickedItem.value ? tradeState.posts.filter((p) => p.itemId === pickedItem.value.id) : []))
 const anyLine = (re) => pickedItemPosts.value.some((p) => (p.options || []).some((l) => re.test(l)))
+// 룬워드로 쓸 수 있는 베이스는 사전에서 전부 (판매글 등록 화면과 같은 목록)
+const runewordBases = computed(() => {
+  const it = pickedItem.value
+  if (it?.category !== 'runeword') return []
+  return searchBaseItems('', null, it).map(baseItemLabel).sort((a, b) => a.localeCompare(b, 'ko'))
+})
+// 룬워드 베이스가 방어구만/무기만인지 (기본 방어력 칸과 데미지 칸 중 뭘 보여줄지)
+const runewordBaseKinds = computed(() => {
+  const it = pickedItem.value
+  if (it?.category !== 'runeword') return []
+  return [...new Set(searchBaseItems('', null, it).map((b) => b.base_stats.category))]
+})
+// ── 사전에 없는 아이템(매직/레어/크래프트/일반) 찾기 ──
+// 판매글에는 품질(options.quality)·베이스 줄·모양(options.iconKey)이 저장돼 있어서 그걸로 거름
+const QUALITY_PICKS = [
+  { v: 'magic', label: '매직' }, { v: 'rare', label: '레어' },
+  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반(흰색)' },
+]
+const mrQuality = ref('')
+const mrBase = ref('')
+const mrShape = ref('')
+const mrCraft = ref('')
+// 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
+const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 검색창에 뜨는 베이스 후보 - 장신구 + 무기·방어구 (등록 화면과 같은 목록)
+const QUALITY_SHORT = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
+const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
+const baseLabelOf = (b) => (b.base_stats.category === 'misc' ? b.name_ko : baseItemLabel(b))
+// 그 베이스로 나올 수 있는 품질 (등록 화면과 같은 규칙)
+function baseQualities(b) {
+  const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
+  if (magicAffixData.bases[b.code]?.rare) out.push('rare')
+  if (craftRecipesFor(magicAffixData, b).length) out.push('crafted')
+  return out
+}
+const baseCandidates = computed(() => {
+  // "레어 서클릿"처럼 품질을 앞에 붙여 쳐도 찾게 품질 단어는 빼고 검색
+  const q = searchQuery.value.trim().replace(JAMO_TAIL, '').replace(/^(매직|레어|일반|크래프트)\s*/, '')
+  if (!q || pickedItem.value) return []
+  const sq = squash(q)
+  const misc = MISC_BASES.filter((b) => squash(b.name_ko).includes(sq) || squash(b.subtitle || '').includes(sq))
+  return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
+})
+function pickBase(b, quality = '') {
+  pickedItem.value = null
+  mrBase.value = baseLabelOf(b)
+  mrQuality.value = quality
+  mrShape.value = ''
+  mrCraft.value = ''
+  searchQuery.value = ''
+  suggestOpen.value = false
+}
+const clearMrBase = () => { mrBase.value = ''; resetMr() }
+// 베이스 목록 - 장신구(반지·목걸이·주얼·부적) + 무기·방어구 전부, 판매글에 적히는 이름 그대로
+const MISC_BASES = magicAffixData.miscBases.map((b) => ({ ...b, type_sub: b.name_ko, tier: '', sockets: 0, base_stats: { category: 'misc' } }))
+const mrBaseChoices = computed(() => [
+  ...MISC_BASES.map((b) => b.name_ko),
+  ...searchBaseItems('', null).map(baseItemLabel),
+].sort((a, b) => a.localeCompare(b, 'ko')))
+// 고른 베이스 객체 (모양·크래프트 후보를 뽑는 데 씀)
+const mrBaseItem = computed(() => {
+  if (!mrBase.value) return null
+  return MISC_BASES.find((b) => b.name_ko === mrBase.value)
+    || searchBaseItems('', null).find((b) => baseItemLabel(b) === mrBase.value) || null
+})
+// 고른 베이스가 반지·목걸이·주얼·부적이면 모양도 고를 수 있음 (등록 화면과 같은 목록)
+const mrShapeChoices = computed(() => {
+  const code = mrBaseItem.value?.code
+  return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
+})
+// 그 베이스로 고를 수 있는 품질만
+const mrQualityPicks = computed(() => {
+  const b = mrBaseItem.value
+  const allow = b ? baseQualities(b) : QUALITY_PICKS.map((q) => q.v)
+  return QUALITY_PICKS.filter((q) => allow.includes(q.v))
+})
+// 크래프트 제작법 - 고른 베이스에 만들 수 있는 것만 (없으면 전체)
+const mrCraftChoices = computed(() => {
+  const b = mrBaseItem.value
+  const list = b ? craftRecipesFor(magicAffixData, b).map((c) => c.name) : (magicAffixData.crafts || []).map((c) => c.name)
+  return [...new Set(list)].sort((a, b2) => a.localeCompare(b2, 'ko'))
+})
+watch(mrBase, () => { mrShape.value = '' })
+watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
+const mrCount = computed(() => [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value].filter(Boolean).length)
+function resetMr() { mrQuality.value = ''; mrBase.value = ''; mrShape.value = ''; mrCraft.value = '' }
+// 판매글이 조건에 맞는지
+function mrMatches(p) {
+  if (!mrOn.value) return true
+  if (mrQuality.value && p.quality !== mrQuality.value) return false
+  if (mrBase.value) {
+    const line = (p.options || []).find((l) => l.startsWith('베이스: '))
+    const name = line ? line.slice('베이스: '.length) : ''
+    // 장신구는 베이스 줄이 없고 아이템 이름에 들어 있음 ("레어 반지")
+    if (!(name === mrBase.value || (!line && (p.itemName || '').includes(mrBase.value)))) return false
+  }
+  if (mrShape.value && p.iconKey !== mrShape.value) return false
+  if (mrCraft.value) {
+    // 크래프트 제작법은 그 제작법의 고정 옵션이 전부 붙어 있는지로 봄
+    const c = (magicAffixData.crafts || []).find((x) => x.name === mrCraft.value)
+    if (!c) return false
+    const lines = p.options || []
+    if (!CRAFT_LINES(c).every((re) => lines.some((l) => re.test(l)))) return false
+  }
+  return true
+}
+// 제작법 고정 옵션의 문구 패턴 (수치는 아무 값이나)
+const craftLineCache = new Map()
+function CRAFT_LINES(c) {
+  if (craftLineCache.has(c.name)) return craftLineCache.get(c.name)
+  let res = []
+  try {
+    const fam = { key: 'c', slot: 'c', mods: c.mods, slotRanges: c.mods.map((m) => [m.min, m.max]), tiers: [] }
+    res = familyLines(fam, fam.slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`)))
+      .map((l) => new RegExp('^' + escRe(String(l)).replace(/\\d+(\\\\~\\d+)?/g, '[+-]?\\\\d+') + '$'))
+  } catch { res = [] }
+  craftLineCache.set(c.name, res)
+  return res
+}
+
+// 유니크·세트 장신구의 모양 후보 (등록 화면과 같은 규칙 - 대표 아이콘으로 반지/목걸이/주얼 판별)
+const JEWELRY_CODE = Object.fromEntries(['rin', 'amu', 'jew'].map((c) => [ICON_VARIANTS[c][0], c]))
+const uniqueShapes = computed(() => {
+  const it = pickedItem.value
+  if (!it || !['unique', 'set'].includes(it.category)) return []
+  const code = JEWELRY_CODE[it.icon_key]
+  return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
+})
+const itemShape = ref('')
+watch(pickedItem, () => { itemShape.value = '' })
+
 const itemBaseDefs = computed(() => {
   const it = pickedItem.value
   if (!it) return []
   const defs = []
   const kind = it.base_stats?.category
+  const rwKinds = runewordBaseKinds.value
   if (it.category === 'runeword') {
-    const names = [...new Set(pickedItemPosts.value.map(lineMatch(BASE_LINE)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'))
-    if (names.length) defs.push({ key: 'base', label: '베이스', choices: names, get: lineMatch(BASE_LINE) })
+    // 매물에 있는 베이스만 고르던 것 -> 사전의 전체 베이스 (매물이 없어도 조건을 걸 수 있게)
+    if (runewordBases.value.length) defs.push({ key: 'base', label: '베이스', choices: runewordBases.value, get: lineMatch(BASE_LINE) })
     defs.push({ key: 'sup', label: '상급(슈페리얼) 베이스', choices: ['상급', '일반'], get: (p) => (isSuperiorPost(p, it) ? '상급' : '일반') })
+    // 상급이면 붙는 수치 - 얼마나 좋은 상급인지로 거를 수 있게
+    // 붙는 종류가 무기·방어구마다 달라서, 이 룬워드가 쓸 수 있는 베이스 종류에 맞는 것만
+    const SUP_BY_KIND = { weapon: ['dmg%', 'att', 'dur%'], armor: ['ac%', 'dur%'] }
+    const supKeys = [...new Set(rwKinds.flatMap((kk) => SUP_BY_KIND[kk] || []))]
+    // 상급이면 붙는 수치 - 칸은 늘 만들어 두고, '상급만' 을 골랐을 때만 화면에 보여줌 (supOnly)
+    for (const [k, m] of Object.entries(SUPERIOR_MODS).filter(([kk]) => supKeys.includes(kk))) {
+      const re = new RegExp('^' + escRe(m.text).replace('\\{v\\}', '(\\d+)') + '$')
+      defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, supOnly: true, get: lineValue(re) })
+    }
   }
   const def = uniqueDefenseRange(it, false)
   if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: uniqueDefenseRange(it, true)?.max ?? def.max, get: lineValue(DEF_LINE) })
-  else if (kind === 'armor' || (it.category === 'runeword' && anyLine(DEF_LINE))) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
-  if (kind === 'weapon' || (it.category === 'runeword' && anyLine(DMG_LINE))) {
+  else if (kind === 'armor' || rwKinds.includes('armor')) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
+  if (kind === 'weapon' || rwKinds.includes('weapon')) {
     defs.push({ key: 'dmin', label: '기본 최소 데미지', get: lineValue(DMG_LINE, 1) })
     defs.push({ key: 'dmax', label: '기본 최대 데미지', get: lineValue(DMG_LINE, 2) })
   }
@@ -182,6 +331,11 @@ watch(itemVarDefs, (defs) => {
   rangesItemId = pickedItem.value?.id ?? null
   itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, old[d.key] || { min: '', max: '', pick: '' }]))
 }, { immediate: true })
+const supPicked = computed(() => itemRanges.value.sup?.pick === '상급')
+watch(supPicked, (on) => {
+  if (on) return
+  for (const k of Object.keys(itemRanges.value)) if (k.startsWith('sup:')) itemRanges.value[k] = { min: '', max: '', pick: '' }
+})
 const activeItemRanges = computed(() =>
   itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (d.choices ? r.pick : r.min !== '' || r.max !== '') })
 )
@@ -275,6 +429,8 @@ const hasActiveFilters = computed(
 )
 function resetFilters() {
   activeCats.value = []
+  resetMr()
+  itemShape.value = ''
   activeRegion.value = null
   gameVersion.value = null
   activeLadder.value = null
@@ -319,6 +475,12 @@ const filteredPosts = computed(() => {
         (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), searchQuery.value))
     )
   }
+  if (mrOn.value && mrCount.value) list = list.filter(mrMatches)
+  // 유니크·세트 장신구 모양 - 판매자가 안 고른 글은 그 아이템의 대표 모양으로 봄
+  if (pickedItem.value && itemShape.value) {
+    const first = uniqueShapes.value[0]
+    list = list.filter((p) => (p.iconKey || first) === itemShape.value)
+  }
   for (const c of statConditions.value) list = list.filter((p) => condMatches(p, c))
   return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 })
@@ -328,6 +490,11 @@ const filteredPosts = computed(() => {
 // (검색창 안에는 글자만 - 조건이 늘어도 입력칸이 안 밀리고, 옵션 수치는 칩의 ✎ 로 그 자리에서 고침)
 
 // 서버·게임·래더·모드 고르기 (검색창 아래 한 줄 드롭다운) - 고른 값은 거기서 바로 보이니 '적용된 조건' 칩은 안 만듦
+// 종류는 여러 개 고를 수 있지만(activeCats) 선택칸은 하나만 - 비우면 전체
+const catPick = computed({
+  get: () => activeCats.value[0] || null,
+  set: (v) => { activeCats.value = v ? [v] : [] },
+})
 const QUICK_SELECTS = [
   { label: '서버', ref: activeRegion, options: TRADE_REALMS },
   { label: '게임', ref: gameVersion, options: GAME_VERSIONS },
@@ -359,6 +526,7 @@ const unifiedSuggestions = computed(() => {
   const q = squash(raw)
   const out = []
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
+  for (const b of baseCandidates.value) out.push({ type: 'base', key: 'b' + b.code, b })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
   // 한국어 이름·음차 별칭(데스 센트리)·영어 이름 어느 걸로 쳐도 찾음
   const ql = q.toLowerCase()
@@ -366,24 +534,28 @@ const unifiedSuggestions = computed(() => {
   const stats = STAT_PICKS.map((st) => ({ st, hit: hitOf(st) })).filter((x) => x.hit)
   // 검색어로 시작하는 옵션을 위로 ("저항" -> "저항 ..." 이 "모든 저항"보다 먼저가 아니라, 짧은 것부터)
   // 같은 이름이면 [모든 직업] -> 직업 전용 순서로 붙어 나오게
-  stats.sort((a, b) => (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
+  // 같은 스킬이라도 본체('눈보라 +X')를 충전·확률 시전 같은 곁가지보다 먼저 보여줌
+  const form = (st) => (/\(충전/.test(st.label) ? 1 : /확률로 .* 시전$/.test(st.label) ? 2 : 0)
+  stats.sort((a, b) =>
+    (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || (form(a.st) - form(b.st)) ||
+    a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
   for (const { st } of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
   out.push({ type: 'text', key: 'text', raw })
-  out.push({ type: 'kw', key: 'kw', raw })
   return out.slice(0, 20)
 })
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
   const groups = [
-    { name: '아이템', cls: 'g-item', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
+    { name: '아이템', cls: 'g-item', rows: [] }, { name: '매직·레어·크래프트 (베이스)', cls: 'g-base', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
     { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
   ]
-  const at = { item: 0, cat: 1, stat: 2, text: 3, kw: 3 }
+  const at = { item: 0, base: 1, cat: 2, stat: 3, text: 4, kw: 4 }
   list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
   if (sug.type === 'item') return pickItem(sug.it)
+  if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; return }
   if (sug.type === 'cat') toggleCat(sug.c, true)
   else if (sug.type === 'stat') addStatKey(sug.st.key, true)
@@ -470,7 +642,7 @@ const pickedWantCount = ref(0)
 watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
 
 // ───────── 목록에 보여줄 것 ─────────
@@ -556,6 +728,16 @@ function variantLines(p) {
                   <span class="item-suggest-name" :class="r.sug.it.category">{{ $itemName(r.sug.it) }}</span>
                   <small>{{ $t(r.sug.it.category_label) }}{{ locale === 'ko' && r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
                 </template>
+                <template v-else-if="r.sug.type === 'base'">
+                  <span class="item-suggest-icon"><img v-if="iconUrlFor(baseIconKey(r.sug.b))" :src="iconUrlFor(baseIconKey(r.sug.b))" alt="" /></span>
+                  <span class="item-suggest-name">{{ baseLabelOf(r.sug.b) }}</span>
+                  <span class="base-q-chips">
+                    <button
+                      type="button" v-for="q in baseQualities(r.sug.b)" :key="q" :class="'q-' + q"
+                      @mousedown.prevent.stop="pickBase(r.sug.b, q)"
+                    >{{ $t(QUALITY_SHORT[q]) }}</button>
+                  </span>
+                </template>
                 <template v-else-if="r.sug.type === 'cat'">
                   <span>{{ $t(r.sug.c) }}</span><small>{{ activeCats.includes(r.sug.c) ? $t('이미 고름') : $t('종류 추가') }}</small>
                 </template>
@@ -566,9 +748,6 @@ function variantLines(p) {
                 </template>
                 <template v-else-if="r.sug.type === 'text'">
                   <span>"{{ r.sug.raw }}"</span><small>{{ $t('이름·내용에서 찾기') }}</small>
-                </template>
-                <template v-else>
-                  <span>"{{ r.sug.raw }}"</span><small>{{ $t('옵션 문구에 들어간 글만') }}</small>
                 </template>
               </button>
             </div>
@@ -583,6 +762,7 @@ function variantLines(p) {
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
+        <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBase }}<button type="button" :aria-label="`${mrBase} ×`" @click="clearMrBase">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -612,24 +792,91 @@ function variantLines(p) {
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
+      <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
+      <div class="item-range-panel" v-if="mrOn">
+        <div class="item-range-title">
+          <b>{{ mrBase }}</b> {{ $t('검색 옵션') }}
+          <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+        </div>
+        <div class="item-range-grid">
+          <div class="item-range-row" :class="{ on: mrQuality }">
+            <span class="item-range-label">{{ $t('품질') }}</span>
+            <select v-model="mrQuality" class="sort-select" :aria-label="$t('품질')">
+              <option value="">{{ $t('전체') }}</option>
+              <option v-for="q in mrQualityPicks" :key="q.v" :value="q.v">{{ $t(q.label) }}</option>
+            </select>
+          </div>
+          <div class="item-range-row" :class="{ on: mrBase }">
+            <span class="item-range-label">{{ $t('베이스') }}</span>
+            <SearchSelect v-model="mrBase" :options="mrBaseChoices" :label="$t('베이스')" class="item-range-ss" />
+          </div>
+          <div class="item-range-row" v-if="mrShapeChoices.length" :class="{ on: mrShape }">
+            <span class="item-range-label">{{ $t('모양') }}</span>
+            <span class="mr-shapes">
+              <button
+                type="button" class="mr-shape" :class="{ on: !mrShape }" :aria-pressed="!mrShape"
+                :title="$t('전체')" @click="mrShape = ''"
+              >{{ $t('전체') }}</button>
+              <button
+                type="button" class="mr-shape img" v-for="k in mrShapeChoices" :key="k"
+                :class="{ on: mrShape === k }" :aria-pressed="mrShape === k" @click="mrShape = mrShape === k ? '' : k"
+              ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
+            </span>
+          </div>
+          <div class="item-range-row" v-if="mrQuality === 'crafted'" :class="{ on: mrCraft }">
+            <span class="item-range-label">{{ $t('크래프트 제작법') }}</span>
+            <SearchSelect v-model="mrCraft" :options="mrCraftChoices" :label="$t('크래프트 제작법')" class="item-range-ss" />
+          </div>
+        </div>
+      </div>
+
       <div class="item-range-panel" v-if="pickedItem">
         <div class="item-range-title">
           <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b> {{ $t('검색 옵션') }}
           <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
         </div>
+        <template v-if="uniqueShapes.length">
+          <div class="item-range-sec">{{ $t('베이스') }}</div>
+          <div class="item-range-grid">
+            <div class="item-range-row" :class="{ on: itemShape }">
+              <span class="item-range-label">{{ $t('모양') }}</span>
+              <span class="mr-shapes">
+                <button type="button" class="mr-shape" :class="{ on: !itemShape }" :aria-pressed="!itemShape" @click="itemShape = ''">{{ $t('전체') }}</button>
+                <button
+                  type="button" class="mr-shape img" v-for="k in uniqueShapes" :key="k"
+                  :class="{ on: itemShape === k }" :aria-pressed="itemShape === k" @click="itemShape = itemShape === k ? '' : k"
+                ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
+              </span>
+            </div>
+          </div>
+        </template>
         <template v-for="sec in [{ name: '베이스', defs: itemBaseDefs }, { name: '옵션', defs: itemOptionDefs }]" :key="sec.name">
           <div class="item-range-sec" v-if="sec.defs.length">{{ $t(sec.name) }}</div>
           <div class="item-range-grid" v-if="sec.defs.length">
-            <div class="item-range-row" v-for="d in sec.defs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
+            <div
+              class="item-range-row" v-for="d in sec.defs" :key="d.key"
+              v-show="!d.supOnly || itemRanges[d.key] && supPicked" :class="{ on: activeItemRanges.includes(d) }"
+            >
               <span class="item-range-label">{{ $t(d.label) }}</span>
-              <select v-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
+              <!-- 보기가 많은 베이스는 치면서 고름 -->
+              <SearchSelect
+                v-if="d.choices && d.choices.length > 8" v-model="itemRanges[d.key].pick"
+                :options="d.choices" :label="d.label" class="item-range-ss"
+              />
+              <select v-else-if="d.choices" v-model="itemRanges[d.key].pick" class="sort-select" :aria-label="d.label">
                 <option value="">{{ $t('전체') }}</option>
                 <option v-for="c in d.choices" :key="c" :value="c">{{ d.key === 'sup' ? (c === '상급' ? $t('상급만') : $t('일반 베이스만')) : $t(c) }}</option>
               </select>
-              <template v-else>
-                <input type="number" v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :placeholder="d.lo ?? $t('최소')" :aria-label="`${d.label} 최소`" />
+              <!-- 수치는 그 옵션에서 나올 수 있는 범위 안으로 (칸을 벗어나면 범위 끝으로) -->
+              <template v-else-if="d.lo !== undefined && d.hi !== undefined">
+                <RangeInput v-model="itemRanges[d.key].min" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최소')}`" />
                 <span class="level-range-sep">~</span>
-                <input type="number" v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :placeholder="d.hi ?? $t('최대')" :aria-label="`${d.label} 최대`" />
+                <RangeInput v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최대')}`" />
+              </template>
+              <template v-else>
+                <input type="number" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
+                <span class="level-range-sep">~</span>
+                <input type="number" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
               </template>
             </div>
           </div>
@@ -798,9 +1045,26 @@ function variantLines(p) {
 .item-range-sec{font-size:11.5px; color:var(--gold-dim); margin:10px 0 6px; letter-spacing:.02em;}
 .item-range-empty{font-size:12px; color:var(--text-dim);}
 .item-range-row .sort-select{padding:6px 10px; min-width:150px;}
-.item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:8px 16px;}
+.item-range-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:10px 18px;}
+.item-range-ss{min-width:200px; flex:1 1 200px;}
+.base-q-chips{display:inline-flex; gap:4px; margin-left:auto; flex:none;}
+.base-q-chips button{font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
+.base-q-chips button:hover{background:var(--panel);}
+.base-q-chips .q-normal{color:#cfc8bb; border-color:#5a554c;}
+.base-q-chips .q-magic{color:#8c8cff; border-color:#4c4c99;}
+.base-q-chips .q-rare{color:#e6d250; border-color:#8a7c22;}
+.base-q-chips .q-crafted{color:#e0913a; border-color:#8a5a26;}
+.mr-shapes{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+.mr-shape{
+  display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border);
+  border-radius:8px; background:var(--panel); color:var(--text-dim); font-size:11.5px; padding:4px 9px;
+}
+.mr-shape.img{width:38px; height:38px; padding:2px;}
+.mr-shape img{max-width:100%; max-height:100%; image-rendering:pixelated;}
+.mr-shape:hover{border-color:var(--gold-dim);}
+.mr-shape.on{border-color:var(--gold); background:rgba(200,163,77,0.12); color:var(--gold);}
 .item-range-row{display:flex; align-items:center; gap:6px; font-size:12.5px;}
-.item-range-label{flex:1; min-width:0; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.item-range-label{flex:1; min-width:0; color:var(--text-muted); line-height:1.35; word-break:keep-all;}
 .item-range-row.on .item-range-label{color:var(--gold);}
 .item-range-row input{
   width:68px; background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:12.5px;
