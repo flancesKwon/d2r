@@ -56,11 +56,11 @@ const shown = computed(() => props.modelValue || t(props.allLabel))
   <span class="ss">
     <input
       ref="boxEl" type="text" class="ss-box" :value="open ? q : shown" :aria-label="label"
-      :placeholder="t(allLabel)" autocomplete="off" role="combobox" :aria-expanded="open"
+      :placeholder="shown" autocomplete="off" role="combobox" :aria-expanded="open"
       @focus="onFocus" @blur="closeSoon" @keydown="onKey"
       @input="q = $event.target.value; open = true; active = 0"
     />
-    <span class="ss-chev" aria-hidden="true">▾</span>
+    <span class="ss-chev" aria-hidden="true"></span>
     <span class="ss-list" v-if="open" role="listbox">
       <button
         type="button" role="option" class="ss-opt" :class="{ active: active === 0, on: !modelValue }"
@@ -84,7 +84,7 @@ const shown = computed(() => props.modelValue || t(props.allLabel))
   text-overflow:ellipsis;
 }
 .ss-box:focus{outline:none; border-color:var(--gold-dim);}
-.ss-chev{position:absolute; right:8px; font-size:9px; color:var(--text-dim); pointer-events:none;}
+.ss-chev{position:absolute; right:10px; top:50%; width:6px; height:6px; margin-top:-5px; border-right:1.5px solid var(--text-dim); border-bottom:1.5px solid var(--text-dim); transform:rotate(45deg); pointer-events:none;}
 .ss-list{
   position:absolute; z-index:30; left:0; top:calc(100% + 4px); min-width:100%; max-width:min(340px, 70vw);
   max-height:260px; overflow-y:auto; display:flex; flex-direction:column;
@@ -92,10 +92,11 @@ const shown = computed(() => props.modelValue || t(props.allLabel))
   box-shadow:0 12px 30px rgba(0,0,0,.45);
 }
 .ss-opt{
+  flex:none; /* 목록이 max-height 보다 길면 줄이 눌려 글자가 겹쳤음 - 줄 높이는 그대로 두고 스크롤 */
   text-align:left; padding:6px 9px; border-radius:7px; font-size:12.5px; color:var(--text-muted);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .ss-opt.active{background:var(--panel); color:var(--text);}
 .ss-opt.on{color:var(--gold); font-weight:700;}
-.ss-empty{padding:8px 9px; font-size:12px; color:var(--text-dim);}
+.ss-empty{flex:none; padding:8px 9px; font-size:12px; color:var(--text-dim);}
 </style>
