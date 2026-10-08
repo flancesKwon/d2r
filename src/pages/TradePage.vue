@@ -240,27 +240,41 @@ const mrCraftChoices = computed(() => {
 // 이 베이스·품질에 붙을 수 있는 옵션 (매직/레어 접사 사전 -> 옵션 검색 항목). 품질을 안 골랐으면 매직+레어
 // 접사마다 최대 수치로 문구를 만들어 옵션 검색 정규식에 맞춰 봄 - 자주 찾는 옵션 먼저
 const MR_OPT_FIRST = [/^모든 기술/, /시전 속도/, /모든 저항/, /^생명력 X$/, /^힘 X$|^민첩 X$/, /마법 아이템 발견/, /기술 레벨/, /전용\)$/, /저항/, /훔침/]
+// 옵션마다 이 베이스에서 나오는 수치 범위도 같이 (최소·최대 칸에 보여줌) - 접사 하나 기준 (레어는 두 접사가 겹치면 더 높을 수 있음)
 const mrOptCache = new Map()
-const mrOptStats = computed(() => {
+const mrOptInfo = computed(() => {
   const b = mrBaseItem.value
-  if (!b || mrQuality.value === 'normal') return []
+  if (!b || mrQuality.value === 'normal') return { list: [], ranges: {} }
   const qs = mrQuality.value ? [mrQuality.value] : ['magic', 'rare']
   const ck = b.code + ':' + qs.join(',')
   if (mrOptCache.has(ck)) return mrOptCache.get(ck)
   const found = new Map()
+  const ranges = {}
+  const firstNum = (st, line) => { const m = st.regex.exec(line); const v = m && m[1] !== undefined ? Number(m[1]) : NaN; return Number.isFinite(v) ? v : null }
   for (const q of qs) {
     for (const f of affixFamiliesFor(magicAffixData, b, q)) {
-      for (const line of familyLines(f, f.slotRanges.map(([, hi]) => hi))) {
+      const loLines = familyLines(f, f.slotRanges.map(([lo]) => lo))
+      const hiLines = familyLines(f, f.slotRanges.map(([, hi]) => hi))
+      hiLines.forEach((line, i) => {
         const st = ALL_STAT_FILTERS.find((x) => x.regex.test(line))
-        if (st && !found.has(st.key)) found.set(st.key, st)
-      }
+        if (!st) return
+        if (!found.has(st.key)) found.set(st.key, st)
+        const lo = firstNum(st, loLines[i]), hi = firstNum(st, line)
+        if (lo === null || hi === null) return
+        const r = ranges[st.key]
+        ranges[st.key] = r ? [Math.min(r[0], lo, hi), Math.max(r[1], lo, hi)] : [Math.min(lo, hi), Math.max(lo, hi)]
+      })
     }
   }
   const rank = (st) => { const i = MR_OPT_FIRST.findIndex((re) => re.test(st.label)); return i < 0 ? 99 : i }
   const list = [...found.values()].sort((a, b2) => (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
-  mrOptCache.set(ck, list)
-  return list
+  const info = { list, ranges }
+  mrOptCache.set(ck, info)
+  return info
 })
+const mrOptStats = computed(() => mrOptInfo.value.list)
+// 이 베이스에서 이 옵션이 나오는 범위 [lo, hi] (모르면 null)
+const condRange = (c) => (!c.keyword && mrOn.value && mrOptInfo.value.ranges[c.key]) || null
 const mrOptQuery = ref('')
 const mrOptMore = ref(false)
 const mrOptHits = computed(() => {
@@ -896,11 +910,11 @@ function variantLines(p) {
           <div class="mr-opts">
             <!-- 고른 옵션 - 수치 범위를 바로 적음 -->
             <div class="mr-cond" v-for="(c, i) in statConditions" :key="'mc' + condId(c)">
-              <span class="mr-cond-name">{{ statLabel(c) }}</span>
+              <span class="mr-cond-name">{{ statLabel(c) }}<small class="mr-cond-range" v-if="condRange(c)">{{ condRange(c)[0] === condRange(c)[1] ? condRange(c)[0] : `${condRange(c)[0]}~${condRange(c)[1]}` }}</small></span>
               <span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>
-              <input type="number" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
+              <input type="number" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" :placeholder="condRange(c) ? `${$t('최소')} ${condRange(c)[0]}` : $t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
               <span class="mr-sep">~</span>
-              <input type="number" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+              <input type="number" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" :placeholder="condRange(c) ? `${$t('최대')} ${condRange(c)[1]}` : $t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
               <button type="button" class="mr-x" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
             </div>
             <input
@@ -1162,7 +1176,8 @@ function variantLines(p) {
 .mr-opts{display:flex; flex-direction:column; gap:8px; min-width:0;}
 .mr-cond{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:5px 8px 5px 12px; border:1px solid #4A5FA8; background:#1C2645; border-radius:10px; font-size:12.5px; color:#DDE3FF;}
 .mr-cond-name{font-weight:700; margin-right:auto;}
-.mr-cond input{width:72px; padding:5px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12.5px;}
+.mr-cond-range{margin-left:8px; font-size:11px; font-weight:600; color:#9fb0ff; border:1px solid #4A5FA8; border-radius:999px; padding:0 7px;}
+.mr-cond input{width:84px; padding:5px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12.5px;}
 .mr-sep{color:var(--text-dim);}
 .mr-x{color:var(--text-dim); font-size:15px; padding:0 6px;}
 .mr-x:hover{color:var(--text);}
