@@ -114,7 +114,17 @@ function onSearchKey(e) {
     removeLastApplied()
   }
 }
-const closeSuggestSoon = () => setTimeout(() => (suggestOpen.value = false), 150)
+// 폰: 추천 줄을 누르면 입력칸 포커스가 먼저 빠지면서(blur) 목록이 닫혀 터치가 씹혔음
+// -> 목록 위에 손가락·마우스가 내려와 있으면 닫지 않고, 고르는 건 click 에서. 목록 밖을 누르면 닫음
+let suggestPointer = false
+const closeSuggestSoon = () => setTimeout(() => { if (!suggestPointer) suggestOpen.value = false }, 150)
+function onDocPointerDown(e) {
+  if (e.target.closest?.('.tr-suggest')) { suggestPointer = true; return }
+  suggestPointer = false
+  if (!e.target.closest?.('.tr-search-box')) suggestOpen.value = false
+}
+onMounted(() => document.addEventListener('pointerdown', onDocPointerDown, true))
+onUnmounted(() => document.removeEventListener('pointerdown', onDocPointerDown, true))
 
 // 고른 아이템의 검색 칸 - 베이스(룬워드 베이스·기본 방어력·데미지·소켓·상급) + 변동 옵션(범위 옵션·무작위 직업 기술)
 // 범위 칸(kind 없음): { lo, hi, get(post) -> 숫자 } / 고르기 칸(choices): get(post) -> 값
@@ -188,6 +198,7 @@ const baseCandidates = computed(() => {
   return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
 })
 function pickBase(b, quality = '') {
+  suggestPointer = false
   pickedItem.value = null
   mrBase.value = baseLabelOf(b)
   mrQuality.value = quality
@@ -554,6 +565,7 @@ const suggestGroups = computed(() => {
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
+  suggestPointer = false
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; return }
@@ -721,7 +733,7 @@ function variantLines(p) {
               <div class="tr-suggest-title">{{ $t(g.name) }}</div>
               <button
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: r.i === suggestActive }"
-                :aria-selected="r.i === suggestActive" @mousedown.prevent="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i"
+                :aria-selected="r.i === suggestActive" @mousedown.prevent @click="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i"
               >
                 <template v-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
@@ -734,7 +746,7 @@ function variantLines(p) {
                   <span class="base-q-chips">
                     <button
                       type="button" v-for="q in baseQualities(r.sug.b)" :key="q" :class="'q-' + q"
-                      @mousedown.prevent.stop="pickBase(r.sug.b, q)"
+                      @mousedown.prevent.stop @click.stop="pickBase(r.sug.b, q)"
                     >{{ $t(QUALITY_SHORT[q]) }}</button>
                   </span>
                 </template>
@@ -784,6 +796,8 @@ function variantLines(p) {
       <div class="tr-quick">
         <label class="tr-pill" v-for="f in QUICK_SELECTS" :key="f.label" :class="{ on: f.ref.value }">
           <span class="tr-pill-cap">{{ $t(f.label) }}</span>
+          <span class="tr-pill-val">{{ f.ref.value ? $t(f.ref.value) : $t('전체') }}</span>
+          <!-- 고르는 칸은 알약 전체를 덮는 투명 select - 알약 어디를 눌러도 목록이 열림 -->
           <select :value="f.ref.value || ''" @change="f.ref.value = $event.target.value || null" :aria-label="$t(f.label)">
             <option value="">{{ $t('전체') }}</option>
             <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
@@ -1233,11 +1247,12 @@ function variantLines(p) {
 .tr-pill:hover{border-color:var(--gold-dim);}
 .tr-pill:focus-within{outline:2px solid var(--gold); outline-offset:1px;}
 .tr-pill-cap{font-size:12px; font-weight:700; color:var(--text-dim); white-space:nowrap;}
-.tr-pill select{field-sizing:content; appearance:none; -webkit-appearance:none; border:none; outline:none; background:transparent; color:var(--text-muted); font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer; padding:0;}
+.tr-pill-val{font-size:13.5px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+.tr-pill select{position:absolute; inset:0; width:100%; height:100%; opacity:0; appearance:none; -webkit-appearance:none; border:none; cursor:pointer; font-size:16px;}
 .tr-pill select option{background:var(--panel); color:var(--text);}
 .tr-pill.on{border-color:var(--gold); background:#2A2216;}
 .tr-pill.on .tr-pill-cap{color:#BFA46A;}
-.tr-pill.on select{color:var(--gold);}
+.tr-pill.on .tr-pill-val{color:var(--gold);}
 .tr-pill.on::after{border-color:var(--gold);}
 .tr-toggle{height:36px; padding:0 15px; border-radius:999px; font-size:13px; font-weight:700; border:1px dashed var(--border); background:transparent; color:var(--text-dim);}
 .tr-toggle:hover{color:var(--text);}
