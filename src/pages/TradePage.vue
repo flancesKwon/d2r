@@ -45,6 +45,7 @@ import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
+import { countWantsForItem } from '../wantsStore.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -113,7 +114,17 @@ function onSearchKey(e) {
     removeLastApplied()
   }
 }
-const closeSuggestSoon = () => setTimeout(() => (suggestOpen.value = false), 150)
+// 폰: 추천 줄을 누르면 입력칸 포커스가 먼저 빠지면서(blur) 목록이 닫혀 터치가 씹혔음
+// -> 목록 위에 손가락·마우스가 내려와 있으면 닫지 않고, 고르는 건 click 에서. 목록 밖을 누르면 닫음
+let suggestPointer = false
+const closeSuggestSoon = () => setTimeout(() => { if (!suggestPointer) suggestOpen.value = false }, 150)
+function onDocPointerDown(e) {
+  if (e.target.closest?.('.tr-suggest')) { suggestPointer = true; return }
+  suggestPointer = false
+  if (!e.target.closest?.('.tr-search-box')) suggestOpen.value = false
+}
+onMounted(() => document.addEventListener('pointerdown', onDocPointerDown, true))
+onUnmounted(() => document.removeEventListener('pointerdown', onDocPointerDown, true))
 
 // 고른 아이템의 검색 칸 - 베이스(룬워드 베이스·기본 방어력·데미지·소켓·상급) + 변동 옵션(범위 옵션·무작위 직업 기술)
 // 범위 칸(kind 없음): { lo, hi, get(post) -> 숫자 } / 고르기 칸(choices): get(post) -> 값
@@ -187,6 +198,7 @@ const baseCandidates = computed(() => {
   return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
 })
 function pickBase(b, quality = '') {
+  suggestPointer = false
   pickedItem.value = null
   mrBase.value = baseLabelOf(b)
   mrQuality.value = quality
@@ -553,6 +565,7 @@ const suggestGroups = computed(() => {
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
+  suggestPointer = false
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; return }
@@ -620,6 +633,25 @@ onMounted(() => {
   watch(moreEl, (el, old) => { if (old) io.unobserve(old); if (el) io.observe(el) }, { immediate: true, flush: 'post' })
 })
 onUnmounted(() => io?.disconnect())
+
+// 지금 검색 조건 그대로 삽니다 글 쓰기 (맞는 매물이 올라오면 알림) - 아이템이나 옵션 조건이 있을 때만
+const wantLink = computed(() => {
+  const conds = statConditions.value.filter((c) => !c.keyword).map((c) => ({ key: c.key, min: c.min, max: c.max }))
+  const cat = !pickedItem.value && activeCats.value.length === 1 && activeCats.value[0] !== '골드' ? activeCats.value[0] : null
+  if (!pickedItem.value && !(cat && conds.length) && !conds.length) return null
+  const query = { new: '1' }
+  if (pickedItem.value) query.item = pickedItem.value.id
+  else if (cat) query.cat = cat
+  if (conds.length) query.conds = JSON.stringify(conds)
+  if (activeRegion.value) query.realm = activeRegion.value
+  if (activeLadder.value) query.ladder = activeLadder.value
+  if (activeHardcore.value) query.hc = activeHardcore.value
+  if (gameVersion.value) query.game = gameVersion.value
+  if (etherealOnly.value) query.eth = '1'
+  return { path: '/trade/wants', query }
+})
+const pickedWantCount = ref(0)
+watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
 
 const appliedCount = computed(() =>
   activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
@@ -701,7 +733,7 @@ function variantLines(p) {
               <div class="tr-suggest-title">{{ $t(g.name) }}</div>
               <button
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: r.i === suggestActive }"
-                :aria-selected="r.i === suggestActive" @mousedown.prevent="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i"
+                :aria-selected="r.i === suggestActive" @mousedown.prevent @click="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i"
               >
                 <template v-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
@@ -714,7 +746,7 @@ function variantLines(p) {
                   <span class="base-q-chips">
                     <button
                       type="button" v-for="q in baseQualities(r.sug.b)" :key="q" :class="'q-' + q"
-                      @mousedown.prevent.stop="pickBase(r.sug.b, q)"
+                      @mousedown.prevent.stop @click.stop="pickBase(r.sug.b, q)"
                     >{{ $t(QUALITY_SHORT[q]) }}</button>
                   </span>
                 </template>
@@ -764,6 +796,8 @@ function variantLines(p) {
       <div class="tr-quick">
         <label class="tr-pill" v-for="f in QUICK_SELECTS" :key="f.label" :class="{ on: f.ref.value }">
           <span class="tr-pill-cap">{{ $t(f.label) }}</span>
+          <span class="tr-pill-val">{{ f.ref.value ? $t(f.ref.value) : $t('전체') }}</span>
+          <!-- 고르는 칸은 알약 전체를 덮는 투명 select - 알약 어디를 눌러도 목록이 열림 -->
           <select :value="f.ref.value || ''" @change="f.ref.value = $event.target.value || null" :aria-label="$t(f.label)">
             <option value="">{{ $t('전체') }}</option>
             <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
@@ -873,6 +907,8 @@ function variantLines(p) {
     <div class="tr-results-head">
       <h2>{{ appliedCount ? $t('검색 결과') : $t('방금 올라온 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
       <span class="tr-results-note">{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
+      <router-link v-if="wantLink" class="want-cta" :to="wantLink">🔔 {{ $t('이 조건으로 알림 받기') }}</router-link>
+      <router-link v-if="pickedItem && pickedWantCount" class="want-count" :to="{ path: '/trade/wants', query: { q: pickedItem.name_ko } }">{{ $t('구하는 사람 {n}명', { n: pickedWantCount }) }}</router-link>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -914,7 +950,10 @@ function variantLines(p) {
       <div class="tr-more" ref="moreEl" v-if="hasMore">{{ $t('더 불러오는 중…') }}</div>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">{{ $t('판매중인 글 없음') }}</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">
+        {{ $t('판매중인 글 없음') }}
+        <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
+      </div>
     </div>
 
     <div class="trade-grid" v-else>
@@ -943,7 +982,10 @@ function variantLines(p) {
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
-      <div class="empty-state" v-else-if="filteredPosts.length === 0">{{ $t('판매중인 글 없음') }}</div>
+      <div class="empty-state" v-else-if="filteredPosts.length === 0">
+        {{ $t('판매중인 글 없음') }}
+        <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
+      </div>
     </div>
     <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
   </div>
@@ -1205,11 +1247,12 @@ function variantLines(p) {
 .tr-pill:hover{border-color:var(--gold-dim);}
 .tr-pill:focus-within{outline:2px solid var(--gold); outline-offset:1px;}
 .tr-pill-cap{font-size:12px; font-weight:700; color:var(--text-dim); white-space:nowrap;}
-.tr-pill select{field-sizing:content; appearance:none; -webkit-appearance:none; border:none; outline:none; background:transparent; color:var(--text-muted); font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer; padding:0;}
+.tr-pill-val{font-size:13.5px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+.tr-pill select{position:absolute; inset:0; width:100%; height:100%; opacity:0; appearance:none; -webkit-appearance:none; border:none; cursor:pointer; font-size:16px;}
 .tr-pill select option{background:var(--panel); color:var(--text);}
 .tr-pill.on{border-color:var(--gold); background:#2A2216;}
 .tr-pill.on .tr-pill-cap{color:#BFA46A;}
-.tr-pill.on select{color:var(--gold);}
+.tr-pill.on .tr-pill-val{color:var(--gold);}
 .tr-pill.on::after{border-color:var(--gold);}
 .tr-toggle{height:36px; padding:0 15px; border-radius:999px; font-size:13px; font-weight:700; border:1px dashed var(--border); background:transparent; color:var(--text-dim);}
 .tr-toggle:hover{color:var(--text);}
@@ -1225,6 +1268,11 @@ function variantLines(p) {
 .tr-results-note{font-size:12px; color:var(--text-dim);}
 .tr-results-note a{color:var(--gold-dim); text-decoration:underline;}
 .tr-gap{flex:1;}
+.want-cta{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:5px 12px;}
+.want-cta:hover{background:#2A2216;}
+.want-cta.big{display:inline-block; margin-top:12px; font-size:13.5px; padding:9px 18px;}
+.empty-state .want-cta.big{display:table; margin:12px auto 0;}
+.want-count{font-size:12px; font-weight:700; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:4px 10px;}
 
 @media (max-width:640px){
   .tr-hero-inner{padding:24px 14px 18px; gap:12px;}

@@ -28,6 +28,7 @@ const MessagesPage = () => import('./pages/MessagesPage.vue')
 const MyPage = () => import('./pages/MyPage.vue')
 const DealsPage = () => import('./pages/DealsPage.vue')
 const TradeHistoryPage = () => import('./pages/TradeHistoryPage.vue')
+const TradeWantsPage = () => import('./pages/TradeWantsPage.vue')
 const PrivacyPage = () => import('./pages/PrivacyPage.vue')
 const TermsPage = () => import('./pages/TermsPage.vue')
 const NotFoundPage = () => import('./pages/NotFoundPage.vue')
@@ -60,6 +61,7 @@ const baseRoutes = [
     // 예전 거래게시판 주소 (?q= ?item= 그대로 넘김)
     { path: '/trade', redirect: (to) => ({ path: '/', query: to.query }) },
     { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
+    { path: '/trade/wants', name: 'trade-wants', component: TradeWantsPage, meta: { title: '삽니다' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
     { path: '/trade/:id/relist', name: 'trade-relist', component: TradeRelistPage, meta: { title: '재등록' } },
     { path: '/trade/:id/edit', name: 'trade-edit', component: TradeEditPage, meta: { title: '판매글 수정' } },

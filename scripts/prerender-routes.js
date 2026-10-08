@@ -31,6 +31,7 @@ const pages = [
   { p: 'ladder', title: '레더 시즌 정보', desc: '현재 레더 시즌 일정과 변경 사항' },
   { p: 'market', title: '시세 게시판', desc: '룬·유니크 시세 등급' },
   { p: 'trade/history', title: '아이템별 거래내역', desc: '아이템별 판매글과 거래완료 가격' },
+  { p: 'trade/wants', title: '삽니다', desc: '디아블로 2 레저렉션 아이템 구매 글 - 원하는 아이템·옵션을 올려두면 매물이 올라올 때 알림' },
   { p: 'community', title: '커뮤니티', desc: '디아블로 2 레저렉션 질문·공략·잡담 게시판' },
   { p: 'terms', title: '이용 규칙', desc: '디아허브 이용 규칙' },
   { p: 'privacy', title: '개인정보 처리 안내', desc: '디아허브 개인정보 처리 안내' },
@@ -86,9 +87,10 @@ const EN_DESC = {
   cube: 'Diablo II: Resurrected Horadric Cube recipes: upgrades, repairs, crafting and uber portals.',
   market: 'Diablo II: Resurrected rune and unique value tiers.',
   'trade/history': 'Diablo II: Resurrected listings and completed trade prices by item.',
+  'trade/wants': 'Diablo II: Resurrected buy requests — post the item and stat rolls you want and get notified when a matching listing goes up.',
   community: 'DiabloHub community board.',
 }
-const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
+const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'trade/wants', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
 function enVersion(page) {
   if (page.noindex) return { ...page, p: 'en' + (page.p ? '/' + page.p : ''), title: EN[page.title] || page.title, desc: null, body: null, lang: 'en' }
   if (page.en) return { ...page, p: 'en/' + page.p, title: page.en.title, desc: page.en.desc, body: null, lang: 'en' }
