@@ -1,6 +1,6 @@
 <script setup>
 import { postName, countText, priceTok } from '../tradeI18n.js'
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -208,12 +208,18 @@ function pickBase(b, quality = '') {
   suggestOpen.value = false
 }
 const clearMrBase = () => { mrBase.value = ''; resetMr() }
+// 화면에 보여줄 베이스 이름 - 영어면 장신구는 영어 이름, 장비는 "써클릿 (Circlet)" 의 괄호 안
+const mrBaseText = computed(() => {
+  if (locale.value === 'ko' || !mrBase.value) return mrBase.value
+  const misc = MISC_BASES.find((b) => b.name_ko === mrBase.value)
+  if (misc?.subtitle) return misc.subtitle
+  return /\(([^)]+)\)\s*$/.exec(mrBase.value)?.[1] || mrBase.value
+})
+// '다른 베이스' - 검색창으로 돌아가서 다시 고름
+const searchEl = ref(null)
+const focusSearch = () => nextTick(() => searchEl.value?.focus())
 // 베이스 목록 - 장신구(반지·목걸이·주얼·부적) + 무기·방어구 전부, 판매글에 적히는 이름 그대로
 const MISC_BASES = magicAffixData.miscBases.map((b) => ({ ...b, type_sub: b.name_ko, tier: '', sockets: 0, base_stats: { category: 'misc' } }))
-const mrBaseChoices = computed(() => [
-  ...MISC_BASES.map((b) => b.name_ko),
-  ...searchBaseItems('', null).map(baseItemLabel),
-].sort((a, b) => a.localeCompare(b, 'ko')))
 // 고른 베이스 객체 (모양·크래프트 후보를 뽑는 데 씀)
 const mrBaseItem = computed(() => {
   if (!mrBase.value) return null
@@ -231,44 +237,72 @@ const mrQualityPicks = computed(() => {
   const allow = b ? baseQualities(b) : QUALITY_PICKS.map((q) => q.v)
   return QUALITY_PICKS.filter((q) => allow.includes(q.v))
 })
-// 크래프트 제작법 - 고른 베이스에 만들 수 있는 것만 (없으면 전체)
-const mrCraftChoices = computed(() => {
-  const b = mrBaseItem.value
-  const list = b ? craftRecipesFor(magicAffixData, b).map((c) => c.name) : (magicAffixData.crafts || []).map((c) => c.name)
-  return [...new Set(list)].sort((a, b2) => a.localeCompare(b2, 'ko'))
-})
 // 이 베이스·품질에 붙을 수 있는 옵션 (매직/레어 접사 사전 -> 옵션 검색 항목). 품질을 안 골랐으면 매직+레어
 // 접사마다 최대 수치로 문구를 만들어 옵션 검색 정규식에 맞춰 봄 - 자주 찾는 옵션 먼저
 const MR_OPT_FIRST = [/^모든 기술/, /시전 속도/, /모든 저항/, /^생명력 X$/, /^힘 X$|^민첩 X$/, /마법 아이템 발견/, /기술 레벨/, /전용\)$/, /저항/, /훔침/]
+// 품질별 안내 (어떤 옵션이 몇 줄까지 붙는지)
+const QUALITY_HINT = {
+  '': '품질을 고르면 붙을 수 있는 옵션만 남음',
+  magic: '매직: 접두·접미 1개씩, 옵션 최대 2줄',
+  rare: '레어: 접두 3 + 접미 3, 옵션 최대 6줄',
+  crafted: '크래프트: 제작법 고정 옵션 + 레어 옵션 1~4줄 - 아래에서 제작법을 고르면 그 제작법으로 만든 것만',
+  normal: '일반(흰색): 옵션 없음 - 소켓·베이스로만 찾음',
+}
+// 수치가 들어간 옵션 줄 -> 옵션 검색 항목 + 첫 수치 (범위 계산용)
+const statOfLine = (line) => ALL_STAT_FILTERS.find((x) => x.regex.test(line)) || null
+const firstNumOf = (st, line) => { const m = st.regex.exec(line); const v = m && m[1] !== undefined ? Number(m[1]) : NaN; return Number.isFinite(v) ? v : null }
+function addRange(ranges, key, a, b) {
+  if (a === null || b === null) return
+  const r = ranges[key]
+  ranges[key] = r ? [Math.min(r[0], a, b), Math.max(r[1], a, b)] : [Math.min(a, b), Math.max(a, b)]
+}
+// 크래프트 제작법 카드 - 이름 + 고정 옵션 줄(범위)
+const mrCraftCards = computed(() => {
+  const b = mrBaseItem.value
+  if (!b) return []
+  return craftRecipesFor(magicAffixData, b).map((c) => {
+    const lo = familyLines(c.fam, c.fam.slotRanges.map(([x]) => x))
+    const hi = familyLines(c.fam, c.fam.slotRanges.map(([, y]) => y))
+    const lines = familyLines(c.fam, c.fam.slotRanges.map(([x, y]) => (x === y ? x : `${x}~${y}`)))
+    const stats = hi.map((line, i) => { const st = statOfLine(line); return st ? { st, lo: firstNumOf(st, lo[i]), hi: firstNumOf(st, line) } : null }).filter(Boolean)
+    return { name: c.name, lines, stats }
+  })
+})
+const mrCraftCard = computed(() => mrCraftCards.value.find((c) => c.name === mrCraft.value) || null)
+
 // 옵션마다 이 베이스에서 나오는 수치 범위도 같이 (최소·최대 칸에 보여줌) - 접사 하나 기준 (레어는 두 접사가 겹치면 더 높을 수 있음)
 const mrOptCache = new Map()
 const mrOptInfo = computed(() => {
   const b = mrBaseItem.value
-  if (!b || mrQuality.value === 'normal') return { list: [], ranges: {} }
+  if (!b || mrQuality.value === 'normal') return { list: [], ranges: {}, fixed: new Set() }
   const qs = mrQuality.value ? [mrQuality.value] : ['magic', 'rare']
-  const ck = b.code + ':' + qs.join(',')
+  const craft = mrQuality.value === 'crafted' ? mrCraftCard.value : null
+  const ck = b.code + ':' + qs.join(',') + ':' + (craft?.name || '')
   if (mrOptCache.has(ck)) return mrOptCache.get(ck)
   const found = new Map()
   const ranges = {}
-  const firstNum = (st, line) => { const m = st.regex.exec(line); const v = m && m[1] !== undefined ? Number(m[1]) : NaN; return Number.isFinite(v) ? v : null }
+  // 제작법 고정 옵션 먼저 (고정 표시)
+  const fixed = new Set()
+  for (const x of craft?.stats || []) {
+    if (!found.has(x.st.key)) found.set(x.st.key, x.st)
+    fixed.add(x.st.key)
+    addRange(ranges, x.st.key, x.lo, x.hi)
+  }
   for (const q of qs) {
     for (const f of affixFamiliesFor(magicAffixData, b, q)) {
       const loLines = familyLines(f, f.slotRanges.map(([lo]) => lo))
       const hiLines = familyLines(f, f.slotRanges.map(([, hi]) => hi))
       hiLines.forEach((line, i) => {
-        const st = ALL_STAT_FILTERS.find((x) => x.regex.test(line))
+        const st = statOfLine(line)
         if (!st) return
         if (!found.has(st.key)) found.set(st.key, st)
-        const lo = firstNum(st, loLines[i]), hi = firstNum(st, line)
-        if (lo === null || hi === null) return
-        const r = ranges[st.key]
-        ranges[st.key] = r ? [Math.min(r[0], lo, hi), Math.max(r[1], lo, hi)] : [Math.min(lo, hi), Math.max(lo, hi)]
+        addRange(ranges, st.key, firstNumOf(st, loLines[i]), firstNumOf(st, line))
       })
     }
   }
   const rank = (st) => { const i = MR_OPT_FIRST.findIndex((re) => re.test(st.label)); return i < 0 ? 99 : i }
-  const list = [...found.values()].sort((a, b2) => (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
-  const info = { list, ranges }
+  const list = [...found.values()].sort((a, b2) => (fixed.has(b2.key) - fixed.has(a.key)) || (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
+  const info = { list, ranges, fixed }
   mrOptCache.set(ck, info)
   return info
 })
@@ -785,7 +819,7 @@ function variantLines(p) {
       <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
         <div class="tr-search-box">
           <input
-            type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
+            ref="searchEl" type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
             :placeholder="pickedItem ? $t('옵션·내용으로 더 좁히기') : $t('아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)')"
             :aria-label="$t('매물 검색')" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && unifiedSuggestions.length > 0" aria-controls="tr-suggest"
           />
@@ -835,7 +869,10 @@ function variantLines(p) {
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
-        <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBase }}<button type="button" :aria-label="`${mrBase} ×`" @click="clearMrBase">×</button></span>
+        <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="clearMrBase">×</button></span>
+        <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrOn && mrCraft"><em>{{ $t('제작법') }}</em>{{ $t(mrCraft) }}<button type="button" aria-label="×" @click="mrCraft = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrOn && mrShape"><em>{{ $t('모양') }}</em><img class="chip-shape" v-if="iconUrlFor(mrShape)" :src="iconUrlFor(mrShape)" alt="" /><button type="button" aria-label="×" @click="mrShape = ''">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -869,9 +906,13 @@ function variantLines(p) {
       </div>
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
       <div class="item-range-panel mr-panel" v-if="mrOn">
-        <div class="item-range-title">
-          <b>{{ mrBase }}</b> {{ $t('검색 옵션') }}
-          <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+        <div class="mr-head">
+          <span class="mr-head-icon"><img v-if="mrBaseItem && iconUrlFor(baseIconKey(mrBaseItem))" :src="iconUrlFor(baseIconKey(mrBaseItem))" alt="" /></span>
+          <div class="mr-head-text">
+            <b>{{ mrBaseText }}</b>
+            <span>{{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
+          </div>
+          <button type="button" class="mr-change" @click="clearMrBase(); focusSearch()">{{ $t('다른 베이스') }}</button>
         </div>
         <!-- 이름 칸 너비를 맞춰서 줄마다 같은 자리에서 시작 -->
         <div class="mr-grid">
@@ -883,9 +924,8 @@ function variantLines(p) {
               :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
             >{{ $t(q.label) }}</button>
           </span>
+          <span></span><p class="mr-hint">{{ $t(QUALITY_HINT[mrQuality] || QUALITY_HINT['']) }}</p>
 
-          <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
-          <SearchSelect v-model="mrBase" :options="mrBaseChoices" :label="$t('베이스')" class="mr-field" />
 
           <template v-if="mrShapeChoices.length">
             <span class="mr-label" :class="{ on: mrShape }">{{ $t('모양') }}</span>
@@ -902,8 +942,17 @@ function variantLines(p) {
           </template>
 
           <template v-if="mrQuality === 'crafted'">
-            <span class="mr-label" :class="{ on: mrCraft }">{{ $t('제작법') }}</span>
-            <SearchSelect v-model="mrCraft" :options="mrCraftChoices" :label="$t('크래프트 제작법')" class="mr-field" />
+            <span class="mr-label top" :class="{ on: mrCraft }">{{ $t('제작법') }}</span>
+            <div class="mr-crafts" v-if="mrCraftCards.length">
+              <button
+                type="button" class="mr-craft" v-for="c in mrCraftCards" :key="c.name" :class="{ on: mrCraft === c.name }"
+                :aria-pressed="mrCraft === c.name" @click="mrCraft = mrCraft === c.name ? '' : c.name"
+              >
+                <b>{{ $t(c.name) }}</b>
+                <span v-for="(l, i) in c.lines" :key="i">{{ $affix(l) }}</span>
+              </button>
+            </div>
+            <p class="mr-hint" v-else>{{ $t('이 베이스로 만드는 크래프트 제작법이 없음') }}</p>
           </template>
 
           <span class="mr-label top" :class="{ on: statConditions.length }">{{ $t('옵션') }}</span>
@@ -925,7 +974,8 @@ function variantLines(p) {
               <button
                 type="button" class="mr-opt" v-for="st in (mrOptQuery || mrOptMore ? mrOptHits : mrOptHits.slice(0, MR_OPT_SHOW))" :key="st.key"
                 @click="addMrOpt(st)"
-              >+ {{ statParts(st).name }}<span class="stat-tag" v-if="chipTag(st)" :style="{ '--tag': chipTag(st).color }">{{ chipTag(st).text }}</span></button>
+                :class="{ fixed: mrOptInfo.fixed.has(st.key) }"
+              >+ {{ statParts(st).name }}<em class="mr-fixed" v-if="mrOptInfo.fixed.has(st.key)">{{ $t('고정') }}</em><span class="stat-tag" v-if="chipTag(st)" :style="{ '--tag': chipTag(st).color }">{{ chipTag(st).text }}</span></button>
               <button type="button" class="mr-opt more" v-if="!mrOptQuery && mrOptHits.length > MR_OPT_SHOW" @click="mrOptMore = !mrOptMore">
                 {{ mrOptMore ? $t('접기') : $t('{n}개 더 보기', { n: mrOptHits.length - MR_OPT_SHOW }) }}
               </button>
@@ -1166,7 +1216,24 @@ function variantLines(p) {
 .mr-label{font-size:12.5px; font-weight:700; color:var(--text-muted);}
 .mr-label.top{align-self:start; padding-top:8px;}
 .mr-label.on{color:var(--gold);}
-.mr-field{max-width:360px; width:100%;}
+.mr-head{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
+.mr-head-icon{width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:8px; background:var(--panel-2);}
+.mr-head-icon img{max-width:34px; max-height:34px; image-rendering:pixelated;}
+.mr-head-text{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.mr-head-text b{font-size:15px; color:var(--text);}
+.mr-head-text span{font-size:11.5px; color:var(--text-dim);}
+.mr-change{margin-left:auto; flex:none; font-size:12px; font-weight:700; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
+.mr-change:hover{color:var(--gold); border-color:var(--gold-dim);}
+.mr-hint{margin:-4px 0 0; font-size:11.5px; color:var(--text-dim); line-height:1.5;}
+.mr-crafts{display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:8px;}
+.mr-craft{display:flex; flex-direction:column; gap:3px; text-align:left; padding:9px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel-2);}
+.mr-craft b{font-size:13px; color:#e0913a;}
+.mr-craft span{font-size:11.5px; color:var(--text-muted); line-height:1.45;}
+.mr-craft:hover{border-color:#8a5a26;}
+.mr-craft.on{border-color:#e0913a; background:rgba(224,145,58,0.1);}
+.mr-opt.fixed{border-color:#8a5a26; color:#f0b56a;}
+.chip-shape{width:18px; height:18px; image-rendering:pixelated; vertical-align:middle;}
+.mr-fixed{font-style:normal; font-size:10.5px; font-weight:700; margin-left:5px; color:#e0913a;}
 .mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
 .mr-seg button.on{border-color:var(--gold); color:var(--gold); background:rgba(200,163,77,0.12);}
