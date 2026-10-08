@@ -33,7 +33,7 @@ import {
 } from '../tradeStore.js'
 import itemsData from '../data/items.json'
 import magicAffixData from '../data/magicAffixes.json'
-import { craftRecipesFor } from '../magicAffixes.js'
+import { craftRecipesFor, affixFamiliesFor } from '../magicAffixes.js'
 import { familyLines } from '../magicAffixes.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
@@ -194,7 +194,7 @@ const baseCandidates = computed(() => {
   const q = searchQuery.value.trim().replace(JAMO_TAIL, '').replace(/^(매직|레어|일반|크래프트)\s*/, '')
   if (!q || pickedItem.value) return []
   const sq = squash(q)
-  const misc = MISC_BASES.filter((b) => squash(b.name_ko).includes(sq) || squash(b.subtitle || '').includes(sq))
+  const misc = MISC_BASES.filter((b) => squash(b.name_ko).includes(sq) || squash((b.subtitle || '').toLowerCase()).includes(sq.toLowerCase()))
   return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
 })
 function pickBase(b, quality = '') {
@@ -237,6 +237,53 @@ const mrCraftChoices = computed(() => {
   const list = b ? craftRecipesFor(magicAffixData, b).map((c) => c.name) : (magicAffixData.crafts || []).map((c) => c.name)
   return [...new Set(list)].sort((a, b2) => a.localeCompare(b2, 'ko'))
 })
+// 이 베이스·품질에 붙을 수 있는 옵션 (매직/레어 접사 사전 -> 옵션 검색 항목). 품질을 안 골랐으면 매직+레어
+// 접사마다 최대 수치로 문구를 만들어 옵션 검색 정규식에 맞춰 봄 - 자주 찾는 옵션 먼저
+const MR_OPT_FIRST = [/^모든 기술/, /시전 속도/, /모든 저항/, /^생명력 X$/, /^힘 X$|^민첩 X$/, /마법 아이템 발견/, /기술 레벨/, /전용\)$/, /저항/, /훔침/]
+const mrOptCache = new Map()
+const mrOptStats = computed(() => {
+  const b = mrBaseItem.value
+  if (!b || mrQuality.value === 'normal') return []
+  const qs = mrQuality.value ? [mrQuality.value] : ['magic', 'rare']
+  const ck = b.code + ':' + qs.join(',')
+  if (mrOptCache.has(ck)) return mrOptCache.get(ck)
+  const found = new Map()
+  for (const q of qs) {
+    for (const f of affixFamiliesFor(magicAffixData, b, q)) {
+      for (const line of familyLines(f, f.slotRanges.map(([, hi]) => hi))) {
+        const st = ALL_STAT_FILTERS.find((x) => x.regex.test(line))
+        if (st && !found.has(st.key)) found.set(st.key, st)
+      }
+    }
+  }
+  const rank = (st) => { const i = MR_OPT_FIRST.findIndex((re) => re.test(st.label)); return i < 0 ? 99 : i }
+  const list = [...found.values()].sort((a, b2) => (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
+  mrOptCache.set(ck, list)
+  return list
+})
+const mrOptQuery = ref('')
+const mrOptMore = ref(false)
+const mrOptHits = computed(() => {
+  const q = squash(mrOptQuery.value.toLowerCase())
+  const pool = mrOptStats.value.length ? mrOptStats.value : ALL_STAT_FILTERS
+  const notAdded = (st) => !statConditions.value.some((c) => !c.keyword && c.key === st.key)
+  if (!q) return pool.filter(notAdded)
+  return pool.filter((st) => notAdded(st) && statSearchTexts(st).some((x) => squash(String(x).toLowerCase()).includes(q))).slice(0, 30)
+})
+const MR_OPT_SHOW = 10
+// 칩 태그 - 이름에 이미 직업이 들어 있으면("네크로맨서 기술 레벨") 태그는 생략
+function chipTag(st) {
+  const p = statParts(st)
+  return p.tag && !(st.cls && p.name.includes(t(st.cls))) ? p.tag : null
+}
+function addMrOpt(st) {
+  if (!statConditions.value.some((c) => !c.keyword && c.key === st.key)) statConditions.value.push({ key: st.key, min: null, max: null })
+  mrOptQuery.value = ''
+}
+// 옵션 조건 수치 칸 (빈 칸 = 상관없음)
+const condNum = (v) => (v === '' || v === null || !Number.isFinite(Number(v)) ? null : Number(v))
+function setCondMin(c, v) { c.min = condNum(v) }
+function setCondMax(c, v) { c.max = condNum(v) }
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
 const mrCount = computed(() => [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value].filter(Boolean).length)
@@ -807,25 +854,27 @@ function variantLines(p) {
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
-      <div class="item-range-panel" v-if="mrOn">
+      <div class="item-range-panel mr-panel" v-if="mrOn">
         <div class="item-range-title">
           <b>{{ mrBase }}</b> {{ $t('검색 옵션') }}
           <span>- {{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
         </div>
-        <div class="item-range-grid">
-          <div class="item-range-row" :class="{ on: mrQuality }">
-            <span class="item-range-label">{{ $t('품질') }}</span>
-            <select v-model="mrQuality" class="sort-select" :aria-label="$t('품질')">
-              <option value="">{{ $t('전체') }}</option>
-              <option v-for="q in mrQualityPicks" :key="q.v" :value="q.v">{{ $t(q.label) }}</option>
-            </select>
-          </div>
-          <div class="item-range-row" :class="{ on: mrBase }">
-            <span class="item-range-label">{{ $t('베이스') }}</span>
-            <SearchSelect v-model="mrBase" :options="mrBaseChoices" :label="$t('베이스')" class="item-range-ss" />
-          </div>
-          <div class="item-range-row" v-if="mrShapeChoices.length" :class="{ on: mrShape }">
-            <span class="item-range-label">{{ $t('모양') }}</span>
+        <!-- 이름 칸 너비를 맞춰서 줄마다 같은 자리에서 시작 -->
+        <div class="mr-grid">
+          <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
+          <span class="mr-seg">
+            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('전체') }}</button>
+            <button
+              type="button" v-for="q in mrQualityPicks" :key="q.v" :class="['q-' + q.v, { on: mrQuality === q.v }]"
+              :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
+            >{{ $t(q.label) }}</button>
+          </span>
+
+          <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
+          <SearchSelect v-model="mrBase" :options="mrBaseChoices" :label="$t('베이스')" class="mr-field" />
+
+          <template v-if="mrShapeChoices.length">
+            <span class="mr-label" :class="{ on: mrShape }">{{ $t('모양') }}</span>
             <span class="mr-shapes">
               <button
                 type="button" class="mr-shape" :class="{ on: !mrShape }" :aria-pressed="!mrShape"
@@ -836,10 +885,39 @@ function variantLines(p) {
                 :class="{ on: mrShape === k }" :aria-pressed="mrShape === k" @click="mrShape = mrShape === k ? '' : k"
               ><img v-if="iconUrlFor(k)" :src="iconUrlFor(k)" alt="" /></button>
             </span>
-          </div>
-          <div class="item-range-row" v-if="mrQuality === 'crafted'" :class="{ on: mrCraft }">
-            <span class="item-range-label">{{ $t('크래프트 제작법') }}</span>
-            <SearchSelect v-model="mrCraft" :options="mrCraftChoices" :label="$t('크래프트 제작법')" class="item-range-ss" />
+          </template>
+
+          <template v-if="mrQuality === 'crafted'">
+            <span class="mr-label" :class="{ on: mrCraft }">{{ $t('제작법') }}</span>
+            <SearchSelect v-model="mrCraft" :options="mrCraftChoices" :label="$t('크래프트 제작법')" class="mr-field" />
+          </template>
+
+          <span class="mr-label top" :class="{ on: statConditions.length }">{{ $t('옵션') }}</span>
+          <div class="mr-opts">
+            <!-- 고른 옵션 - 수치 범위를 바로 적음 -->
+            <div class="mr-cond" v-for="(c, i) in statConditions" :key="'mc' + condId(c)">
+              <span class="mr-cond-name">{{ statLabel(c) }}</span>
+              <span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>
+              <input type="number" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
+              <span class="mr-sep">~</span>
+              <input type="number" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+              <button type="button" class="mr-x" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
+            </div>
+            <input
+              v-model="mrOptQuery" class="mr-opt-input" type="search" autocomplete="off"
+              :placeholder="$t('옵션 찾기 (예: 모든 기술, 시전 속도, 생명력)')" :aria-label="$t('옵션 찾기')"
+            />
+            <div class="mr-opt-chips">
+              <button
+                type="button" class="mr-opt" v-for="st in (mrOptQuery || mrOptMore ? mrOptHits : mrOptHits.slice(0, MR_OPT_SHOW))" :key="st.key"
+                @click="addMrOpt(st)"
+              >+ {{ statParts(st).name }}<span class="stat-tag" v-if="chipTag(st)" :style="{ '--tag': chipTag(st).color }">{{ chipTag(st).text }}</span></button>
+              <button type="button" class="mr-opt more" v-if="!mrOptQuery && mrOptHits.length > MR_OPT_SHOW" @click="mrOptMore = !mrOptMore">
+                {{ mrOptMore ? $t('접기') : $t('{n}개 더 보기', { n: mrOptHits.length - MR_OPT_SHOW }) }}
+              </button>
+              <span class="mr-opt-none" v-if="mrOptQuery && !mrOptHits.length">{{ $t('맞는 옵션 없음') }}</span>
+            </div>
+            <p class="mr-opt-help" v-if="mrOptStats.length">{{ $t('이 베이스에 붙을 수 있는 옵션만 보여줌 · 품질을 고르면 더 좁혀짐') }}</p>
           </div>
         </div>
       </div>
@@ -1069,6 +1147,35 @@ function variantLines(p) {
 .base-q-chips .q-rare{color:#e6d250; border-color:#8a7c22;}
 .base-q-chips .q-crafted{color:#e0913a; border-color:#8a5a26;}
 .mr-shapes{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+/* 매직·레어 검색 칸 - 이름 칸 72px 고정, 오른쪽은 왼쪽 정렬 */
+.mr-grid{display:grid; grid-template-columns:72px minmax(0, 1fr); gap:10px 14px; align-items:center;}
+.mr-label{font-size:12.5px; font-weight:700; color:var(--text-muted);}
+.mr-label.top{align-self:start; padding-top:8px;}
+.mr-label.on{color:var(--gold);}
+.mr-field{max-width:360px; width:100%;}
+.mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
+.mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
+.mr-seg button.on{border-color:var(--gold); color:var(--gold); background:rgba(200,163,77,0.12);}
+.mr-seg .q-magic.on{color:#8c8cff; border-color:#8c8cff; background:rgba(140,140,255,0.1);}
+.mr-seg .q-rare.on{color:#e6d250; border-color:#e6d250; background:rgba(230,210,80,0.1);}
+.mr-seg .q-crafted.on{color:#e0913a; border-color:#e0913a; background:rgba(224,145,58,0.1);}
+.mr-opts{display:flex; flex-direction:column; gap:8px; min-width:0;}
+.mr-cond{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:5px 8px 5px 12px; border:1px solid #4A5FA8; background:#1C2645; border-radius:10px; font-size:12.5px; color:#DDE3FF;}
+.mr-cond-name{font-weight:700; margin-right:auto;}
+.mr-cond input{width:72px; padding:5px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12.5px;}
+.mr-sep{color:var(--text-dim);}
+.mr-x{color:var(--text-dim); font-size:15px; padding:0 6px;}
+.mr-x:hover{color:var(--text);}
+.mr-opt-input{max-width:360px; width:100%; padding:7px 12px; border-radius:9px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:13px; font-family:inherit;}
+.mr-opt-chips{display:flex; flex-wrap:wrap; gap:6px;}
+.mr-opt{display:inline-flex; align-items:center; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--panel-2);}
+.mr-opt:hover{color:var(--text); border-color:#4A5FA8;}
+.mr-opt.more{border-style:dashed;}
+.mr-opt-none, .mr-opt-help{font-size:11.5px; color:var(--text-dim); margin:0;}
+@media (max-width:640px){
+  .mr-grid{grid-template-columns:52px minmax(0, 1fr); gap:10px;}
+  .mr-cond-name{flex-basis:100%;}
+}
 .mr-shape{
   display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border);
   border-radius:8px; background:var(--panel); color:var(--text-dim); font-size:11.5px; padding:4px 9px;

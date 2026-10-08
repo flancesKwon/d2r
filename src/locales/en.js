@@ -1822,4 +1822,11 @@ export default {
   '옵션 조건이 올바르지 않음': 'Invalid stat condition',
   '삽니다 글은 한 번에 20개까지': 'Up to 20 buy requests at a time',
   '끌어올리기는 하루에 한 번': 'You can bump once a day',
+  // 매직·레어 검색 옵션
+  '옵션 찾기 (예: 모든 기술, 시전 속도, 생명력)': 'Find a stat (e.g. All Skills, Faster Cast Rate, Life)',
+  '옵션 찾기': 'Find a stat',
+  '접기': 'Show less',
+  '{n}개 더 보기': '{n} more',
+  '맞는 옵션 없음': 'No matching stat',
+  '이 베이스에 붙을 수 있는 옵션만 보여줌 · 품질을 고르면 더 좁혀짐': 'Only stats that can roll on this base · pick a quality to narrow it down',
 }
