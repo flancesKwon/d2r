@@ -187,13 +187,13 @@ const num = (v) => (v === '' || v === null || v === undefined || !Number.isFinit
 async function save() {
   formError.value = ''
   if (!authState.user) return signIn()
-  if (!form.item && !form.category) { formError.value = t('아이템이나 종류를 골라줘'); return }
+  if (!form.item && !form.category) { formError.value = t('아이템 또는 종류 선택 필요'); return }
   const conds = form.conds.map((c) => {
     let min = num(c.min), max = num(c.max)
     if (min !== null && max !== null && min > max) [min, max] = [max, min]
     return { key: c.key, min, max }
   })
-  if (!form.item && !conds.length) { formError.value = t('종류로 찾을 땐 옵션 조건을 하나 이상 넣어줘'); return }
+  if (!form.item && !conds.length) { formError.value = t('종류로 찾을 때는 옵션 조건 1개 이상 필요'); return }
   saving.value = true
   try {
     await addWant({
@@ -220,8 +220,7 @@ async function save() {
     <div class="patch-hero">
       <div class="patch-hero-inner">
         <div class="eyebrow">{{ $t('삽니다') }}</div>
-        <h1>{{ $t('찾는 아이템을 올려두면, 매물이 올라올 때 알려줌') }}</h1>
-        <p class="wt-sub">{{ $t('아이템·옵션 수치·서버를 정해두면 맞는 판매글이 올라오는 순간 알림 · 파는 사람은 여기서 살 사람을 찾음') }}</p>
+        <h1>{{ $t('삽니다') }}</h1>
         <div class="wt-hero-actions">
           <button type="button" class="wt-primary" @click="formOpen ? (formOpen = false) : openForm()">{{ formOpen ? $t('닫기') : '+ ' + $t('삽니다 글 쓰기') }}</button>
           <router-link class="wt-ghost" to="/">{{ $t('매물 검색으로') }}</router-link>
@@ -233,7 +232,7 @@ async function save() {
       <!-- 쓰기 -->
       <form class="wt-form" v-if="formOpen" @submit.prevent="save">
         <div class="wt-row">
-          <span class="wt-label">{{ $t('아이템') }}</span>
+          <span class="wt-label">{{ $t('아이템') }}<em class="req">*</em></span>
           <div class="wt-field">
             <div class="wt-picked" v-if="form.item">
               <span class="wt-icon sm" :class="form.item.category"><img v-if="iconUrl(form.item.icon_key)" :src="iconUrl(form.item.icon_key)" alt="" /></span>
@@ -242,7 +241,7 @@ async function save() {
             </div>
             <template v-else>
               <div class="wt-search">
-                <input v-model="form.itemQuery" class="write-input" :placeholder="$t('아이템 이름 (예: 수수께끼, 베르 룬, 샤코)')" :aria-label="$t('아이템 이름')" autocomplete="off" />
+                <input v-model="form.itemQuery" class="write-input" :placeholder="$t('예: 수수께끼, 베르 룬, 샤코')" :aria-label="$t('아이템 이름')" autocomplete="off" />
                 <div class="wt-hits" v-if="itemHits.length">
                   <button type="button" v-for="it in itemHits" :key="it.id" @click="pickItem(it)">
                     <span class="wt-icon sm" :class="it.category"><img v-if="iconUrl(it.icon_key)" :src="iconUrl(it.icon_key)" alt="" /></span>
@@ -251,7 +250,7 @@ async function save() {
                 </div>
               </div>
               <div class="wt-or">
-                <span>{{ $t('또는 종류로 (옵션 조건 필요)') }}</span>
+                <span>{{ $t('또는 종류로') }}</span>
                 <select v-model="form.category" class="write-select" :aria-label="$t('종류')">
                   <option value="">{{ $t('종류 고르기') }}</option>
                   <option v-for="c in WANT_CATEGORIES" :key="c" :value="c">{{ $t(c) }}</option>
@@ -262,7 +261,7 @@ async function save() {
         </div>
 
         <div class="wt-row">
-          <span class="wt-label">{{ $t('옵션 조건') }}</span>
+          <span class="wt-label">{{ $t('옵션 조건') }}<em class="req" v-if="!form.item && form.category">*</em></span>
           <div class="wt-field">
             <div class="wt-cond" v-for="(c, i) in form.conds" :key="c.key">
               <span class="wt-cond-name">{{ condName(c) }}</span>
@@ -273,7 +272,7 @@ async function save() {
               <button type="button" class="wt-x" :aria-label="`${condName(c)} ×`" @click="form.conds.splice(i, 1)">×</button>
             </div>
             <div class="wt-search" v-if="form.conds.length < WANT_MAX_CONDS">
-              <input v-model="form.statQuery" class="write-input" :placeholder="$t('옵션 추가 (예: 시전 속도, 모든 저항, 힘)')" :aria-label="$t('옵션 추가')" autocomplete="off" />
+              <input v-model="form.statQuery" class="write-input" :placeholder="$t('예: 시전 속도, 모든 저항, 힘')" :aria-label="$t('옵션 추가')" autocomplete="off" />
               <div class="wt-hits" v-if="statHits.length">
                 <button type="button" v-for="st in statHits" :key="st.key" @click="addCond(st)">
                   <span>{{ statParts(st).name }}</span>
@@ -282,7 +281,7 @@ async function save() {
                 </button>
               </div>
             </div>
-            <p class="wt-help">{{ $t('범위를 비우면 옵션이 붙어 있기만 하면 됨 · 최대 {n}개 · 전부 맞아야 알림', { n: WANT_MAX_CONDS }) }}</p>
+            <p class="wt-help">{{ !form.item && form.category ? $t('종류로 찾을 때는 옵션 조건 1개 이상 필요') : $t('범위를 비우면 수치 상관없음 · 최대 {n}개', { n: WANT_MAX_CONDS }) }}</p>
           </div>
         </div>
 
@@ -312,20 +311,20 @@ async function save() {
         <div class="wt-row">
           <span class="wt-label">{{ $t('생각하는 가격') }}</span>
           <div class="wt-field">
-            <input v-model="form.price" class="write-input" maxlength="60" :placeholder="$t('예: 베르 2개, 이스트 3개 (비워도 됨)')" :aria-label="$t('생각하는 가격')" />
+            <input v-model="form.price" class="write-input" maxlength="60" :placeholder="$t('예: 베르 2개, 이스트 3개')" :aria-label="$t('생각하는 가격')" />
           </div>
         </div>
         <div class="wt-row">
           <span class="wt-label">{{ $t('메모') }}</span>
           <div class="wt-field">
-            <textarea v-model="form.memo" class="write-input" rows="2" maxlength="300" :placeholder="$t('예: 거래 가능 시간, 함께 사고 싶은 것 (비워도 됨)')" :aria-label="$t('메모')"></textarea>
+            <textarea v-model="form.memo" class="write-input" rows="2" maxlength="300" :placeholder="$t('예: 거래 가능 시간, 함께 사고 싶은 것')" :aria-label="$t('메모')"></textarea>
           </div>
         </div>
         <div class="wt-row">
           <span class="wt-label"></span>
           <div class="wt-field">
             <label class="wt-check"><input type="checkbox" v-model="form.notify" /> {{ $t('맞는 매물이 올라오면 알림 받기') }}</label>
-            <p class="wt-help">{{ $t('{n}일 동안 보이고, 하루에 한 번 끌어올릴 수 있음', { n: WANT_DAYS }) }}</p>
+            <p class="wt-help">{{ $t('{n}일 노출 · 하루 한 번 끌어올리기', { n: WANT_DAYS }) }}</p>
           </div>
         </div>
         <div class="wt-actions">
@@ -459,6 +458,7 @@ textarea.write-input{resize:vertical;}
 .wt-icon-fallback{color:var(--text-dim); font-weight:800;}
 b.unique, span.unique{color:var(--gold);} b.set, span.set{color:var(--green);} b.runeword, span.runeword{color:#e0775f;} b.gem, span.gem{color:var(--teal);}
 .wt-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;}
+.req{font-style:normal; color:#e0775f; margin-left:3px; font-weight:800;}
 .wt-title{display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:15px;}
 .wt-title small{font-size:11.5px; color:var(--text-dim);}
 .wt-conds{display:flex; flex-wrap:wrap; gap:6px;}

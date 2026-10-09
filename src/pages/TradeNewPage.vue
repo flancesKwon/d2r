@@ -1056,7 +1056,7 @@ function submitPost() {
       <div class="modal-overlay" v-if="showItemModal" @click.self="showItemModal = false">
         <div class="modal-panel item-modal-panel">
           <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
-          <div class="d-section-title">{{ $t('아이템 선택') }}</div>
+          <div class="d-section-title">{{ $t('아이템 선택') }}<span class="required-mark">*</span></div>
           <input
             type="text" :value="form.itemName" @input="form.itemName = $event.target.value" :placeholder="$t('아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)')"
             class="write-input" v-focus
@@ -1245,7 +1245,7 @@ function submitPost() {
         <div class="option-editor-title">
           <template v-if="lockedEquipBase">{{ $t('기본 정보') }}</template>
           <template v-else>{{ $t(effectiveBaseKind === 'armor' ? '베이스 방어구 정보' : effectiveBaseKind === 'weapon' ? '베이스 무기 정보' : '베이스 아이템 정보') }}</template>
-          <span class="required-mark" v-if="isRuneword">{{ $t('필수') }}</span>
+          <span class="required-mark" v-if="isRuneword">*</span>
         </div>
 
         <div class="base-item-picker" v-if="!lockedEquipBase">
@@ -1551,7 +1551,7 @@ function submitPost() {
       </label>
 
       <div class="price-picker" v-if="!form.offerOnly">
-        <div class="option-editor-title">{{ $t('희망 가격') }}</div>
+        <div class="option-editor-title">{{ $t('희망 가격') }}<span class="required-mark" v-if="!form.offerOnly">*</span></div>
         <div class="bundle-chip-row" v-if="priceItems.length">
           <div class="bundle-chip" v-for="(p, i) in priceItems" :key="p.item.id">
             <span class="item-picker-icon gem"><img v-if="iconUrlFor(p.item.icon_key)" :src="iconUrlFor(p.item.icon_key)" alt="" /></span>
@@ -1779,7 +1779,7 @@ function submitPost() {
 
 .trade-new-actions{display:flex; align-items:center; gap:10px;}
 .form-error{font-size:12.5px; color:var(--blood);}
-.required-mark{font-size:10px; color:var(--blood); border:1px solid var(--blood); padding:1px 7px; border-radius:999px; font-weight:600; vertical-align:middle;}
+.required-mark{font-style:normal; color:#e0775f; font-weight:800; margin-left:3px;}
 .trade-new-cancel{font-size:13px; color:var(--text-dim); padding:11px 18px;}
 .trade-new-cancel:hover{color:var(--text);}
 
