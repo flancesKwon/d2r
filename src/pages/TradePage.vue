@@ -1312,7 +1312,6 @@ function variantLines(p) {
           <span class="mr-head-icon"><img v-if="mrBaseItem && iconUrlFor(baseIconKey(mrBaseItem))" :src="iconUrlFor(baseIconKey(mrBaseItem))" alt="" /></span>
           <div class="mr-head-text">
             <b>{{ mrBaseText }}</b>
-            <span>{{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
           </div>
           <button type="button" class="mr-change" @click="clearMrBase(); focusSearch()">{{ $t('다른 베이스') }}</button>
         </div>
@@ -1441,7 +1440,6 @@ function variantLines(p) {
           <span class="mr-head-icon" :class="pickedItem.category"><img v-if="iconUrlFor(pickedItem.icon_key)" :src="iconUrlFor(pickedItem.icon_key)" alt="" /></span>
           <div class="mr-head-text">
             <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b>
-            <span>{{ $t('비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만') }}</span>
           </div>
           <button type="button" class="mr-change" @click="clearPickedItem(); focusSearch()">{{ $t('다른 아이템') }}</button>
         </div>
