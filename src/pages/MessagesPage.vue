@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { openProfileCard } from '../profileCard.js'
 import { askConfirm } from '../dialog.js'
 import { t } from '../i18n.js'
 import { postName, countText, nameText, priceText as tradePriceText } from '../tradeI18n.js'
@@ -166,7 +167,7 @@ async function submitMessage() {
         <div class="conv-thread-header">
           <div class="conv-thread-who">
             <UserAvatar :src="activeConversation.avatar" :name="activeConversation.withName" :size="34" :user-id="activeConversation.otherId" />
-            <span><router-link v-if="activeConversation.otherId" :to="'/users/' + activeConversation.otherId" class="user-link conv-profile-link">{{ activeConversation.withName }}</router-link><template v-else>{{ activeConversation.withName }}</template>{{ $t('님과의 대화') }}</span>
+            <span><button type="button" v-if="activeConversation.otherId" class="user-link conv-profile-link" @click="openProfileCard(activeConversation.otherId)">{{ activeConversation.withName }}</button><template v-else>{{ activeConversation.withName }}</template>{{ $t('님과의 대화') }}</span>
           </div>
           <button type="button" class="conv-leave" @click="leave">{{ $t('나가기') }}</button>
         </div>

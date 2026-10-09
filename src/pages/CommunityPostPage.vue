@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
+import { openProfileCard } from '../profileCard.js'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { t } from '../i18n.js'
@@ -100,7 +101,7 @@ async function onDeletePost() {
     <div class="post-card">
       <div class="d-eyebrow">{{ $t(post.category) }}</div>
       <h1 class="d-name community-post-title">{{ post.title }}</h1>
-      <div class="community-post-meta"><router-link :to="'/users/' + post.authorId" class="user-link"><UserAvatar :src="post.avatar" :name="post.author" :size="22" :user-id="post.authorId" /> {{ post.author }}</router-link> · {{ post.date }} · {{ $t('조회 {n}', { n: post.views }) }}</div>
+      <div class="community-post-meta"><button type="button" class="user-link" @click="openProfileCard(post.authorId)"><UserAvatar :src="post.avatar" :name="post.author" :size="22" :user-id="post.authorId" :clickable="false" /> {{ post.author }}</button> · {{ post.date }} · {{ $t('조회 {n}', { n: post.views }) }}</div>
 
       <div class="post-tag-row" v-if="post.tags.length">
         <router-link v-for="t in post.tags" :key="t" class="tag-chip" :to="`/community?tag=${encodeURIComponent(t)}`">#{{ t }}</router-link>
@@ -131,7 +132,7 @@ async function onDeletePost() {
     <div class="comment-list">
       <div class="comment-item" v-for="c in post.comments" :key="c.id">
         <div class="comment-top">
-          <router-link :to="'/users/' + c.authorId" class="comment-author user-link"><UserAvatar :src="c.avatar" :name="c.author" :size="22" :user-id="c.authorId" />{{ c.author }}</router-link>
+          <button type="button" class="comment-author user-link" @click="openProfileCard(c.authorId)"><UserAvatar :src="c.avatar" :name="c.author" :size="22" :user-id="c.authorId" :clickable="false" />{{ c.author }}</button>
           <span>{{ c.date }}<button type="button" class="comment-del" v-if="canDelete(c)" @click="onDeleteComment(c)">{{ $t('삭제') }}</button></span>
         </div>
         <div class="comment-body rich-content" v-html="renderContent(c.content)"></div>

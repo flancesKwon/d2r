@@ -1,5 +1,5 @@
 <script setup>
-// 재등록 (/trade/:id/relist) - 판매 기간(48시간)이 끝난 내 판매중 글을 판매가만 고쳐서 다시 48시간
+// 재등록 (/trade/:id/relist) - 판매 기간(7일)이 끝난 내 판매중 글을 판매가만 고쳐서 다시 7일
 // 아이템·옵션은 그대로 (바꾸려면 새 글). 실제 확인(주인·기간·가격)은 DB 함수 d2r_relist_trade_post
 import { showAlert } from '../dialog.js'
 import { t, itemName, affixText } from '../i18n.js'
@@ -7,7 +7,7 @@ import { postName, countText, priceTok, priceText, saleLeftText } from '../trade
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, relistTradePost, isSaleExpired, saleLeftMs, statusLabel, SALE_HOURS,
+  getTradePost, fetchTradePost, relistTradePost, isSaleExpired, saleLeftMs, statusLabel, SALE_DAYS,
   CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens, OFFER_ONLY_PRICE,
 } from '../tradeStore.js'
 import { itemMatchesQuery } from '../itemSearch.js'
@@ -67,7 +67,7 @@ async function submit() {
   try {
     await relistTradePost(post.value, price)
     router.replace(`/trade/${post.value.id}`)
-    showAlert(t('재등록 완료 - 판매 기간 48시간 다시 시작'), { icon: 'success' })
+    showAlert(t('재등록 완료 - 판매 기간 7일 다시 시작'), { icon: 'success' })
   } catch (e) {
     error.value = t(e.message || '재등록 실패')
   } finally {
@@ -80,7 +80,7 @@ async function submit() {
   <div class="items-page relist-page">
     <div class="patch-hero">
       <div class="patch-hero-inner">
-        <div class="eyebrow">{{ $t('판매 기간 {n}시간 다시 시작', { n: SALE_HOURS }) }}</div>
+        <div class="eyebrow">{{ $t('판매 기간 {n}일 다시 시작', { n: SALE_DAYS }) }}</div>
         <h1>{{ $t('재등록') }}</h1>
       </div>
     </div>
@@ -140,7 +140,7 @@ async function submit() {
           <div class="relist-error" v-if="error">{{ error }}</div>
           <div class="relist-actions">
             <router-link :to="`/trade/${post.id}`" class="relist-cancel">{{ $t('취소') }}</router-link>
-            <button type="button" class="relist-submit" :disabled="saving" @click="submit">{{ saving ? $t('재등록 중…') : $t('재등록 · {n}시간 판매', { n: SALE_HOURS }) }}</button>
+            <button type="button" class="relist-submit" :disabled="saving" @click="submit">{{ saving ? $t('재등록 중…') : $t('재등록 · {n}일 판매', { n: SALE_DAYS }) }}</button>
           </div>
         </section>
       </template>

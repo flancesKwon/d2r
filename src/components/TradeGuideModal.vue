@@ -78,7 +78,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
             <li><b>{{ $t('아이템 검색') }}</b> <span>{{ $t('이름·별칭으로 (예: 샤코, 이스트 룬, 무한, 골드). 사전에 없는 매직·레어는 베이스를 골라 등록') }}</span></li>
             <li><b>{{ $t('옵션 수치 입력') }}</b> <span>{{ $t('실제 아이템에 뜬 값 그대로. 유니크·세트는 방어력·데미지도 입력 가능, 미확인 아이템은 수치 없이') }}</span></li>
             <li><b>{{ $t('가격 정하기') }}</b> <span>{{ $t('받을 룬·보석·재료 선택. 또는') }} <em>{{ $t('흥정 가능') }}</em>{{ $t('(가격 제안도 받음) /') }} <em>{{ $t('제안만 받기') }}</em>{{ $t('(판매가 없이 제안만)') }}</span></li>
-            <li><b>{{ $t('등록') }}</b> <span>{{ $t('판매 기간 48시간 동안 거래게시판에 노출') }}</span></li>
+            <li><b>{{ $t('등록') }}</b> <span>{{ $t('판매 기간 7일 동안 거래게시판에 노출') }}</span></li>
           </ol>
           <div class="tg-shots">
             <figure class="tg-shot">
@@ -96,7 +96,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
               <li>{{ $t('여러 개(룬 5개 등)·골드·묶음은') }} <b>{{ $t('한 번에 통째로') }}</b> {{ $t('판매 - 나눠 팔려면 글을 따로') }}</li>
               <li>{{ $t('골드는 한 글에 최대 1,500만') }}</li>
               <li>{{ $t('구매신청이 들어오기 전까지') }} <b>{{ $t('수정') }}</b> {{ $t('가능 (옵션 수치·판매가·수량·설명, 아이템 자체는 변경 불가)') }}</li>
-              <li>{{ $t('48시간이 지나면 목록에서 내려감 -') }} <b>{{ $t('재등록') }}</b>{{ $t('(판매가만 고쳐서 다시 48시간)') }}</li>
+              <li>{{ $t('7일이 지나면 목록에서 내려감 -') }} <b>{{ $t('재등록') }}</b>{{ $t('(판매가만 고쳐서 다시 7일)') }}</li>
             </ul>
           </div>
         </template>
@@ -136,7 +136,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
             <div class="tg-node deal">{{ $t('거래중') }}</div>
             <div class="tg-branch">
               <div><span class="tg-arrow">{{ $t('둘 다 거래완료 →') }}</span> <span class="tg-node done">{{ $t('거래완료') }}</span> <small>{{ $t('리뷰 작성') }}</small></div>
-              <div><span class="tg-arrow">{{ $t('거래불발 →') }}</span> <span class="tg-node sell">{{ $t('판매중') }}</span> <small>{{ $t('다시 판매 (48시간 새로)') }}</small></div>
+              <div><span class="tg-arrow">{{ $t('거래불발 →') }}</span> <span class="tg-node sell">{{ $t('판매중') }}</span> <small>{{ $t('다시 판매 (7일 새로)') }}</small></div>
             </div>
           </div>
           <div class="tg-cols">
@@ -180,7 +180,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
         <!-- 5. 자동 정리·규칙 -->
         <template v-else>
           <div class="tg-grid">
-            <div class="tg-card"><b>{{ $t('판매 기간 48시간') }}</b><span>{{ $t('지나면 목록에서 내려감 - 재등록하면 다시 48시간') }}</span></div>
+            <div class="tg-card"><b>{{ $t('판매 기간 7일') }}</b><span>{{ $t('지나면 목록에서 내려감 - 재등록하면 다시 7일') }}</span></div>
             <div class="tg-card"><b>{{ $t('대화 없는 거래방') }}</b><span>{{ $t('5일째 알림, 7일 동안 대화가 없으면 자동 거래불발') }}</span></div>
             <div class="tg-card"><b>{{ $t('한쪽만 거래완료') }}</b><span>{{ $t('3일 뒤 자동 거래완료 (하루 전 상대에게 알림) - 못 받았으면 그 전에 거래불발·신고') }}</span></div>
             <div class="tg-card"><b>{{ $t('오래된 신청') }}</b><span>{{ $t('판매 기간이 끝나고 3일이 지나도 재등록이 없으면 남은 신청은 정리') }}</span></div>

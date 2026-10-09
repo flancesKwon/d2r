@@ -613,9 +613,11 @@ function unpackOptions(o) {
   return o && typeof o === 'object' ? o : { lines: [] }
 }
 
-// 판매 기간: 올린(재등록한) 때부터 48시간 - 지나면 목록에서 내려감(기간 만료). 판매자는 판매가만 고쳐 재등록 (016 SQL)
+// 판매 기간: 올린(재등록한) 때부터 7일 (028 SQL - 7일은 매물이 한 번에 만료돼 목록이 비었음) - 지나면 목록에서 내려감(기간 만료). 판매자는 판매가만 고쳐 재등록 (016 SQL)
 // 예약중·거래완료 글은 기간과 상관없음. bumped_at = 판매 시작 시각
-export const SALE_HOURS = 48
+export const SALE_HOURS = 168
+// 화면에 적는 기간 ("판매 기간 7일")
+export const SALE_DAYS = SALE_HOURS / 24
 const SALE_MS = SALE_HOURS * 3600000
 export const saleEndsAt = (post) => (post?.bumpedAt ? new Date(post.bumpedAt).getTime() + SALE_MS : 0)
 // 남은 판매 시간(ms) - 판매중이 아니면 null
@@ -805,7 +807,7 @@ export function tradeEditBlockReason(post, requests = []) {
   return ''
 }
 
-// 재등록: 판매 기간이 끝난 내 판매중 글을 판매가만 바꿔서 다시 48시간 (DB 함수가 기간·주인 확인)
+// 재등록: 판매 기간이 끝난 내 판매중 글을 판매가만 바꿔서 다시 7일 (DB 함수가 기간·주인 확인)
 export async function relistTradePost(post, price) {
   needUser()
   const { data, error } = await supabase.rpc('d2r_relist_trade_post', { p_post: Number(post.id), p_price: price })
@@ -817,7 +819,7 @@ export async function relistTradePost(post, price) {
   lastLoadedAt = 0
 }
 
-// 끌어올리기 (예전 기능 - 화면에선 안 씀. 판매 기간 48시간 + 재등록으로 바뀜)
+// 끌어올리기 (예전 기능 - 화면에선 안 씀. 판매 기간 7일 + 재등록으로 바뀜)
 export async function bumpTradePost(post) {
   needUser()
   const { data, error } = await supabase.rpc('d2r_bump_trade_post', { p_post: post.id })
