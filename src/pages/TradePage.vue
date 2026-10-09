@@ -1501,7 +1501,7 @@ function variantLines(p) {
         <div class="trade-body">
           <div class="trade-title-row">
             <span class="trade-title">{{ postName(p) }}</span>
-            <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
+            <span class="trade-when">{{ agoText(p) }}</span>
           </div>
           <div class="trade-meta">
             {{ enCount(p.amountLabel) }} ·
@@ -1509,11 +1509,16 @@ function variantLines(p) {
               <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
             </template>
           </div>
-          <div class="trade-opts" v-if="variantLines(p).length">
-            <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i"><template v-for="(q, j) in optParts($affix(l))" :key="j"><b v-if="q.num">{{ q.x }}</b><template v-else>{{ q.x }}</template></template></span>
+          <!-- 서버·래더·모드·에테리얼·미확인 - 옵션보다 위에, 색으로 구분 -->
+          <div class="trade-flags">
+            <span class="tf realm">{{ $t(p.realm) }}</span>
+            <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
+            <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ $t(p.hardcore) }}</span>
+            <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
+            <span class="tf unid" v-if="p.unidentified">{{ $t('미확인') }}</span>
           </div>
-          <div class="trade-sub-meta">
-            {{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ agoText(p) }}
+          <div class="trade-opts lines" v-if="variantLines(p).length">
+            <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i"><template v-for="(q, j) in optParts($affix(l))" :key="j"><b v-if="q.num">{{ q.x }}</b><template v-else>{{ q.x }}</template></template></span>
           </div>
           <div class="stat-match-row" v-if="statConditions.length">
             <span class="stat-match" v-for="c in statConditions" :key="condId(c)">
@@ -1539,14 +1544,20 @@ function variantLines(p) {
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <span class="trade-card-title">{{ postName(p) }}</span>
-        <span class="ethereal-badge" v-if="p.ethereal">{{ $t('에테리얼') }}</span><span class="unid-badge" v-if="p.unidentified">{{ $t('미확인') }}</span>
+        <span class="trade-flags">
+          <span class="tf realm">{{ $t(p.realm) }}</span>
+          <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
+          <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ $t(p.hardcore) }}</span>
+          <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
+          <span class="tf unid" v-if="p.unidentified">{{ $t('미확인') }}</span>
+        </span>
         <span class="trade-card-price">
           {{ enCount(p.amountLabel) }} ·
           <template v-for="(t, i) in parsePriceTokens(p.price)" :key="i">
             <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
           </template>
         </span>
-        <span class="trade-opts" v-if="variantLines(p).length">
+        <span class="trade-opts lines" v-if="variantLines(p).length">
           <span class="trade-opt" v-for="(l, i) in variantLines(p)" :key="i"><template v-for="(q, j) in optParts($affix(l))" :key="j"><b v-if="q.num">{{ q.x }}</b><template v-else>{{ q.x }}</template></template></span>
         </span>
         <span class="stat-match-row" v-if="statConditions.length">
@@ -1554,7 +1565,7 @@ function variantLines(p) {
             {{ statLabel(c) }}{{ condValue(p, c) !== null ? ` ${condValue(p, c)}${statUnit(c)}` : '' }}
           </span>
         </span>
-        <span class="trade-card-footer">{{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ agoText(p) }}</span>
+        <span class="trade-card-footer">{{ agoText(p) }}</span>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
@@ -1777,6 +1788,20 @@ function variantLines(p) {
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 /* 그 아이템에서만 달라지는 옵션 줄 */
 .trade-opts{display:flex; flex-wrap:wrap; justify-content:inherit; gap:5px 6px; margin-top:7px;}
+/* 옵션 한 줄에 하나씩 */
+.trade-opts.lines{flex-direction:column; align-items:flex-start; gap:3px;}
+.trade-opts.lines .trade-opt{max-width:100%;}
+.trade-when{margin-left:auto; flex:none; font-size:11.5px; color:var(--text-dim);}
+/* 서버·래더·모드·에테리얼·미확인 배지 */
+.trade-flags{display:flex; flex-wrap:wrap; gap:4px; margin:6px 0 2px;}
+.tf{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; border:1px solid currentColor; flex:none; line-height:1.5;}
+.tf.realm{color:#9aa7b8;}
+.tf.ladder{color:#e6c45a;}
+.tf.nonladder{color:#8b8b8b;}
+.tf.hardcore{color:#e0775f;}
+.tf.softcore{color:#7fb2d8;}
+.tf.eth{color:var(--teal);}
+.tf.unid{color:#c98ae0;}
 .trade-opt{font-size:11.5px; color:var(--text-muted); border:1px solid rgba(110,110,255,0.3); background:rgba(110,110,255,0.07); padding:2px 8px; border-radius:7px;}
 .trade-opt b{color:#FF6B6B; font-weight:700;}
 
@@ -1899,15 +1924,20 @@ function variantLines(p) {
 
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 /* 검색 화면: 왼쪽 조건 칸 + 오른쪽 결과 (결과가 위에서 바로 보이게) */
-.trade-page.searching .tr-body{max-width:1340px; flex-wrap:nowrap;}
-.tr-filters{flex:0 0 360px; min-width:0; position:sticky; top:12px;}
+/* 가운데 정렬 대신 화면 폭을 다 쓰고 조건 칸은 왼쪽 끝에 - 결과 칸이 그만큼 넓어짐 */
+.trade-page.searching .tr-body{max-width:none; margin:0; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+.tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
 .tr-filters .item-range-panel + .item-range-panel{margin-top:10px;}
 /* 조건 칸이 좁아지니 이름 칸도 줄이고 옵션 줄은 한 줄씩 */
 .tr-filters .mr-grid{grid-template-columns:62px minmax(0, 1fr); gap:9px 10px;}
 .tr-filters .item-range-grid{grid-template-columns:1fr;}
-.tr-filters .pk-row{flex-wrap:wrap;}
+/* 조건 칸이 좁아서 한 줄에 '이름 최소 ~ 최대' 가 다 안 들어감 - 이름은 윗줄, 수치는 아랫줄 */
+.tr-filters .pk-row{display:grid; grid-template-columns:1fr auto 1fr; gap:4px 6px; align-items:center;}
+.tr-filters .pk-row .pk-name{grid-column:1 / -1; margin:0;}
+.tr-filters .pk-row .sort-select{grid-column:1 / -1; width:100%;}
+.tr-filters .pk-row input{width:100%; min-width:0;}
 @media (max-width:1100px){
   .trade-page.searching .tr-body{flex-wrap:wrap;}
   .tr-filters{flex:1 1 100%; position:static;}
