@@ -317,6 +317,11 @@ export default {
   '창': 'Spears',
   '폴암': 'Polearms',
   '활': 'Bows',
+  // 검색의 부위(착용 위치) 선택칸
+  '부위': 'Slot',
+  '머리': 'Head',
+  '몸통': 'Torso',
+  '허리': 'Waist',
   '투구': 'Helm',
   '갑옷': 'Armor',
   '방패': 'Shield',

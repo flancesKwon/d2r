@@ -28,6 +28,7 @@ import {
   superiorCombosFor,
   baseForItem,
   searchBaseItems,
+  BASE_ITEMS,
   baseItemLabel,
   ICON_VARIANTS,
   TRADE_REALMS,
@@ -63,6 +64,48 @@ watch(activeRegion, (v) => { try { if (v) localStorage.setItem(REGION_KEY, v); e
 const GAME_KEY = 'd2r-trade-game'
 const gameVersion = ref((() => { try { const v = localStorage.getItem(GAME_KEY); return GAME_VERSIONS.includes(v) ? v : null } catch { return null } })())
 watch(gameVersion, (v) => { try { if (v) localStorage.setItem(GAME_KEY, v); else localStorage.removeItem(GAME_KEY) } catch { /* 프라이빗 창 등 */ } })
+// 부위(착용 위치) - 판매글의 베이스 줄이나 사전 아이템의 세부 종류로 정함
+const SLOT_ORDER = ['머리', '몸통', '방패', '장갑', '신발', '허리', '목걸이', '반지', '무기']
+// 베이스 세부 종류 -> 부위 (사전 아이템과 베이스 목록이 쓰는 이름이 조금 달라 둘 다 적음)
+const SLOT_BY_SUB = {
+  투구: '머리', '드루이드 투구': '머리', '바바리안 투구': '머리', 서클릿: '머리',
+  갑옷: '몸통',
+  방패: '방패', '네크로맨서 방패': '방패', '팔라딘 방패': '방패', 마법서: '방패',
+  장갑: '장갑', 신발: '신발', 벨트: '허리', 목걸이: '목걸이', 반지: '반지',
+  도끼: '무기', 지팡이: '무기', 둔기: '무기', 검: '무기', 대거: '무기', 창: '무기',
+  폴암: '무기', 활: '무기', 오브: '무기', 클로: '무기',
+}
+// 룬워드는 베이스를 안 적은 글이 있을 수 있어 올릴 수 있는 베이스 종류로 봄 (여러 종류면 못 정함)
+const RW_SLOT = { tors: '몸통', helm: '머리', shld: '방패' }
+const WEAPON_SUBS = new Set(['도끼', '지팡이', '둔기', '검', '대거', '창', '폴암', '활', '오브', '클로'])
+const BASE_SLOT = new Map()
+for (const b of BASE_ITEMS) {
+  const sl = SLOT_BY_SUB[b.type_sub] || (b.base_stats?.category === 'weapon' ? '무기' : null)
+  if (!sl) continue
+  if (b.name_ko) BASE_SLOT.set(b.name_ko, sl)
+  if (b.subtitle) BASE_SLOT.set(b.subtitle, sl)
+}
+const slotCache = new Map()
+function postSlot(p) {
+  const base = (p.options || []).find((l) => l.startsWith('베이스: ')) || ''
+  const ck = p.itemId + '|' + base + '|' + (p.itemName || '')
+  if (slotCache.has(ck)) return slotCache.get(ck)
+  let sl = null
+  if (base) sl = BASE_SLOT.get(base.slice('베이스: '.length).replace(/ \(.+\)$/, '')) || null
+  if (!sl) {
+    const it = getTradeItem(p.itemId)
+    if (it) {
+      sl = SLOT_BY_SUB[it.type_sub] || null
+      if (!sl && it.category === 'runeword') sl = RW_SLOT[it.subtitle] || null
+      if (!sl && (WEAPON_SUBS.has(it.type_sub) || it.base_stats?.category === 'weapon')) sl = '무기'
+    }
+  }
+  // 매직·레어 장신구는 베이스 줄이 없고 이름에 들어 있음 ("레어 반지")
+  if (!sl) { const nm = p.itemName || ''; sl = nm.includes('반지') ? '반지' : nm.includes('목걸이') ? '목걸이' : null }
+  slotCache.set(ck, sl)
+  return sl
+}
+const activeSlot = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -180,6 +223,7 @@ const mrShape = ref('')
 const mrCraft = ref('')
 // 소켓 수 범위 (빈 칸 = 상관없음) · 상급 여부와 상급 수치 - 등록 양식에 있는 칸을 검색에도
 const mrSock = ref({ min: '', max: '' })
+const mrLvl = ref({ min: '', max: '' })
 const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
@@ -257,6 +301,11 @@ const mrSockMax = computed(() => {
   return Math.min(max, hi)
 })
 const mrSockOn = computed(() => mrSock.value.min !== '' || mrSock.value.max !== '')
+// 요구 레벨은 접사가 붙는 품질(매직·레어·크래프트)만 - 등록에서도 그때만 받음
+const mrLvlOn = computed(() => mrLvl.value.min !== '' || mrLvl.value.max !== '')
+const mrLvlShow = computed(() => !mrQuality.value || ['magic', 'rare', 'crafted'].includes(mrQuality.value))
+const LVL_LINE = /^요구 레벨 (\d+)$/
+watch(mrLvlShow, (on) => { if (!on) mrLvl.value = { min: '', max: '' } })
 // 상급은 흰 베이스만 - 매직·레어는 같은 문구(피해 증가 등)가 접사로도 붙어서 구분이 안 됨
 const mrSupCombos = computed(() => (mrQuality.value === 'normal' ? superiorCombosFor(mrBaseItem.value) : []))
 const mrSupMods = computed(() => {
@@ -369,11 +418,11 @@ function setCondMax(c, v) { c.max = condNum(v) }
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
 const mrCount = computed(() =>
-  [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value, mrSockOn.value, mrSup.value].filter(Boolean).length
+  [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value, mrSockOn.value, mrSup.value, mrLvlOn.value].filter(Boolean).length
 )
 function resetMr() {
   mrQuality.value = ''; mrBase.value = ''; mrShape.value = ''; mrCraft.value = ''
-  mrSock.value = { min: '', max: '' }; mrSup.value = ''
+  mrSock.value = { min: '', max: '' }; mrSup.value = ''; mrLvl.value = { min: '', max: '' }
   for (const k of Object.keys(mrSupVals.value)) mrSupVals.value[k] = { min: '', max: '' }
 }
 // 판매글이 조건에 맞는지
@@ -387,6 +436,12 @@ function mrMatches(p) {
     if (!(name === mrBase.value || (!line && (p.itemName || '').includes(mrBase.value)))) return false
   }
   if (mrShape.value && p.iconKey !== mrShape.value) return false
+  if (mrLvlOn.value) {
+    const v = lineValue(LVL_LINE)(p)
+    if (v === null) return false
+    if (mrLvl.value.min !== '' && v < Number(mrLvl.value.min)) return false
+    if (mrLvl.value.max !== '' && v > Number(mrLvl.value.max)) return false
+  }
   if (mrSockOn.value) {
     // 소켓 줄이 없으면 0개
     const v = lineValue(SOCK_LINE)(p) ?? 0
@@ -603,7 +658,7 @@ function condMatches(p, c) {
 
 const hasActiveFilters = computed(
   () =>
-    activeCats.value.length > 0 || activeLadder.value !== null || activeRegion.value !== null ||
+    activeCats.value.length > 0 || activeLadder.value !== null || activeRegion.value !== null || activeSlot.value !== null ||
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 || !!pickedItem.value
 )
@@ -635,6 +690,7 @@ const filteredPosts = computed(() => {
   if (activeCats.value.length) list = list.filter((p) => activeCats.value.includes(p.category))
   if (activeRegion.value) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value) list = list.filter((p) => p.gameVersion === gameVersion.value)
+  if (activeSlot.value) list = list.filter((p) => postSlot(p) === activeSlot.value)
   if (activeLadder.value) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value) list = list.filter((p) => p.ethereal)
@@ -678,6 +734,7 @@ const catPick = computed({
 const QUICK_SELECTS = [
   { label: '서버', ref: activeRegion, options: TRADE_REALMS },
   { label: '게임', ref: gameVersion, options: GAME_VERSIONS },
+  { label: '부위', ref: activeSlot, options: SLOT_ORDER },
   { label: '래더', ref: activeLadder, options: TRADE_LADDERS },
   { label: '모드', ref: activeHardcore, options: TRADE_HARDCORE },
 ]
@@ -1059,6 +1116,18 @@ function variantLines(p) {
                 <RangeInput v-model="mrSock.min" :min="0" :max="mrSockMax" :label="`${$t('소켓 수')} ${$t('최소')}`" />
                 <span class="mr-sep">~</span>
                 <RangeInput v-model="mrSock.max" :min="0" :max="mrSockMax" :label="`${$t('소켓 수')} ${$t('최대')}`" />
+              </div>
+            </div>
+          </template>
+
+          <template v-if="mrLvlShow">
+            <span class="mr-label" :class="{ on: mrLvlOn }">{{ $t('요구 레벨') }}</span>
+            <div class="pk-rows">
+              <div class="pk-row" :class="{ on: mrLvlOn }">
+                <span class="pk-name">1~99</span>
+                <RangeInput v-model="mrLvl.min" :min="1" :max="99" :label="`${$t('요구 레벨')} ${$t('최소')}`" />
+                <span class="mr-sep">~</span>
+                <RangeInput v-model="mrLvl.max" :min="1" :max="99" :label="`${$t('요구 레벨')} ${$t('최대')}`" />
               </div>
             </div>
           </template>
