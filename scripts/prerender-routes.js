@@ -71,6 +71,7 @@ const privatePages = [
   { p: 'admin/stats', title: '방문 통계' },
   { p: 'community/write', title: '글쓰기' },
   { p: 'trade/new', title: '판매글 등록' },
+  { p: 'trade/search', title: '매물 검색', noindex: true },
   { p: 'guides/new', title: '가이드 쓰기' },
 ].map((pg) => ({ ...pg, noindex: true }))
 
