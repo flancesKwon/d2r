@@ -158,6 +158,7 @@ export default {
   '아직 글 없음': 'No posts yet',
   '첫 글 쓰기': 'Write the first one',
   '판매중인 글 없음': 'No listings for sale',
+  '조건에 맞는 매물 없음': 'No listings match these filters',
   '거래중': 'In trade',
   '에테리얼': 'Ethereal',
   '미확인': 'Unidentified',
