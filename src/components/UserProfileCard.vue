@@ -75,6 +75,8 @@ const avg = computed(() => (reviews.value.length ? (reviews.value.reduce((a, r) 
 const selling = computed(() => tradePosts.value.filter((p) => p.status === '판매중' && !p.expired))
 const sold = computed(() => tradePosts.value.filter((p) => p.status === '거래완료').length)
 const isMe = computed(() => !!authState.user && authState.user.id === profile.value?.id)
+// 아직 거래 기록이 없는 회원 - 0 을 늘어놓는 대신 '새 판매자' 로
+const isNewSeller = computed(() => !reviews.value.length && !sold.value)
 const iconUrl = (key) => (key && ITEM_ICONS[key]) || null
 const priceText = (p) => tradePriceText(p.price)
 
@@ -104,6 +106,7 @@ async function sendMessage() {
             <div class="pcard-name">
               {{ profile.nickname }}
               <span class="pcard-role" v-if="profile.role && profile.role !== 'user'">{{ $t(ROLE_LABEL[profile.role] || profile.role) }}</span>
+              <span class="pcard-new" v-else-if="isNewSeller">{{ $t('새 판매자') }}</span>
             </div>
             <div class="pcard-seen" :class="{ on: online }">{{ online ? $t('● 접속 중') : $t('마지막 접속') + ' ' + ago(profile.last_seen_at) }}</div>
             <div class="pcard-joined">{{ $t('가입') }} {{ fmtDay(profile.created_at) }}</div>
@@ -111,11 +114,12 @@ async function sendMessage() {
         </div>
 
         <div class="pcard-stats">
-          <span><b>{{ avg ? '★ ' + avg : '-' }}</b><small>{{ $t('평점') }} · {{ $t('리뷰') }} {{ reviews.length }}</small></span>
-          <span><b>{{ selling.length }}</b><small>{{ $t('판매중') }}</small></span>
-          <span><b>{{ sold }}</b><small>{{ $t('판매완료') }}</small></span>
-          <span><b>{{ communityPosts.length }}</b><small>{{ $t('작성글') }}</small></span>
+          <span><b>{{ avg ? '★ ' + avg : '-' }}</b><small>{{ avg ? $t('평점') + ' · ' + $t('리뷰') + ' ' + reviews.length : $t('평점 없음') }}</small></span>
+          <span><b>{{ selling.length || '-' }}</b><small>{{ $t('판매중') }}</small></span>
+          <span><b>{{ sold || '-' }}</b><small>{{ $t('판매완료') }}</small></span>
+          <span><b>{{ communityPosts.length || '-' }}</b><small>{{ $t('작성글') }}</small></span>
         </div>
+        <p class="pcard-newnote" v-if="isNewSeller">{{ $t('거래 기록 없음 - 첫 거래 전') }}</p>
 
         <div class="pcard-section" v-if="selling.length">
           <div class="pcard-title">{{ $t('판매중인 글') }}</div>
@@ -164,6 +168,9 @@ async function sendMessage() {
 .pcard-seen{font-size:12.5px; color:var(--text-muted);}
 .pcard-seen.on{color:#3ecf5a; font-weight:600;}
 .pcard-joined{font-size:11.5px; color:var(--text-dim);}
+.pcard-new{margin-left:6px; padding:1px 7px; border:1px solid var(--line); border-radius:999px;
+  font-size:11px; font-weight:600; color:var(--text-muted); vertical-align:2px;}
+.pcard-newnote{margin:6px 0 0; font-size:12px; color:var(--text-muted); text-align:center;}
 .pcard-stats{display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;}
 .pcard-stats span{display:flex; flex-direction:column; align-items:center; gap:2px; padding:9px 4px; background:var(--panel); border:1px solid var(--border-soft); border-radius:12px;}
 .pcard-stats b{font-size:15px; color:var(--gold);}

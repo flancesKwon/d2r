@@ -105,13 +105,14 @@ async function sendMessage() {
             {{ profile.nickname }}
             <span class="user-role" v-if="profile.role && profile.role !== 'user'">{{ $t(ROLE_LABEL[profile.role] || profile.role) }}</span>
             <span class="user-suspended" v-if="suspended">{{ $t('이용 정지 중') }}</span>
+            <span class="user-new" v-else-if="!summary.reviews && !summary.sold">{{ $t('새 판매자') }}</span>
           </div>
           <div class="user-meta">{{ $t('가입') }} {{ fmtDay(profile.created_at) }} · <span v-if="isOnline(profile.id)" class="online-now">{{ $t('● 접속 중') }}</span><template v-else>{{ $t('마지막 활동') }} {{ ago(profile.last_seen_at) }}</template></div>
           <div class="user-stats">
             <span class="user-stat"><b>{{ summary.avg ? '★ ' + summary.avg : '-' }}</b><small>{{ $t('평점') }}</small></span>
-            <span class="user-stat"><b>{{ summary.reviews }}</b><small>{{ $t('받은 리뷰') }}</small></span>
-            <span class="user-stat"><b>{{ summary.sold }}</b><small>{{ $t('판매 완료') }}</small></span>
-            <span class="user-stat"><b>{{ summary.selling.length }}</b><small>{{ $t('판매 중') }}</small></span>
+            <span class="user-stat"><b>{{ summary.reviews || '-' }}</b><small>{{ $t('받은 리뷰') }}</small></span>
+            <span class="user-stat"><b>{{ summary.sold || '-' }}</b><small>{{ $t('판매 완료') }}</small></span>
+            <span class="user-stat"><b>{{ summary.selling.length || '-' }}</b><small>{{ $t('판매 중') }}</small></span>
           </div>
         </div>
         <div class="user-actions">
@@ -174,6 +175,8 @@ async function sendMessage() {
 .user-role{font-family:'Noto Sans KR', sans-serif; font-size:11px; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:2px 9px;}
 .user-suspended{font-family:'Noto Sans KR', sans-serif; font-size:11px; color:#e0775f; border:1px solid var(--blood); border-radius:999px; padding:2px 9px;}
 .user-meta{font-size:12.5px; color:var(--text-dim);}
+.user-new{margin-left:6px; padding:1px 8px; border:1px solid var(--line); border-radius:999px;
+  font-size:11.5px; font-weight:600; color:var(--text-muted); vertical-align:3px;}
 .user-stats{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
 .user-stat{display:flex; flex-direction:column; align-items:center; min-width:72px; padding:8px 12px; border:1px solid var(--border-soft); border-radius:12px; background:var(--panel-2);}
 .user-stat b{font-size:16px; color:var(--gold);}
