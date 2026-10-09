@@ -427,7 +427,8 @@ const condRange = (c) => (!c.keyword && mrOn.value && mrOptInfo.value.ranges[c.k
 const mrOptQuery = ref('')
 const mrOptMore = ref(false)
 const mrOptHits = computed(() => {
-  const q = squash(mrOptQuery.value.toLowerCase())
+  // 한글 조합 중간('모ㄷ')에 목록이 잠깐 비지 않게 끝에 남은 자모는 떼고 찾음 (메인 검색창과 같은 방식)
+  const q = squash(mrOptQuery.value.replace(JAMO_TAIL, '').toLowerCase())
   const pool = mrOptStats.value.length ? mrOptStats.value : ALL_STAT_FILTERS
   const notAdded = (st) => !statConditions.value.some((c) => !c.keyword && c.key === st.key)
   if (!q) return pool.filter(notAdded)
@@ -439,6 +440,22 @@ function chipTag(st) {
   const p = statParts(st)
   return p.tag && !(st.cls && p.name.includes(t(st.cls))) ? p.tag : null
 }
+// 제작법을 고르면 그 제작법에 늘 붙는 옵션(고정)은 바로 조건으로 올림 - 수치는 비워둠(= 붙어 있기만 하면 통과)
+// 제작법을 바꾸거나 끄면, 자동으로 넣었고 수치를 안 건드린 것만 도로 치움 (직접 고친 건 남김)
+let autoCraftKeys = []
+watch(mrCraftCard, (card) => {
+  if (autoCraftKeys.length) {
+    const auto = new Set(autoCraftKeys)
+    statConditions.value = statConditions.value.filter((c) => !(!c.keyword && auto.has(c.key) && c.min === null && c.max === null))
+  }
+  autoCraftKeys = []
+  for (const x of card?.stats || []) {
+    if (statConditions.value.some((c) => !c.keyword && c.key === x.st.key)) continue
+    statConditions.value.push({ key: x.st.key, min: null, max: null })
+    autoCraftKeys.push(x.st.key)
+  }
+})
+
 function addMrOpt(st) {
   if (!statConditions.value.some((c) => !c.keyword && c.key === st.key)) statConditions.value.push({ key: st.key, min: null, max: null })
   mrOptQuery.value = ''
@@ -1188,7 +1205,7 @@ function variantLines(p) {
               <button type="button" class="mr-x" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
             </div>
             <input
-              v-model="mrOptQuery" class="mr-opt-input" type="search" autocomplete="off"
+              :value="mrOptQuery" @input="mrOptQuery = $event.target.value" class="mr-opt-input" type="search" autocomplete="off"
               :placeholder="$t('옵션 찾기 (예: 모든 기술, 시전 속도, 생명력)')" :aria-label="$t('옵션 찾기')"
             />
             <div class="mr-opt-chips">
