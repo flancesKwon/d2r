@@ -158,6 +158,7 @@ export default {
   '아직 글 없음': 'No posts yet',
   '첫 글 쓰기': 'Write the first one',
   '판매중인 글 없음': 'No listings for sale',
+  '방어력 증가가 붙으면 베이스 방어력은 최댓값 +1 로 고정 - 값이 하나뿐이라 자동 입력': 'Enhanced defense forces base defense to max + 1, so there is only one possible value — filled in for you',
   '조건에 맞는 매물 없음': 'No listings match these filters',
   '거래중': 'In trade',
   '에테리얼': 'Ethereal',

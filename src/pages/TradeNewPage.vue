@@ -429,12 +429,66 @@ const basePickerPlaceholder = computed(() => {
     ? t('베이스 무기 검색 (예: 콜로서스 블레이드, Bardiche)')
     : t('베이스 방어구 검색 (예: 카이트 실드, Field Plate)')
 })
+// 고른 상급·접사·제작법에서 나오는 방어력 관련 수치 모으기
+//  ac%  = 방어력 증가 % (상급·매직/레어 접사·크래프트 세이프티)
+//  ac   = 방어력 +N
+//  ac/lvl = 레벨당 방어력 (캐릭터 레벨에 따라 달라져 값이 하나로 안 정해짐)
+// 수치를 아직 안 넣은 칸은 그 칸의 범위(lo~hi)로 셈
+const acSources = computed(() => {
+  let edLo = 0, edHi = 0, flatLo = 0, flatHi = 0, perLvl = 0
+  const add = (fam, values) => (fam?.mods || []).forEach((md, i) => {
+    if (md.code === 'ac/lvl') { perLvl += (Number(md.param) || 0) / 8; return }
+    if (md.code !== 'ac%' && md.code !== 'ac') return
+    const r = fam.slotRanges?.[i]
+    const lo = Number(r ? r[0] : md.min) || 0
+    const hi = Number(r ? r[1] : md.max) || 0
+    const raw = values?.[i]
+    const has = raw !== '' && raw !== undefined && raw !== null && Number.isFinite(Number(raw))
+    const v = Number(raw)
+    if (md.code === 'ac%') { edLo += has ? v : lo; edHi += has ? v : hi }
+    else { flatLo += has ? v : lo; flatHi += has ? v : hi }
+  })
+  for (const { fam, values } of pickedAffixes.value) add(fam, values)
+  if (pickedCraft.value) add(pickedCraft.value.fam, craftPick.value.values)
+  // 상급 조합의 방어력 증가
+  if ((pickedSuperiorCombo.value || []).includes('ac%')) {
+    const m = SUPERIOR_MODS['ac%']
+    const raw = superiorPick.value.values['ac%']
+    const has = raw !== '' && raw !== undefined && raw !== null && Number.isFinite(Number(raw))
+    edLo += has ? Number(raw) : m.min
+    edHi += has ? Number(raw) : m.max
+  }
+  return { edLo, edHi, flatLo, flatHi, perLvl }
+})
+// 방어력 증가가 붙은 아이템의 방어력 (게임 계산 - 단계마다 버림, '방어력 +N' 은 % 다음에 더함)
+function defenseWithEd(ed) {
+  const base = selectedBaseItem.value?.base_stats
+  if (!base || base.category !== 'armor') return null
+  let d = base.maxac + (ed > 0 ? 1 : 0)
+  if (form.value.ethereal) d = Math.floor(d * 1.5)
+  return Math.floor((d * (100 + ed)) / 100)
+}
 // 고른 베이스의 기본 방어력 범위 (에테리얼이면 1.5배) - 안내·입력 예시·범위 경고에 같이 씀
 const expectedDefense = computed(() => {
   const base = selectedBaseItem.value?.base_stats
   if (!base || base.category !== 'armor') return null
+  const { edLo, edHi, flatLo, flatHi, perLvl } = acSources.value
   const mul = form.value.ethereal ? 1.5 : 1
-  return { min: Math.floor(base.minac * mul), max: Math.floor(base.maxac * mul) }
+  const lo = edHi > 0 ? defenseWithEd(edLo) : Math.floor(base.minac * mul)
+  const hi = edHi > 0 ? defenseWithEd(edHi) : Math.floor(base.maxac * mul)
+  return { min: lo + flatLo, max: hi + flatHi + Math.floor(perLvl * 99) }
+})
+// 값이 하나로 정해지는 경우 - 자동으로 채우고 손으로 못 고치게
+// (방어력 증가가 붙어 베이스가 maxac+1 로 고정 + 고른 수치가 다 들어감 + 레벨당 방어력 없음)
+const defenseFixed = computed(() => {
+  const { edLo, edHi, flatLo, flatHi, perLvl } = acSources.value
+  if (!(edHi > 0) || edLo !== edHi || flatLo !== flatHi || perLvl) return null
+  const v = defenseWithEd(edHi)
+  return v === null ? null : v + flatHi
+})
+watch(defenseFixed, (v, old) => {
+  if (v !== null) armorStats.value.baseDefense = String(v)
+  else if (old !== null && String(armorStats.value.baseDefense) === String(old)) armorStats.value.baseDefense = ''
 })
 const baseDefenseWarning = computed(() => {
   const exp = expectedDefense.value
@@ -1212,7 +1266,7 @@ function submitPost() {
 
         <template v-if="effectiveBaseKind === 'armor'">
           <div class="base-stats-ref-row" v-if="selectedBaseItem && !lockedEquipBase">
-            <span v-if="expectedDefense">{{ $t('기본 방어력 범위') }} {{ expectedDefense.min }}~{{ expectedDefense.max }}{{ form.ethereal ? ' ' + $t('(에테리얼 1.5배)') : '' }}</span>
+            <span v-if="expectedDefense">{{ expectedDefense.min === expectedDefense.max ? $t('기본 방어력') : $t('기본 방어력 범위') }} {{ expectedDefense.min === expectedDefense.max ? expectedDefense.min : `${expectedDefense.min}~${expectedDefense.max}` }}{{ form.ethereal ? ' ' + $t('(에테리얼 1.5배)') : '' }}</span>
             <span v-if="selectedBaseItem.base_stats.durability">{{ $t('내구도') }} {{ selectedBaseItem.base_stats.durability }}</span>
             <span v-if="selectedBaseItem.base_stats.reqstr">{{ $t('요구 힘') }} {{ selectedBaseItem.base_stats.reqstr }}</span>
             <span v-if="selectedBaseItem.base_stats.reqdex">{{ $t('요구 민첩') }} {{ selectedBaseItem.base_stats.reqdex }}</span>
@@ -1222,13 +1276,15 @@ function submitPost() {
               {{ $t('기본 방어력') }}
               <input
                 type="number" v-model="armorStats.baseDefense" class="write-input"
-                :class="{ invalid: expectedDefense && outOfRange(armorStats.baseDefense, expectedDefense) }"
+                :class="{ invalid: expectedDefense && outOfRange(armorStats.baseDefense, expectedDefense), fixed: defenseFixed !== null }"
+                :readonly="defenseFixed !== null"
                 :min="expectedDefense?.min" :max="expectedDefense?.max"
-                :placeholder="expectedDefense ? `${expectedDefense.min}~${expectedDefense.max}` : $t('예: 80')"
+                :placeholder="expectedDefense ? (expectedDefense.min === expectedDefense.max ? String(expectedDefense.min) : `${expectedDefense.min}~${expectedDefense.max}`) : $t('예: 80')"
               />
             </label>
           </div>
-          <div class="unit-hint" v-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
+          <div class="unit-hint" v-if="defenseFixed !== null">{{ $t('방어력 증가가 붙으면 베이스 방어력은 최댓값 +1 로 고정 - 값이 하나뿐이라 자동 입력') }}</div>
+          <div class="unit-hint" v-else-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
         </template>
 
         <template v-else-if="effectiveBaseKind === 'weapon'">
@@ -1695,6 +1751,7 @@ function submitPost() {
 
 .base-stats-input{border:1px solid var(--gold-dim); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:10px;}
 .write-input.invalid{border-color:var(--blood) !important; box-shadow:0 0 0 1px var(--blood);}
+.write-input.fixed{background:rgba(255,255,255,0.03); color:var(--text-muted); cursor:default;}
 .tooltip-preview{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; border-radius:14px; display:flex; flex-direction:column; gap:8px; align-items:center;}
 .tooltip-preview .option-editor-title, .tooltip-preview .option-editor-hint{align-self:stretch;}
 .base-mods{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--border); padding-top:12px; margin-top:2px;}
