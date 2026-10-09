@@ -291,7 +291,7 @@ const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) 
               <span class="th-req" v-if="p.requests && p.requests.length">{{ $t('신청') }} {{ p.requests.length }}</span>
             </router-link>
             <div class="empty-state" v-if="!shownPosts.length">
-              {{ $t('거래내역 없음.') }} <router-link to="/trade/new">{{ $t('판매글 등록하기') }}</router-link>
+              {{ $t('완료된 거래 없음 - 첫 거래 전') }} <router-link to="/trade/new">{{ $t('판매글 등록하기') }}</router-link>
             </div>
           </div>
         </section>
