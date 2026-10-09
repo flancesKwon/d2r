@@ -2000,6 +2000,11 @@ function variantLines(p) {
 .tr-toggle.eth.on{border:1px solid var(--teal); color:var(--teal); background:color-mix(in srgb, var(--teal) 12%, transparent);}
 .tr-toggle.unid.on{border:1px solid #e0775f; color:#e0775f; background:color-mix(in srgb, #e0775f 12%, transparent);}
 
+/* 내용이 짧아도(첫 화면) 본문이 화면을 채워서 푸터가 위로 딸려 올라오지 않게 */
+.trade-page{display:flex; flex-direction:column; flex:1 0 auto;}
+/* 첫 화면은 내용이 짧아서, 본문이 화면 높이를 채우게 해 푸터가 접힌 선 아래로 가게 함 (헤더 높이만 뺌) */
+.trade-page:not(.searching){min-height:calc(100dvh - 58px);}
+.trade-page .tr-body{flex:1 0 auto;}
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 /* 검색 화면: 왼쪽 조건 칸 + 오른쪽 결과 (결과가 위에서 바로 보이게) */
 /* 검색 화면은 넓게 - 검색창(hero)과 아래 조건·결과의 좌우 기준선을 같게 맞춤 */
