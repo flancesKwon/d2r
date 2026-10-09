@@ -62,6 +62,7 @@ const baseRoutes = [
     { path: '/trade', redirect: (to) => ({ path: '/', query: to.query }) },
     { path: '/trade/history', name: 'trade-history', component: TradeHistoryPage, meta: { title: '아이템별 거래내역' } },
     { path: '/trade/wants', name: 'trade-wants', component: TradeWantsPage, meta: { title: '삽니다' } },
+    { path: '/trade/search', name: 'trade-search', component: TradePage, meta: { title: '매물 검색' } },
     { path: '/trade/new', name: 'trade-new', component: TradeNewPage, meta: { title: '판매글 등록' } },
     { path: '/trade/:id/relist', name: 'trade-relist', component: TradeRelistPage, meta: { title: '재등록' } },
     { path: '/trade/:id/edit', name: 'trade-edit', component: TradeEditPage, meta: { title: '판매글 수정' } },

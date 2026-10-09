@@ -139,10 +139,12 @@ function pickItem(it) {
   pickedItem.value = it
   searchQuery.value = ''
   suggestOpen.value = false
+  goSearch()
 }
 function clearPickedItem() {
   pickedItem.value = null
 }
+
 function onSearchKey(e) {
   if (e.isComposing) return
   const list = unifiedSuggestions.value
@@ -260,6 +262,7 @@ function pickBase(b, quality = '') {
   mrCraft.value = ''
   searchQuery.value = ''
   suggestOpen.value = false
+  goSearch()
 }
 const clearMrBase = () => { mrBase.value = ''; mrBaseObj.value = null; resetMr() }
 // 화면에 보여줄 베이스 이름 - 영어면 장신구는 영어 이름, 장비는 "써클릿 (Circlet)" 의 괄호 안
@@ -479,10 +482,14 @@ function mrMatches(p) {
   if (!mrOn.value) return true
   if (mrQuality.value && p.quality !== mrQuality.value) return false
   if (mrBase.value) {
+    // 판매글에는 괄호 붙은 이름("베이스: 반지 (Ring)")이 적히고 고르는 값은 장신구면 괄호가 없음("반지")
+    // -> 괄호를 뗀 이름끼리 비교 (예전엔 장신구 베이스로 고르면 매물이 하나도 안 나왔음)
+    const bare = (x) => x.replace(/ (.+)$/, '')
     const line = (p.options || []).find((l) => l.startsWith('베이스: '))
-    const name = line ? line.slice('베이스: '.length) : ''
-    // 장신구는 베이스 줄이 없고 아이템 이름에 들어 있음 ("레어 반지")
-    if (!(name === mrBase.value || (!line && (p.itemName || '').includes(mrBase.value)))) return false
+    const name = line ? bare(line.slice('베이스: '.length)) : ''
+    const want = bare(mrBase.value)
+    // 베이스 줄이 없는 옛 글은 아이템 이름으로 ("레어 반지")
+    if (!(name === want || (!line && (p.itemName || '').includes(want)))) return false
   }
   if (mrShape.value && p.iconKey !== mrShape.value) return false
   if (mrLvlOn.value) {
@@ -630,13 +637,6 @@ function itemRangeMatches(p, d) {
   if (d.choices) return v === r.pick
   return (r.min === '' || v >= Number(r.min)) && (r.max === '' || v <= Number(r.max))
 }
-// 아이템을 바꾸면 주소도 맞춤 (공유·뒤로 가기용)
-watch(pickedItem, (it) => {
-  const q = { ...route.query }
-  if (it) q.item = it.id
-  else delete q.item
-  router.replace({ query: q })
-})
 
 // 트레더리처럼 아이콘 위주로 훑어보고 싶을 때는 그리드로, 옵션·메모까지 자세히
 // 보고 싶을 때는 리스트로 - 마지막으로 고른 보기 방식을 기억해둠
@@ -732,6 +732,133 @@ function resetFilters() {
   searchQuery.value = ''
   statConditions.value = []
   pickedItem.value = null
+}
+
+// ───────── 조건 <-> 주소 ─────────
+// 조건을 전부 주소에 담아 링크 공유·새로고침·뒤로 가기가 되게 함
+// (예전엔 ?item= 만 들어가서 베이스·품질·옵션 조건은 새로고침하면 날아갔음)
+const SEARCH_PATH = '/trade/search'
+const isSearchRoute = computed(() => /\/trade\/search\/?$/.test(route.path))
+// 좁은 화면에서는 결과가 먼저 보이게 조건 칸을 접어 둠
+const filtersOpen = ref(typeof window === 'undefined' || window.innerWidth >= 900)
+// 범위 칸: 음수도 있어서 '~' 로 가름 ('-7~3')
+const rng = (r) => (r && (r.min !== '' && r.min !== null || r.max !== '' && r.max !== null) ? `${r.min ?? ''}~${r.max ?? ''}` : '')
+const unrng = (v) => { const p = String(v || '').split('~'); return p.length === 2 ? { min: p[0], max: p[1] } : { min: '', max: '' } }
+const numOrNull = (v) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v))
+
+function buildQuery() {
+  const q = {}
+  if (pickedItem.value) q.item = pickedItem.value.id
+  if (searchQuery.value.trim()) q.q = searchQuery.value.trim()
+  if (activeCats.value.length) q.cat = activeCats.value.join(';')
+  if (activeRegion.value) q.realm = activeRegion.value
+  if (gameVersion.value) q.game = gameVersion.value
+  if (activeLadder.value) q.ladder = activeLadder.value
+  if (activeHardcore.value) q.hc = activeHardcore.value
+  if (activeSlot.value) q.slot = activeSlot.value
+  if (etherealOnly.value) q.eth = '1'
+  if (unidOnly.value) q.unid = '1'
+  if (mrBase.value) q.base = mrBase.value
+  if (mrQuality.value) q.bq = mrQuality.value
+  if (mrShape.value) q.shape = mrShape.value
+  if (mrCraft.value) q.craft = mrCraft.value
+  if (mrSup.value) q.sup = mrSup.value
+  if (rng(mrSock.value)) q.sock = rng(mrSock.value)
+  if (rng(mrLvl.value)) q.lvl = rng(mrLvl.value)
+  if (itemShape.value) q.ishape = itemShape.value
+  const supv = Object.entries(mrSupVals.value).filter(([, r]) => rng(r)).map(([k, r]) => `${k}|${rng(r)}`)
+  if (supv.length) q.supv = supv.join(';')
+  // 아이템 변동 옵션 칸은 순서(번호)로 - 문구를 그대로 넣으면 주소가 너무 길어짐
+  const ir = itemVarDefs.value.map((d, i) => {
+    const r = itemRanges.value[d.key]
+    if (!r) return null
+    if (d.choices) return r.pick ? `${i}|p:${r.pick}` : null
+    return rng(r) ? `${i}|${rng(r)}` : null
+  }).filter(Boolean)
+  if (ir.length) q.ir = ir.join(';')
+  const opt = statConditions.value.map((c) =>
+    `${c.keyword ? 'k' : 's'}|${c.keyword || c.key}|${c.min ?? ''}~${c.max ?? ''}`)
+  if (opt.length) q.opt = opt.join(';')
+  return q
+}
+// 주소에 조건이 하나라도 있나 (옛 ?item= 링크로 첫 화면에 들어온 경우 검색 화면으로 넘기려고)
+const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'base', 'bq', 'shape', 'craft', 'sup', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
+const hasQueryFilters = (q) => QUERY_KEYS.some((k) => q[k])
+
+let syncing = false
+function applyQuery(q) {
+  pickedItem.value = getTradeItem(typeof q.item === 'string' ? q.item : null) || null
+  searchQuery.value = typeof q.q === 'string' ? q.q : ''
+  activeCats.value = q.cat ? String(q.cat).split(';').filter((c) => TRADE_CATEGORIES.includes(c)) : []
+  activeRegion.value = TRADE_REALMS.includes(q.realm) ? q.realm : activeRegion.value
+  gameVersion.value = GAME_VERSIONS.includes(q.game) ? q.game : gameVersion.value
+  activeLadder.value = TRADE_LADDERS.includes(q.ladder) ? q.ladder : null
+  activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
+  activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
+  etherealOnly.value = q.eth === '1'
+  unidOnly.value = q.unid === '1'
+  mrBase.value = typeof q.base === 'string' ? q.base : ''
+  mrBaseObj.value = null
+  mrQuality.value = typeof q.bq === 'string' ? q.bq : ''
+  mrShape.value = typeof q.shape === 'string' ? q.shape : ''
+  mrCraft.value = typeof q.craft === 'string' ? q.craft : ''
+  mrSup.value = typeof q.sup === 'string' ? q.sup : ''
+  mrSock.value = unrng(q.sock)
+  mrLvl.value = unrng(q.lvl)
+  itemShape.value = typeof q.ishape === 'string' ? q.ishape : ''
+  statConditions.value = String(q.opt || '').split(';').filter(Boolean).map((e) => {
+    const i = e.indexOf('|'), j = e.lastIndexOf('|')
+    if (i < 0 || j <= i) return null
+    const kind = e.slice(0, i), id = e.slice(i + 1, j), r = unrng(e.slice(j + 1))
+    const c = { min: numOrNull(r.min), max: numOrNull(r.max) }
+    return kind === 'k' ? { ...c, keyword: id } : (statFilterByKey(id) ? { ...c, key: id } : null)
+  }).filter(Boolean)
+  // 상급 수치·아이템 변동 옵션 칸은 칸이 만들어진 다음에 (베이스·아이템에 따라 칸이 달라짐)
+  nextTick(() => {
+    for (const e of String(q.supv || '').split(';').filter(Boolean)) {
+      const [k, r] = e.split('|')
+      if (mrSupVals.value[k]) mrSupVals.value[k] = unrng(r)
+    }
+    for (const e of String(q.ir || '').split(';').filter(Boolean)) {
+      const i = e.indexOf('|')
+      const d = itemVarDefs.value[Number(e.slice(0, i))]
+      if (!d || !itemRanges.value[d.key]) continue
+      const v = e.slice(i + 1)
+      if (v.startsWith('p:')) itemRanges.value[d.key].pick = v.slice(2)
+      else itemRanges.value[d.key] = { ...itemRanges.value[d.key], ...unrng(v) }
+    }
+  })
+}
+const sameQuery = (a, b) => {
+  const ka = Object.keys(a), kb = Object.keys(b).filter((k) => b[k] !== undefined && b[k] !== '')
+  return ka.length === kb.length && ka.every((k) => String(a[k]) === String(b[k]))
+}
+// 조건이 바뀌면 주소를 맞춤 (검색 화면에서만 - 첫 화면은 주소를 깔끔하게 둠)
+watch(buildQuery, (q) => {
+  if (syncing || !isSearchRoute.value) return
+  if (!sameQuery(q, route.query)) router.replace({ path: route.path, query: q })
+}, { deep: true })
+// 주소가 바뀌면(뒤로 가기·링크) 조건을 되살림
+watch(() => route.fullPath, () => {
+  if (syncing) return
+  if (sameQuery(buildQuery(), route.query)) return
+  syncing = true
+  applyQuery(route.query)
+  nextTick(() => { syncing = false })
+})
+onMounted(() => {
+  if (hasQueryFilters(route.query)) {
+    syncing = true
+    applyQuery(route.query)
+    nextTick(() => { syncing = false })
+    // 옛 링크(/?item=...)로 첫 화면에 들어오면 검색 화면으로
+    if (!isSearchRoute.value) router.replace({ path: SEARCH_PATH, query: route.query })
+  }
+})
+// 조건을 고르면 검색 화면으로 이동 (첫 화면에서 고른 경우)
+function goSearch() {
+  if (isSearchRoute.value) return
+  nextTick(() => router.push({ path: SEARCH_PATH, query: buildQuery() }))
 }
 
 // 판매 기간(7일)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
@@ -997,12 +1124,18 @@ function variantLines(p) {
 </script>
 
 <template>
-  <div class="items-page trade-page">
+  <div class="items-page trade-page" :class="{ searching: isSearchRoute }">
 
   <section class="tr-hero">
     <div class="tr-hero-inner">
-      <h1>{{ $t('디아블로 2 레저렉션 거래소') }}</h1>
-      <p class="tr-hero-sub">{{ $t('유니크 · 룬워드 · 룬부터 옵션 수치까지, 한 번에 검색') }}</p>
+      <template v-if="!isSearchRoute">
+        <h1>{{ $t('디아블로 2 레저렉션 거래소') }}</h1>
+        <p class="tr-hero-sub">{{ $t('유니크 · 룬워드 · 룬부터 옵션 수치까지, 한 번에 검색') }}</p>
+      </template>
+      <div class="tr-back" v-else>
+        <router-link to="/">← {{ $t('전체 매물') }}</router-link>
+        <h1 class="tr-back-title">{{ $t('매물 검색') }}</h1>
+      </div>
 
       <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
         <div class="tr-search-box">
@@ -1095,6 +1228,15 @@ function variantLines(p) {
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
+    </div>
+  </section>
+
+  <div class="tr-body">
+  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
+    <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
+      {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
+    </button>
+    <div class="tr-filters-body">
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
       <div class="item-range-panel mr-panel" v-if="mrOn">
         <div class="mr-head">
@@ -1303,9 +1445,7 @@ function variantLines(p) {
         <div class="item-range-empty" v-if="!itemVarDefs.length && !uniqueShapes.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
       </div>
     </div>
-  </section>
-
-  <div class="tr-body">
+  </aside>
   <div class="tr-main">
     <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
@@ -1727,6 +1867,28 @@ function variantLines(p) {
 .tr-toggle.unid.on{border:1px solid #e0775f; color:#e0775f; background:color-mix(in srgb, #e0775f 12%, transparent);}
 
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
+/* 검색 화면: 왼쪽 조건 칸 + 오른쪽 결과 (결과가 위에서 바로 보이게) */
+.trade-page.searching .tr-body{max-width:1340px; flex-wrap:nowrap;}
+.tr-filters{flex:0 0 360px; min-width:0; position:sticky; top:12px;}
+.tr-filters-toggle{display:none;}
+.tr-filters .item-range-panel{margin-top:0;}
+.tr-filters .item-range-panel + .item-range-panel{margin-top:10px;}
+/* 조건 칸이 좁아지니 이름 칸도 줄이고 옵션 줄은 한 줄씩 */
+.tr-filters .mr-grid{grid-template-columns:62px minmax(0, 1fr); gap:9px 10px;}
+.tr-filters .item-range-grid{grid-template-columns:1fr;}
+.tr-filters .pk-row{flex-wrap:wrap;}
+@media (max-width:1100px){
+  .trade-page.searching .tr-body{flex-wrap:wrap;}
+  .tr-filters{flex:1 1 100%; position:static;}
+  .tr-filters-toggle{display:block; width:100%; margin-bottom:8px; padding:9px 12px; border:1px solid var(--border-soft);
+    border-radius:10px; background:var(--panel); color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer;}
+  .tr-filters.closed .tr-filters-body{display:none;}
+}
+/* 검색 화면 머리글 - 전체 매물로 돌아가는 링크 */
+.tr-back{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
+.tr-back a{font-size:13px; color:var(--gold-dim);}
+.tr-back a:hover{color:var(--gold);}
+.tr-back-title{font-size:20px; margin:0; font-family:'Noto Sans KR', sans-serif; font-weight:800;}
 .tr-main{flex:999 1 620px; min-width:0;}
 .tr-main .trade-list, .tr-main .trade-grid{margin-top:12px;}
 .tr-results-head{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
