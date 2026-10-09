@@ -193,7 +193,6 @@ export default {
   '미확인만': 'Unidentified only',
   '요구 레벨': 'Required level',
   '검색 옵션': 'filters',
-  '비워두면 상관없음 · 값을 넣으면 그 값을 적은 글만': 'leave blank for any value · fill in to match listings that state it',
   '베이스': 'Base',
   '상급(슈페리얼) 베이스': 'Superior base',
   '상급만': 'Superior only',
