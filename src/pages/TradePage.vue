@@ -918,7 +918,6 @@ const catPick = computed({
 const QUICK_SELECTS = [
   { label: '서버', ref: activeRegion, options: TRADE_REALMS },
   { label: '게임', ref: gameVersion, options: GAME_VERSIONS },
-  { label: '부위', ref: activeSlot, options: SLOT_ORDER },
   { label: '래더', ref: activeLadder, options: TRADE_LADDERS },
   { label: '모드', ref: activeHardcore, options: TRADE_HARDCORE },
 ]
@@ -978,7 +977,7 @@ function chooseSuggestion(sug) {
   suggestPointer = false
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
-  if (sug.type === 'text') { suggestOpen.value = false; return }
+  if (sug.type === 'text') { suggestOpen.value = false; goSearch(); return }
   if (sug.type === 'cat') toggleCat(sug.c, true)
   else if (sug.type === 'stat') addStatKey(sug.st.key, true)
   else if (sug.type === 'kw') {
@@ -987,6 +986,7 @@ function chooseSuggestion(sug) {
   }
   searchQuery.value = ''
   suggestOpen.value = false
+  goSearch()
 }
 function toggleCat(c, onlyAdd = false) {
   const i = activeCats.value.indexOf(c)
@@ -1449,8 +1449,21 @@ function variantLines(p) {
   <div class="tr-main">
     <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
+    <!-- 첫 화면: 매물 목록 대신 몇 개 올라와 있는지와 전체 보기 -->
+    <div class="tr-home-cta" v-if="!isSearchRoute">
+      <router-link class="tr-all-btn" :to="{ path: SEARCH_PATH }">
+        <b>{{ $t('현재 매물 {n}개', { n: filteredPosts.length }) }}</b>
+        <span>{{ $t('전체 보기') }} →</span>
+      </router-link>
+      <div class="tr-home-links">
+        <button type="button" class="guide-btn" @click="openTradeGuide()">{{ $t('이용 안내') }}</button>
+        <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
+      </div>
+    </div>
+
+    <template v-if="isSearchRoute">
     <div class="tr-results-head">
-      <h2>{{ appliedCount ? $t('검색 결과') : $t('방금 올라온 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
+      <h2>{{ appliedCount ? $t('검색 결과') : $t('전체 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
       <span class="tr-results-note">{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
       <router-link v-if="wantLink" class="want-cta" :to="wantLink">🔔 {{ $t('이 조건으로 알림 받기') }}</router-link>
       <router-link v-if="pickedItem && pickedWantCount" class="want-count" :to="{ path: '/trade/wants', query: { q: pickedItem.name_ko } }">{{ $t('구하는 사람 {n}명', { n: pickedWantCount }) }}</router-link>
@@ -1524,7 +1537,7 @@ function variantLines(p) {
             {{ statLabel(c) }}{{ condValue(p, c) !== null ? ` ${condValue(p, c)}${statUnit(c)}` : '' }}
           </span>
         </span>
-        <span class="trade-card-footer">{{ agoText(p) }}</span>
+        <span class="trade-card-footer">{{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ agoText(p) }}</span>
       </router-link>
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
@@ -1535,6 +1548,7 @@ function variantLines(p) {
       </div>
     </div>
     <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
+    </template>
   </div>
 
   </div>
@@ -1884,6 +1898,15 @@ function variantLines(p) {
     border-radius:10px; background:var(--panel); color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer;}
   .tr-filters.closed .tr-filters-body{display:none;}
 }
+/* 첫 화면: 매물 수 + 전체 보기 */
+.tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
+.tr-all-btn{display:inline-flex; align-items:center; gap:10px; padding:12px 20px; border:1px solid var(--gold-dim);
+  border-radius:999px; background:#211b11; color:var(--gold);}
+.tr-all-btn:hover{background:#2A2216;}
+.tr-all-btn b{font-size:15px; font-weight:800;}
+.tr-all-btn span{font-size:13px; color:var(--gold-dim);}
+.tr-home-links{display:flex; align-items:center; gap:8px; margin-left:auto;}
+@media (max-width:560px){ .tr-home-links{margin-left:0;} }
 /* 검색 화면 머리글 - 전체 매물로 돌아가는 링크 */
 .tr-back{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
 .tr-back a{font-size:13px; color:var(--gold-dim);}
