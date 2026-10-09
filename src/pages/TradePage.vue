@@ -855,6 +855,16 @@ onMounted(() => {
     if (!isSearchRoute.value) router.replace({ path: SEARCH_PATH, query: route.query })
   }
 })
+// 검색 버튼·Enter - 지금 쌓인 조건으로 결과 화면을 엶 (조건이 없으면 전체 목록)
+function runSearch() {
+  suggestOpen.value = false
+  const q = buildQuery()
+  if (isSearchRoute.value) {
+    if (!sameQuery(q, route.query)) router.replace({ path: route.path, query: q })
+    return
+  }
+  router.push({ path: SEARCH_PATH, query: q })
+}
 // 조건을 고르면 검색 화면으로 이동 (첫 화면에서 고른 경우)
 function goSearch() {
   if (isSearchRoute.value) return
@@ -978,15 +988,15 @@ function chooseSuggestion(sug) {
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; goSearch(); return }
-  if (sug.type === 'cat') toggleCat(sug.c, true)
-  else if (sug.type === 'stat') addStatKey(sug.st.key, true)
+  if (sug.type === 'cat') { toggleCat(sug.c, true); searchQuery.value = ''; suggestOpen.value = false; goSearch(); return }
+  // 옵션은 쌓아두기만 - 첫 화면에서 더 넣거나 지우고 '검색' 을 눌렀을 때 결과 화면으로 감
+  if (sug.type === 'stat') addStatKey(sug.st.key, true)
   else if (sug.type === 'kw') {
     const cond = { key: KEYWORD_KEY, keyword: sug.raw, min: null, max: null }
     if (!statConditions.value.some((c) => condId(c) === condId(cond))) statConditions.value.push(cond)
   }
   searchQuery.value = ''
   suggestOpen.value = false
-  goSearch()
 }
 function toggleCat(c, onlyAdd = false) {
   const i = activeCats.value.indexOf(c)
@@ -1137,7 +1147,7 @@ function variantLines(p) {
         <h1 class="tr-back-title">{{ $t('매물 검색') }}</h1>
       </div>
 
-      <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : null">
+      <form class="tr-search" role="search" @submit.prevent="unifiedSuggestions.length ? chooseSuggestion(unifiedSuggestions[suggestActive] || unifiedSuggestions[0]) : runSearch()">
         <div class="tr-search-box">
           <input
             ref="searchEl" type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
@@ -1211,6 +1221,7 @@ function variantLines(p) {
           </span>
         </span>
         <span class="tr-applied-gap"></span>
+        <button type="button" class="tr-go" v-if="!isSearchRoute" @click="runSearch()">{{ $t('검색') }} →</button>
         <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">{{ $t('모두 지우기') }}</button>
       </div>
 
@@ -1451,10 +1462,16 @@ function variantLines(p) {
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
     <!-- 첫 화면: 매물 목록 대신 몇 개 올라와 있는지와 전체 보기 -->
     <div class="tr-home-cta" v-if="!isSearchRoute">
-      <router-link class="tr-all-btn" :to="{ path: SEARCH_PATH }">
-        <b>{{ $t('현재 매물 {n}개', { n: filteredPosts.length }) }}</b>
-        <span>{{ $t('전체 보기') }} →</span>
-      </router-link>
+      <button type="button" class="tr-all-btn" @click="runSearch()">
+        <template v-if="appliedCount">
+          <b>{{ $t('조건 {n}개로 검색', { n: appliedCount }) }}</b>
+          <span>{{ $t('결과 {n}개', { n: filteredPosts.length }) }} →</span>
+        </template>
+        <template v-else>
+          <b>{{ $t('현재 매물 {n}개', { n: filteredPosts.length }) }}</b>
+          <span>{{ $t('전체 보기') }} →</span>
+        </template>
+      </button>
       <div class="tr-home-links">
         <button type="button" class="guide-btn" @click="openTradeGuide()">{{ $t('이용 안내') }}</button>
         <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
@@ -1898,9 +1915,12 @@ function variantLines(p) {
     border-radius:10px; background:var(--panel); color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer;}
   .tr-filters.closed .tr-filters-body{display:none;}
 }
+.tr-go{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim);
+  border-radius:999px; padding:4px 12px; cursor:pointer;}
+.tr-go:hover{background:#2A2216;}
 /* 첫 화면: 매물 수 + 전체 보기 */
 .tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
-.tr-all-btn{display:inline-flex; align-items:center; gap:10px; padding:12px 20px; border:1px solid var(--gold-dim);
+.tr-all-btn{cursor:pointer; display:inline-flex; align-items:center; gap:10px; padding:12px 20px; border:1px solid var(--gold-dim);
   border-radius:999px; background:#211b11; color:var(--gold);}
 .tr-all-btn:hover{background:#2A2216;}
 .tr-all-btn b{font-size:15px; font-weight:800;}

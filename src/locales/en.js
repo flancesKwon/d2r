@@ -158,6 +158,8 @@ export default {
   '아직 글 없음': 'No posts yet',
   '첫 글 쓰기': 'Write the first one',
   '판매중인 글 없음': 'No listings for sale',
+  '결과 {n}개': '{n} results',
+  '조건 {n}개로 검색': 'Search with {n} filters',
   '전체 보기': 'View all',
   '현재 매물 {n}개': '{n} listings now',
   '조건 펴기': 'Show filters',
