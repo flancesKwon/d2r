@@ -862,6 +862,15 @@ onMounted(() => {
     if (!isSearchRoute.value) router.replace({ path: SEARCH_PATH, query: route.query })
   }
 })
+// 칩의 × 로 아이템·베이스를 지워 조건이 하나도 안 남으면 검색 화면에 있을 이유가 없음 -> 첫 화면
+function dropToHome(clear) {
+  clear()
+  if (!isSearchRoute.value) return
+  nextTick(() => { if (!appliedCount.value) router.push('/') })
+}
+const dropPickedItem = () => dropToHome(clearPickedItem)
+const dropMrBase = () => dropToHome(clearMrBase)
+
 // 검색 버튼·Enter - 지금 쌓인 조건으로 결과 화면을 엶 (조건이 없으면 전체 목록)
 function runSearch() {
   suggestOpen.value = false
@@ -1249,14 +1258,14 @@ function variantLines(p) {
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
-        <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="clearMrBase">×</button></span>
+        <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="dropMrBase">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrCraft"><em>{{ $t('제작법') }}</em>{{ $t(mrCraft) }}<button type="button" aria-label="×" @click="mrCraft = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrShape"><em>{{ $t('모양') }}</em><img class="chip-shape" v-if="iconUrlFor(mrShape)" :src="iconUrlFor(mrShape)" alt="" /><button type="button" aria-label="×" @click="mrShape = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrSup"><em>{{ $t('상급 여부') }}</em>{{ $t(SUP_CHOICES.find((c) => c.v === mrSup)?.label || mrSup) }}<button type="button" aria-label="×" @click="mrSup = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
-        <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
+        <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="dropPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
           <em>{{ $t('옵션') }}</em>{{ statLabel(c) }}<span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>{{ rangeText(c) }}
@@ -1678,7 +1687,7 @@ function variantLines(p) {
   .trade-title{white-space:normal; flex-basis:100%;}
 }
 
-.trade-event-slot{max-width:1180px; margin:0 auto; padding:18px 24px 0;}
+.trade-event-slot{margin:0 0 4px; padding:0;}
 .trade-event-slot:empty{display:none;}
 @media (max-width:640px){ .trade-event-slot{padding:14px 16px 0;} }
 /* 아이템 자동완성 */
@@ -2021,14 +2030,19 @@ function variantLines(p) {
   border-radius:999px; padding:4px 12px; cursor:pointer;}
 .tr-go:hover{background:#2A2216;}
 /* 첫 화면: 매물 수 + 전체 보기 */
-.tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
-.tr-all-btn{cursor:pointer; display:inline-flex; align-items:center; gap:10px; padding:12px 20px; border:1px solid var(--gold-dim);
-  border-radius:999px; background:#211b11; color:var(--gold);}
-.tr-all-btn:hover{background:#2A2216;}
-.tr-all-btn b{font-size:15px; font-weight:800;}
-.tr-all-btn span{font-size:13px; color:var(--gold-dim);}
-.tr-home-links{display:flex; align-items:center; gap:8px; margin-left:auto;}
-@media (max-width:560px){ .tr-home-links{margin-left:0;} }
+.tr-home-cta{display:flex; flex-direction:column; align-items:center; gap:14px; padding:8px 0 4px;}
+.tr-all-btn{cursor:pointer; display:inline-flex; align-items:center; gap:12px; padding:16px 30px; border:1px solid var(--gold);
+  border-radius:999px; background:linear-gradient(180deg, #2b2316, #1d1810); color:var(--gold);
+  box-shadow:0 0 0 1px rgba(199,179,119,.18), 0 10px 28px -14px rgba(199,179,119,.6);}
+.tr-all-btn:hover{background:linear-gradient(180deg, #342a1a, #241d12);}
+.tr-all-btn b{font-size:18px; font-weight:800; letter-spacing:-.01em;}
+.tr-all-btn span{font-size:14px; font-weight:700; color:var(--gold-dim);}
+.tr-home-links{display:flex; align-items:center; gap:10px;}
+/* 판매글 등록은 가장 눈에 띄게 - 금색 채움 */
+.tr-home-links .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;
+  font-size:14px; padding:10px 20px; border-radius:999px;}
+.tr-home-links .quality-toggle:hover{background:#e3cd92;}
+.tr-home-links .guide-btn{font-size:13.5px; padding:10px 16px;}
 /* 검색 화면 머리글 - 전체 매물로 돌아가는 링크 */
 .tr-back{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
 .tr-back a{font-size:13px; color:var(--gold-dim);}
@@ -2042,6 +2056,8 @@ function variantLines(p) {
 .tr-results-note{font-size:12px; color:var(--text-dim);}
 .tr-results-note a{color:var(--gold-dim); text-decoration:underline;}
 .tr-gap{flex:1;}
+.tr-results-head .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;}
+.tr-results-head .quality-toggle:hover{background:#e3cd92;}
 .want-cta{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:5px 12px;}
 .want-cta:hover{background:#2A2216;}
 .empty-drop{display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--text-dim);}
