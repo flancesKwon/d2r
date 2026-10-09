@@ -17,7 +17,13 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
 const pages = [
-  { p: '', title: '디아허브 — 디아블로 2 레저렉션 거래·정보', desc: '디아블로 2 레저렉션 아이템 거래 (아시아·미주·유럽 서버) - 아이템 이름·종류·옵션으로 매물 검색, 고룬 매물, 거래 게시판' },
+  { p: '', title: '디아허브 — 디아블로 2 레저렉션 거래·정보',
+    body: [
+      '디아블로 2 레저렉션 아이템 거래소. 아시아·미주·유럽 서버의 유니크·세트·룬워드·룬 매물을 아이템 이름, 베이스, 옵션 수치로 검색.',
+      '판매글은 올린 때부터 7일 동안 노출되고, 끝나면 판매가만 고쳐 재등록. 찾는 아이템을 삽니다 글로 올려두면 맞는 매물이 올라올 때 알림.',
+      '아이템 사전 730여 종, 룬워드 찾기, 큐브 레시피, 브레이크포인트·소켓·크래프트 계산기, 직업별 빌드 가이드.',
+    ],
+    desc: '디아블로 2 레저렉션 아이템 거래 (아시아·미주·유럽 서버) - 아이템 이름·종류·옵션으로 매물 검색, 고룬 매물, 거래 게시판' },
   { p: 'db', title: 'DB', desc: '디아블로 2 레저렉션 정보·도구 모음 - 아이템 사전, 룬워드, 큐브 레시피, 브레이크포인트·공속 계산기, 시뮬레이터, 빌드 가이드' },
   { p: 'items', title: '아이템 사전', desc: '디아블로 2 레저렉션 유니크·세트·룬워드·보석·룬 전체 옵션. 이름·옵션(패캐·올스 등)으로 검색' },
   { p: 'runewords', title: '룬워드 찾기', desc: '룬을 고르면 그 룬이 들어가는 룬워드와 더 필요한 룬 - 디아블로 2 레저렉션' },
@@ -47,17 +53,41 @@ for (const g of read('guides.json')) {
   })
 }
 
+// 같은 종류 아이템끼리 이어 주려고 분류별 목록을 미리 모음 (정적 링크용)
+const itemsAll = read('items.json')
+const byCat = new Map()
+for (const it of itemsAll) {
+  if (!byCat.has(it.category)) byCat.set(it.category, [])
+  byCat.get(it.category).push(it)
+}
+
+// 같은 분류에서 자기 앞뒤로 6개 (끝에서는 반대쪽으로 넘어감)
+function nearby(it) {
+  const list = byCat.get(it.category) || []
+  const i = list.indexOf(it)
+  const out = []
+  for (let k = 1; out.length < 6 && k <= list.length; k++) {
+    const a = list[(i + k) % list.length]
+    const b = list[(i - k + list.length * 2) % list.length]
+    if (a && a !== it && !out.includes(a)) out.push(a)
+    if (out.length < 6 && b && b !== it && !out.includes(b)) out.push(b)
+  }
+  return out
+}
+
 // 아이템 하나씩 (툴팁에 안 나오는 줄 빼고 옵션 요약)
-for (const it of read('items.json')) {
+for (const it of itemsAll) {
   const lines = (it.affixes || []).filter((a) => !a.hidden && a.text).map((a) => a.text)
   const head = [it.category_label, it.subtitle, it.level_req ? `요구 레벨 ${it.level_req}` : ''].filter(Boolean).join(' · ')
   const catEn = { unique: 'Unique', set: 'Set item', runeword: 'Runeword', gem: it.type_sub === '룬' ? 'Rune' : 'Gem' }[it.category] || ''
   pages.push({
-    en: { title: it.name_en, desc: clip(`${it.name_en} — Diablo II: Resurrected ${catEn}${it.level_req ? `, required level ${it.level_req}` : ''}. Stats, variable rolls and listings on DiabloHub.`, 160) },
+    en: { links: nearby(it).map((x) => ({ href: `/en/items/${x.id}/`, text: x.name_en })), title: it.name_en, desc: clip(`${it.name_en} — Diablo II: Resurrected ${catEn}${it.level_req ? `, required level ${it.level_req}` : ''}. Stats, variable rolls and listings on DiabloHub.`, 160) },
     p: `items/${it.id}`,
     title: `${it.name_ko} (${it.name_en})`,
     desc: clip(`${it.name_ko} ${it.name_en} - ${head}${lines.length ? ' - ' + lines.slice(0, 5).join(', ') : ''}`, 160),
     body: [head, ...lines],
+    // 같은 종류에서 자기 앞뒤 6개 (모두가 같은 곳만 가리키면 크롤러가 사전을 다 못 돎)
+    links: nearby(it).map((x) => ({ href: `/items/${x.id}/`, text: x.name_ko })),
   })
 }
 
@@ -93,15 +123,33 @@ const EN_DESC = {
 }
 const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'trade/wants', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
 function enVersion(page) {
-  if (page.noindex) return { ...page, p: 'en' + (page.p ? '/' + page.p : ''), title: EN[page.title] || page.title, desc: null, body: null, lang: 'en' }
-  if (page.en) return { ...page, p: 'en/' + page.p, title: page.en.title, desc: page.en.desc, body: null, lang: 'en' }
+  if (page.noindex) return { ...page, p: 'en' + (page.p ? '/' + page.p : ''), title: EN[page.title] || page.title, desc: null, body: null, links: null, lang: 'en' }
+  if (page.en) return { ...page, p: 'en/' + page.p, title: page.en.title, desc: page.en.desc, body: null, links: page.en.links || null, lang: 'en' }
   if (!EN_PAGES.has(page.p)) return null
   const title = page.p ? EN[page.title] || page.title : EN['디아허브 — 디아블로 2 레저렉션 거래·정보']
-  return { ...page, p: 'en' + (page.p ? '/' + page.p : ''), title, desc: EN_DESC[page.p] || null, body: null, lang: 'en' }
+  return { ...page, p: 'en' + (page.p ? '/' + page.p : ''), title, desc: EN_DESC[page.p] || null, body: null, links: null, lang: 'en' }
 }
 const urlOf = (p) => SITE + (p ? p + '/' : '')
 
-function render({ p, title, desc, body, noindex, lang = 'ko', alt }) {
+// 정적 HTML 에 넣을 사이트 주요 메뉴 (JS 를 안 돌리는 검색로봇이 사이트를 돌 수 있게)
+const NAV_KO = [
+  ['/', '매물 검색'], ['/trade/wants/', '삽니다'], ['/trade/history/', '아이템별 거래내역'], ['/market/', '시세 게시판'],
+  ['/db/', 'DB·도구'], ['/items/', '아이템 사전'], ['/runewords/', '룬워드 찾기'], ['/cube/', '큐브 레시피'],
+  ['/breakpoints/', '브레이크포인트 계산기'], ['/sockets/', '소켓 계산기'], ['/craft-sim/', '크래프트 시뮬레이터'],
+  ['/simulator/', '스킬·스탯 시뮬레이터'], ['/guides/', '빌드 가이드'], ['/patch/', '패치노트'], ['/ladder/', '레더 시즌 정보'],
+  ['/community/', '커뮤니티'], ['/terms/', '이용 규칙'], ['/privacy/', '개인정보 처리 안내'],
+]
+const NAV_EN = [
+  ['/en/', 'Trade search'], ['/en/trade/wants/', 'Buy requests'], ['/en/trade/history/', 'Trade history'], ['/en/market/', 'Value tiers'],
+  ['/en/db/', 'Database & tools'], ['/en/items/', 'Item database'], ['/en/runewords/', 'Runeword finder'], ['/en/cube/', 'Cube recipes'],
+  ['/en/breakpoints/', 'Breakpoints'], ['/en/sockets/', 'Sockets'], ['/en/craft-sim/', 'Crafting simulator'],
+  ['/en/simulator/', 'Skill planner'], ['/en/guides/', 'Build guides'], ['/en/patch/', 'Patch notes'], ['/en/ladder/', 'Ladder season'],
+  ['/en/community/', 'Community'], ['/en/terms/', 'Terms'], ['/en/privacy/', 'Privacy'],
+]
+const navHtml = (lang) => (lang === 'en' ? NAV_EN : NAV_KO)
+  .map(([href, text]) => `<a href="${href}">${esc(text)}</a>`).join(' ')
+
+function render({ p, title, desc, body, links, noindex, lang = 'ko', alt }) {
   const url = SITE + (p ? p + '/' : '')
   const brand = lang === 'en' ? 'DiabloHub' : '디아허브'
   const isRoot = p === '' || p === 'en'
@@ -136,10 +184,15 @@ function render({ p, title, desc, body, noindex, lang = 'ko', alt }) {
   }
   if (alt) html = html.replace('</head>', `<link rel="alternate" hreflang="ko" href="${alt.ko}">\n<link rel="alternate" hreflang="en" href="${alt.en}">\n<link rel="alternate" hreflang="x-default" href="${alt.ko}">\n</head>`)
   if (noindex) html = html.replace('</head>', '<meta name="robots" content="noindex">\n</head>')
-  if (body?.length) {
-    const text = `<noscript><h1>${esc(title)}</h1>${body.filter(Boolean).map((l) => `<p>${esc(l)}</p>`).join('')}</noscript>`
-    html = html.replace('<div id="app"></div>', `<div id="app"></div>${text}`)
-  }
+  // JS 를 안 돌리는 검색로봇이 보는 내용 - 제목·본문에 더해 사이트 메뉴와 관련 링크
+  // (링크가 하나도 없으면 로봇이 사이트맵 밖으로는 한 발짝도 못 감)
+  const inner = [
+    `<h1>${esc(title)}</h1>`,
+    ...(body || []).filter(Boolean).map((l) => `<p>${esc(l)}</p>`),
+    links?.length ? `<nav>${links.map((l) => `<a href="${l.href}">${esc(l.text)}</a>`).join(' ')}</nav>` : '',
+    `<nav>${navHtml(lang)}</nav>`,
+  ].join('')
+  html = html.replace('<div id="app"></div>', `<div id="app"></div><noscript>${inner}</noscript>`)
   return html
 }
 
