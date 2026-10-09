@@ -10,6 +10,8 @@
 //   2) 매직/레어/크래프트 접사(magicAffixes.json) 로 만들어지는 문구
 //   3) 직업별 개별 스킬 (skills.json) - "블리자드 +X (소서리스 전용)"
 //   4) 판매글 등록이 직접 넣는 줄 (기본 방어력·기본 데미지·소켓 등)
+//   5) 베이스 자체 옵션(baseItems.json 의 auto_mods) - 오브 생명력·마나, 팔라딘 방패 모든 저항,
+//      네크로 머리 독·마법·화염 피해, 아마존 무기 스킬 트리 등
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -23,6 +25,7 @@ const magic = read('magicAffixes.json')
 const skills = read('skills.json')
 const skillText = read('skill_text.json')
 const skillIdMap = read('skillIdMap.json')
+const baseItems = read('baseItems.json')
 
 // 수치 자리를 X 로 (범위 "10~20"·소수 "1.5"·음수 "-7" 도 한 덩어리)
 const NUM = /[+-]?\d+(?:\.\d+)?(?:~[+-]?\d+(?:\.\d+)?)?/g
@@ -113,6 +116,10 @@ const sup = storeSrc.slice(storeSrc.indexOf('export const SUPERIOR_MODS'), store
 const supMods = [...sup.matchAll(/text: '([^']*\{v\}[^']*)', min: (\d+), max: (\d+)/g)]
 if (!supMods.length) throw new Error('SUPERIOR_MODS 를 못 읽음 - tradeStore.js 모양이 바뀐 듯')
 for (const [, text, min] of supMods) add(text.replace('{v}', min), '상급')
+
+// 6) 베이스 자체 옵션 - 직업 전용 베이스에 게임이 자동으로 붙이는 옵션
+//    (스킬은 3) 에서 이미 모았고, 여기선 그 밖의 것들)
+for (const b of baseItems) for (const m of b.auto_mods || []) add(String(m.text).replace('{v}', m.min), '베이스')
 
 // 검색 항목으로 바꾸기 - 수치 자리가 하나라도 있으면 숫자 범위 검색, 없으면 "붙어 있음" 검색
 const XCOUNT = (s) => (s.match(/X/g) || []).length

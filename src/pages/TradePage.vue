@@ -28,6 +28,7 @@ import {
   superiorCombosFor,
   baseForItem,
   searchBaseItems,
+  classSkillsForBase,
   BASE_ITEMS,
   baseItemLabel,
   ICON_VARIANTS,
@@ -219,6 +220,8 @@ const QUALITY_PICKS = [
 ]
 const mrQuality = ref('')
 const mrBase = ref('')
+// 고른 베이스 객체 - 이름으로 다시 찾지 않고 고를 때 그대로 담아둠
+const mrBaseObj = ref(null)
 const mrShape = ref('')
 const mrCraft = ref('')
 // 소켓 수 범위 (빈 칸 = 상관없음) · 상급 여부와 상급 수치 - 등록 양식에 있는 칸을 검색에도
@@ -250,6 +253,7 @@ const baseCandidates = computed(() => {
 function pickBase(b, quality = '') {
   suggestPointer = false
   pickedItem.value = null
+  mrBaseObj.value = b
   mrBase.value = baseLabelOf(b)
   mrQuality.value = quality
   mrShape.value = ''
@@ -257,7 +261,7 @@ function pickBase(b, quality = '') {
   searchQuery.value = ''
   suggestOpen.value = false
 }
-const clearMrBase = () => { mrBase.value = ''; resetMr() }
+const clearMrBase = () => { mrBase.value = ''; mrBaseObj.value = null; resetMr() }
 // 화면에 보여줄 베이스 이름 - 영어면 장신구는 영어 이름, 장비는 "써클릿 (Circlet)" 의 괄호 안
 const mrBaseText = computed(() => {
   if (locale.value === 'ko' || !mrBase.value) return mrBase.value
@@ -273,8 +277,10 @@ const MISC_BASES = magicAffixData.miscBases.map((b) => ({ ...b, type_sub: b.name
 // 고른 베이스 객체 (모양·크래프트 후보를 뽑는 데 씀)
 const mrBaseItem = computed(() => {
   if (!mrBase.value) return null
+  if (mrBaseObj.value && baseLabelOf(mrBaseObj.value) === mrBase.value) return mrBaseObj.value
+  // 주소로 바로 들어온 경우 등 - 이름으로 찾되 검색어를 넣어 (빈 검색은 앞 40개만 돌려줌)
   return MISC_BASES.find((b) => b.name_ko === mrBase.value)
-    || searchBaseItems('', null).find((b) => baseItemLabel(b) === mrBase.value) || null
+    || searchBaseItems(mrBase.value.replace(/ \(.+\)$/, ''), null).find((b) => baseItemLabel(b) === mrBase.value) || null
 })
 // 고른 베이스가 반지·목걸이·주얼·부적이면 모양도 고를 수 있음 (등록 화면과 같은 목록)
 const mrShapeChoices = computed(() => {
@@ -329,7 +335,7 @@ const QUALITY_HINT = {
   magic: '매직: 접두·접미 1개씩, 옵션 최대 2줄',
   rare: '레어: 접두 3 + 접미 3, 옵션 최대 6줄',
   crafted: '크래프트: 제작법 고정 옵션 + 레어 옵션 1~4줄 - 아래에서 제작법을 고르면 그 제작법으로 만든 것만',
-  normal: '일반(흰색): 옵션 없음 - 상급·소켓·베이스로만 찾음',
+  normal: '일반(흰색): 접사 없음 - 상급·소켓·베이스 자체 옵션으로 찾음',
 }
 // 수치가 들어간 옵션 줄 -> 옵션 검색 항목 + 첫 수치 (범위 계산용)
 const statOfLine = (line) => ALL_STAT_FILTERS.find((x) => x.regex.test(line)) || null
@@ -353,14 +359,39 @@ const mrCraftCards = computed(() => {
 })
 const mrCraftCard = computed(() => mrCraftCards.value.find((c) => c.name === mrCraft.value) || null)
 
+// 베이스 자체 옵션 - 게임이 직업 전용 베이스에 자동으로 붙이는 것 (판매글 등록의 '베이스 자체 옵션' 칸과 같음)
+//  · 스킬: 오브·완드·클로·드루이드/바바리안 투구 등에 그 직업 스킬 최대 3개 × +1~3
+//  · 자동 옵션: 오브 생명력·마나, 팔라딘 방패 모든 저항·명중률, 네크로 머리 독·마법·화염 피해 등
+function addBaseOwnOpts(b, q, found, ranges) {
+  const cls = classSkillsForBase(b)
+  for (const sk of cls?.skills || []) {
+    const st = statOfLine(`${sk.ko || sk.en} +3 (${cls.name} 전용)`)
+    if (!st) continue
+    if (!found.has(st.key)) found.set(st.key, st)
+    addRange(ranges, st.key, 1, 3)
+  }
+  // 레어·크래프트는 가장 높은 단계가 안 붙어서 범위가 좁음 (등록 화면과 같은 규칙)
+  const rare = magicAffixData.bases[b.code]?.autoRare || {}
+  let mods = b.auto_mods || []
+  if (['rare', 'crafted'].includes(q)) mods = mods.filter((m) => rare[m.key]).map((m) => ({ ...m, ...rare[m.key] }))
+  for (const m of mods) {
+    const st = statOfLine(String(m.text).replace('{v}', m.max))
+    if (!st) continue
+    if (!found.has(st.key)) found.set(st.key, st)
+    addRange(ranges, st.key, m.min, m.max)
+  }
+}
+
 // 옵션마다 이 베이스에서 나오는 수치 범위도 같이 (최소·최대 칸에 보여줌) - 접사 하나 기준 (레어는 두 접사가 겹치면 더 높을 수 있음)
 const mrOptCache = new Map()
 const mrOptInfo = computed(() => {
   const b = mrBaseItem.value
-  if (!b || mrQuality.value === 'normal') return { list: [], ranges: {}, fixed: new Set() }
-  const qs = mrQuality.value ? [mrQuality.value] : ['magic', 'rare']
-  const craft = mrQuality.value === 'crafted' ? mrCraftCard.value : null
-  const ck = b.code + ':' + qs.join(',') + ':' + (craft?.name || '')
+  if (!b) return { list: [], ranges: {}, fixed: new Set() }
+  const q = mrQuality.value
+  // 일반(흰색)은 접사가 안 붙음 - 베이스 자체 옵션만 모음
+  const qs = q === 'normal' ? [] : q ? [q] : ['magic', 'rare']
+  const craft = q === 'crafted' ? mrCraftCard.value : null
+  const ck = b.code + ':' + (q || '') + ':' + (craft?.name || '')
   if (mrOptCache.has(ck)) return mrOptCache.get(ck)
   const found = new Map()
   const ranges = {}
@@ -383,6 +414,7 @@ const mrOptInfo = computed(() => {
       })
     }
   }
+  addBaseOwnOpts(b, q, found, ranges)
   const rank = (st) => { const i = MR_OPT_FIRST.findIndex((re) => re.test(st.label)); return i < 0 ? 99 : i }
   const list = [...found.values()].sort((a, b2) => (fixed.has(b2.key) - fixed.has(a.key)) || (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
   const info = { list, ranges, fixed }
@@ -421,7 +453,7 @@ const mrCount = computed(() =>
   [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value, mrSockOn.value, mrSup.value, mrLvlOn.value].filter(Boolean).length
 )
 function resetMr() {
-  mrQuality.value = ''; mrBase.value = ''; mrShape.value = ''; mrCraft.value = ''
+  mrQuality.value = ''; mrBase.value = ''; mrBaseObj.value = null; mrShape.value = ''; mrCraft.value = ''
   mrSock.value = { min: '', max: '' }; mrSup.value = ''; mrLvl.value = { min: '', max: '' }
   for (const k of Object.keys(mrSupVals.value)) mrSupVals.value[k] = { min: '', max: '' }
 }
@@ -1132,7 +1164,7 @@ function variantLines(p) {
             </div>
           </template>
 
-          <template v-if="mrQuality !== 'normal'">
+          <template v-if="mrQuality !== 'normal' || mrOptStats.length">
           <span class="mr-label top" :class="{ on: statConditions.length }">{{ $t('옵션') }}</span>
           <div class="mr-opts">
             <!-- 고른 옵션 - 수치 범위를 바로 적음 -->
