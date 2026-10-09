@@ -1853,8 +1853,8 @@ function variantLines(p) {
 .trade-sub-meta{font-size:11.5px; color:var(--text-dim); line-height:1.6;}
 /* 그 아이템에서만 달라지는 옵션 줄 */
 .trade-opts{display:flex; flex-wrap:wrap; justify-content:inherit; gap:5px 6px; margin-top:7px;}
-/* 옵션 한 줄에 하나씩 */
-.trade-opts.lines{flex-direction:column; align-items:flex-start; gap:3px;}
+/* 옵션은 한 줄에 하나씩 - 폭이 남으면 여러 칸으로 나눠 채움 (줄마다 옵션 하나인 건 그대로) */
+.trade-opts.lines{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); justify-items:start; align-items:start; gap:3px 10px; max-width:640px;}
 .trade-opts.lines .trade-opt{max-width:100%;}
 .trade-when{margin-left:auto; flex:none; font-size:11.5px; color:var(--text-dim);}
 /* 서버·래더·모드·에테리얼·미확인 배지 */
@@ -1992,8 +1992,9 @@ function variantLines(p) {
 
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 /* 검색 화면: 왼쪽 조건 칸 + 오른쪽 결과 (결과가 위에서 바로 보이게) */
-/* 가운데 정렬 대신 화면 폭을 다 쓰고 조건 칸은 왼쪽 끝에 - 결과 칸이 그만큼 넓어짐 */
-.trade-page.searching .tr-body{max-width:none; margin:0; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+/* 검색 화면은 넓게 - 검색창(hero)과 아래 조건·결과의 좌우 기준선을 같게 맞춤 */
+.trade-page.searching .tr-hero-inner{max-width:1560px; padding:28px 20px 20px;}
+.trade-page.searching .tr-body{max-width:1560px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
 .tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
