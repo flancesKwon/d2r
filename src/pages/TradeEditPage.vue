@@ -1,7 +1,7 @@
 <script setup>
 // 판매글 수정 (/trade/:id/edit) - 판매중이고 대기·수락된 구매신청이 없을 때만 (019 SQL 이 다시 확인)
 // 아이템·옵션 종류는 그대로 두고 수치만, 그리고 판매가·수량·제안만 받기·흥정·레더/하드코어·설명
-// 판매 기간(48시간)은 그대로 - 수정해도 늘어나지 않음
+// 판매 기간(7일)은 그대로 - 수정해도 늘어나지 않음
 import { showAlert } from '../dialog.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
 import { postName } from '../tradeI18n.js'

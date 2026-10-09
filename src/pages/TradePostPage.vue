@@ -1,10 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { openProfileCard } from '../profileCard.js'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTradePost, fetchTradePost, SALE_HOURS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
+  getTradePost, fetchTradePost, SALE_HOURS, SALE_DAYS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
   getTradeItem, tradeEditBlockReason, statusLabel, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
@@ -100,7 +101,7 @@ function rarityClass(item) {
   return item ? item.category : ''
 }
 
-// 판매 기간 카운트다운 (올린 때부터 48시간) - 끝나면 목록에서 내려가고, 판매자는 판매가만 고쳐 재등록
+// 판매 기간 카운트다운 (올린 때부터 7일) - 끝나면 목록에서 내려가고, 판매자는 판매가만 고쳐 재등록
 const now = useNow(1000)
 const saleLeft = computed(() => saleLeftMs(post.value, now.value))
 const saleExpired = computed(() => saleLeft.value !== null && saleLeft.value <= 0)
@@ -361,7 +362,7 @@ async function confirmBuy() {
           <div class="seller-row">
             <UserAvatar :src="post.avatar" :name="post.author" :size="40" :user-id="post.authorId" />
             <div class="seller-name-block">
-              <router-link :to="'/users/' + post.authorId" class="seller-name user-link">{{ post.author }}</router-link>
+              <button type="button" class="seller-name user-link" @click="openProfileCard(post.authorId)">{{ post.author }}</button>
               <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">{{ $t('● 접속 중 ·') }} </span>{{ $t(post.realm) }} · {{ $t(post.ladder) }} · {{ $t(post.hardcore) }}</div>
               <router-link :to="'/users/' + post.authorId" class="seller-profile-link">{{ $t('프로필·받은 리뷰 보기 →') }}</router-link>
             </div>
@@ -391,7 +392,7 @@ async function confirmBuy() {
             <router-link v-if="!editBlocked" class="owner-bump owner-edit" :to="`/trade/${post.id}/edit`">{{ $t('✎ 판매글 수정 (가격·옵션 수치)') }}</router-link>
             <small v-else class="owner-bump-note">{{ $t(editBlocked) }}</small>
             <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">{{ $t('재등록 (판매가 수정)') }}</router-link>
-            <small class="owner-bump-note">{{ $t('판매 기간 {n}시간 · 끝나면 판매가만 고쳐 재등록', { n: SALE_HOURS }) }}</small>
+            <small class="owner-bump-note">{{ $t('판매 기간 {n}일 · 끝나면 판매가만 고쳐 재등록', { n: SALE_DAYS }) }}</small>
           </template>
           <button type="button" class="owner-delete" @click="removePost">{{ $t('✕ 판매글 삭제') }}</button>
         </section>

@@ -559,7 +559,7 @@ function resetFilters() {
   pickedItem.value = null
 }
 
-// 판매 기간(48시간)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
+// 판매 기간(7일)이 끝난 글은 목록에서 내려감 - 1분마다 다시 셈
 const now = useNow(60000)
 // 글의 아이템 이름·가격 (영어면 사전의 영문 이름, "2개" -> "×2") - tradeI18n.js
 const enCount = countText
