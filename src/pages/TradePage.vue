@@ -2030,14 +2030,15 @@ function variantLines(p) {
   border-radius:999px; padding:4px 12px; cursor:pointer;}
 .tr-go:hover{background:#2A2216;}
 /* 첫 화면: 매물 수 + 전체 보기 */
-.tr-home-cta{display:flex; flex-direction:column; align-items:center; gap:14px; padding:8px 0 4px;}
-.tr-all-btn{cursor:pointer; display:inline-flex; align-items:center; gap:12px; padding:16px 30px; border:1px solid var(--gold);
-  border-radius:999px; background:linear-gradient(180deg, #2b2316, #1d1810); color:var(--gold);
-  box-shadow:0 0 0 1px rgba(199,179,119,.18), 0 10px 28px -14px rgba(199,179,119,.6);}
-.tr-all-btn:hover{background:linear-gradient(180deg, #342a1a, #241d12);}
-.tr-all-btn b{font-size:18px; font-weight:800; letter-spacing:-.01em;}
-.tr-all-btn span{font-size:14px; font-weight:700; color:var(--gold-dim);}
-.tr-home-links{display:flex; align-items:center; gap:10px;}
+.tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:4px 0;}
+/* 알약 버튼이 아니라 글로만 - 숫자를 크게 */
+.tr-all-btn{cursor:pointer; display:inline-flex; align-items:baseline; gap:9px; padding:0; border:0; background:none; color:var(--gold);}
+.tr-all-btn b{font-size:20px; font-weight:800; letter-spacing:-.01em;}
+.tr-all-btn span{font-size:14px; font-weight:700; color:var(--gold-dim); text-decoration:underline; text-underline-offset:4px;}
+.tr-all-btn:hover b{color:#e3cd92;}
+.tr-all-btn:hover span{color:var(--gold);}
+.tr-home-links{display:flex; align-items:center; gap:10px; margin-left:auto;}
+@media (max-width:560px){ .tr-home-links{margin-left:0;} }
 /* 판매글 등록은 가장 눈에 띄게 - 금색 채움 */
 .tr-home-links .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;
   font-size:14px; padding:10px 20px; border-radius:999px;}
