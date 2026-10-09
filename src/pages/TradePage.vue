@@ -25,6 +25,8 @@ import {
   CLASS_SKILL_NAMES,
   uniqueDefenseRange,
   SUPERIOR_MODS,
+  superiorCombosFor,
+  baseForItem,
   searchBaseItems,
   baseItemLabel,
   ICON_VARIANTS,
@@ -176,6 +178,10 @@ const mrQuality = ref('')
 const mrBase = ref('')
 const mrShape = ref('')
 const mrCraft = ref('')
+// 소켓 수 범위 (빈 칸 = 상관없음) · 상급 여부와 상급 수치 - 등록 양식에 있는 칸을 검색에도
+const mrSock = ref({ min: '', max: '' })
+const mrSup = ref('')
+const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
 // 검색창에 뜨는 베이스 후보 - 장신구 + 무기·방어구 (등록 화면과 같은 목록)
@@ -237,6 +243,34 @@ const mrQualityPicks = computed(() => {
   const allow = b ? baseQualities(b) : QUALITY_PICKS.map((q) => q.v)
   return QUALITY_PICKS.filter((q) => allow.includes(q.v))
 })
+// 이 베이스·품질에서 가능한 소켓 최대 개수 (등록 화면과 같은 규칙)
+//  일반(흰색)·품질 안 고름 = 베이스 최대 / 매직·레어·크래프트 = 소켓 접두사 범위 또는 라르주크(매직 2, 나머지 1)
+const mrSockMax = computed(() => {
+  const b = mrBaseItem.value
+  const max = b?.sockets || 0
+  if (!max) return 0
+  const q = mrQuality.value
+  if (!q || q === 'normal') return max
+  let hi = q === 'magic' ? 2 : 1
+  const fam = affixFamiliesFor(magicAffixData, b, q).find((f) => f.mods.some((m) => m.code === 'sock'))
+  if (fam) hi = Math.max(hi, Number(fam.slotRanges[0][1]) || 0)
+  return Math.min(max, hi)
+})
+const mrSockOn = computed(() => mrSock.value.min !== '' || mrSock.value.max !== '')
+// 상급은 흰 베이스만 - 매직·레어는 같은 문구(피해 증가 등)가 접사로도 붙어서 구분이 안 됨
+const mrSupCombos = computed(() => (mrQuality.value === 'normal' ? superiorCombosFor(mrBaseItem.value) : []))
+const mrSupMods = computed(() => {
+  const ks = new Set(mrSupCombos.value.flat())
+  return Object.keys(SUPERIOR_MODS).filter((k) => ks.has(k))
+})
+watch(mrSupMods, (ks) => {
+  const old = mrSupVals.value
+  mrSupVals.value = Object.fromEntries(ks.map((k) => [k, old[k] || { min: '', max: '' }]))
+}, { immediate: true })
+// 베이스·품질을 바꾸면 범위를 넘는 값이 남지 않게 비움
+watch(mrSockMax, () => { mrSock.value = { min: '', max: '' } })
+watch(mrSupCombos, (c) => { if (!c.length) mrSup.value = '' })
+
 // 이 베이스·품질에 붙을 수 있는 옵션 (매직/레어 접사 사전 -> 옵션 검색 항목). 품질을 안 골랐으면 매직+레어
 // 접사마다 최대 수치로 문구를 만들어 옵션 검색 정규식에 맞춰 봄 - 자주 찾는 옵션 먼저
 const MR_OPT_FIRST = [/^모든 기술/, /시전 속도/, /모든 저항/, /^생명력 X$/, /^힘 X$|^민첩 X$/, /마법 아이템 발견/, /기술 레벨/, /전용\)$/, /저항/, /훔침/]
@@ -246,7 +280,7 @@ const QUALITY_HINT = {
   magic: '매직: 접두·접미 1개씩, 옵션 최대 2줄',
   rare: '레어: 접두 3 + 접미 3, 옵션 최대 6줄',
   crafted: '크래프트: 제작법 고정 옵션 + 레어 옵션 1~4줄 - 아래에서 제작법을 고르면 그 제작법으로 만든 것만',
-  normal: '일반(흰색): 옵션 없음 - 소켓·베이스로만 찾음',
+  normal: '일반(흰색): 옵션 없음 - 상급·소켓·베이스로만 찾음',
 }
 // 수치가 들어간 옵션 줄 -> 옵션 검색 항목 + 첫 수치 (범위 계산용)
 const statOfLine = (line) => ALL_STAT_FILTERS.find((x) => x.regex.test(line)) || null
@@ -334,8 +368,14 @@ function setCondMin(c, v) { c.min = condNum(v) }
 function setCondMax(c, v) { c.max = condNum(v) }
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
-const mrCount = computed(() => [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value].filter(Boolean).length)
-function resetMr() { mrQuality.value = ''; mrBase.value = ''; mrShape.value = ''; mrCraft.value = '' }
+const mrCount = computed(() =>
+  [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value, mrSockOn.value, mrSup.value].filter(Boolean).length
+)
+function resetMr() {
+  mrQuality.value = ''; mrBase.value = ''; mrShape.value = ''; mrCraft.value = ''
+  mrSock.value = { min: '', max: '' }; mrSup.value = ''
+  for (const k of Object.keys(mrSupVals.value)) mrSupVals.value[k] = { min: '', max: '' }
+}
 // 판매글이 조건에 맞는지
 function mrMatches(p) {
   if (!mrOn.value) return true
@@ -347,6 +387,25 @@ function mrMatches(p) {
     if (!(name === mrBase.value || (!line && (p.itemName || '').includes(mrBase.value)))) return false
   }
   if (mrShape.value && p.iconKey !== mrShape.value) return false
+  if (mrSockOn.value) {
+    // 소켓 줄이 없으면 0개
+    const v = lineValue(SOCK_LINE)(p) ?? 0
+    if (mrSock.value.min !== '' && v < Number(mrSock.value.min)) return false
+    if (mrSock.value.max !== '' && v > Number(mrSock.value.max)) return false
+  }
+  if (mrSup.value) {
+    // 흰 베이스라 상급 옵션 줄이 붙어 있으면 상급
+    const sup = (p.options || []).some((l) => SUPERIOR_RES.some((re) => re.test(l)))
+    if ((mrSup.value === '상급') !== sup) return false
+    for (const [k, r] of Object.entries(mrSupVals.value)) {
+      if (!r || (r.min === '' && r.max === '')) continue
+      const m = SUPERIOR_MODS[k]
+      const v = lineValue(new RegExp('^' + escRe(m.text).replace('\\{v\\}', '(\\d+)') + '$'))(p)
+      if (v === null) return false
+      if (r.min !== '' && v < Number(r.min)) return false
+      if (r.max !== '' && v > Number(r.max)) return false
+    }
+  }
   if (mrCraft.value) {
     // 크래프트 제작법은 그 제작법의 고정 옵션이 전부 붙어 있는지로 봄
     const c = (magicAffixData.crafts || []).find((x) => x.name === mrCraft.value)
@@ -411,8 +470,12 @@ const itemBaseDefs = computed(() => {
     defs.push({ key: 'dmin', label: '기본 최소 데미지', get: lineValue(DMG_LINE, 1) })
     defs.push({ key: 'dmax', label: '기본 최대 데미지', get: lineValue(DMG_LINE, 2) })
   }
-  // 유니크·세트 장비는 라르주크 소켓(1개)이나 원래 소켓 붙는 것
-  if (it.category !== 'runeword' && (kind === 'armor' || kind === 'weapon')) defs.push({ key: 'sock', label: '소켓 수', lo: 0, hi: 6, get: (p) => lineValue(SOCK_LINE)(p) ?? 0 })
+  // 유니크·세트 소켓 - 원래 소켓이 붙어 나오는 아이템(시대의 왕관 등)은 그 수치를 아래 '변동 옵션'
+  // 에서 받으니 여기선 빼고, 그 외에는 라르주크 퀘스트로 1개만 (큐브 소켓 레시피는 일반 등급 전용)
+  if (it.category !== 'runeword' && (kind === 'armor' || kind === 'weapon')) {
+    const builtin = getItemAffixes(it).some((a) => a.prop === 'sock')
+    if (!builtin && (baseForItem(it)?.sockets || 0) > 0) defs.push({ key: 'sock', label: '소켓 수', lo: 0, hi: 1, get: (p) => lineValue(SOCK_LINE)(p) ?? 0 })
+  }
   return defs
 })
 const itemOptionDefs = computed(() => {
@@ -966,6 +1029,41 @@ function variantLines(p) {
             <p class="mr-hint" v-else>{{ $t('이 베이스로 만드는 크래프트 제작법이 없음') }}</p>
           </template>
 
+          <template v-if="mrSupCombos.length">
+            <span class="mr-label" :class="{ on: mrSup }">{{ $t('상급 여부') }}</span>
+            <span class="mr-seg">
+              <button
+                type="button" v-for="c in SUP_CHOICES" :key="c.v" :class="{ on: mrSup === c.v }"
+                :aria-pressed="mrSup === c.v" @click="mrSup = c.v"
+              >{{ $t(c.label) }}</button>
+            </span>
+          </template>
+
+          <template v-if="mrSup === '상급' && mrSupMods.length">
+            <span class="mr-label top on">{{ $t('상급 옵션') }}</span>
+            <div class="pk-rows">
+              <div class="pk-row" v-for="k in mrSupMods" :key="k" :class="{ on: mrSupVals[k] && (mrSupVals[k].min !== '' || mrSupVals[k].max !== '') }">
+                <span class="pk-name">{{ $affix(SUPERIOR_MODS[k].text.replace('{v}', SUPERIOR_MODS[k].min + '~' + SUPERIOR_MODS[k].max)) }}</span>
+                <RangeInput v-model="mrSupVals[k].min" :min="SUPERIOR_MODS[k].min" :max="SUPERIOR_MODS[k].max" :label="$t('최소')" />
+                <span class="mr-sep">~</span>
+                <RangeInput v-model="mrSupVals[k].max" :min="SUPERIOR_MODS[k].min" :max="SUPERIOR_MODS[k].max" :label="$t('최대')" />
+              </div>
+            </div>
+          </template>
+
+          <template v-if="mrSockMax">
+            <span class="mr-label" :class="{ on: mrSockOn }">{{ $t('소켓 수') }}</span>
+            <div class="pk-rows">
+              <div class="pk-row" :class="{ on: mrSockOn }">
+                <span class="pk-name">0~{{ mrSockMax }}</span>
+                <RangeInput v-model="mrSock.min" :min="0" :max="mrSockMax" :label="`${$t('소켓 수')} ${$t('최소')}`" />
+                <span class="mr-sep">~</span>
+                <RangeInput v-model="mrSock.max" :min="0" :max="mrSockMax" :label="`${$t('소켓 수')} ${$t('최대')}`" />
+              </div>
+            </div>
+          </template>
+
+          <template v-if="mrQuality !== 'normal'">
           <span class="mr-label top" :class="{ on: statConditions.length }">{{ $t('옵션') }}</span>
           <div class="mr-opts">
             <!-- 고른 옵션 - 수치 범위를 바로 적음 -->
@@ -994,6 +1092,7 @@ function variantLines(p) {
             </div>
             <p class="mr-opt-help" v-if="mrOptStats.length">{{ $t('이 베이스에 붙을 수 있는 옵션만 보여줌 · 품질을 고르면 더 좁혀짐') }}</p>
           </div>
+          </template>
         </div>
       </div>
 
