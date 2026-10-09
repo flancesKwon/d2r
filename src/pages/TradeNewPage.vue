@@ -836,7 +836,7 @@ async function savePost(payload) {
     const post = await addTradePost(payload)
     saving.value = false
     // 확인 = 등록한 글 보기 / 계속 등록 = 서버·레더·하드코어만 남기고 새 글 쓰기 (창 밖을 눌러 닫아도 계속 등록)
-    const view = await askConfirm(t('판매글 등록 완료 - 거래게시판에 올라갔어요'), { confirmText: t('등록한 글 보기'), cancelText: t('계속 등록'), icon: 'success' })
+    const view = await askConfirm(t('판매글 등록 완료 - 거래게시판 등록됨'), { confirmText: t('등록한 글 보기'), cancelText: t('계속 등록'), icon: 'success' })
     if (view) router.push(`/trade/${post.id}`)
     else {
       const { realm, ladder, hardcore, gameVersion } = form.value

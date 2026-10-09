@@ -28,13 +28,13 @@ const pages = [
   { p: 'cube', title: '큐브 레시피', desc: '디아블로 2 레저렉션 호라드림 큐브 레시피: 업그레이드·수리·크래프트·우버 포탈' },
   { p: 'guides', title: '빌드 가이드', desc: '직업별 빌드 가이드와 시즌 티어리스트 - 스킬 순서·스탯·추천 장비' },
   { p: 'patch', title: '패치노트', desc: '디아블로 2 레저렉션 패치노트 한글 요약 (악마술사의 군림 이후)' },
-  { p: 'ladder', title: '레더 시즌 정보', desc: '현재 레더 시즌 일정과 변경 사항' },
-  { p: 'market', title: '시세 게시판', desc: '룬·유니크 시세 등급' },
-  { p: 'trade/history', title: '아이템별 거래내역', desc: '아이템별 판매글과 거래완료 가격' },
+  { p: 'ladder', title: '레더 시즌 정보', desc: '디아블로 2 레저렉션 현재 레더 시즌 일정·남은 기간과 시즌 변경 사항 정리' },
+  { p: 'market', title: '시세 게시판', desc: '디아블로 2 레저렉션 룬·유니크·룬워드 체감 가치 등급표 - 하이룬부터 잡템까지 거래 참고용' },
+  { p: 'trade/history', title: '아이템별 거래내역', desc: '디아블로 2 레저렉션 아이템별 판매글과 거래완료 가격 - 변동 옵션별로 실제 거래된 값 확인' },
   { p: 'trade/wants', title: '삽니다', desc: '디아블로 2 레저렉션 아이템 구매 글 - 원하는 아이템·옵션을 올려두면 매물이 올라올 때 알림' },
-  { p: 'community', title: '커뮤니티', desc: '디아블로 2 레저렉션 질문·공략·잡담 게시판' },
-  { p: 'terms', title: '이용 규칙', desc: '디아허브 이용 규칙' },
-  { p: 'privacy', title: '개인정보 처리 안내', desc: '디아허브 개인정보 처리 안내' },
+  { p: 'community', title: '커뮤니티', desc: '디아블로 2 레저렉션 질문·공략·빌드 상담·잡담 게시판 - 거래 후기와 시즌 소식' },
+  { p: 'terms', title: '이용 규칙', desc: '디아허브 이용 규칙 - 거래 진행 방식, 금지 행위, 신고와 제재 기준' },
+  { p: 'privacy', title: '개인정보 처리 안내', desc: '디아허브가 모으는 정보와 쓰는 곳, 보관 기간, 지우는 방법 안내' },
 ]
 
 // 빌드 가이드
@@ -85,10 +85,10 @@ const EN_DESC = {
   sockets: 'Maximum sockets by base item and item level for Diablo II: Resurrected.',
   'craft-sim': 'Blood, Caster, Hit Power and Safety crafting odds simulator for Diablo II: Resurrected.',
   cube: 'Diablo II: Resurrected Horadric Cube recipes: upgrades, repairs, crafting and uber portals.',
-  market: 'Diablo II: Resurrected rune and unique value tiers.',
-  'trade/history': 'Diablo II: Resurrected listings and completed trade prices by item.',
+  market: 'Diablo II: Resurrected rune, unique and runeword value tiers — from high runes down to junk, as a trading reference.',
+  'trade/history': 'Diablo II: Resurrected listings and completed trade prices by item, broken down by variable rolls.',
   'trade/wants': 'Diablo II: Resurrected buy requests — post the item and stat rolls you want and get notified when a matching listing goes up.',
-  community: 'DiabloHub community board.',
+  community: 'DiabloHub community board — questions, builds, trade feedback and season news for Diablo II: Resurrected.',
 }
 const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'trade/wants', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
 function enVersion(page) {
@@ -117,6 +117,22 @@ function render({ p, title, desc, body, noindex, lang = 'ko', alt }) {
   }
   if (lang !== 'ko') html = html.replace('<html lang="ko">', `<html lang="${lang}">`).replace('<meta property="og:locale" content="ko_KR">', '<meta property="og:locale" content="en_US">')
   // 한국어판·영어판이 서로를 가리키게 (검색엔진이 언어별로 맞는 주소를 보여줌)
+  // 검색엔진에 사이트 이름과 사이트 안 검색 주소를 알려줌 (첫 화면만)
+  if (isRoot) {
+    const ld = {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: brand,
+      url,
+      inLanguage: lang,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: { '@type': 'EntryPoint', urlTemplate: url + '?q={search_term_string}' },
+        'query-input': 'required name=search_term_string',
+      },
+    }
+    html = html.replace('</head>', '<script type="application/ld+json">' + JSON.stringify(ld) + '</' + 'script>\n</head>')
+  }
   if (alt) html = html.replace('</head>', `<link rel="alternate" hreflang="ko" href="${alt.ko}">\n<link rel="alternate" hreflang="en" href="${alt.en}">\n<link rel="alternate" hreflang="x-default" href="${alt.ko}">\n</head>`)
   if (noindex) html = html.replace('</head>', '<meta name="robots" content="noindex">\n</head>')
   if (body?.length) {

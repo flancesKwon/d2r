@@ -671,6 +671,13 @@ function rangeText(c) {
   return c.min === c.max ? ` ${c.min}${u}` : ` ${c.min}~${c.max}${u}`
 }
 const condId = (c) => (c.keyword ? 'kw:' + c.keyword : c.key)
+// 범위 칸({min,max})을 칩에 적을 짧은 글 ('2~4' / '3 이상' / '40 이하')
+function rangeChip(r) {
+  if (!r) return ''
+  if (r.min !== '' && r.max !== '') return r.min === r.max ? String(r.min) : `${r.min}~${r.max}`
+  if (r.min !== '') return t('{v} 이상', { v: r.min })
+  return t('{v} 이하', { v: r.max })
+}
 // 글이 조건을 만족하는지 + 배지에 보여줄 값
 function condValue(p, c) {
   if (c.keyword) {
@@ -698,6 +705,7 @@ function resetFilters() {
   activeCats.value = []
   resetMr()
   itemShape.value = ''
+  activeSlot.value = null
   activeRegion.value = null
   gameVersion.value = null
   activeLadder.value = null
@@ -1036,6 +1044,9 @@ function variantLines(p) {
         <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrCraft"><em>{{ $t('제작법') }}</em>{{ $t(mrCraft) }}<button type="button" aria-label="×" @click="mrCraft = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrShape"><em>{{ $t('모양') }}</em><img class="chip-shape" v-if="iconUrlFor(mrShape)" :src="iconUrlFor(mrShape)" alt="" /><button type="button" aria-label="×" @click="mrShape = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrOn && mrSup"><em>{{ $t('상급 여부') }}</em>{{ $t(SUP_CHOICES.find((c) => c.v === mrSup)?.label || mrSup) }}<button type="button" aria-label="×" @click="mrSup = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrOn && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
+        <span class="tr-chip flag" v-if="mrOn && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="clearPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -1328,7 +1339,8 @@ function variantLines(p) {
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
       <div class="empty-state" v-else-if="filteredPosts.length === 0">
-        {{ $t('판매중인 글 없음') }}
+        {{ appliedCount ? $t('조건에 맞는 매물 없음') : $t('판매중인 글 없음') }}
+        <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
         <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
       </div>
     </div>
@@ -1360,7 +1372,8 @@ function variantLines(p) {
       <div class="empty-state" v-if="tradeState.error">{{ tradeState.error }}</div>
       <div class="empty-state" v-else-if="!tradeState.loaded && tradeState.loading">{{ $t('불러오는 중…') }}</div>
       <div class="empty-state" v-else-if="filteredPosts.length === 0">
-        {{ $t('판매중인 글 없음') }}
+        {{ appliedCount ? $t('조건에 맞는 매물 없음') : $t('판매중인 글 없음') }}
+        <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
         <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
       </div>
     </div>
@@ -1707,6 +1720,9 @@ function variantLines(p) {
 .tr-gap{flex:1;}
 .want-cta{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:5px 12px;}
 .want-cta:hover{background:#2A2216;}
+.empty-clear{display:inline-block; margin-top:10px; padding:7px 14px; border:1px solid var(--line); border-radius:999px;
+  background:transparent; color:var(--text-muted); font-size:13px; cursor:pointer;}
+.empty-clear:hover{color:var(--text); border-color:var(--gold-dim);}
 .want-cta.big{display:inline-block; margin-top:12px; font-size:13.5px; padding:9px 18px;}
 .empty-state .want-cta.big{display:table; margin:12px auto 0;}
 .want-count{font-size:12px; font-weight:700; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:4px 10px;}

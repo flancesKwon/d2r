@@ -157,6 +157,9 @@ const optionHits = computed(() => {
 <template>
   <div class="items-page">
 
+  <!-- 아이템을 고르면 아래 상세의 아이템 이름이 h1 - 목록만 볼 때는 페이지 제목이 h1 -->
+  <h1 class="sr-only" v-if="!selected">{{ $t('아이템 사전') }}</h1>
+
   <div class="toolbar">
     <div class="toolbar-inner">
       <div class="cat-tabs">

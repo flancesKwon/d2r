@@ -186,7 +186,7 @@ const go = (d) => { const i = tabIndex() + d; if (TABS[i]) tradeGuideState.tab =
             <div class="tg-card"><b>{{ $t('오래된 신청') }}</b><span>{{ $t('판매 기간이 끝나고 3일이 지나도 재등록이 없으면 남은 신청은 정리') }}</span></div>
           </div>
           <div class="tg-note warn">
-            <b>{{ $t('꼭 지켜주세요') }}</b>
+            <b>{{ $t('꼭 지킬 것') }}</b>
             <ul>
               <li>{{ $t('현금 거래·사기·도배 금지 - 신고가 쌓인 글은 자동으로 가려지고, 확인 후 이용 정지') }}</li>
               <li>{{ $t('거래는 회원끼리 직접 진행하며, 사이트는 중개·보증하지 않음') }}</li>
