@@ -498,12 +498,23 @@ const baseDefenseWarning = computed(() => {
     ? t('고른 베이스의 기본 방어력 범위({r})를 벗어남 - 다시 확인', { r: `${exp.min}~${exp.max}${form.value.ethereal ? ', ' + t('에테리얼') : ''}` })
     : ''
 })
-// 무기 기본 데미지는 베이스마다 고정값(에테리얼이면 1.5배) - 입력받지 않고 이 값을 그대로 저장
+// 상급 '피해 증가 +X%' 로 넣은 수치 (안 골랐거나 수치 미입력이면 0)
+const superiorDmgEd = computed(() => {
+  if (!(pickedSuperiorCombo.value || []).includes('dmg%')) return 0
+  const v = superiorPick.value.values['dmg%']
+  return v === '' || v === undefined || v === null || !Number.isFinite(Number(v)) ? 0 : Number(v)
+})
+// 무기 기본 데미지는 베이스마다 고정값 - 입력받지 않고 이 값을 그대로 저장
+// 에테리얼 1.5배와 상급 피해 증가를 게임과 같은 순서로 (단계마다 버림)
 const expectedWeaponDamage = computed(() => {
   const dmg = weaponDamageRange(selectedBaseItem.value?.base_stats)
   if (!dmg) return null
-  const mul = form.value.ethereal ? 1.5 : 1
-  return { min: Math.floor(dmg.min * mul), max: Math.floor(dmg.max * mul) }
+  const ed = superiorDmgEd.value
+  const calc = (v) => {
+    let d = form.value.ethereal ? Math.floor(v * 1.5) : v
+    return Math.floor((d * (100 + ed)) / 100)
+  }
+  return { min: calc(dmg.min), max: calc(dmg.max) }
 })
 // 유니크·세트 방어구가 게임에서 가질 수 있는 방어력 범위 (tradeStore - 판매글 수정 화면도 같이 씀)
 const uniqueDefenseRange = computed(() =>
