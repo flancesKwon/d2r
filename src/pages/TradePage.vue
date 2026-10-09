@@ -1855,6 +1855,9 @@ function variantLines(p) {
 .trade-opts{display:flex; flex-wrap:wrap; justify-content:inherit; gap:5px 6px; margin-top:7px;}
 /* 옵션은 한 줄에 하나씩 - 폭이 남으면 여러 칸으로 나눠 채움 (줄마다 옵션 하나인 건 그대로) */
 .trade-opts.lines{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); justify-items:start; align-items:start; gap:3px 10px; max-width:640px;}
+/* 카드형은 칸이 좁음 - 한 칸으로, 카드 폭을 넘지 않게 (안 그러면 옵션이 카드 밖으로 삐져나감) */
+.trade-card .trade-opts.lines{grid-template-columns:minmax(0, 1fr); justify-items:center; max-width:100%; width:100%;}
+.trade-card .trade-opt{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .trade-opts.lines .trade-opt{max-width:100%;}
 .trade-when{margin-left:auto; flex:none; font-size:11.5px; color:var(--text-dim);}
 /* 서버·래더·모드·에테리얼·미확인 배지 */
