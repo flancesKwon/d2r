@@ -12,6 +12,10 @@ body{
   font-family:'Noto Sans KR', sans-serif; line-height:1.6;
   -webkit-font-smoothing:antialiased;
 }
+/* 내용이 짧은 화면(첫 화면 등)에서 푸터가 위로 딸려 올라오지 않게 - 화면 아래에 붙임
+   (화면 전체는 #app 안에 들어가므로 여기에 걸어야 함) */
+#app{display:flex; flex-direction:column; min-height:100dvh;}
+.site-footer{margin-top:auto;}
 h1,h2,h3{font-family:'Noto Serif KR', serif; font-weight:900; letter-spacing:-0.01em;}
 a{color:inherit; text-decoration:none;}
 :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
