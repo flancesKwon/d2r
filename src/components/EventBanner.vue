@@ -38,7 +38,7 @@ const full = computed(() => myTickets.value !== null && ev.value && myTickets.va
   <!-- 판매글 등록 화면 -->
   <router-link v-if="mode === 'post' && show && phase === 'live'" :to="`/event/${ev.id}`" class="eb-post">
     <span class="eb-gift" aria-hidden="true">🎁</span>
-    <span v-if="full"><b>{{ ev.title }}</b> {{ $t('응모권 최대 {n}장 다 채웠어요', { n: ev.ticketCap }) }}</span>
+    <span v-if="full"><b>{{ ev.title }}</b> {{ $t('응모권 최대 {n}장 다 채움', { n: ev.ticketCap }) }}</span>
     <span v-else><b>{{ ev.title }}</b> {{ $t('진행 중 · 이 판매글을 올리면') }} <b class="eb-plus">{{ $t('응모권 +1') }}</b>
       <template v-if="myTickets !== null"> ({{ $t('지금') }} {{ myTickets }}/{{ ev.ticketCap }})</template></span>
     <span class="eb-time">{{ $t('남은 시간') }} <b>{{ left }}</b></span>

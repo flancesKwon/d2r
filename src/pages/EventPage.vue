@@ -127,7 +127,7 @@ async function runVerify() {
           <div class="ev-count" v-if="target">
             {{ $t({ upcoming: '시작까지', live: '종료까지', review: '추첨까지' }[phase]) }} <b>{{ fmtCountdown(left) }}</b>
           </div>
-          <div class="ev-count" v-else-if="phase === 'ready'">{{ $t('운영진이 곧 추첨해요 - 이 화면을 열어두면 바로 추첨 장면이 나와요') }}</div>
+          <div class="ev-count" v-else-if="phase === 'ready'">{{ $t('운영진 추첨 임박 - 이 화면을 열어두면 추첨 장면 바로 표시') }}</div>
           <router-link v-if="phase === 'live'" to="/trade/new" class="ev-cta">{{ $t('판매글 올리고 응모하기') }}</router-link>
         </section>
 
@@ -166,7 +166,7 @@ async function runVerify() {
             </ul>
             <button type="button" class="ev-btn" @click="runVerify">{{ $t('이 브라우저에서 직접 계산해보기') }}</button>
             <p v-if="verify" :class="verify.same ? 'ev-ok' : 'ev-bad'">
-              {{ $t(verify.same ? '✓ 발표된 결과와 똑같아요' : '✗ 결과가 달라요 - 운영진에게 알려주세요') }}
+              {{ $t(verify.same ? '✓ 발표된 결과와 같음' : '✗ 결과 다름 - 운영진에게 알림 필요') }}
               <span class="ev-dim">({{ verify.calc.map((w) => `${w.label}: ${$t('남은 {n}장 중 {k}번째', { n: w.tickets_left, k: w.ticket_no })} = #${listNo(w)} ${w.nickname}`).join(' · ') }})</span>
             </p>
           </details>
@@ -192,10 +192,10 @@ async function runVerify() {
           <h2>{{ $t('참여 방법') }}</h2>
           <ul class="ev-rules">
             <li>{{ $t('이벤트 시간 안에') }} <b>{{ $t('거래게시판에 판매글을 올리면 자동으로 응모') }}</b> {{ $t('- 판매글 1개당 응모권 1장,') }} <b>{{ $t('1인 최대 {n}장', { n: ev.ticketCap }) }}</b></li>
-            <li>{{ $t('응모 안 되는 글: 골드, 코 룬 미만 룬, 최상급이 아닌 보석, 같은 아이템 중복 등록 · 추첨 전에 글을 지우면 그 응모권은 빠져요') }}</li>
-            <li>{{ $t('거래가 거의 없는 잡템·허위 매물은 운영진이 추첨 전까지 제외할 수 있어요 (아래 목록에 이유 표시)') }}</li>
-            <li><b>{{ $t('추첨은 {time}', { time: fmtEventTime(ev.drawAt) }) }}</b>{{ $t('에 공개되는') }} <a href="https://drand.love" target="_blank" rel="noopener">drand</a> {{ $t('공개 난수로 해요. 그 시각에 응모 목록이 고정되고, 난수는 그 뒤에 나와서 운영진도 결과를 미리 알거나 바꿀 수 없어요') }}</li>
-            <li>{{ $t('한 사람은 상품 하나만 당첨, 응모권이 많을수록 확률이 올라가요') }}</li>
+            <li>{{ $t('응모 안 되는 글: 골드, 코 룬 미만 룬, 최상급이 아닌 보석, 같은 아이템 중복 등록 · 추첨 전에 글을 지우면 그 응모권 제외') }}</li>
+            <li>{{ $t('거래가 거의 없는 잡템·허위 매물은 운영진이 추첨 전까지 제외 가능 (아래 목록에 이유 표시)') }}</li>
+            <li><b>{{ $t('추첨은 {time}', { time: fmtEventTime(ev.drawAt) }) }}</b>{{ $t('에 공개되는') }} <a href="https://drand.love" target="_blank" rel="noopener">drand</a> {{ $t('공개 난수 사용. 그 시각에 응모 목록 고정, 난수는 그 뒤에 나와 운영진도 결과를 미리 알거나 바꿀 수 없음') }}</li>
+            <li>{{ $t('한 사람은 상품 하나만 당첨, 응모권이 많을수록 확률 상승') }}</li>
           </ul>
           <p class="ev-extra" v-if="ev.rules">{{ ev.rules }}</p>
         </section>
@@ -219,7 +219,7 @@ async function runVerify() {
               </tr>
             </tbody>
           </table>
-          <p v-else class="ev-dim">{{ $t(entries.length ? '찾는 응모권 없음' : '아직 응모가 없어요') }}</p>
+          <p v-else class="ev-dim">{{ $t(entries.length ? '찾는 응모권 없음' : '아직 응모 없음') }}</p>
         </section>
       </template>
     </div>

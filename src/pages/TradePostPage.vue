@@ -405,7 +405,7 @@ async function confirmBuy() {
       <div class="section-head">
         <div class="section-title">{{ $t(isOwner ? '받은 구매신청·제안' : '구매신청·가격 제안 내역') }} <span class="count">{{ post.requests.length }}</span></div>
         <small class="section-note" v-if="!isOwner">{{ $t('다른 사람의 신청·제안도 공개 · 연락처는 판매자만') }}</small>
-        <button type="button" class="guide-link" @click="openTradeGuide('flow')">{{ $t('거래는 어떻게 진행돼요?') }}</button>
+        <button type="button" class="guide-link" @click="openTradeGuide('flow')">{{ $t('거래 진행 방식') }}</button>
       </div>
       <div class="request-list">
         <div class="request-item" v-for="r in post.requests" :key="r.id" :class="{ pending: (r.status || 'pending') === 'pending' && canManage }">
