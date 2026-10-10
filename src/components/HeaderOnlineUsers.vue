@@ -1,5 +1,5 @@
 <script setup>
-// 운영진 전용: 지금 접속 중인 회원 목록 (헤더 시계 옆) - 실시간 접속 표시(src/presence.js)의 회원들
+// 운영진 전용: 지금 접속 중인 사람 (헤더 시계 옆) - 회원은 목록으로, 비회원은 수만
 // 사진을 누르면 프로필 카드. 일반 회원에겐 버튼 자체가 안 보임
 import { ref, computed, watch } from 'vue'
 import { supabase } from '../supabase.js'
@@ -14,6 +14,7 @@ const props = defineProps({ inline: { type: Boolean, default: false } })
 const open = ref(false)
 const profiles = ref(new Map())
 const ids = computed(() => [...presenceState.online])
+const guests = computed(() => presenceState.guests)
 
 // 접속자 프로필(닉네임·사진)은 처음 보는 사람만 받아 둠
 async function loadMissing() {
@@ -40,7 +41,7 @@ const hideSoon = () => window.setTimeout(() => (open.value = false), 150)
 
 <template>
   <div class="online-inline" v-if="inline && isStaff()">
-    <div class="online-top">{{ $t('접속 중 {n}명', { n: ids.length }) }} <small>{{ $t('운영진 전용 · 로그인한 회원만') }}</small></div>
+    <div class="online-top">{{ $t('회원 {n}명 · 비회원 {g}명', { n: ids.length, g: guests }) }} <small>{{ $t('운영진 전용') }}</small></div>
     <div class="online-list inline-list">
       <button type="button" class="online-row" v-for="u in list" :key="u.id" @click="pick(u)">
         <UserAvatar :src="u.avatar_url" :name="u.nickname" :size="22" :user-id="u.id" :clickable="false" />
@@ -51,10 +52,10 @@ const hideSoon = () => window.setTimeout(() => (open.value = false), 150)
   </div>
   <div class="online-wrap" v-else-if="!inline && isStaff()">
     <button type="button" class="online-btn" :aria-expanded="open" :title="$t('지금 접속 중인 회원 (운영진 전용)')" @click="open = !open" @blur="hideSoon">
-      <span class="online-dot"></span>{{ ids.length }}
+      <span class="online-dot"></span>{{ ids.length }}<em class="online-guests" v-if="guests">+{{ guests }}</em>
     </button>
     <div class="online-dropdown" v-if="open">
-      <div class="online-top">{{ $t('접속 중 {n}명', { n: ids.length }) }} <small>{{ $t('운영진 전용 · 로그인한 회원만') }}</small></div>
+      <div class="online-top">{{ $t('회원 {n}명 · 비회원 {g}명', { n: ids.length, g: guests }) }} <small>{{ $t('운영진 전용') }}</small></div>
       <div class="online-list">
         <button type="button" class="online-row" v-for="u in list" :key="u.id" @mousedown.prevent="pick(u)">
           <UserAvatar :src="u.avatar_url" :name="u.nickname" :size="26" :user-id="u.id" :clickable="false" />
@@ -71,6 +72,7 @@ const hideSoon = () => window.setTimeout(() => (open.value = false), 150)
 .online-wrap{position:relative; flex:none;}
 .online-btn{display:flex; align-items:center; gap:6px; height:32px; padding:0 10px; border:1px solid var(--border); border-radius:999px; font-size:12.5px; color:var(--text-muted); font-variant-numeric:tabular-nums;}
 .online-btn:hover{border-color:var(--gold-dim); color:var(--text);}
+.online-guests{font-style:normal; color:var(--text-dim); margin-left:1px;}
 .online-dot{width:8px; height:8px; border-radius:999px; background:#3ecf5a; box-shadow:0 0 0 3px rgba(62,207,90,.18);}
 .online-dropdown{position:absolute; top:calc(100% + 8px); right:0; width:260px; z-index:30; background:var(--panel-2); border:1px solid var(--border); border-radius:12px; box-shadow:0 14px 34px rgba(0,0,0,.5); padding:6px;}
 .online-top{display:flex; flex-direction:column; gap:2px; padding:6px 8px 8px; font-size:13px; color:var(--text); font-weight:600;}
