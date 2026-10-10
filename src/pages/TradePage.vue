@@ -1683,7 +1683,10 @@ function variantLines(p) {
 .stat-match{font-size:11px; color:var(--teal); border:1px solid var(--teal); padding:2px 10px; border-radius:999px;}
 
 @media (max-width:640px){
-  /* 폰: 카테고리 칩을 빼고 제목이 줄바꿈되게 - 예전엔 제목이 "이…"로 잘리고 본문이 한 글자씩 세로로 꺾였음 */
+  /* 폰: 카드는 한 줄에 하나, 화면 폭을 꽉 채움 (반쪽짜리 카드는 알아보기 힘듦) */
+  .trade-grid{grid-template-columns:1fr; gap:12px;}
+  .trade-card{padding:16px 14px 14px;}
+  /* 카테고리 칩을 빼고 제목이 줄바꿈되게 - 예전엔 제목이 "이…"로 잘리고 본문이 한 글자씩 세로로 꺾였음 */
   .trade-row{gap:10px; padding:14px; flex-wrap:wrap;}
   .trade-cat{display:none;}
   .trade-row-icon{width:40px; height:40px;}
@@ -1894,7 +1897,7 @@ function variantLines(p) {
 .view-mode-toggle button.active{color:var(--gold); background:var(--panel-2);}
 
 .trade-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:16px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap:16px;
 }
 .trade-card{
   position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
@@ -2109,6 +2112,8 @@ function variantLines(p) {
   .tr-pill::after{right:11px;}
   .tr-toggle{height:34px; padding:0 12px;}
   .tr-body{padding:16px 14px 48px;}
+  /* 검색 화면도 같은 여백으로 - 그만큼 카드·매물 줄이 넓어짐 */
+  .trade-page.searching .tr-body{padding:16px 14px 48px;}
   .tr-results-note{display:none;}
 }
 </style>

@@ -376,6 +376,11 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-header-inner{gap:6px;}
   .site-logo img{height:34px;}
 }
+/* 320px 폰에서는 그래도 한 줄에 안 들어감 - 시계를 빼고 로고를 더 줄임 */
+@media (max-width:360px){
+  .site-clock{display:none;}
+  .site-logo img{height:30px;}
+}
 /* 운영진은 헤더에 접속자 버튼이 하나 더 있어서 더 일찍 햄버거 메뉴로 (일반 회원은 그대로) */
 @media (max-width:1240px){
   .site-header-inner.staff .site-nav{display:none;}
