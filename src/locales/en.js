@@ -158,6 +158,7 @@ export default {
   '아직 글 없음': 'No posts yet',
   '첫 글 쓰기': 'Write the first one',
   '판매중인 글 없음': 'No listings for sale',
+  '회원 {n}명 · 비회원 {g}명': '{n} members · {g} guests',
   '남쪽·깊은·북쪽 세계석 파편 1개씩': '1 Southern + 1 Deep + 1 Northern Worldstone Shard',
   '북쪽 세계석 파편 1개': '1 Northern Worldstone Shard',
   '깊은 세계석 파편 1개': '1 Deep Worldstone Shard',
