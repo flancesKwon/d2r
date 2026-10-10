@@ -25,6 +25,7 @@ import {
   CLASS_SKILL_NAMES,
   uniqueDefenseRange,
   SUPERIOR_MODS,
+  EXTRA_MATERIALS,
   superiorCombosFor,
   baseForItem,
   searchBaseItems,
@@ -118,7 +119,12 @@ const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 
 // ---- 아이템 지정: 검색창에 치면 유니크·세트·룬워드 자동완성 -> 고르면 그 아이템 글만 + 변동 옵션 범위 필터
 // (?item=아이템id 로 들어와도 됨). 고르지 않고 치면 예전처럼 글자 검색
-const PICKABLE = itemsData.filter((it) => ['unique', 'set', 'runeword'].includes(it.category))
+// 아이템 지정 후보 - 유니크·세트·룬워드에 룬·보석(gem)과 재료(우버 재료·정수·징표·세계석)까지.
+// 예전엔 장비만 넣어서 '세계석'·'우움'·'면죄' 를 쳐도 '글자로 찾기' 만 떴음
+const PICKABLE = [
+  ...itemsData.filter((it) => ['unique', 'set', 'runeword', 'gem'].includes(it.category)),
+  ...EXTRA_MATERIALS,
+]
 const pickedItem = ref(getTradeItem(typeof route.query.item === 'string' ? route.query.item : null) || null)
 const suggestOpen = ref(false)
 const suggestActive = ref(0)
