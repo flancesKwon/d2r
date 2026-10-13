@@ -18,13 +18,19 @@ import { LOCALES, locale, stripLocale, itemName, t } from '../i18n.js'
 import { switchLocale } from '../router.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 
+import { openTradeGuide } from '../tradeGuide.js'
+
 const route = useRoute()
 const router = useRouter()
 
 const TRADE_MENUS = [
   {
     key: 'listings', label: '매물', to: '/', match: ['/', '/trade'],
-    links: [{ label: '매물 보기', to: '/' }, { label: '판매글 등록', to: '/trade/new' }],
+    links: [
+      { label: '매물 보기', to: '/trade/search' },
+      { label: '판매글 등록', to: '/trade/new' },
+      { label: '이용 안내', action: openTradeGuide },
+    ],
   },
   { key: 'wants', label: '삽니다', to: '/trade/wants', match: ['/trade/wants'], links: [] },
   { key: 'market', label: '시세', to: '/market', match: ['/market'], links: [] },
@@ -189,6 +195,9 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           <div class="site-dropdown" :class="{ wide: m.key === 'tools' }" v-if="m.links.length">
             <template v-for="(l, i) in m.links" :key="i">
               <div class="site-dropdown-group" v-if="l.group">{{ $t(l.group) }}</div>
+              <button type="button" class="site-dropdown-link" v-else-if="l.action" @click="l.action()">
+                <span>{{ $t(l.label) }}</span>
+              </button>
               <router-link v-else :to="l.to" class="site-dropdown-link" :class="{ here: activeLink === l.to }" :aria-current="activeLink === l.to ? 'page' : null">
                 <span>{{ $t(l.label) }}</span>
                 <small v-if="l.desc">{{ $t(l.desc) }}</small>
@@ -243,6 +252,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
         <div class="site-mobile-title">{{ $t(m.label) }}</div>
         <div class="site-mobile-links">
           <router-link v-for="l in (m.links.length ? m.links : [{ label: m.label, to: m.to }]).filter((x) => x.to)" :key="l.to" :to="l.to" :class="{ here: activeLink === l.to }">{{ $t(l.label) }}</router-link>
+          <button type="button" v-for="l in m.links.filter((x) => x.action)" :key="l.label" @click="mobileOpen = false; l.action()">{{ $t(l.label) }}</button>
         </div>
       </div>
       <div class="site-mobile-group">
@@ -286,7 +296,8 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 }
 .site-dropdown.wide{min-width:280px;}
 .site-nav-item:hover .site-dropdown, .site-nav-item:focus-within .site-dropdown{display:block;}
-.site-dropdown-link{display:flex; flex-direction:column; padding:8px 12px; border-radius:8px; font-size:13px; color:var(--text-muted);}
+.site-dropdown-link{display:flex; flex-direction:column; align-items:flex-start; text-align:left; width:100%;
+  padding:8px 12px; border-radius:8px; font-size:13px; color:var(--text-muted);}
 .site-dropdown-link small{font-size:11px; color:var(--text-dim);}
 .site-dropdown-link:hover{background:var(--panel); color:var(--gold);}
 .site-dropdown-link.here{background:rgba(200,163,77,0.12); color:var(--gold); font-weight:600; box-shadow:inset 3px 0 0 var(--gold);}
@@ -322,7 +333,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 .site-mobile{border-top:1px solid var(--border-soft); padding:12px 16px 18px; display:flex; flex-direction:column; gap:12px; max-height:calc(100vh - 56px); overflow-y:auto;}
 .site-mobile-title{font-size:12px; color:var(--gold-dim); font-weight:600; margin-bottom:6px;}
 .site-mobile-links{display:flex; flex-wrap:wrap; gap:6px;}
-.site-mobile-links a{font-size:13px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
+.site-mobile-links a, .site-mobile-links button{font-size:13px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
 .site-mobile-links a.here{color:#1a1408; background:var(--gold); border-color:var(--gold); font-weight:600;}
 
 @media (max-width:1180px){

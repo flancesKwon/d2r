@@ -1209,8 +1209,7 @@ function variantLines(p) {
   <section class="tr-hero">
     <div class="tr-hero-inner">
       <template v-if="!isSearchRoute">
-        <h1>{{ $t('디아블로 2 레저렉션 거래소') }}</h1>
-        <p class="tr-hero-sub">{{ $t('유니크 · 룬워드 · 룬부터 옵션 수치까지, 한 번에 검색') }}</p>
+        <h1 class="tr-wordmark">{{ $t('디아허브') }}</h1>
       </template>
       <div class="tr-back" v-else>
         <router-link to="/">← {{ $t('전체 매물') }}</router-link>
@@ -1309,24 +1308,6 @@ function variantLines(p) {
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
-    <!-- 첫 화면: 매물 목록 대신 몇 개 올라와 있는지와 전체 보기 -->
-  <div class="tr-home-cta" v-if="!isSearchRoute">
-    <button type="button" class="tr-all-btn" @click="runSearch()">
-      <template v-if="appliedCount">
-        <b>{{ $t('조건 {n}개로 검색', { n: appliedCount }) }}</b>
-        <span>{{ $t('결과 {n}개', { n: liveCount }) }} →</span>
-      </template>
-      <template v-else>
-        <b v-if="liveCount || !expiredCount">{{ $t('현재 매물 {n}개', { n: liveCount }) }}</b>
-        <b v-else>{{ $t('기간 지난 매물 {n}개', { n: expiredCount }) }}</b>
-        <span>{{ $t('전체 보기') }} →</span>
-      </template>
-    </button>
-    <div class="tr-home-links">
-      <button type="button" class="guide-btn" @click="openTradeGuide()">{{ $t('이용 안내') }}</button>
-      <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
-    </div>
-  </div>
     </div>
   </section>
 
@@ -1949,7 +1930,17 @@ function variantLines(p) {
 .tr-hero{background:var(--bg-raise); border-bottom:1px solid var(--border-soft);}
 .tr-hero-inner{max-width:1040px; margin:0 auto; padding:48px 24px 28px; display:flex; flex-direction:column; gap:14px;}
 .tr-hero h1{text-align:center; font-size:32px; margin:0;}
-.tr-hero-sub{text-align:center; color:var(--text-muted); font-size:14.5px; margin:-4px 0 6px;}
+/* 첫 화면 제목 - 금속 느낌의 금색 그라데이션 + 아래로 가늘어지는 금선 */
+.trade-page:not(.searching) .tr-wordmark{
+  font-size:clamp(38px, 7vw, 60px); line-height:1.1; letter-spacing:.1em; text-indent:.1em;
+  color:var(--gold);
+  background:linear-gradient(180deg, #F6E7BC 0%, #E0C277 34%, #C8A34D 62%, #8A7339 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+.trade-page:not(.searching) .tr-wordmark::after{
+  content:''; display:block; width:min(260px, 52vw); height:1px; margin:18px auto 2px;
+  background:linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+}
 
 .tr-search{display:flex; align-items:stretch; min-height:60px; background:#F3EEE4; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); position:relative;}
 .tr-search > .tr-search-box{border-radius:16px 0 0 16px;}
@@ -2059,21 +2050,6 @@ function variantLines(p) {
 .tr-go{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim);
   border-radius:999px; padding:4px 12px; cursor:pointer;}
 .tr-go:hover{background:#2A2216;}
-/* 첫 화면: 매물 수 + 전체 보기 */
-.tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:4px 0; margin-top:4px;}
-/* 알약 버튼이 아니라 글로만 - 숫자를 크게 */
-.tr-all-btn{cursor:pointer; display:inline-flex; align-items:baseline; gap:9px; padding:0; border:0; background:none; color:var(--gold);}
-.tr-all-btn b{font-size:20px; font-weight:800; letter-spacing:-.01em;}
-.tr-all-btn span{font-size:14px; font-weight:700; color:var(--gold-dim); text-decoration:underline; text-underline-offset:4px;}
-.tr-all-btn:hover b{color:#e3cd92;}
-.tr-all-btn:hover span{color:var(--gold);}
-.tr-home-links{display:flex; align-items:center; gap:10px; margin-left:auto;}
-@media (max-width:560px){ .tr-home-links{margin-left:0;} }
-/* 판매글 등록은 가장 눈에 띄게 - 금색 채움 */
-.tr-home-links .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;
-  font-size:14px; padding:10px 20px; border-radius:999px;}
-.tr-home-links .quality-toggle:hover{background:#e3cd92;}
-.tr-home-links .guide-btn{font-size:13.5px; padding:10px 16px;}
 /* 검색 화면 머리글 - 전체 매물로 돌아가는 링크 */
 .tr-back{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
 .tr-back a{font-size:13px; color:var(--gold-dim);}
@@ -2118,8 +2094,6 @@ function variantLines(p) {
 
 @media (max-width:640px){
   .tr-hero-inner{padding:24px 14px 18px; gap:12px;}
-  .tr-hero h1{font-size:22px;}
-  .tr-hero-sub{display:none;}
   .tr-search{display:grid; grid-template-columns:minmax(0, 1fr) auto; min-height:0; border-radius:12px;}
   .tr-search-box{min-height:48px;}
   .tr-search-box input{font-size:16px; padding:12px 14px;}
