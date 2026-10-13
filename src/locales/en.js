@@ -511,7 +511,7 @@ export default {
   // 판매글 등록
   '매직': 'Magic',
   '다른 베이스': 'Other base',
-  '매직·레어·크래프트': 'Magic · Rare · Crafted',
+  '매직·레어': 'Magic · Rare',
   '검색조건 초기화': 'Reset filters',
   '레어': 'Rare',
   '크래프트': 'Crafted',

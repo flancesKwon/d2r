@@ -526,9 +526,10 @@ function mrMatches(p, skip) {
   const no = (k) => skip === k
   if (!mrOn.value) return true
   if (!no('mr:quality')) {
-    // 품질을 고르면 그것만. 안 골랐으면 매직·레어·크래프트 (일반(흰색)은 뺌)
+    // 품질을 고르면 그것만. 안 골랐으면 매직·레어 (일반·크래프트는 버튼이 따로 있으니 뺌)
+    // 품질을 안 적고 올린 글(빈값)은 어느 버튼에도 안 걸리면 사라지므로 여기에 남겨 둠
     if (mrQuality.value) { if (p.quality !== mrQuality.value) return false }
-    else if (p.quality === 'normal') return false
+    else if (p.quality === 'normal' || p.quality === 'crafted') return false
   }
   if (mrBase.value && !no('mr:base')) {
     // 판매글에는 괄호 붙은 이름("베이스: 반지 (Ring)")이 적히고 고르는 값은 장신구면 괄호가 없음("반지")
@@ -1400,7 +1401,7 @@ function variantLines(p) {
         <div class="mr-grid">
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
-            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어·크래프트') }}</button>
+            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어') }}</button>
             <button
               type="button" v-for="q in mrQualityPicks" :key="q.v" :class="['q-' + q.v, { on: mrQuality === q.v }]"
               :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
@@ -2097,10 +2098,10 @@ function variantLines(p) {
 /* 위(검색창)는 좁게, 아래(매물)는 넓게 - 검색창이 결과보다 넓어 위가 무거워 보이던 것 */
 .trade-page.searching .tr-hero-inner{max-width:1040px; padding:28px 20px 20px;}
 /* margin:0 auto 는 세로 flex 안에서 늘어나는 걸 막아 내용 크기(700px)로 쪼그라들게 함 -> width 로 펴고 가운데는 margin 으로 */
-.trade-page.searching .tr-body{width:100%; max-width:1400px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+.trade-page.searching .tr-body{width:100%; max-width:1470px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
 /* 목록형은 한 줄에 내용이 왼쪽으로 쌓여서 카드형만큼 넓으면 오른쪽이 비어 보임 - 조금 좁게 (머리글도 같이 맞춰지게 칸 자체를 좁힘) */
-.trade-page.searching .tr-body.view-list{max-width:1180px;}
-.tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
+.trade-page.searching .tr-body.view-list{max-width:1250px;}
+.tr-filters{flex:0 0 400px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
 .tr-filters .item-range-panel + .item-range-panel{margin-top:10px;}
