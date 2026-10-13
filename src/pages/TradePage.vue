@@ -70,19 +70,6 @@ const gameVersion = ref((() => { try { const v = localStorage.getItem(GAME_KEY);
 watch(gameVersion, (v) => { try { if (v) localStorage.setItem(GAME_KEY, v); else localStorage.removeItem(GAME_KEY) } catch { /* 프라이빗 창 등 */ } })
 // 부위(착용 위치) - 판매글의 베이스 줄이나 사전 아이템의 세부 종류로 정함
 const SLOT_ORDER = ['머리', '몸통', '방패', '장갑', '신발', '허리', '목걸이', '반지', '무기']
-// 부위 통째로 찾기 ('장갑' -> 장갑 베이스 6종 전부). 부르는 이름이 여러 가지라 별칭도 받음
-// 목걸이·반지는 베이스가 하나씩이라 베이스 줄로 충분해서 뺌
-const SLOT_ALIASES = {
-  머리: ['머리', '투구', '헬름', '모자'],
-  몸통: ['몸통', '갑옷', '아머', '상의'],
-  방패: ['방패', '실드'],
-  장갑: ['장갑', '글러브', '건틀릿'],
-  신발: ['신발', '장화', '부츠'],
-  허리: ['허리', '벨트', '허리띠'],
-  무기: ['무기'],
-}
-// 룬워드를 만들 수 있는 부위 - 장갑·신발·허리에는 룬워드가 없음
-const RUNEWORD_SLOTS = ['머리', '몸통', '방패', '무기']
 // 베이스 세부 종류 -> 부위 (사전 아이템과 베이스 목록이 쓰는 이름이 조금 달라 둘 다 적음)
 const SLOT_BY_SUB = {
   투구: '머리', '드루이드 투구': '머리', '바바리안 투구': '머리', 서클릿: '머리',
@@ -121,16 +108,6 @@ function postSlot(p) {
   if (!sl) { const nm = p.itemName || ''; sl = nm.includes('반지') ? '반지' : nm.includes('목걸이') ? '목걸이' : null }
   slotCache.set(ck, sl)
   return sl
-}
-// 에테리얼은 무기·방어구에만 붙음 (반지·목걸이·주얼·참, 룬·보석·재료엔 없음)
-const ETH_SLOTS = new Set(['머리', '몸통', '방패', '장갑', '신발', '허리', '무기'])
-// 사전 아이템의 부위 (postSlot 의 사전 쪽 규칙과 같음)
-function slotOfItem(it) {
-  if (!it) return null
-  if (SLOT_BY_SUB[it.type_sub]) return SLOT_BY_SUB[it.type_sub]
-  if (it.category === 'runeword') return RW_SLOT[it.subtitle] || null
-  if (WEAPON_SUBS.has(it.type_sub) || it.base_stats?.category === 'weapon') return '무기'
-  return null
 }
 const activeSlot = ref(null)
 const activeLadder = ref(null)
@@ -173,6 +150,7 @@ function pickItem(it) {
   pickedItem.value = it
   searchQuery.value = ''
   suggestOpen.value = false
+  goSearch()
 }
 function clearPickedItem() {
   pickedItem.value = null
@@ -206,7 +184,6 @@ function onDocPointerDown(e) {
   if (e.target.closest?.('.tr-suggest')) { suggestPointer = true; return }
   suggestPointer = false
   if (!e.target.closest?.('.tr-search-box')) suggestOpen.value = false
-  if (!e.target.closest?.('.tr-chip')) editIdx.value = -1
 }
 onMounted(() => document.addEventListener('pointerdown', onDocPointerDown, true))
 onUnmounted(() => document.removeEventListener('pointerdown', onDocPointerDown, true))
@@ -270,24 +247,6 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
-// 지금 좁혀진 대상의 부위 (부위 전체 > 고른 베이스 > 고른 아이템 순, 아무것도 안 골랐으면 null)
-const pickedSlot = computed(() => {
-  if (activeSlot.value) return activeSlot.value
-  if (mrBase.value) return BASE_SLOT.get(mrBase.value.replace(/ \(.+\)$/, '')) || null
-  return slotOfItem(pickedItem.value)
-})
-// 룬·보석·재료·골드만 보는 중이면 둘 다 해당 없음
-const GEARLESS_CATS = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '골드']
-const gearlessOnly = computed(() => activeCats.value.length > 0 && activeCats.value.every((c) => GEARLESS_CATS.includes(c)))
-// 에테리얼: 무기·방어구일 때만. 부위를 모르면(아무것도 안 고름) 숨기지 않음
-// 장신구(목걸이·반지·주얼·참)는 baseItems 가 아니라 miscBases 에 있어 부위가 안 잡히므로 따로 봄
-const canEth = computed(() => {
-  if (gearlessOnly.value) return false
-  if (mrBaseItem.value?.base_stats?.category === 'misc') return false
-  return !pickedSlot.value || ETH_SLOTS.has(pickedSlot.value)
-})
-// 미확인: 흰색(일반)으로 못 박았으면 감정할 게 없음
-const canUnid = computed(() => !gearlessOnly.value && mrQuality.value !== 'normal')
 // 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
 // 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
 const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -517,23 +476,10 @@ function addMrOpt(st) {
 }
 // 옵션 조건 수치 칸 (빈 칸 = 상관없음)
 const condNum = (v) => (v === '' || v === null || !Number.isFinite(Number(v)) ? null : Number(v))
-const condNoNeg = (c) => { const r = condRange(c); return !r || r[0] >= 0 }
-const condIn = (c, n) => (n === null ? null : condNoNeg(c) ? Math.max(0, n) : n)
-function setCondMin(c, v) { c.min = condIn(c, condNum(v)) }
-function setCondMax(c, v) { c.max = condIn(c, condNum(v)) }
-// 칸을 벗어났을 때 범위 안으로 (범위를 아는 옵션만) + 최소가 최대보다 크면 뒤집음
-function fixCond(c) {
-  const r = condRange(c)
-  const fit = (n) => (n === null ? null : r ? Math.min(r[1], Math.max(r[0], n)) : n)
-  c.min = fit(c.min)
-  c.max = fit(c.max)
-  if (c.min !== null && c.max !== null && c.min > c.max) { const t = c.min; c.min = c.max; c.max = t }
-}
+function setCondMin(c, v) { c.min = condNum(v) }
+function setCondMax(c, v) { c.max = condNum(v) }
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
-// 해당 없는 칸이 사라질 때 켜져 있던 조건도 같이 풀기 (안 그러면 끌 방법이 없어짐)
-watch(canEth, (ok) => { if (!ok) etherealOnly.value = false })
-watch(canUnid, (ok) => { if (!ok) unidOnly.value = false })
 const mrCount = computed(() =>
   [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value, mrSockOn.value, mrSup.value, mrLvlOn.value].filter(Boolean).length
 )
@@ -752,7 +698,7 @@ const statTag = (c) => (c.keyword ? null : statParts(statFilterByKey(c.key)).tag
 const statUnit = (c) => (!c.keyword && statFilterByKey(c.key)?.label.includes('(%)') ? '%' : '')
 function rangeText(c) {
   const u = statUnit(c)
-  if (c.min === null && c.max === null) return ''
+  if (c.min === null && c.max === null) return ' ' + t('있음')
   if (c.max === null) return ' ' + t('{v} 이상', { v: c.min + u })
   if (c.min === null) return ' ' + t('{v} 이하', { v: c.max + u })
   return c.min === c.max ? ` ${c.min}${u}` : ` ${c.min}~${c.max}${u}`
@@ -1022,7 +968,6 @@ const expiredCount = computed(() => filteredPosts.value.length - liveCount.value
 const dropHints = computed(() => {
   if (filteredPosts.value.length || !appliedCount.value) return []
   const c = []
-  if (activeSlot.value) c.push({ key: 'slot', label: t('부위') + ' ' + t(activeSlot.value), drop: () => { activeSlot.value = null } })
   if (activeCats.value.length) c.push({ key: 'cat', label: t('종류') + ' ' + activeCats.value.map((x) => t(x)).join('·'), drop: () => { activeCats.value = [] } })
   if (activeRegion.value) c.push({ key: 'realm', label: t(activeRegion.value), drop: () => { activeRegion.value = null } })
   if (gameVersion.value) c.push({ key: 'game', label: t(gameVersion.value), drop: () => { gameVersion.value = null } })
@@ -1096,9 +1041,6 @@ const unifiedSuggestions = computed(() => {
   if (!raw) return []
   const q = squash(raw)
   const out = []
-  for (const [sl, names] of Object.entries(SLOT_ALIASES)) {
-    if (names.some((n) => squash(n).startsWith(q))) out.push({ type: 'slot', key: 'sl' + sl, sl })
-  }
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const b of baseCandidates.value) out.push({ type: 'base', key: 'b' + b.code, b })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
@@ -1120,17 +1062,15 @@ const unifiedSuggestions = computed(() => {
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
   const groups = [
-    { name: '부위', cls: 'g-slot', rows: [] },
     { name: '아이템', cls: 'g-item', rows: [] }, { name: '매직·레어·크래프트 (베이스)', cls: 'g-base', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
     { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
   ]
-  const at = { slot: 0, item: 1, base: 2, cat: 3, stat: 4, text: 5, kw: 5 }
+  const at = { item: 0, base: 1, cat: 2, stat: 3, text: 4, kw: 4 }
   list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
   suggestPointer = false
-  if (sug.type === 'slot') return pickSlot(sug.sl)
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; goSearch(); return }
@@ -1144,16 +1084,6 @@ function chooseSuggestion(sug) {
   searchQuery.value = ''
   suggestOpen.value = false
 }
-// '<부위> 전체' - 그 부위 매물을 한 번에. 유니크·세트는 빼고,
-// 룬워드가 있는 부위(머리·몸통·방패·무기)만 룬워드도 같이 봄
-function pickSlot(sl) {
-  activeSlot.value = sl
-  activeCats.value = RUNEWORD_SLOTS.includes(sl) ? ['룬워드', '매직/레어/일반'] : ['매직/레어/일반']
-  searchQuery.value = ''
-  suggestOpen.value = false
-  goSearch()
-}
-
 function toggleCat(c, onlyAdd = false) {
   const i = activeCats.value.indexOf(c)
   if (i >= 0) { if (!onlyAdd) activeCats.value.splice(i, 1) } else activeCats.value.push(c)
@@ -1180,9 +1110,10 @@ function applyEdit() {
   const c = statConditions.value[editIdx.value]
   if (c) {
     const num = (v) => (v === '' || v === null ? null : Number(v))
-    c.min = condIn(c, num(editMin.value))
-    c.max = condIn(c, num(editMax.value))
-    fixCond(c)
+    let mn = num(editMin.value), mx = num(editMax.value)
+    if (mn !== null && mx !== null && mn > mx) [mn, mx] = [mx, mn]
+    c.min = mn
+    c.max = mx
   }
   editIdx.value = -1
 }
@@ -1229,7 +1160,7 @@ const pickedWantCount = ref(0)
 watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (activeSlot.value ? 1 : 0) + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
 
 // ───────── 목록에 보여줄 것 ─────────
@@ -1315,11 +1246,7 @@ function variantLines(p) {
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: suggestNav && r.i === suggestActive }"
                 :aria-selected="r.i === suggestActive" @mousedown.prevent @click="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i; suggestNav = true"
               >
-                <template v-if="r.sug.type === 'slot'">
-                  <span class="item-suggest-name">{{ $t('{s} 전체', { s: $t(r.sug.sl) }) }}</span>
-                  <small>{{ $t('유니크·세트 빼고 한 번에') }}</small>
-                </template>
-                <template v-else-if="r.sug.type === 'item'">
+                <template v-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
                   <span class="item-suggest-name" :class="r.sug.it.category">{{ $itemName(r.sug.it) }}</span>
                   <small>{{ $t(r.sug.it.category_label) }}{{ locale === 'ko' && r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
@@ -1357,7 +1284,6 @@ function variantLines(p) {
 
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
-        <span class="tr-chip kind" v-if="activeSlot"><em>{{ $t('부위') }}</em>{{ $t(activeSlot) }}<button type="button" :aria-label="`${$t(activeSlot)} ×`" @click="activeSlot = null">×</button></span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
         <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="dropMrBase">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
@@ -1373,11 +1299,10 @@ function variantLines(p) {
           <button type="button" :aria-label="`${statLabel(c)} ✎`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
           <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
           <span class="tr-chip-edit" v-if="editIdx === i" @keydown.enter.prevent="applyEdit" @keydown.esc="editIdx = -1">
-            <input type="number" min="0" v-model="editMin" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
+            <input type="number" v-model="editMin" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
             <span>~</span>
-            <input type="number" min="0" v-model="editMax" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+            <input type="number" v-model="editMax" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
             <button type="button" class="apply" @click="applyEdit">{{ $t('적용') }}</button>
-            <button type="button" class="close" @click="editIdx = -1">{{ $t('닫기') }}</button>
           </span>
         </span>
         <span class="tr-applied-gap"></span>
@@ -1396,28 +1321,18 @@ function variantLines(p) {
             <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
           </select>
         </label>
+        <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
+        <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
     </div>
   </section>
 
   <div class="tr-body" :class="{ 'view-list': isSearchRoute && viewMode === 'list' }">
-  <aside class="tr-filters" v-if="isSearchRoute" :class="{ closed: !filtersOpen }">
+  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
     <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
-      <!-- 어떤 경로로 들어와도 늘 보이는 칸 -->
-      <div class="item-range-panel mr-panel">
-        <div class="mr-grid">
-          <template v-if="canEth || canUnid">
-            <span class="mr-label" :class="{ on: etherealOnly || unidOnly }">{{ canEth && canUnid ? $t('에테리얼') + '·' + $t('미확인') : canEth ? $t('에테리얼') : $t('미확인') }}</span>
-            <span class="mr-seg wrap">
-              <button type="button" v-if="canEth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
-              <button type="button" v-if="canUnid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
-            </span>
-          </template>
-        </div>
-      </div>
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
       <div class="item-range-panel mr-panel" v-if="mrOn">
         <div class="mr-head">
@@ -1520,9 +1435,9 @@ function variantLines(p) {
             <div class="mr-cond" v-for="(c, i) in statConditions" :key="'mc' + condId(c)">
               <span class="mr-cond-name">{{ statLabel(c) }}<small class="mr-cond-range" v-if="condRange(c)">{{ condRange(c)[0] === condRange(c)[1] ? condRange(c)[0] : `${condRange(c)[0]}~${condRange(c)[1]}` }}</small></span>
               <span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>
-              <input type="number" min="0" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" @change="fixCond(c)" :placeholder="condRange(c) ? `${$t('최소')} ${condRange(c)[0]}` : $t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
+              <input type="number" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" :placeholder="condRange(c) ? `${$t('최소')} ${condRange(c)[0]}` : $t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
               <span class="mr-sep">~</span>
-              <input type="number" min="0" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" @change="fixCond(c)" :placeholder="condRange(c) ? `${$t('최대')} ${condRange(c)[1]}` : $t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+              <input type="number" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" :placeholder="condRange(c) ? `${$t('최대')} ${condRange(c)[1]}` : $t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
               <button type="button" class="mr-x" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
             </div>
             <input
@@ -1610,9 +1525,9 @@ function variantLines(p) {
                     <RangeInput v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최대')}`" />
                   </template>
                   <template v-else>
-                    <input type="number" min="0" class="pk-num" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
+                    <input type="number" class="pk-num" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
                     <span class="mr-sep">~</span>
-                    <input type="number" min="0" class="pk-num" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
+                    <input type="number" class="pk-num" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
                   </template>
                 </div>
               </div>
@@ -1858,7 +1773,6 @@ function variantLines(p) {
 .mr-head-icon.unique, .mr-head-icon.runeword{border-color:#6b5f3c;} .mr-head-icon.set{border-color:#1f6b1f;}
 .mr-head-text b.unique, .mr-head-text b.runeword{color:#c7b377;} .mr-head-text b.set{color:#00c400;}
 .mr-fixed{font-style:normal; font-size:10.5px; font-weight:700; margin-left:5px; color:#e0913a;}
-.mr-seg.wrap{flex-wrap:wrap;}
 .mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
 .mr-seg button.on{border-color:var(--gold); color:var(--gold); background:rgba(200,163,77,0.12);}
@@ -2055,7 +1969,6 @@ function variantLines(p) {
 .tr-suggest-title{font-size:11px; font-weight:800; padding:6px 10px 4px; color:var(--text-dim);}
 .g-item .tr-suggest-title{color:var(--gold-dim);}
 .g-cat .tr-suggest-title{color:#C9A56B;}
-.g-slot .tr-suggest-title{color:#C9A56B;}
 .g-stat .tr-suggest-title{color:#9FB0FF;}
 .tr-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border-radius:9px; text-align:left; font-size:14px; color:var(--text);}
 .tr-suggest-row small{margin-left:auto; font-size:11.5px; color:var(--text-dim);}
@@ -2089,8 +2002,6 @@ function variantLines(p) {
 }
 .tr-chip-edit input{width:70px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px;}
 .tr-chip-edit .apply{padding:6px 12px; border-radius:7px; background:#6E83E0; color:#0E1430; font-weight:800; font-size:12.5px;}
-.tr-chip-edit .close{padding:6px 10px; border-radius:7px; border:1px solid var(--border); color:var(--text-muted); font-size:12.5px;}
-.tr-chip-edit .close:hover{color:var(--text); border-color:var(--text-dim);}
 
 
 .tr-more{padding:18px; text-align:center; font-size:12.5px; color:var(--text-dim);}
@@ -2120,8 +2031,8 @@ function variantLines(p) {
 .trade-page .tr-body{flex:1 0 auto;}
 /* 첫 화면: 검색창·조건·버튼이 한 덩어리로 화면을 채우게 - 늘어나는 쪽을 hero 로
    (예전엔 tr-body 가 늘어나서 버튼 아래에 빈 칸이 크게 남았음) */
-.trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:flex-start;}
-.trade-page:not(.searching) .tr-hero-inner{width:100%; padding-top:clamp(28px, 9vh, 100px);}
+.trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:center;}
+.trade-page:not(.searching) .tr-hero-inner{width:100%;}
 /* 첫 화면에선 매물 목록 칸이 비어 있음 - 패딩만 남아 더 검은 띠로 보이던 것 */
 .trade-page:not(.searching) .tr-body{flex:0 0 auto; padding-top:0; padding-bottom:0;}
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
@@ -2129,9 +2040,9 @@ function variantLines(p) {
 /* 위(검색창)는 좁게, 아래(매물)는 넓게 - 검색창이 결과보다 넓어 위가 무거워 보이던 것 */
 .trade-page.searching .tr-hero-inner{max-width:1040px; padding:28px 20px 20px;}
 /* margin:0 auto 는 세로 flex 안에서 늘어나는 걸 막아 내용 크기(700px)로 쪼그라들게 함 -> width 로 펴고 가운데는 margin 으로 */
-.trade-page.searching .tr-body{width:100%; max-width:1750px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+.trade-page.searching .tr-body{width:100%; max-width:1400px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
 /* 목록형은 한 줄에 내용이 왼쪽으로 쌓여서 카드형만큼 넓으면 오른쪽이 비어 보임 - 조금 좁게 (머리글도 같이 맞춰지게 칸 자체를 좁힘) */
-.trade-page.searching .tr-body.view-list{max-width:1530px;}
+.trade-page.searching .tr-body.view-list{max-width:1180px;}
 .tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}

@@ -375,8 +375,6 @@ export default {
   '폴암': 'Polearms',
   '활': 'Bows',
   // 검색의 부위(착용 위치) 선택칸
-  '{s} 전체': '{s}, all',
-  '유니크·세트 빼고 한 번에': 'Everything but unique & set',
   '부위': 'Slot',
   '머리': 'Head',
   '몸통': 'Torso',
