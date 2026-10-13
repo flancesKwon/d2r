@@ -70,19 +70,6 @@ const gameVersion = ref((() => { try { const v = localStorage.getItem(GAME_KEY);
 watch(gameVersion, (v) => { try { if (v) localStorage.setItem(GAME_KEY, v); else localStorage.removeItem(GAME_KEY) } catch { /* 프라이빗 창 등 */ } })
 // 부위(착용 위치) - 판매글의 베이스 줄이나 사전 아이템의 세부 종류로 정함
 const SLOT_ORDER = ['머리', '몸통', '방패', '장갑', '신발', '허리', '목걸이', '반지', '무기']
-// 부위 통째로 찾기 ('장갑' -> 장갑 베이스 6종 전부). 부르는 이름이 여러 가지라 별칭도 받음
-// 목걸이·반지는 베이스가 하나씩이라 베이스 줄로 충분해서 뺌
-const SLOT_ALIASES = {
-  머리: ['머리', '투구', '헬름', '모자'],
-  몸통: ['몸통', '갑옷', '아머', '상의'],
-  방패: ['방패', '실드'],
-  장갑: ['장갑', '글러브', '건틀릿'],
-  신발: ['신발', '장화', '부츠'],
-  허리: ['허리', '벨트', '허리띠'],
-  무기: ['무기'],
-}
-// 룬워드를 만들 수 있는 부위 - 장갑·신발·허리에는 룬워드가 없음
-const RUNEWORD_SLOTS = ['머리', '몸통', '방패', '무기']
 // 베이스 세부 종류 -> 부위 (사전 아이템과 베이스 목록이 쓰는 이름이 조금 달라 둘 다 적음)
 const SLOT_BY_SUB = {
   투구: '머리', '드루이드 투구': '머리', '바바리안 투구': '머리', 서클릿: '머리',
@@ -1002,7 +989,6 @@ const expiredCount = computed(() => filteredPosts.value.length - liveCount.value
 const dropHints = computed(() => {
   if (filteredPosts.value.length || !appliedCount.value) return []
   const c = []
-  if (activeSlot.value) c.push({ key: 'slot', label: t('부위') + ' ' + t(activeSlot.value), drop: () => { activeSlot.value = null } })
   if (activeCats.value.length) c.push({ key: 'cat', label: t('종류') + ' ' + activeCats.value.map((x) => t(x)).join('·'), drop: () => { activeCats.value = [] } })
   if (activeRegion.value) c.push({ key: 'realm', label: t(activeRegion.value), drop: () => { activeRegion.value = null } })
   if (gameVersion.value) c.push({ key: 'game', label: t(gameVersion.value), drop: () => { gameVersion.value = null } })
@@ -1076,9 +1062,6 @@ const unifiedSuggestions = computed(() => {
   if (!raw) return []
   const q = squash(raw)
   const out = []
-  for (const [sl, names] of Object.entries(SLOT_ALIASES)) {
-    if (names.some((n) => squash(n).startsWith(q))) out.push({ type: 'slot', key: 'sl' + sl, sl })
-  }
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const b of baseCandidates.value) out.push({ type: 'base', key: 'b' + b.code, b })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
@@ -1100,17 +1083,15 @@ const unifiedSuggestions = computed(() => {
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
   const groups = [
-    { name: '부위', cls: 'g-slot', rows: [] },
     { name: '아이템', cls: 'g-item', rows: [] }, { name: '매직·레어·크래프트 (베이스)', cls: 'g-base', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
     { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
   ]
-  const at = { slot: 0, item: 1, base: 2, cat: 3, stat: 4, text: 5, kw: 5 }
+  const at = { item: 0, base: 1, cat: 2, stat: 3, text: 4, kw: 4 }
   list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
   suggestPointer = false
-  if (sug.type === 'slot') return pickSlot(sug.sl)
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; goSearch(); return }
@@ -1124,16 +1105,6 @@ function chooseSuggestion(sug) {
   searchQuery.value = ''
   suggestOpen.value = false
 }
-// '<부위> 전체' - 그 부위 매물을 한 번에. 유니크·세트는 빼고,
-// 룬워드가 있는 부위(머리·몸통·방패·무기)만 룬워드도 같이 봄
-function pickSlot(sl) {
-  activeSlot.value = sl
-  activeCats.value = RUNEWORD_SLOTS.includes(sl) ? ['룬워드', '매직/레어/일반'] : ['매직/레어/일반']
-  searchQuery.value = ''
-  suggestOpen.value = false
-  goSearch()
-}
-
 function toggleCat(c, onlyAdd = false) {
   const i = activeCats.value.indexOf(c)
   if (i >= 0) { if (!onlyAdd) activeCats.value.splice(i, 1) } else activeCats.value.push(c)
@@ -1209,7 +1180,7 @@ const pickedWantCount = ref(0)
 watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (activeSlot.value ? 1 : 0) + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
 
 // ───────── 목록에 보여줄 것 ─────────
@@ -1295,11 +1266,7 @@ function variantLines(p) {
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: suggestNav && r.i === suggestActive }"
                 :aria-selected="r.i === suggestActive" @mousedown.prevent @click="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i; suggestNav = true"
               >
-                <template v-if="r.sug.type === 'slot'">
-                  <span class="item-suggest-name">{{ $t('{s} 전체', { s: $t(r.sug.sl) }) }}</span>
-                  <small>{{ $t('유니크·세트 빼고 한 번에') }}</small>
-                </template>
-                <template v-else-if="r.sug.type === 'item'">
+                <template v-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
                   <span class="item-suggest-name" :class="r.sug.it.category">{{ $itemName(r.sug.it) }}</span>
                   <small>{{ $t(r.sug.it.category_label) }}{{ locale === 'ko' && r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
@@ -1337,7 +1304,6 @@ function variantLines(p) {
 
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
-        <span class="tr-chip kind" v-if="activeSlot"><em>{{ $t('부위') }}</em>{{ $t(activeSlot) }}<button type="button" :aria-label="`${$t(activeSlot)} ×`" @click="activeSlot = null">×</button></span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
         <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="dropMrBase">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
@@ -2024,7 +1990,6 @@ function variantLines(p) {
 .tr-suggest-title{font-size:11px; font-weight:800; padding:6px 10px 4px; color:var(--text-dim);}
 .g-item .tr-suggest-title{color:var(--gold-dim);}
 .g-cat .tr-suggest-title{color:#C9A56B;}
-.g-slot .tr-suggest-title{color:#C9A56B;}
 .g-stat .tr-suggest-title{color:#9FB0FF;}
 .tr-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border-radius:9px; text-align:left; font-size:14px; color:var(--text);}
 .tr-suggest-row small{margin-left:auto; font-size:11.5px; color:var(--text-dim);}
