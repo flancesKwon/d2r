@@ -80,7 +80,7 @@ function setTagFilter(t) {
         <div class="search-input-wrap">
           <input type="text" :value="searchQuery" @input="searchQuery = $event.target.value" :placeholder="$t('제목·내용·태그 검색')" :aria-label="$t('게시글 검색')" />
         </div>
-        <select v-model="sortBy" class="sort-select">
+        <select v-model="sortBy" class="sort-select" :aria-label="$t('정렬 기준')">
           <option value="latest">{{ $t('최신순') }}</option>
           <option value="likes">{{ $t('추천순') }}</option>
           <option value="views">{{ $t('조회순') }}</option>

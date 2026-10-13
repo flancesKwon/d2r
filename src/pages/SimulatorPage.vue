@@ -778,7 +778,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
           <span class="sim-zone-meta">{{ charmCellsUsed }} / 40</span>
         </div>
         <div class="sim-charm-controls">
-          <select class="sim-charm-add" @change="onAddCharmSelect($event)">
+          <select class="sim-charm-add" :aria-label="$t('참 추가')" @change="onAddCharmSelect($event)">
             <option value="">{{ $t('+ 참 추가') }}</option>
             <option v-for="c in charmCatalog" :key="c.id" :value="c.id" :disabled="equippedCharms.includes(c.id)">
               {{ itemName(c) }} ({{ charmCellHeight(c) }}){{ equippedCharms.includes(c.id) ? ' - ' + $t('장착됨') : '' }}
