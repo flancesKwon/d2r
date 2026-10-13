@@ -1365,18 +1365,34 @@ function variantLines(p) {
             <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
           </select>
         </label>
-        <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
-        <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
     </div>
   </section>
 
   <div class="tr-body" :class="{ 'view-list': isSearchRoute && viewMode === 'list' }">
-  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
+  <aside class="tr-filters" v-if="isSearchRoute" :class="{ closed: !filtersOpen }">
     <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
+      <!-- 어떤 경로로 들어와도 늘 보이는 칸 - 분류(여러 개 고를 수 있음)와 에테리얼·미확인 -->
+      <div class="item-range-panel mr-panel">
+        <div class="mr-grid">
+          <span class="mr-label" :class="{ on: activeCats.length }">{{ $t('분류') }}</span>
+          <span class="mr-seg wrap">
+            <button type="button" :class="{ on: !activeCats.length }" :aria-pressed="!activeCats.length" @click="activeCats = []">{{ $t('전체') }}</button>
+            <button
+              type="button" v-for="c in TRADE_CATEGORIES" :key="c" :class="{ on: activeCats.includes(c) }"
+              :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)"
+            >{{ $t(c) }}</button>
+          </span>
+          <span class="mr-label" :class="{ on: etherealOnly || unidOnly }">{{ $t('에테리얼') }}·{{ $t('미확인') }}</span>
+          <span class="mr-seg wrap">
+            <button type="button" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
+            <button type="button" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
+          </span>
+        </div>
+      </div>
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
       <div class="item-range-panel mr-panel" v-if="mrOn">
         <div class="mr-head">
@@ -1817,6 +1833,7 @@ function variantLines(p) {
 .mr-head-icon.unique, .mr-head-icon.runeword{border-color:#6b5f3c;} .mr-head-icon.set{border-color:#1f6b1f;}
 .mr-head-text b.unique, .mr-head-text b.runeword{color:#c7b377;} .mr-head-text b.set{color:#00c400;}
 .mr-fixed{font-style:normal; font-size:10.5px; font-weight:700; margin-left:5px; color:#e0913a;}
+.mr-seg.wrap{flex-wrap:wrap;}
 .mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
 .mr-seg button.on{border-color:var(--gold); color:var(--gold); background:rgba(200,163,77,0.12);}
@@ -2087,9 +2104,9 @@ function variantLines(p) {
 /* 위(검색창)는 좁게, 아래(매물)는 넓게 - 검색창이 결과보다 넓어 위가 무거워 보이던 것 */
 .trade-page.searching .tr-hero-inner{max-width:1040px; padding:28px 20px 20px;}
 /* margin:0 auto 는 세로 flex 안에서 늘어나는 걸 막아 내용 크기(700px)로 쪼그라들게 함 -> width 로 펴고 가운데는 margin 으로 */
-.trade-page.searching .tr-body{width:100%; max-width:1400px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+.trade-page.searching .tr-body{width:100%; max-width:1750px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
 /* 목록형은 한 줄에 내용이 왼쪽으로 쌓여서 카드형만큼 넓으면 오른쪽이 비어 보임 - 조금 좁게 (머리글도 같이 맞춰지게 칸 자체를 좁힘) */
-.trade-page.searching .tr-body.view-list{max-width:1180px;}
+.trade-page.searching .tr-body.view-list{max-width:1530px;}
 .tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
