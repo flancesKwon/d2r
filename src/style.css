@@ -16,6 +16,8 @@ body{
    (화면 전체는 #app 안에 들어가므로 여기에 걸어야 함) */
 #app{display:flex; flex-direction:column; min-height:100dvh;}
 .site-footer{margin-top:auto;}
+/* 첫 화면은 검색 영역이 푸터 바로 위까지 꽉 차서, 푸터의 위 여백 24px 이 더 어두운 띠로 보임 */
+.trade-page:not(.searching) + .site-footer{margin-top:0;}
 h1,h2,h3{font-family:'Noto Serif KR', serif; font-weight:900; letter-spacing:-0.01em;}
 a{color:inherit; text-decoration:none;}
 :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
