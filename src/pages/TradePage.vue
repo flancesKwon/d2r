@@ -163,7 +163,6 @@ function pickItem(it) {
   pickedItem.value = it
   searchQuery.value = ''
   suggestOpen.value = false
-  goSearch()
 }
 function clearPickedItem() {
   pickedItem.value = null
@@ -197,6 +196,7 @@ function onDocPointerDown(e) {
   if (e.target.closest?.('.tr-suggest')) { suggestPointer = true; return }
   suggestPointer = false
   if (!e.target.closest?.('.tr-search-box')) suggestOpen.value = false
+  if (!e.target.closest?.('.tr-chip')) editIdx.value = -1
 }
 onMounted(() => document.addEventListener('pointerdown', onDocPointerDown, true))
 onUnmounted(() => document.removeEventListener('pointerdown', onDocPointerDown, true))
@@ -489,8 +489,18 @@ function addMrOpt(st) {
 }
 // 옵션 조건 수치 칸 (빈 칸 = 상관없음)
 const condNum = (v) => (v === '' || v === null || !Number.isFinite(Number(v)) ? null : Number(v))
-function setCondMin(c, v) { c.min = condNum(v) }
-function setCondMax(c, v) { c.max = condNum(v) }
+const condNoNeg = (c) => { const r = condRange(c); return !r || r[0] >= 0 }
+const condIn = (c, n) => (n === null ? null : condNoNeg(c) ? Math.max(0, n) : n)
+function setCondMin(c, v) { c.min = condIn(c, condNum(v)) }
+function setCondMax(c, v) { c.max = condIn(c, condNum(v)) }
+// 칸을 벗어났을 때 범위 안으로 (범위를 아는 옵션만) + 최소가 최대보다 크면 뒤집음
+function fixCond(c) {
+  const r = condRange(c)
+  const fit = (n) => (n === null ? null : r ? Math.min(r[1], Math.max(r[0], n)) : n)
+  c.min = fit(c.min)
+  c.max = fit(c.max)
+  if (c.min !== null && c.max !== null && c.min > c.max) { const t = c.min; c.min = c.max; c.max = t }
+}
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
 const mrCount = computed(() =>
@@ -711,7 +721,7 @@ const statTag = (c) => (c.keyword ? null : statParts(statFilterByKey(c.key)).tag
 const statUnit = (c) => (!c.keyword && statFilterByKey(c.key)?.label.includes('(%)') ? '%' : '')
 function rangeText(c) {
   const u = statUnit(c)
-  if (c.min === null && c.max === null) return ' ' + t('있음')
+  if (c.min === null && c.max === null) return ''
   if (c.max === null) return ' ' + t('{v} 이상', { v: c.min + u })
   if (c.min === null) return ' ' + t('{v} 이하', { v: c.max + u })
   return c.min === c.max ? ` ${c.min}${u}` : ` ${c.min}~${c.max}${u}`
@@ -1139,10 +1149,9 @@ function applyEdit() {
   const c = statConditions.value[editIdx.value]
   if (c) {
     const num = (v) => (v === '' || v === null ? null : Number(v))
-    let mn = num(editMin.value), mx = num(editMax.value)
-    if (mn !== null && mx !== null && mn > mx) [mn, mx] = [mx, mn]
-    c.min = mn
-    c.max = mx
+    c.min = condIn(c, num(editMin.value))
+    c.max = condIn(c, num(editMax.value))
+    fixCond(c)
   }
   editIdx.value = -1
 }
@@ -1333,10 +1342,11 @@ function variantLines(p) {
           <button type="button" :aria-label="`${statLabel(c)} ✎`" :aria-expanded="editIdx === i" @click="openEdit(i)">✎</button>
           <button type="button" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
           <span class="tr-chip-edit" v-if="editIdx === i" @keydown.enter.prevent="applyEdit" @keydown.esc="editIdx = -1">
-            <input type="number" v-model="editMin" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
+            <input type="number" min="0" v-model="editMin" :placeholder="$t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
             <span>~</span>
-            <input type="number" v-model="editMax" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+            <input type="number" min="0" v-model="editMax" :placeholder="$t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
             <button type="button" class="apply" @click="applyEdit">{{ $t('적용') }}</button>
+            <button type="button" class="close" @click="editIdx = -1">{{ $t('닫기') }}</button>
           </span>
         </span>
         <span class="tr-applied-gap"></span>
@@ -1469,9 +1479,9 @@ function variantLines(p) {
             <div class="mr-cond" v-for="(c, i) in statConditions" :key="'mc' + condId(c)">
               <span class="mr-cond-name">{{ statLabel(c) }}<small class="mr-cond-range" v-if="condRange(c)">{{ condRange(c)[0] === condRange(c)[1] ? condRange(c)[0] : `${condRange(c)[0]}~${condRange(c)[1]}` }}</small></span>
               <span class="stat-tag" v-if="statTag(c)" :style="{ '--tag': statTag(c).color }">{{ statTag(c).text }}</span>
-              <input type="number" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" :placeholder="condRange(c) ? `${$t('최소')} ${condRange(c)[0]}` : $t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
+              <input type="number" min="0" :value="c.min ?? ''" @input="setCondMin(c, $event.target.value)" @change="fixCond(c)" :placeholder="condRange(c) ? `${$t('최소')} ${condRange(c)[0]}` : $t('최소')" :aria-label="`${statLabel(c)} ${$t('최소')}`" />
               <span class="mr-sep">~</span>
-              <input type="number" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" :placeholder="condRange(c) ? `${$t('최대')} ${condRange(c)[1]}` : $t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
+              <input type="number" min="0" :value="c.max ?? ''" @input="setCondMax(c, $event.target.value)" @change="fixCond(c)" :placeholder="condRange(c) ? `${$t('최대')} ${condRange(c)[1]}` : $t('최대')" :aria-label="`${statLabel(c)} ${$t('최대')}`" />
               <button type="button" class="mr-x" :aria-label="`${statLabel(c)} ×`" @click="removeStat(i)">×</button>
             </div>
             <input
@@ -1559,9 +1569,9 @@ function variantLines(p) {
                     <RangeInput v-model="itemRanges[d.key].max" :min="d.lo" :max="d.hi" :label="`${d.label} ${$t('최대')}`" />
                   </template>
                   <template v-else>
-                    <input type="number" class="pk-num" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
+                    <input type="number" min="0" class="pk-num" v-model="itemRanges[d.key].min" :placeholder="$t('최소')" :aria-label="`${d.label} ${$t('최소')}`" />
                     <span class="mr-sep">~</span>
-                    <input type="number" class="pk-num" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
+                    <input type="number" min="0" class="pk-num" v-model="itemRanges[d.key].max" :placeholder="$t('최대')" :aria-label="`${d.label} ${$t('최대')}`" />
                   </template>
                 </div>
               </div>
@@ -2037,6 +2047,8 @@ function variantLines(p) {
 }
 .tr-chip-edit input{width:70px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px;}
 .tr-chip-edit .apply{padding:6px 12px; border-radius:7px; background:#6E83E0; color:#0E1430; font-weight:800; font-size:12.5px;}
+.tr-chip-edit .close{padding:6px 10px; border-radius:7px; border:1px solid var(--border); color:var(--text-muted); font-size:12.5px;}
+.tr-chip-edit .close:hover{color:var(--text); border-color:var(--text-dim);}
 
 
 .tr-more{padding:18px; text-align:center; font-size:12.5px; color:var(--text-dim);}
