@@ -21,7 +21,7 @@ import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
-import { postName, countText, priceTok, priceText } from '../tradeI18n.js'
+import { postName, countText, priceTok, priceText, modeText } from '../tradeI18n.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -271,7 +271,7 @@ async function confirmBuy() {
         <router-link class="post-chip cat" :to="{ path: '/trade' }">{{ $t(post.category) }}</router-link>
         <span class="post-chip">{{ $t(post.realm) }}</span>
         <span class="post-chip">{{ $t(post.ladder) }}</span>
-        <span class="post-chip">{{ $t(post.hardcore) }}</span>
+        <span class="post-chip">{{ modeText(post.hardcore) }}</span>
       </div>
       <div class="trade-title-line">
         <span class="trade-title-icon" v-if="postIconKey(post)" :class="postRarity(post)">
@@ -363,7 +363,7 @@ async function confirmBuy() {
             <UserAvatar :src="post.avatar" :name="post.author" :size="40" :user-id="post.authorId" />
             <div class="seller-name-block">
               <button type="button" class="seller-name user-link" @click="openProfileCard(post.authorId)">{{ post.author }}</button>
-              <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">{{ $t('● 접속 중 ·') }} </span>{{ $t(post.realm) }} · {{ $t(post.ladder) }} · {{ $t(post.hardcore) }}</div>
+              <div class="seller-sub"><span v-if="isOnline(post.authorId)" class="online-now">{{ $t('● 접속 중 ·') }} </span>{{ $t(post.realm) }} · {{ $t(post.ladder) }} · {{ modeText(post.hardcore) }}</div>
               <router-link :to="'/users/' + post.authorId" class="seller-profile-link">{{ $t('프로필·받은 리뷰 보기 →') }}</router-link>
             </div>
           </div>

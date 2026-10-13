@@ -1,5 +1,5 @@
 <script setup>
-import { postName, countText, priceTok } from '../tradeI18n.js'
+import { postName, countText, priceTok, modeText } from '../tradeI18n.js'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -239,7 +239,7 @@ const runewordBaseKinds = computed(() => {
 // 판매글에는 품질(options.quality)·베이스 줄·모양(options.iconKey)이 저장돼 있어서 그걸로 거름
 const QUALITY_PICKS = [
   { v: 'magic', label: '매직' }, { v: 'rare', label: '레어' },
-  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반(흰색)' },
+  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반' },
 ]
 const mrQuality = ref('')
 const mrBase = ref('')
@@ -361,11 +361,14 @@ const mrShapeChoices = computed(() => {
   const code = mrBaseItem.value?.code
   return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
 })
-// 그 베이스로 고를 수 있는 품질만
+// 조건을 추릴 기준 베이스들 - 하나 골랐으면 그것만, 이름 묶음이면 묶음 안 베이스 전부
+const mrBases = computed(() => (mrBaseItem.value ? [mrBaseItem.value] : baseGroupBases.value))
+// 고를 수 있는 품질만 (묶음이면 묶음 안 베이스들의 합집합)
 const mrQualityPicks = computed(() => {
-  const b = mrBaseItem.value
-  const allow = b ? baseQualities(b) : QUALITY_PICKS.map((q) => q.v)
-  return QUALITY_PICKS.filter((q) => allow.includes(q.v))
+  const list = mrBases.value
+  if (!list.length) return QUALITY_PICKS
+  const allow = new Set(list.flatMap(baseQualities))
+  return QUALITY_PICKS.filter((q) => allow.has(q.v))
 })
 // 이 베이스·품질에서 가능한 소켓 최대 개수 (등록 화면과 같은 규칙)
 //  일반(흰색)·품질 안 고름 = 베이스 최대 / 매직·레어·크래프트 = 소켓 접두사 범위 또는 라르주크(매직 2, 나머지 1)
@@ -451,13 +454,13 @@ function addBaseOwnOpts(b, q, found, ranges) {
 // 옵션마다 이 베이스에서 나오는 수치 범위도 같이 (최소·최대 칸에 보여줌) - 접사 하나 기준 (레어는 두 접사가 겹치면 더 높을 수 있음)
 const mrOptCache = new Map()
 const mrOptInfo = computed(() => {
-  const b = mrBaseItem.value
-  if (!b) return { list: [], ranges: {}, fixed: new Set() }
+  const bases = mrBases.value
+  if (!bases.length) return { list: [], ranges: {}, fixed: new Set() }
   const q = mrQuality.value
-  // 일반(흰색)은 접사가 안 붙음 - 베이스 자체 옵션만 모음
+  // 일반은 접사가 안 붙음 - 베이스 자체 옵션만 모음
   const qs = q === 'normal' ? [] : q ? [q] : ['magic', 'rare']
   const craft = q === 'crafted' ? mrCraftCard.value : null
-  const ck = b.code + ':' + (q || '') + ':' + (craft?.name || '')
+  const ck = bases.map((b) => b.code).join(',') + ':' + (q || '') + ':' + (craft?.name || '')
   if (mrOptCache.has(ck)) return mrOptCache.get(ck)
   const found = new Map()
   const ranges = {}
@@ -468,19 +471,21 @@ const mrOptInfo = computed(() => {
     fixed.add(x.st.key)
     addRange(ranges, x.st.key, x.lo, x.hi)
   }
-  for (const q of qs) {
-    for (const f of affixFamiliesFor(magicAffixData, b, q)) {
-      const loLines = familyLines(f, f.slotRanges.map(([lo]) => lo))
-      const hiLines = familyLines(f, f.slotRanges.map(([, hi]) => hi))
-      hiLines.forEach((line, i) => {
-        const st = statOfLine(line)
-        if (!st) return
-        if (!found.has(st.key)) found.set(st.key, st)
-        addRange(ranges, st.key, firstNumOf(st, loLines[i]), firstNumOf(st, line))
-      })
+  for (const b of bases) {
+    for (const qq of qs) {
+      for (const f of affixFamiliesFor(magicAffixData, b, qq)) {
+        const loLines = familyLines(f, f.slotRanges.map(([lo]) => lo))
+        const hiLines = familyLines(f, f.slotRanges.map(([, hi]) => hi))
+        hiLines.forEach((line, i) => {
+          const st = statOfLine(line)
+          if (!st) return
+          if (!found.has(st.key)) found.set(st.key, st)
+          addRange(ranges, st.key, firstNumOf(st, loLines[i]), firstNumOf(st, line))
+        })
+      }
     }
+    addBaseOwnOpts(b, q, found, ranges)
   }
-  addBaseOwnOpts(b, q, found, ranges)
   const rank = (st) => { const i = MR_OPT_FIRST.findIndex((re) => re.test(st.label)); return i < 0 ? 99 : i }
   const list = [...found.values()].sort((a, b2) => (fixed.has(b2.key) - fixed.has(a.key)) || (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
   const info = { list, ranges, fixed }
@@ -489,7 +494,7 @@ const mrOptInfo = computed(() => {
 })
 const mrOptStats = computed(() => mrOptInfo.value.list)
 // 이 베이스에서 이 옵션이 나오는 범위 [lo, hi] (모르면 null)
-const condRange = (c) => (!c.keyword && mrOn.value && mrOptInfo.value.ranges[c.key]) || null
+const condRange = (c) => (!c.keyword && (mrOn.value || groupOn.value) && mrOptInfo.value.ranges[c.key]) || null
 const mrOptQuery = ref('')
 const mrOptMore = ref(false)
 const mrOptHits = computed(() => {
@@ -846,7 +851,8 @@ function buildQuery() {
   if (activeLadder.value) q.ladder = activeLadder.value
   if (activeHardcore.value) q.hc = activeHardcore.value
   if (activeSlot.value) q.slot = activeSlot.value
-  if (baseGroup.value && !mrBase.value) q.bg = baseGroup.value
+  // 묶음 안에서 한 종류를 골라도 묶음은 주소에 남김 - 새로고침해도 '전체'로 돌아갈 수 있게
+  if (baseGroup.value) q.bg = baseGroup.value
   if (etherealOnly.value) q.eth = '1'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
@@ -1402,7 +1408,7 @@ function variantLines(p) {
           <!-- 고르는 칸은 알약 전체를 덮는 투명 select - 알약 어디를 눌러도 목록이 열림 -->
           <select :value="f.ref.value || ''" @change="f.ref.value = $event.target.value || null" :aria-label="$t(f.label)">
             <option value="">{{ $t('전체') }}</option>
-            <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
+            <option v-for="o in f.options" :key="o" :value="o">{{ modeText(o) }}</option>
           </select>
         </label>
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
@@ -1681,7 +1687,7 @@ function variantLines(p) {
             <span class="tf expired-tag" v-if="isExpired(p)">{{ $t('기간 지남') }}</span>
             <span class="tf realm">{{ $t(p.realm) }}</span>
             <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
-            <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ $t(p.hardcore) }}</span>
+            <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ modeText(p.hardcore) }}</span>
             <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
             <span class="tf unid" v-if="p.unidentified">{{ $t('미확인') }}</span>
           </div>
@@ -1720,7 +1726,7 @@ function variantLines(p) {
           <span class="tf expired-tag" v-if="isExpired(p)">{{ $t('기간 지남') }}</span>
           <span class="tf realm">{{ $t(p.realm) }}</span>
           <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
-          <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ $t(p.hardcore) }}</span>
+          <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ modeText(p.hardcore) }}</span>
           <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
           <span class="tf unid" v-if="p.unidentified">{{ $t('미확인') }}</span>
         </span>

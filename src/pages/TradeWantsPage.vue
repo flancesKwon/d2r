@@ -20,7 +20,7 @@ import { openProfileCard } from '../profileCard.js'
 import { askConfirm } from '../dialog.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { t, itemName, locale } from '../i18n.js'
-import { priceText } from '../tradeI18n.js'
+import { priceText, modeText } from '../tradeI18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
 import { useNow } from '../useNow.js'
 
@@ -95,7 +95,7 @@ const condText = (c) => {
   return `${name} ${c.min === c.max ? c.min + u : `${c.min}~${c.max}${u}`}`
 }
 const condTag = (c) => statParts(statFilterByKey(c.key)).tag
-const serverText = (w) => [w.realm ? t(w.realm) : t('모든 지역'), w.gameVersion ? t(w.gameVersion) : '', w.ladder ? t(w.ladder) : '', w.hardcore ? t(w.hardcore) : ''].filter(Boolean).join(' · ')
+const serverText = (w) => [w.realm ? t(w.realm) : t('모든 지역'), w.gameVersion ? t(w.gameVersion) : '', w.ladder ? t(w.ladder) : '', w.hardcore ? modeText(w.hardcore) : ''].filter(Boolean).join(' · ')
 
 const busy = ref(0)
 const actionError = ref('')
@@ -302,7 +302,7 @@ async function save() {
             </select>
             <select v-model="form.hardcore" class="write-select" :aria-label="$t('모드')">
               <option value="">{{ $t('일반·하드코어 전체') }}</option>
-              <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
+              <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
             </select>
             <label class="wt-check"><input type="checkbox" v-model="form.ethereal" /> {{ $t('에테리얼만') }}</label>
           </div>

@@ -4,7 +4,7 @@
 // 판매 기간(7일)은 그대로 - 수정해도 늘어나지 않음
 import { showAlert } from '../dialog.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
-import { postName } from '../tradeI18n.js'
+import { postName, modeText } from '../tradeI18n.js'
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -184,7 +184,7 @@ async function submit() {
                 <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
               </select>
               <select v-model="form.hardcore" class="write-input" :aria-label="$t('하드코어')">
-                <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
+                <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
               </select>
             </div>
             <label class="edit-check"><input type="checkbox" v-model="form.offerOnly" /> {{ $t('제안만 받기') }} <small>{{ $t('판매가 없이 가격 제안을 받음') }}</small></label>
