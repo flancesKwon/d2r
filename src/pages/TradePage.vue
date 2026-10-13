@@ -247,6 +247,11 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
+// 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
+const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
+// 검색창을 비우면(칩 × · 아이템 선택 등) 걸려 있던 검색어도 같이 풀림
+watch(searchQuery, (v) => { if (!v.trim()) appliedQuery.value = '' })
 // 검색창에 뜨는 베이스 후보 - 장신구 + 무기·방어구 (등록 화면과 같은 목록)
 const QUALITY_SHORT = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
 const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
@@ -346,14 +351,6 @@ watch(mrSupCombos, (c) => { if (!c.length) mrSup.value = '' })
 // 이 베이스·품질에 붙을 수 있는 옵션 (매직/레어 접사 사전 -> 옵션 검색 항목). 품질을 안 골랐으면 매직+레어
 // 접사마다 최대 수치로 문구를 만들어 옵션 검색 정규식에 맞춰 봄 - 자주 찾는 옵션 먼저
 const MR_OPT_FIRST = [/^모든 기술/, /시전 속도/, /모든 저항/, /^생명력 X$/, /^힘 X$|^민첩 X$/, /마법 아이템 발견/, /기술 레벨/, /전용\)$/, /저항/, /훔침/]
-// 품질별 안내 (어떤 옵션이 몇 줄까지 붙는지)
-const QUALITY_HINT = {
-  '': '품질을 고르면 붙을 수 있는 옵션만 남음',
-  magic: '매직: 접두·접미 1개씩, 옵션 최대 2줄',
-  rare: '레어: 접두 3 + 접미 3, 옵션 최대 6줄',
-  crafted: '크래프트: 제작법 고정 옵션 + 레어 옵션 1~4줄 - 아래에서 제작법을 고르면 그 제작법으로 만든 것만',
-  normal: '일반(흰색): 접사 없음 - 상급·소켓·베이스 자체 옵션으로 찾음',
-}
 // 수치가 들어간 옵션 줄 -> 옵션 검색 항목 + 첫 수치 (범위 계산용)
 const statOfLine = (line) => ALL_STAT_FILTERS.find((x) => x.regex.test(line)) || null
 const firstNumOf = (st, line) => { const m = st.regex.exec(line); const v = m && m[1] !== undefined ? Number(m[1]) : NaN; return Number.isFinite(v) ? v : null }
@@ -495,7 +492,11 @@ function resetMr() {
 function mrMatches(p, skip) {
   const no = (k) => skip === k
   if (!mrOn.value) return true
-  if (mrQuality.value && !no('mr:quality') && p.quality !== mrQuality.value) return false
+  if (!no('mr:quality')) {
+    // 품질을 고르면 그것만. 안 골랐으면 매직·레어·크래프트 (일반(흰색)은 뺌)
+    if (mrQuality.value) { if (p.quality !== mrQuality.value) return false }
+    else if (p.quality === 'normal') return false
+  }
   if (mrBase.value && !no('mr:base')) {
     // 판매글에는 괄호 붙은 이름("베이스: 반지 (Ring)")이 적히고 고르는 값은 장신구면 괄호가 없음("반지")
     // -> 괄호를 뗀 이름끼리 비교 (예전엔 장신구 베이스로 고르면 매물이 하나도 안 나왔음)
@@ -733,6 +734,16 @@ const hasActiveFilters = computed(
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 || !!pickedItem.value
 )
+// '검색조건 초기화' - 고른 베이스만 남기고 나머지 조건을 전부 비움
+// (검색어는 주소에 실린 것이 걸러내는 기준이라 runSearch 로 주소까지 맞춰야 풀림)
+function resetExceptBase() {
+  const base = mrBase.value
+  const obj = mrBaseObj.value
+  resetFilters()
+  mrBase.value = base
+  mrBaseObj.value = obj
+}
+
 function resetFilters() {
   activeCats.value = []
   resetMr()
@@ -764,7 +775,7 @@ const numOrNull = (v) => (v === '' || v === null || v === undefined || !Number.i
 function buildQuery() {
   const q = {}
   if (pickedItem.value) q.item = pickedItem.value.id
-  if (searchQuery.value.trim()) q.q = searchQuery.value.trim()
+  if (appliedQuery.value.trim()) q.q = appliedQuery.value.trim()
   if (activeCats.value.length) q.cat = activeCats.value.join(';')
   if (activeRegion.value) q.realm = activeRegion.value
   if (gameVersion.value) q.game = gameVersion.value
@@ -804,6 +815,7 @@ let syncing = false
 function applyQuery(q) {
   pickedItem.value = getTradeItem(typeof q.item === 'string' ? q.item : null) || null
   searchQuery.value = typeof q.q === 'string' ? q.q : ''
+  appliedQuery.value = searchQuery.value
   activeCats.value = q.cat ? String(q.cat).split(';').filter((c) => TRADE_CATEGORIES.includes(c)) : []
   activeRegion.value = TRADE_REALMS.includes(q.realm) ? q.realm : activeRegion.value
   gameVersion.value = GAME_VERSIONS.includes(q.game) ? q.game : gameVersion.value
@@ -882,6 +894,8 @@ const dropMrBase = () => dropToHome(clearMrBase)
 // 검색 버튼·Enter - 지금 쌓인 조건으로 결과 화면을 엶 (조건이 없으면 전체 목록)
 function runSearch() {
   suggestOpen.value = false
+  // 지금 창에 쳐둔 글자를 여기서 '적용'함 - 이 값만 주소와 매물 거르기에 쓰임
+  appliedQuery.value = searchQuery.value
   const q = buildQuery()
   if (isSearchRoute.value) {
     if (!sameQuery(q, route.query)) router.replace({ path: route.path, query: q })
@@ -922,7 +936,7 @@ function filterPosts(skip) {
     list = list.filter((p) => p.itemId === pickedItem.value.id)
     for (const d of activeItemRanges.value) if (!no('ir:' + d.key)) list = list.filter((p) => itemRangeMatches(p, d))
   }
-  const q = no('q') ? '' : searchQuery.value.trim()
+  const q = no('q') ? '' : appliedQuery.value.trim()
   if (q) {
     list = list.filter(
       (p) =>
@@ -931,7 +945,7 @@ function filterPosts(skip) {
         // 옵션 문구도 검색 (예: "블리자드"로 +블리자드 붙은 오브·지팡이 찾기)
         (p.options || []).some((o) => textMatchesQuery(o, q)) ||
         // 아이템 별칭으로도 (예: "조던"으로 요르단의 반지, "에니그마"로 수수께끼 판매글)
-        (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), searchQuery.value))
+        (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), appliedQuery.value))
     )
   }
   if (mrOn.value && mrCount.value) list = list.filter((p) => mrMatches(p, skip))
@@ -1326,19 +1340,18 @@ function variantLines(p) {
           <div class="mr-head-text">
             <b>{{ mrBaseText }}</b>
           </div>
-          <button type="button" class="mr-change" @click="clearMrBase(); focusSearch()">{{ $t('다른 베이스') }}</button>
+          <button type="button" class="mr-change" @click="resetExceptBase()">{{ $t('검색조건 초기화') }}</button>
         </div>
         <!-- 이름 칸 너비를 맞춰서 줄마다 같은 자리에서 시작 -->
         <div class="mr-grid">
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
-            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('전체') }}</button>
+            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어·크래프트') }}</button>
             <button
               type="button" v-for="q in mrQualityPicks" :key="q.v" :class="['q-' + q.v, { on: mrQuality === q.v }]"
               :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
             >{{ $t(q.label) }}</button>
           </span>
-          <span></span><p class="mr-hint">{{ $t(QUALITY_HINT[mrQuality] || QUALITY_HINT['']) }}</p>
 
 
           <template v-if="mrShapeChoices.length">
@@ -1442,7 +1455,6 @@ function variantLines(p) {
               </button>
               <span class="mr-opt-none" v-if="mrOptQuery && !mrOptHits.length">{{ $t('맞는 옵션 없음') }}</span>
             </div>
-            <p class="mr-opt-help" v-if="mrOptStats.length">{{ $t('이 베이스에 붙을 수 있는 옵션만 보여줌 · 품질을 고르면 더 좁혀짐') }}</p>
           </div>
           </template>
         </div>
@@ -1744,7 +1756,6 @@ function variantLines(p) {
 .mr-head-text span{font-size:11.5px; color:var(--text-dim);}
 .mr-change{margin-left:auto; flex:none; font-size:12px; font-weight:700; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
 .mr-change:hover{color:var(--gold); border-color:var(--gold-dim);}
-.mr-hint{margin:-4px 0 0; font-size:11.5px; color:var(--text-dim); line-height:1.5;}
 .mr-crafts{display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:8px;}
 .mr-craft{display:flex; flex-direction:column; gap:3px; text-align:left; padding:9px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel-2);}
 .mr-craft b{font-size:13px; color:#e0913a;}
@@ -1781,7 +1792,7 @@ function variantLines(p) {
 .mr-opt{display:inline-flex; align-items:center; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--panel-2);}
 .mr-opt:hover{color:var(--text); border-color:#4A5FA8;}
 .mr-opt.more{border-style:dashed;}
-.mr-opt-none, .mr-opt-help{font-size:11.5px; color:var(--text-dim); margin:0;}
+.mr-opt-none{font-size:11.5px; color:var(--text-dim); margin:0;}
 @media (max-width:640px){
   /* 폰: 이름을 위에, 칸을 아래에 (좁은 이름 칸에서 글자가 꺾이던 것) */
   .mr-grid{grid-template-columns:minmax(0, 1fr); gap:6px;}
