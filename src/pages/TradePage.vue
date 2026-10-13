@@ -264,6 +264,15 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 부위만 고른 상태 (베이스는 '전체') - 이때도 패널을 띄워 베이스를 고를 수 있게 함
+const slotOn = computed(() => !pickedItem.value && !!activeSlot.value)
+// 그 부위에 속한 베이스 목록 (장신구는 miscBases 에 있어 같이 봄)
+const slotBases = computed(() => {
+  const sl = activeSlot.value
+  if (!sl) return []
+  const of = (b) => BASE_SLOT.get(b.name_ko) || BASE_SLOT.get(b.subtitle) || SLOT_BY_SUB[b.name_ko] || null
+  return [...MISC_BASES, ...BASE_ITEMS].filter((b) => of(b) === sl)
+})
 // 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
 // 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
 const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -294,6 +303,15 @@ const exactBase = computed(() => {
   if (!q) return null
   return baseCandidates.value.find((b) => squash(b.name_ko) === q || squash(b.subtitle || '').toLowerCase() === q.toLowerCase()) || null
 })
+// 부위를 유지한 채 베이스만 바꿈 (베이스 셀렉트)
+function pickBaseKeepSlot(label) {
+  const b = slotBases.value.find((x) => baseLabelOf(x) === label)
+  if (!b) return
+  mrBaseObj.value = b
+  mrBase.value = label
+  mrShape.value = ''
+  mrCraft.value = ''
+}
 function pickBase(b, quality = '') {
   suggestPointer = false
   pickedItem.value = null
@@ -1383,22 +1401,30 @@ function variantLines(p) {
   </section>
 
   <div class="tr-body" :class="{ 'view-list': isSearchRoute && viewMode === 'list' }">
-  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
+  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || slotOn || pickedItem)" :class="{ closed: !filtersOpen }">
     <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
-      <div class="item-range-panel mr-panel" v-if="mrOn">
+      <div class="item-range-panel mr-panel" v-if="mrOn || slotOn">
         <div class="mr-head">
           <span class="mr-head-icon"><img v-if="mrBaseItem && iconUrlFor(baseIconKey(mrBaseItem))" :src="iconUrlFor(baseIconKey(mrBaseItem))" alt="" /></span>
           <div class="mr-head-text">
-            <b>{{ mrBaseText }}</b>
+            <b>{{ mrBase ? mrBaseText : $t(activeSlot) }}</b>
           </div>
           <button type="button" class="mr-change" @click="resetExceptBase()">{{ $t('검색조건 초기화') }}</button>
         </div>
         <!-- 이름 칸 너비를 맞춰서 줄마다 같은 자리에서 시작 -->
         <div class="mr-grid">
+          <template v-if="slotOn && slotBases.length">
+            <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
+            <select class="sort-select" :value="mrBase" :aria-label="$t('베이스')"
+              @change="$event.target.value ? pickBaseKeepSlot($event.target.value) : (mrBase = '', mrBaseObj = null)">
+              <option value="">{{ $t('전체') }}</option>
+              <option v-for="b in slotBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseLabelOf(b) }}</option>
+            </select>
+          </template>
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
             <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어') }}</button>
