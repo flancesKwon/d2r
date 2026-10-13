@@ -2097,10 +2097,10 @@ function variantLines(p) {
 /* 위(검색창)는 좁게, 아래(매물)는 넓게 - 검색창이 결과보다 넓어 위가 무거워 보이던 것 */
 .trade-page.searching .tr-hero-inner{max-width:1040px; padding:28px 20px 20px;}
 /* margin:0 auto 는 세로 flex 안에서 늘어나는 걸 막아 내용 크기(700px)로 쪼그라들게 함 -> width 로 펴고 가운데는 margin 으로 */
-.trade-page.searching .tr-body{width:100%; max-width:1400px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+.trade-page.searching .tr-body{width:100%; max-width:1470px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
 /* 목록형은 한 줄에 내용이 왼쪽으로 쌓여서 카드형만큼 넓으면 오른쪽이 비어 보임 - 조금 좁게 (머리글도 같이 맞춰지게 칸 자체를 좁힘) */
-.trade-page.searching .tr-body.view-list{max-width:1180px;}
-.tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
+.trade-page.searching .tr-body.view-list{max-width:1250px;}
+.tr-filters{flex:0 0 400px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
 .tr-filters .item-range-panel + .item-range-panel{margin-top:10px;}
