@@ -43,6 +43,8 @@ import { familyLines } from '../magicAffixes.js'
 import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
+
+const LOGO = import.meta.env.BASE_URL + 'logo.png'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
@@ -1209,7 +1211,7 @@ function variantLines(p) {
   <section class="tr-hero">
     <div class="tr-hero-inner">
       <template v-if="!isSearchRoute">
-        <h1 class="tr-wordmark">{{ $t('디아허브') }}</h1>
+        <h1 class="tr-wordmark"><img :src="LOGO" :alt="$t('디아허브')" width="220" height="80" /></h1>
       </template>
       <div class="tr-back" v-else>
         <router-link to="/">← {{ $t('전체 매물') }}</router-link>
@@ -1311,7 +1313,7 @@ function variantLines(p) {
     </div>
   </section>
 
-  <div class="tr-body">
+  <div class="tr-body" :class="{ 'view-list': isSearchRoute && viewMode === 'list' }">
   <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
     <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
@@ -1863,6 +1865,8 @@ function variantLines(p) {
 .trade-opts.lines{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); justify-items:start; align-items:start; gap:3px 10px; max-width:640px;}
 /* 카드형은 칸이 좁음 - 한 칸으로, 카드 폭을 넘지 않게 (안 그러면 옵션이 카드 밖으로 삐져나감) */
 .trade-card .trade-opts.lines{grid-template-columns:minmax(0, 1fr); justify-items:center; max-width:100%; width:100%;}
+/* 목록형 줄이 넓어졌으니 옵션도 줄 폭을 같이 씀 (안 그러면 오른쪽이 비어 보임) */
+.tr-main .trade-row .trade-opts.lines{max-width:none;}
 .trade-card .trade-opt{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .trade-opts.lines .trade-opt{max-width:100%;}
 .trade-when{margin-left:auto; flex:none; font-size:11.5px; color:var(--text-dim);}
@@ -1930,15 +1934,13 @@ function variantLines(p) {
 .tr-hero{background:var(--bg-raise); border-bottom:1px solid var(--border-soft);}
 .tr-hero-inner{max-width:1040px; margin:0 auto; padding:48px 24px 28px; display:flex; flex-direction:column; gap:14px;}
 .tr-hero h1{text-align:center; font-size:32px; margin:0;}
-/* 첫 화면 제목 - 금속 느낌의 금색 그라데이션 + 아래로 가늘어지는 금선 */
-.trade-page:not(.searching) .tr-wordmark{
-  font-size:clamp(38px, 7vw, 60px); line-height:1.1; letter-spacing:.1em; text-indent:.1em;
-  color:var(--gold);
-  background:linear-gradient(180deg, #F6E7BC 0%, #E0C277 34%, #C8A34D 62%, #8A7339 100%);
-  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+/* 첫 화면 제목 - 헤더와 같은 로고 (원본 264x96 이라 이 크기까지 안 깨짐) */
+.trade-page:not(.searching) .tr-wordmark{line-height:0;}
+.trade-page:not(.searching) .tr-wordmark img{
+  display:block; margin:0 auto; width:clamp(150px, 26vw, 220px); height:auto;
 }
 .trade-page:not(.searching) .tr-wordmark::after{
-  content:''; display:block; width:min(260px, 52vw); height:1px; margin:18px auto 2px;
+  content:''; display:block; width:min(260px, 52vw); height:1px; margin:16px auto 0;
   background:linear-gradient(90deg, transparent, var(--gold-dim), transparent);
 }
 
@@ -2020,14 +2022,18 @@ function variantLines(p) {
 .trade-page .tr-body{flex:1 0 auto;}
 /* 첫 화면: 검색창·조건·버튼이 한 덩어리로 화면을 채우게 - 늘어나는 쪽을 hero 로
    (예전엔 tr-body 가 늘어나서 버튼 아래에 빈 칸이 크게 남았음) */
-.trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:center;}
-.trade-page:not(.searching) .tr-hero-inner{width:100%;}
-.trade-page:not(.searching) .tr-body{flex:0 0 auto;}
+.trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:flex-start;}
+.trade-page:not(.searching) .tr-hero-inner{width:100%; padding-top:clamp(36px, 8vh, 88px);}
+/* 첫 화면에선 매물 목록 칸이 비어 있음 - 패딩만 남아 더 검은 띠로 보이던 것 */
+.trade-page:not(.searching) .tr-body{flex:0 0 auto; padding-top:0; padding-bottom:0;}
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 /* 검색 화면: 왼쪽 조건 칸 + 오른쪽 결과 (결과가 위에서 바로 보이게) */
-/* 검색 화면은 넓게 - 검색창(hero)과 아래 조건·결과의 좌우 기준선을 같게 맞춤 */
-.trade-page.searching .tr-hero-inner{max-width:1560px; padding:28px 20px 20px;}
-.trade-page.searching .tr-body{max-width:1560px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+/* 위(검색창)는 좁게, 아래(매물)는 넓게 - 검색창이 결과보다 넓어 위가 무거워 보이던 것 */
+.trade-page.searching .tr-hero-inner{max-width:1040px; padding:28px 20px 20px;}
+/* margin:0 auto 는 세로 flex 안에서 늘어나는 걸 막아 내용 크기(700px)로 쪼그라들게 함 -> width 로 펴고 가운데는 margin 으로 */
+.trade-page.searching .tr-body{width:100%; max-width:1400px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
+/* 목록형은 한 줄에 내용이 왼쪽으로 쌓여서 카드형만큼 넓으면 오른쪽이 비어 보임 - 조금 좁게 (머리글도 같이 맞춰지게 칸 자체를 좁힘) */
+.trade-page.searching .tr-body.view-list{max-width:1180px;}
 .tr-filters{flex:0 0 330px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
