@@ -181,7 +181,11 @@ function onSearchKey(e) {
     e.preventDefault()
     // 추천 줄을 직접 고른 경우에만 그 줄, 아니면 친 글자로 검색
     if (suggestNav.value && suggestOpen.value && list.length) chooseSuggestion(list[suggestActive.value] || list[0])
-    else runSearch()
+    else {
+      const b = exactBase.value
+      if (b) pickBase(b)
+      else runSearch()
+    }
   } else if (e.key === 'Escape') {
     suggestOpen.value = false
   } else if (e.key === 'Backspace' && !searchQuery.value) {
@@ -283,6 +287,12 @@ const baseCandidates = computed(() => {
   const sq = squash(q)
   const misc = MISC_BASES.filter((b) => squash(b.name_ko).includes(sq) || squash((b.subtitle || '').toLowerCase()).includes(sq.toLowerCase()))
   return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
+})
+// 친 글자가 베이스 이름과 정확히 같은 것 (엔터로 바로 그 베이스를 잡게)
+const exactBase = computed(() => {
+  const q = squash(searchQuery.value.trim().replace(JAMO_TAIL, '').replace(/^(매직|레어|일반|크래프트)\s*/, ''))
+  if (!q) return null
+  return baseCandidates.value.find((b) => squash(b.name_ko) === q || squash(b.subtitle || '').toLowerCase() === q.toLowerCase()) || null
 })
 function pickBase(b, quality = '') {
   suggestPointer = false
@@ -2079,7 +2089,7 @@ function variantLines(p) {
 /* 첫 화면: 검색창·조건·버튼이 한 덩어리로 화면을 채우게 - 늘어나는 쪽을 hero 로
    (예전엔 tr-body 가 늘어나서 버튼 아래에 빈 칸이 크게 남았음) */
 .trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:flex-start;}
-.trade-page:not(.searching) .tr-hero-inner{width:100%; padding-top:clamp(16px, 3vh, 44px);}
+.trade-page:not(.searching) .tr-hero-inner{width:100%; padding-top:clamp(44px, 15vh, 180px);}
 /* 첫 화면에선 매물 목록 칸이 비어 있음 - 패딩만 남아 더 검은 띠로 보이던 것 */
 .trade-page:not(.searching) .tr-body{flex:0 0 auto; padding-top:0; padding-bottom:0;}
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
