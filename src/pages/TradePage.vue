@@ -44,7 +44,7 @@ import { useNow } from '../useNow.js'
 import { isOnline } from '../presence.js'
 import { openTradeGuide } from '../tradeGuide.js'
 
-const LOGO = import.meta.env.BASE_URL + 'logo.png'
+const LOGO = import.meta.env.BASE_URL + 'hero-logo.webp'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
@@ -1211,7 +1211,7 @@ function variantLines(p) {
   <section class="tr-hero">
     <div class="tr-hero-inner">
       <template v-if="!isSearchRoute">
-        <h1 class="tr-wordmark"><img :src="LOGO" :alt="$t('디아허브')" width="220" height="80" /></h1>
+        <h1 class="tr-wordmark"><img :src="LOGO" :alt="$t('디아허브')" width="1000" height="296" /></h1>
       </template>
       <div class="tr-back" v-else>
         <router-link to="/">← {{ $t('전체 매물') }}</router-link>
@@ -1934,14 +1934,12 @@ function variantLines(p) {
 .tr-hero{background:var(--bg-raise); border-bottom:1px solid var(--border-soft);}
 .tr-hero-inner{max-width:1040px; margin:0 auto; padding:48px 24px 28px; display:flex; flex-direction:column; gap:14px;}
 .tr-hero h1{text-align:center; font-size:32px; margin:0;}
-/* 첫 화면 제목 - 헤더와 같은 로고 (원본 264x96 이라 이 크기까지 안 깨짐) */
-.trade-page:not(.searching) .tr-wordmark{line-height:0;}
+/* 첫 화면 제목 - 룬 돌 로고. 그림의 배경은 검정으로 맞춰 두고 screen 으로 합성해서
+   네모가 안 보이게 함 (배경색을 바꿔도 따라옴) */
+.trade-page:not(.searching) .tr-wordmark{line-height:0; margin-bottom:6px;}
 .trade-page:not(.searching) .tr-wordmark img{
-  display:block; margin:0 auto; width:clamp(150px, 26vw, 220px); height:auto;
-}
-.trade-page:not(.searching) .tr-wordmark::after{
-  content:''; display:block; width:min(260px, 52vw); height:1px; margin:16px auto 0;
-  background:linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+  display:block; margin:0 auto; width:clamp(260px, 46vw, 460px); height:auto;
+  mix-blend-mode:screen;
 }
 
 .tr-search{display:flex; align-items:stretch; min-height:60px; background:#F3EEE4; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); position:relative;}
