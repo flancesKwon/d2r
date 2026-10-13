@@ -2079,7 +2079,7 @@ function variantLines(p) {
 /* 첫 화면: 검색창·조건·버튼이 한 덩어리로 화면을 채우게 - 늘어나는 쪽을 hero 로
    (예전엔 tr-body 가 늘어나서 버튼 아래에 빈 칸이 크게 남았음) */
 .trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:flex-start;}
-.trade-page:not(.searching) .tr-hero-inner{width:100%; padding-top:clamp(28px, 9vh, 100px);}
+.trade-page:not(.searching) .tr-hero-inner{width:100%; padding-top:clamp(16px, 3vh, 44px);}
 /* 첫 화면에선 매물 목록 칸이 비어 있음 - 패딩만 남아 더 검은 띠로 보이던 것 */
 .trade-page:not(.searching) .tr-body{flex:0 0 auto; padding-top:0; padding-bottom:0;}
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
