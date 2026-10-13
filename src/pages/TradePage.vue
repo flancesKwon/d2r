@@ -1309,6 +1309,24 @@ function variantLines(p) {
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
+    <!-- 첫 화면: 매물 목록 대신 몇 개 올라와 있는지와 전체 보기 -->
+  <div class="tr-home-cta" v-if="!isSearchRoute">
+    <button type="button" class="tr-all-btn" @click="runSearch()">
+      <template v-if="appliedCount">
+        <b>{{ $t('조건 {n}개로 검색', { n: appliedCount }) }}</b>
+        <span>{{ $t('결과 {n}개', { n: liveCount }) }} →</span>
+      </template>
+      <template v-else>
+        <b v-if="liveCount || !expiredCount">{{ $t('현재 매물 {n}개', { n: liveCount }) }}</b>
+        <b v-else>{{ $t('기간 지난 매물 {n}개', { n: expiredCount }) }}</b>
+        <span>{{ $t('전체 보기') }} →</span>
+      </template>
+    </button>
+    <div class="tr-home-links">
+      <button type="button" class="guide-btn" @click="openTradeGuide()">{{ $t('이용 안내') }}</button>
+      <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
+    </div>
+  </div>
     </div>
   </section>
 
@@ -1528,25 +1546,6 @@ function variantLines(p) {
   <div class="tr-main">
     <!-- 이벤트 진행 중이면 큰 카드 (없으면 빈 칸이 안 생기게 :empty) -->
     <div class="trade-event-slot"><EventBanner mode="big" /></div>
-    <!-- 첫 화면: 매물 목록 대신 몇 개 올라와 있는지와 전체 보기 -->
-    <div class="tr-home-cta" v-if="!isSearchRoute">
-      <button type="button" class="tr-all-btn" @click="runSearch()">
-        <template v-if="appliedCount">
-          <b>{{ $t('조건 {n}개로 검색', { n: appliedCount }) }}</b>
-          <span>{{ $t('결과 {n}개', { n: liveCount }) }} →</span>
-        </template>
-        <template v-else>
-          <b v-if="liveCount || !expiredCount">{{ $t('현재 매물 {n}개', { n: liveCount }) }}</b>
-          <b v-else>{{ $t('기간 지난 매물 {n}개', { n: expiredCount }) }}</b>
-          <span>{{ $t('전체 보기') }} →</span>
-        </template>
-      </button>
-      <div class="tr-home-links">
-        <button type="button" class="guide-btn" @click="openTradeGuide()">{{ $t('이용 안내') }}</button>
-        <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
-      </div>
-    </div>
-
     <template v-if="isSearchRoute">
     <!-- 글자로 찾아 들어온 경우: 그 글자에 맞는 아이템을 먼저, 고르면 그 아이템 매물만 -->
     <div class="tr-textitems" v-if="textItems.length">
@@ -2028,6 +2027,11 @@ function variantLines(p) {
 /* 첫 화면은 내용이 짧아서, 본문이 화면 높이를 채우게 해 푸터가 접힌 선 아래로 가게 함 (헤더 높이만 뺌) */
 .trade-page:not(.searching){min-height:calc(100dvh - 58px);}
 .trade-page .tr-body{flex:1 0 auto;}
+/* 첫 화면: 검색창·조건·버튼이 한 덩어리로 화면을 채우게 - 늘어나는 쪽을 hero 로
+   (예전엔 tr-body 가 늘어나서 버튼 아래에 빈 칸이 크게 남았음) */
+.trade-page:not(.searching) .tr-hero{flex:1 0 auto; display:flex; align-items:center;}
+.trade-page:not(.searching) .tr-hero-inner{width:100%;}
+.trade-page:not(.searching) .tr-body{flex:0 0 auto;}
 .tr-body{max-width:1100px; margin:0 auto; padding:24px 24px 64px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;}
 /* 검색 화면: 왼쪽 조건 칸 + 오른쪽 결과 (결과가 위에서 바로 보이게) */
 /* 검색 화면은 넓게 - 검색창(hero)과 아래 조건·결과의 좌우 기준선을 같게 맞춤 */
@@ -2056,7 +2060,7 @@ function variantLines(p) {
   border-radius:999px; padding:4px 12px; cursor:pointer;}
 .tr-go:hover{background:#2A2216;}
 /* 첫 화면: 매물 수 + 전체 보기 */
-.tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:4px 0;}
+.tr-home-cta{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:4px 0; margin-top:4px;}
 /* 알약 버튼이 아니라 글로만 - 숫자를 크게 */
 .tr-all-btn{cursor:pointer; display:inline-flex; align-items:baseline; gap:9px; padding:0; border:0; background:none; color:var(--gold);}
 .tr-all-btn b{font-size:20px; font-weight:800; letter-spacing:-.01em;}
