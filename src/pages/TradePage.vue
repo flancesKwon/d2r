@@ -526,9 +526,10 @@ function mrMatches(p, skip) {
   const no = (k) => skip === k
   if (!mrOn.value) return true
   if (!no('mr:quality')) {
-    // 품질을 고르면 그것만. 안 골랐으면 매직·레어·크래프트 (일반(흰색)은 뺌)
+    // 품질을 고르면 그것만. 안 골랐으면 매직·레어 (일반·크래프트는 버튼이 따로 있으니 뺌)
+    // 품질을 안 적고 올린 글(빈값)은 어느 버튼에도 안 걸리면 사라지므로 여기에 남겨 둠
     if (mrQuality.value) { if (p.quality !== mrQuality.value) return false }
-    else if (p.quality === 'normal') return false
+    else if (p.quality === 'normal' || p.quality === 'crafted') return false
   }
   if (mrBase.value && !no('mr:base')) {
     // 판매글에는 괄호 붙은 이름("베이스: 반지 (Ring)")이 적히고 고르는 값은 장신구면 괄호가 없음("반지")
@@ -1400,7 +1401,7 @@ function variantLines(p) {
         <div class="mr-grid">
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
-            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어·크래프트') }}</button>
+            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어') }}</button>
             <button
               type="button" v-for="q in mrQualityPicks" :key="q.v" :class="['q-' + q.v, { on: mrQuality === q.v }]"
               :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
