@@ -110,6 +110,8 @@ function postSlot(p) {
   return sl
 }
 const activeSlot = ref(null)
+// 베이스 이름 묶음 조건 (친 글자 그대로 - 판매글 베이스 이름에 이 글자가 들어가면 통과)
+const baseGroup = ref('')
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -169,8 +171,9 @@ function onSearchKey(e) {
     // 추천 줄을 직접 고른 경우에만 그 줄, 아니면 친 글자로 검색
     if (suggestNav.value && suggestOpen.value && list.length) chooseSuggestion(list[suggestActive.value] || list[0])
     else {
-      const b = exactBase.value
-      if (b) pickBase(b)
+      const grp = nameMatchBases(searchQuery.value.trim().replace(JAMO_TAIL, ''))
+      if (grp.length > 1) pickGroup(searchQuery.value.trim().replace(JAMO_TAIL, ''))
+      else if (exactBase.value) pickBase(exactBase.value)
       else runSearch()
     }
   } else if (e.key === 'Escape') {
@@ -251,6 +254,24 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 베이스 이름 묶음 - 친 글자가 '이름'에 든 베이스들 ('부츠' -> 부츠·체인부츠·헤비부츠 ...)
+// 세부 종류(type_sub)나 등급으로는 안 묶음: 글러브는 글러브만, 건틀릿은 건틀릿만
+const nameMatchBases = (word) => {
+  const q = squash(word)
+  if (!q) return []
+  return [...MISC_BASES, ...BASE_ITEMS].filter((b) =>
+    squash(b.name_ko || '').includes(q) || squash(b.subtitle || '').toLowerCase().includes(q.toLowerCase()))
+}
+const baseGroupBases = computed(() => nameMatchBases(baseGroup.value))
+// 추천 줄에서도 대표 아이콘을 쓰려고 (아직 고르기 전이라 baseGroup 이 안 정해짐)
+const baseGroupIconOf = (word) => { const l = nameMatchBases(word); return l.length ? [...l].sort((a, b) => (a.name_ko || '').length - (b.name_ko || '').length)[0] : null }
+// 묶음을 대표하는 베이스 = 이름이 가장 짧은 것 (부츠 묶음 -> '부츠')
+const baseGroupIcon = computed(() => {
+  const list = baseGroupBases.value
+  if (!list.length) return null
+  return [...list].sort((a, b) => (a.name_ko || '').length - (b.name_ko || '').length)[0]
+})
+const groupOn = computed(() => !pickedItem.value && !mrBase.value && !!baseGroup.value && baseGroupBases.value.length > 1)
 // 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
 // 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
 const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -281,6 +302,27 @@ const exactBase = computed(() => {
   if (!q) return null
   return baseCandidates.value.find((b) => squash(b.name_ko) === q || squash(b.subtitle || '').toLowerCase() === q.toLowerCase()) || null
 })
+// 이름 묶음 고르기 ('부츠' -> 부츠류 전체)
+function pickGroup(word) {
+  pickedItem.value = null
+  mrBase.value = ''
+  mrBaseObj.value = null
+  mrQuality.value = ''
+  mrShape.value = ''
+  mrCraft.value = ''
+  baseGroup.value = word
+  searchQuery.value = ''
+  suggestOpen.value = false
+  goSearch()
+}
+// 묶음 안에서 베이스 하나로 좁히기 (묶음은 그대로 둠)
+function pickBaseInGroup(label) {
+  const b = baseGroupBases.value.find((x) => baseLabelOf(x) === label)
+  mrBaseObj.value = b || null
+  mrBase.value = b ? label : ''
+  mrShape.value = ''
+  mrCraft.value = ''
+}
 function pickBase(b, quality = '') {
   suggestPointer = false
   pickedItem.value = null
@@ -766,6 +808,7 @@ function resetExceptBase() {
 }
 
 function resetFilters() {
+  baseGroup.value = ''
   activeCats.value = []
   resetMr()
   itemShape.value = ''
@@ -803,6 +846,7 @@ function buildQuery() {
   if (activeLadder.value) q.ladder = activeLadder.value
   if (activeHardcore.value) q.hc = activeHardcore.value
   if (activeSlot.value) q.slot = activeSlot.value
+  if (baseGroup.value && !mrBase.value) q.bg = baseGroup.value
   if (etherealOnly.value) q.eth = '1'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
@@ -829,7 +873,7 @@ function buildQuery() {
   return q
 }
 // 주소에 조건이 하나라도 있나 (옛 ?item= 링크로 첫 화면에 들어온 경우 검색 화면으로 넘기려고)
-const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'base', 'bq', 'shape', 'craft', 'sup', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
+const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'bg', 'base', 'bq', 'shape', 'craft', 'sup', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
 const hasQueryFilters = (q) => QUERY_KEYS.some((k) => q[k])
 
 let syncing = false
@@ -843,6 +887,7 @@ function applyQuery(q) {
   activeLadder.value = TRADE_LADDERS.includes(q.ladder) ? q.ladder : null
   activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
   activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
+  baseGroup.value = typeof q.bg === 'string' ? q.bg : ''
   etherealOnly.value = q.eth === '1'
   unidOnly.value = q.unid === '1'
   mrBase.value = typeof q.base === 'string' ? q.base : ''
@@ -949,6 +994,14 @@ function filterPosts(skip) {
   if (activeRegion.value && !no('realm')) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value && !no('game')) list = list.filter((p) => p.gameVersion === gameVersion.value)
   if (activeSlot.value && !no('slot')) list = list.filter((p) => postSlot(p) === activeSlot.value)
+  if (baseGroup.value && !mrBase.value && !no('bg')) {
+    const g = squash(baseGroup.value)
+    list = list.filter((p) => {
+      const line = (p.options || []).find((l) => l.startsWith('베이스: '))
+      const nm = line ? line.slice('베이스: '.length) : (p.itemName || '')
+      return squash(nm).includes(g)
+    })
+  }
   if (activeLadder.value && !no('ladder')) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value && !no('hc')) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value && !no('eth')) list = list.filter((p) => p.ethereal)
@@ -1062,6 +1115,8 @@ const unifiedSuggestions = computed(() => {
   if (!raw) return []
   const q = squash(raw)
   const out = []
+  const grp = nameMatchBases(raw)
+  if (grp.length > 1) out.push({ type: 'group', key: 'g' + raw, raw, n: grp.length })
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const b of baseCandidates.value) out.push({ type: 'base', key: 'b' + b.code, b })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
@@ -1083,15 +1138,17 @@ const unifiedSuggestions = computed(() => {
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
   const groups = [
+    { name: '베이스 묶음', cls: 'g-group', rows: [] },
     { name: '아이템', cls: 'g-item', rows: [] }, { name: '매직·레어·크래프트 (베이스)', cls: 'g-base', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
     { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
   ]
-  const at = { item: 0, base: 1, cat: 2, stat: 3, text: 4, kw: 4 }
+  const at = { group: 0, item: 1, base: 2, cat: 3, stat: 4, text: 5, kw: 5 }
   list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
   suggestPointer = false
+  if (sug.type === 'group') return pickGroup(sug.raw)
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; goSearch(); return }
@@ -1266,7 +1323,12 @@ function variantLines(p) {
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: suggestNav && r.i === suggestActive }"
                 :aria-selected="r.i === suggestActive" @mousedown.prevent @click="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i; suggestNav = true"
               >
-                <template v-if="r.sug.type === 'item'">
+                <template v-if="r.sug.type === 'group'">
+                  <span class="item-suggest-icon"><img v-if="baseGroupIconOf(r.sug.raw) && iconUrlFor(baseIconKey(baseGroupIconOf(r.sug.raw)))" :src="iconUrlFor(baseIconKey(baseGroupIconOf(r.sug.raw)))" alt="" /></span>
+                  <span class="item-suggest-name">{{ r.sug.raw }}</span>
+                  <small>{{ $t('{n}종 전체', { n: r.sug.n }) }}</small>
+                </template>
+                <template v-else-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
                   <span class="item-suggest-name" :class="r.sug.it.category">{{ $itemName(r.sug.it) }}</span>
                   <small>{{ $t(r.sug.it.category_label) }}{{ locale === 'ko' && r.sug.it.subtitle && r.sug.it.category !== 'runeword' ? ' · ' + r.sug.it.subtitle : '' }}</small>
@@ -1312,6 +1374,7 @@ function variantLines(p) {
         <span class="tr-chip flag" v-if="mrOn && mrSup"><em>{{ $t('상급 여부') }}</em>{{ $t(SUP_CHOICES.find((c) => c.v === mrSup)?.label || mrSup) }}<button type="button" aria-label="×" @click="mrSup = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
+        <span class="tr-chip kind" v-if="baseGroup && !mrBase"><em>{{ $t('베이스') }}</em>{{ baseGroup }}<button type="button" :aria-label="`${baseGroup} ×`" @click="baseGroup = ''">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="dropPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -1349,22 +1412,29 @@ function variantLines(p) {
   </section>
 
   <div class="tr-body" :class="{ 'view-list': isSearchRoute && viewMode === 'list' }">
-  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
+  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || groupOn || pickedItem)" :class="{ closed: !filtersOpen }">
     <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
-      <div class="item-range-panel mr-panel" v-if="mrOn">
+      <div class="item-range-panel mr-panel" v-if="mrOn || groupOn">
         <div class="mr-head">
-          <span class="mr-head-icon"><img v-if="mrBaseItem && iconUrlFor(baseIconKey(mrBaseItem))" :src="iconUrlFor(baseIconKey(mrBaseItem))" alt="" /></span>
+          <span class="mr-head-icon"><img v-if="(mrBaseItem || baseGroupIcon) && iconUrlFor(baseIconKey(mrBaseItem || baseGroupIcon))" :src="iconUrlFor(baseIconKey(mrBaseItem || baseGroupIcon))" alt="" /></span>
           <div class="mr-head-text">
-            <b>{{ mrBaseText }}</b>
+            <b>{{ mrBase ? mrBaseText : baseGroup }}</b>
           </div>
           <button type="button" class="mr-change" @click="resetExceptBase()">{{ $t('검색조건 초기화') }}</button>
         </div>
         <!-- 이름 칸 너비를 맞춰서 줄마다 같은 자리에서 시작 -->
         <div class="mr-grid">
+          <template v-if="baseGroup && baseGroupBases.length > 1">
+            <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
+            <select class="sort-select" :value="mrBase" :aria-label="$t('베이스')" @change="pickBaseInGroup($event.target.value)">
+              <option value="">{{ $t('{n}종 전체', { n: baseGroupBases.length }) }}</option>
+              <option v-for="b in baseGroupBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseLabelOf(b) }}</option>
+            </select>
+          </template>
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
             <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어') }}</button>

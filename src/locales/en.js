@@ -14,6 +14,7 @@ export default {
   '아이템·도구 검색': 'Search items & tools',
   '불러오는 중…': 'Loading…',
   '현재 시각': 'Current time',
+  '{n}종 전체': 'All {n} types',
   '전체': 'All',
   '더보기': 'More',
   '검색': 'Search',
