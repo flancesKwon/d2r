@@ -181,7 +181,11 @@ function onSearchKey(e) {
     e.preventDefault()
     // 추천 줄을 직접 고른 경우에만 그 줄, 아니면 친 글자로 검색
     if (suggestNav.value && suggestOpen.value && list.length) chooseSuggestion(list[suggestActive.value] || list[0])
-    else runSearch()
+    else {
+      const b = exactBase.value
+      if (b) pickBase(b)
+      else runSearch()
+    }
   } else if (e.key === 'Escape') {
     suggestOpen.value = false
   } else if (e.key === 'Backspace' && !searchQuery.value) {
@@ -283,6 +287,12 @@ const baseCandidates = computed(() => {
   const sq = squash(q)
   const misc = MISC_BASES.filter((b) => squash(b.name_ko).includes(sq) || squash((b.subtitle || '').toLowerCase()).includes(sq.toLowerCase()))
   return [...misc, ...searchBaseItems(q, null)].slice(0, 6)
+})
+// 친 글자가 베이스 이름과 정확히 같은 것 (엔터로 바로 그 베이스를 잡게)
+const exactBase = computed(() => {
+  const q = squash(searchQuery.value.trim().replace(JAMO_TAIL, '').replace(/^(매직|레어|일반|크래프트)\s*/, ''))
+  if (!q) return null
+  return baseCandidates.value.find((b) => squash(b.name_ko) === q || squash(b.subtitle || '').toLowerCase() === q.toLowerCase()) || null
 })
 function pickBase(b, quality = '') {
   suggestPointer = false
