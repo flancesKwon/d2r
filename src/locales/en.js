@@ -138,6 +138,7 @@ export default {
   '옵션 문구에 들어간 글만': 'only listings with this stat text',
   '↑↓ 이동 · Enter 추가 · 빈 칸에서 Backspace 로 마지막 조건 빼기': '↑↓ move · Enter add · Backspace on empty input removes the last filter',
   '적용된 조건': 'Active filters',
+  '분류': 'Category',
   '종류': 'Type',
   '옵션': 'Stats',
   '검색어': 'Text',
@@ -375,6 +376,8 @@ export default {
   '폴암': 'Polearms',
   '활': 'Bows',
   // 검색의 부위(착용 위치) 선택칸
+  '{s} 전체': '{s}, all',
+  '유니크·세트 빼고 한 번에': 'Everything but unique & set',
   '부위': 'Slot',
   '머리': 'Head',
   '몸통': 'Torso',
