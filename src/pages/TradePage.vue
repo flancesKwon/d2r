@@ -1375,17 +1375,9 @@ function variantLines(p) {
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
-      <!-- 어떤 경로로 들어와도 늘 보이는 칸 - 분류(여러 개 고를 수 있음)와 에테리얼·미확인 -->
+      <!-- 어떤 경로로 들어와도 늘 보이는 칸 -->
       <div class="item-range-panel mr-panel">
         <div class="mr-grid">
-          <span class="mr-label" :class="{ on: activeCats.length }">{{ $t('분류') }}</span>
-          <span class="mr-seg wrap">
-            <button type="button" :class="{ on: !activeCats.length }" :aria-pressed="!activeCats.length" @click="activeCats = []">{{ $t('전체') }}</button>
-            <button
-              type="button" v-for="c in TRADE_CATEGORIES" :key="c" :class="{ on: activeCats.includes(c) }"
-              :aria-pressed="activeCats.includes(c)" @click="toggleCat(c)"
-            >{{ $t(c) }}</button>
-          </span>
           <span class="mr-label" :class="{ on: etherealOnly || unidOnly }">{{ $t('에테리얼') }}·{{ $t('미확인') }}</span>
           <span class="mr-seg wrap">
             <button type="button" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>

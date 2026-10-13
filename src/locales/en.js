@@ -138,7 +138,6 @@ export default {
   '옵션 문구에 들어간 글만': 'only listings with this stat text',
   '↑↓ 이동 · Enter 추가 · 빈 칸에서 Backspace 로 마지막 조건 빼기': '↑↓ move · Enter add · Backspace on empty input removes the last filter',
   '적용된 조건': 'Active filters',
-  '분류': 'Category',
   '종류': 'Type',
   '옵션': 'Stats',
   '검색어': 'Text',
