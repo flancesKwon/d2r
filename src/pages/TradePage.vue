@@ -122,6 +122,16 @@ function postSlot(p) {
   slotCache.set(ck, sl)
   return sl
 }
+// 에테리얼은 무기·방어구에만 붙음 (반지·목걸이·주얼·참, 룬·보석·재료엔 없음)
+const ETH_SLOTS = new Set(['머리', '몸통', '방패', '장갑', '신발', '허리', '무기'])
+// 사전 아이템의 부위 (postSlot 의 사전 쪽 규칙과 같음)
+function slotOfItem(it) {
+  if (!it) return null
+  if (SLOT_BY_SUB[it.type_sub]) return SLOT_BY_SUB[it.type_sub]
+  if (it.category === 'runeword') return RW_SLOT[it.subtitle] || null
+  if (WEAPON_SUBS.has(it.type_sub) || it.base_stats?.category === 'weapon') return '무기'
+  return null
+}
 const activeSlot = ref(null)
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
@@ -260,6 +270,24 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 지금 좁혀진 대상의 부위 (부위 전체 > 고른 베이스 > 고른 아이템 순, 아무것도 안 골랐으면 null)
+const pickedSlot = computed(() => {
+  if (activeSlot.value) return activeSlot.value
+  if (mrBase.value) return BASE_SLOT.get(mrBase.value.replace(/ \(.+\)$/, '')) || null
+  return slotOfItem(pickedItem.value)
+})
+// 룬·보석·재료·골드만 보는 중이면 둘 다 해당 없음
+const GEARLESS_CATS = ['룬', '퍼펙트 보석', '우버보스 재료', '정수·징표', '골드']
+const gearlessOnly = computed(() => activeCats.value.length > 0 && activeCats.value.every((c) => GEARLESS_CATS.includes(c)))
+// 에테리얼: 무기·방어구일 때만. 부위를 모르면(아무것도 안 고름) 숨기지 않음
+// 장신구(목걸이·반지·주얼·참)는 baseItems 가 아니라 miscBases 에 있어 부위가 안 잡히므로 따로 봄
+const canEth = computed(() => {
+  if (gearlessOnly.value) return false
+  if (mrBaseItem.value?.base_stats?.category === 'misc') return false
+  return !pickedSlot.value || ETH_SLOTS.has(pickedSlot.value)
+})
+// 미확인: 흰색(일반)으로 못 박았으면 감정할 게 없음
+const canUnid = computed(() => !gearlessOnly.value && mrQuality.value !== 'normal')
 // 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
 // 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
 const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -503,6 +531,9 @@ function fixCond(c) {
 }
 watch(mrBase, () => { mrShape.value = '' })
 watch(mrQuality, (q) => { if (q !== 'crafted') mrCraft.value = '' })
+// 해당 없는 칸이 사라질 때 켜져 있던 조건도 같이 풀기 (안 그러면 끌 방법이 없어짐)
+watch(canEth, (ok) => { if (!ok) etherealOnly.value = false })
+watch(canUnid, (ok) => { if (!ok) unidOnly.value = false })
 const mrCount = computed(() =>
   [mrQuality.value, mrBase.value, mrShape.value, mrCraft.value, mrSockOn.value, mrSup.value, mrLvlOn.value].filter(Boolean).length
 )
@@ -1378,11 +1409,13 @@ function variantLines(p) {
       <!-- 어떤 경로로 들어와도 늘 보이는 칸 -->
       <div class="item-range-panel mr-panel">
         <div class="mr-grid">
-          <span class="mr-label" :class="{ on: etherealOnly || unidOnly }">{{ $t('에테리얼') }}·{{ $t('미확인') }}</span>
-          <span class="mr-seg wrap">
-            <button type="button" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
-            <button type="button" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
-          </span>
+          <template v-if="canEth || canUnid">
+            <span class="mr-label" :class="{ on: etherealOnly || unidOnly }">{{ canEth && canUnid ? $t('에테리얼') + '·' + $t('미확인') : canEth ? $t('에테리얼') : $t('미확인') }}</span>
+            <span class="mr-seg wrap">
+              <button type="button" v-if="canEth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
+              <button type="button" v-if="canUnid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
+            </span>
+          </template>
         </div>
       </div>
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
