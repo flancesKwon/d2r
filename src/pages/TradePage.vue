@@ -1141,8 +1141,9 @@ const QUICK_SELECTS = [
 // 그 뒤에 아이템 사전·매직/레어 접사·개별 스킬에서 뽑은 전체 목록 (같은 문구는 앞의 것만)
 const plainLabel = (l) => l.replace('(%)', '')
 const STAT_PICKS = (() => {
-  // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백은 떼고 봄 ('시전 속도(%)' 와 '시전 속도 X%' 는 같은 것)
-  const norm = (l) => plainLabel(l).replace(/[X%\s]/g, '')
+  // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백·끝의 '증가'는 떼고 봄
+  // ('시전 속도(%)' 와 '시전 속도 X%', '마법 아이템 발견 확률' 과 '마법 아이템 발견 확률 X% 증가' 는 같은 것)
+  const norm = (l) => plainLabel(l).replace(/[X%\s]/g, '').replace(/증가$/, '')
   const out = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
   const seen = new Set(out.map((st) => norm(st.label)))
   for (const st of ALL_STAT_FILTERS) {
