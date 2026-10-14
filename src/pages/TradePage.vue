@@ -802,12 +802,14 @@ const hasActiveFilters = computed(
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 || !!pickedItem.value
 )
-// '검색조건 초기화' - 고른 베이스만 남기고 나머지 조건을 전부 비움
-// (검색어는 주소에 실린 것이 걸러내는 기준이라 runSearch 로 주소까지 맞춰야 풀림)
+// '검색조건 초기화' - 처음 검색한 베이스(묶음·고른 베이스)만 남기고 나머지 조건을 전부 비움
+// (묶음을 비우면 필터창이 닫히고 전체 매물이 나오며 묶음 안 다른 베이스도 못 고르게 됨)
 function resetExceptBase() {
+  const group = baseGroup.value
   const base = mrBase.value
   const obj = mrBaseObj.value
   resetFilters()
+  baseGroup.value = group
   mrBase.value = base
   mrBaseObj.value = obj
 }
