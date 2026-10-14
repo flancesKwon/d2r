@@ -254,6 +254,7 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+const squash = (t) => t.replace(/[\s·/]+/g, '')
 // 베이스 이름 묶음 - 친 글자가 '이름'에 든 베이스들 ('부츠' -> 부츠·체인부츠·헤비부츠 ...)
 // 세부 종류(type_sub)나 등급으로는 안 묶음: 글러브는 글러브만, 건틀릿은 건틀릿만
 const nameMatchBases = (word) => {
@@ -1120,7 +1121,6 @@ const STAT_PICKS = (() => {
   }
   return out
 })()
-const squash = (t) => t.replace(/[\s·/]+/g, '')
 const unifiedSuggestions = computed(() => {
   const raw = searchQuery.value.trim().replace(JAMO_TAIL, '')
   if (!raw) return []
