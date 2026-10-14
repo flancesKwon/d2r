@@ -51,6 +51,12 @@ function add(text, from, meta = {}) {
 for (const it of items) for (const a of it.affixes || []) add(a.text, '사전', a.prop === 'oskill' ? { allClass: true, ex: it.id } : {})
 
 // 2) 매직/레어/크래프트 접사 - 베이스마다 붙는 게 달라서, 종류별 대표 베이스를 돌려 전부 모음
+// 수치를 범위("5~10")로 둔 줄과 하나로 정한("5") 줄을 둘 다 모음 - 충전 스킬은 문구가 달라짐
+// ("5~10 레벨 X (충전)" / "5 레벨 X (충전 20/20회)"). 판매글에는 정한 값이 들어가므로 둘 다 있어야 검색에 걸림
+const famLines = (fam) => [
+  ...familyLines(fam, fam.slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`))),
+  ...familyLines(fam, fam.slotRanges.map(([lo]) => lo)),
+]
 const bases = Object.entries(magic.bases || {}).map(([code, b]) => ({
   code, name_ko: b.name_ko || code, type_sub: b.type_sub || '', tier: b.tier || '',
   sockets: b.sockets || 0, base_stats: { category: b.category || 'misc' },
@@ -60,14 +66,14 @@ for (const base of [...bases, ...miscBases]) {
   for (const quality of ['magic', 'rare']) {
     let fams = []
     try { fams = affixFamiliesFor(magic, base, quality) } catch { continue }
-    for (const fam of fams) for (const line of familyLines(fam, fam.slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`)))) add(line, '매직레어')
+    for (const fam of fams) for (const line of famLines(fam)) add(line, '매직레어')
   }
   let crafts = []
   try { crafts = craftPoolFamilies(magic.crafts || {}) } catch { crafts = [] }
   for (const c of crafts) {
     const fam = c.fam || c
     if (!fam?.slotRanges) continue
-    for (const line of familyLines(fam, fam.slotRanges.map(([lo, hi]) => (lo === hi ? lo : `${lo}~${hi}`)))) add(line, '크래프트')
+    for (const line of famLines(fam)) add(line, '크래프트')
   }
 }
 

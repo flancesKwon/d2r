@@ -572,7 +572,7 @@ function mrMatches(p, skip) {
   if (mrBase.value && !no('mr:base')) {
     // 판매글에는 괄호 붙은 이름("베이스: 반지 (Ring)")이 적히고 고르는 값은 장신구면 괄호가 없음("반지")
     // -> 괄호를 뗀 이름끼리 비교 (예전엔 장신구 베이스로 고르면 매물이 하나도 안 나왔음)
-    const bare = (x) => x.replace(/ (.+)$/, '')
+    const bare = (x) => x.replace(/ \(.+\)$/, '')
     const line = (p.options || []).find((l) => l.startsWith('베이스: '))
     const name = line ? bare(line.slice('베이스: '.length)) : ''
     const want = bare(mrBase.value)
