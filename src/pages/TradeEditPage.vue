@@ -10,7 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, fetchTradeRequests, updateTradePost, tradeEditBlockReason,
   CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, getTradeItem,
-  TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, GAME_VERSIONS, categoryHasQuantity, buildAmountLabel, GOLD_MAX, MAX_QTY, isValidQty,
+  TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, GAME_VERSIONS, categoryHasQuantity, buildAmountLabel, GOLD_MAX, MAX_QTY, isValidQty, PRICE_MAX,
 } from '../tradeStore.js'
 import { editableOptionLines, buildEditedLines } from '../tradeEdit.js'
 import { buildTooltip } from '../itemTooltip.js'
@@ -44,12 +44,18 @@ const lines = ref([])
 const form = ref({ qty: '', offerOnly: false, negotiable: false, realm: '', ladder: '', hardcore: '', gameVersion: '', content: '' })
 const priceItems = ref([])
 const BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
+// 알아보지 못한 조각(예전 자유 글 가격 등)은 저장하면 빠지니까 따로 모아서 알려줌
+const droppedPrice = ref([])
 function parsePrice(text) {
-  return (text || '').split(' + ').map((part) => {
+  const dropped = []
+  const out = (text || '').split(' + ').map((part) => {
     const m = part.trim().match(/^(.+?) (\d+)개$/)
     const it = m && BY_NAME.get(m[1])
+    if (!it && part.trim()) dropped.push(part.trim())
     return it ? { item: it, qty: Number(m[2]) } : null
   }).filter(Boolean)
+  droppedPrice.value = dropped
+  return out
 }
 let started = false
 watch([post, loading], ([p, l]) => {
@@ -99,6 +105,7 @@ async function submit() {
   if (gold && Number(form.value.qty) > GOLD_MAX) { error.value = t('최대 1500만 골드까지'); return }
   if (hasQty.value && !isValidQty(form.value.qty, gold ? GOLD_MAX : MAX_QTY)) { error.value = gold ? t('골드 액수는 정수로 입력') : t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
   if (!form.value.offerOnly && priceItems.value.some((p) => !isValidQty(p.qty))) { error.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  if (!form.value.offerOnly && newPrice.value.length > PRICE_MAX) { error.value = t('희망 가격이 너무 김 ({n}자 이하) - 종류를 줄여 주세요', { n: PRICE_MAX }); return }
   if (!form.value.offerOnly && !newPrice.value) { error.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   saving.value = true
   try {
@@ -195,6 +202,7 @@ async function submit() {
 
             <template v-if="!form.offerOnly">
               <div class="relist-title small-title">{{ $t('판매가') }}</div>
+              <small class="price-drop-note" style="display:block; color:#e0775f; font-size:12px; margin:4px 0;" v-if="droppedPrice.length">{{ $t('알아보지 못한 가격은 저장하면 빠져요: {s}', { s: droppedPrice.join(', ') }) }}</small>
               <div class="price-chips">
                 <div class="price-chip" v-for="(p, i) in priceItems" :key="p.item.id">
                   <span class="price-chip-icon"><img v-if="iconUrl(p.item.icon_key)" :src="iconUrl(p.item.icon_key)" alt="" /></span>

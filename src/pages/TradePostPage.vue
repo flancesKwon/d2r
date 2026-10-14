@@ -180,7 +180,8 @@ async function respond(r, decision) {
 const pendingCount = computed(() => (post.value?.requests || []).filter((r) => (r.status || 'pending') === 'pending').length)
 const requestsEl = ref(null)
 const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
+// 같은 구매자가 불발 뒤 다시 신청해도 신청마다 자기 거래방으로 연결 (거래방이 신청 번호를 기억함)
+const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && (d.requestId ? d.requestId === r.id : d.buyerId === r.buyerId)) || null
 
 const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
 // 구매신청 메시지 (한국어로 저장: '구매하기 - 제안: 베르 룬 1개 + ...')
@@ -408,7 +409,8 @@ async function confirmBuy() {
             <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">{{ $t('재등록 (판매가 수정)') }}</router-link>
             <small class="owner-bump-note">{{ $t('판매 기간 {n}일 · 끝나면 판매가만 고쳐 재등록', { n: SALE_DAYS }) }}</small>
           </template>
-          <button type="button" class="owner-delete" @click="removePost">{{ $t('✕ 판매글 삭제') }}</button>
+          <small v-if="activeDeal" class="owner-bump-note">{{ $t('거래중인 거래방이 있어서 삭제할 수 없음 - 거래방에서 거래완료·거래불발 처리 후 삭제') }}</small>
+          <button v-else type="button" class="owner-delete" @click="removePost">{{ $t('✕ 판매글 삭제') }}</button>
         </section>
         <div class="action-error" v-if="actionError">{{ actionError }}</div>
       </aside>

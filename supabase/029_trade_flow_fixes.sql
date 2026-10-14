@@ -3,7 +3,8 @@
 --     판매자가 글을 수정할 수 없고(019) 풀 방법도 없었음. 이미 이렇게 막힌 글도 같이 정리
 --  2) 판매 기간(7일)이 끝난 판매중 글엔 새 신청을 못 넣고, 수락도 못 함 (재등록하면 다시 가능)
 --  3) 재등록하면 그 글의 대기·보류 신청은 정리하고 구매자에게 알림 - 신청한 가격과 다른 가격으로 거래가 잡히던 것 막음
---  시스템이 바꾼 신청 상태는 '구매신청 취소됨/거절됨' 알림을 따로 보내지 않음 (판매자가 취소한 것처럼 보이던 것)
+--  시스템이 바꾼 신청 상태는 '구매신청 취소됨/거절됨' 알림을 그대로 보내지 않고 이유가 보이는 문구로 (판매자가 취소한 것처럼 보이던 것)
+--  4) 제안만 받기 글을 가격을 정해 재등록하면 일반 글로 (예전엔 '흥정 가능' 표시가 남았음)
 -- 028 다음에 실행. 여러 번 실행해도 됨
 
 -- ─── 0) 신청 상태 알림 (004) - 시스템이 바꿀 땐 보내지 않음 ───
@@ -19,8 +20,13 @@ begin
     values (p.author_id, '"' || p.item_name || '" 새 구매신청', '/trade/' || p.id);
   elsif new.status is distinct from old.status and coalesce(current_setting('d2r.sys_request', true), '') <> '1' then
     if new.status = 'rejected' then
+      -- 판매 기간이 끝나고 3일 넘게 재등록이 없어 자동으로 정리된 신청 (022·028)은 판매자가 거절한 게 아니라는 걸 문구로 알림
       insert into public.tb_notification (user_id, text, link)
-      values (new.buyer_id, '"' || p.item_name || '" 구매신청 거절됨', '/trade/' || p.id);
+      values (new.buyer_id,
+              '"' || p.item_name || '" ' || case when exists (select 1 from public.tb_trade_post
+                                                           where id = p.id and status = '판매중' and bumped_at <= now() - interval '10 days')
+                                                then '구매신청 종료 - 판매 기간이 끝나 재등록되지 않음' else '구매신청 거절됨' end,
+              '/trade/' || p.id);
     elsif new.status = 'cancelled' then
       insert into public.tb_notification (user_id, text, link)
       values (p.author_id, '"' || p.item_name || '" 구매신청 취소됨', '/trade/' || p.id);
@@ -40,8 +46,16 @@ begin
     update public.tb_trade_post set status = '거래완료', sold_price = coalesce(new.agreed_price, sold_price), updated_at = now()
      where id = new.post_id and status <> '거래완료';
     perform set_config('d2r.deal_sync', '', true);
-    update public.tb_trade_request set status = 'rejected'
-     where post_id = new.post_id and status in ('pending', 'held');
+    -- 같은 글에 남은 대기·보류 신청은 종료 - 판매자가 거절한 게 아니라서 이유를 적은 알림을 따로 보냄
+    perform set_config('d2r.sys_request', '1', true);
+    with gone as (
+      update public.tb_trade_request set status = 'rejected'
+       where post_id = new.post_id and status in ('pending', 'held')
+      returning buyer_id
+    )
+    insert into public.tb_notification (user_id, text, link)
+    select distinct buyer_id, '"' || new.post_title || '" 다른 구매자와 거래가 완료되어 신청이 종료됨', '/trade/' || new.post_id from gone;
+    perform set_config('d2r.sys_request', '', true);
   elsif new.status = '거래불발' then
     -- 이 거래의 수락 신청은 끝난 것 - 판매자·구매자에게는 거래불발 알림이 이미 감
     perform set_config('d2r.sys_request', '1', true);
@@ -157,14 +171,18 @@ create or replace function public.d2r_relist_trade_post(p_post bigint, p_price t
 returns timestamptz language plpgsql security definer set search_path = public as $$
 declare r record; v_price text := btrim(coalesce(p_price, ''));
 begin
-  select author_id, status, bumped_at, item_name into r from public.tb_trade_post where id = p_post and deleted_at is null for update;
+  select author_id, status, bumped_at, item_name, price into r from public.tb_trade_post where id = p_post and deleted_at is null for update;
   if not found or r.author_id is distinct from auth.uid() then raise exception '내 판매글만 가능' using errcode = '42501'; end if;
   if r.status <> '판매중' then raise exception '판매중인 글만 재등록 가능'; end if;
   if r.bumped_at > now() - interval '7 days' then raise exception '판매 기간(7일)이 끝난 뒤 재등록 가능'; end if;
   if v_price = '' or char_length(v_price) > 100 then raise exception '판매가 1~100자'; end if;
   perform set_config('d2r.bump', '1', true);
   -- 가격 금칙어 검사 등 기존 트리거는 그대로 거침
-  update public.tb_trade_post set price = v_price, bumped_at = now(), updated_at = now() where id = p_post;
+  update public.tb_trade_post set price = v_price, bumped_at = now(), updated_at = now(),
+         -- 제안만 받기 글을 가격을 정해 재등록하면 일반 글 (흥정 가능은 판매자가 수정에서 다시 켬)
+         options = case when r.price = '가격 제안 받음' and v_price <> '가격 제안 받음' and jsonb_typeof(options) = 'object'
+                        then options || '{"negotiable": false, "offerOnly": false}'::jsonb else options end
+   where id = p_post;
   perform set_config('d2r.bump', '', true);
   -- 신청한 때와 가격·조건이 달라질 수 있어서 기존 대기·보류 신청은 정리 (구매자가 새로 신청)
   perform set_config('d2r.sys_request', '1', true);

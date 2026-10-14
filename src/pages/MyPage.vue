@@ -34,7 +34,7 @@ watch(() => authState.user?.id, async (uid) => {
 }, { immediate: true })
 
 const myPostsCombined = computed(() => {
-  const trade = myTradePosts.value.map((p) => ({ type: 'trade', id: p.id, title: p.itemName, category: p.category, date: p.date, link: `/trade/${p.id}` }))
+  const trade = myTradePosts.value.map((p) => ({ type: 'trade', id: p.id, title: postName(p), category: p.category, date: p.date, link: `/trade/${p.id}` }))
   const community = myCommunityPosts.value.map((p) => ({ type: 'community', id: p.id, title: p.title, category: p.category, date: p.date, link: `/community/${p.id}` }))
   return [...trade, ...community].sort((a, b) => (a.date < b.date ? 1 : -1))
 })
@@ -65,7 +65,10 @@ const summary = computed(() => {
   return { posts: myTradePosts.value.length + myCommunityPosts.value.length, done, reviews: n, avg }
 })
 
-const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨' }
+const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
+// 수락된 신청의 거래방 - 거래불발·거래완료면 그 결과로 보여주고, 진행 중이면 거래방으로 갈 수 있게
+const dealOf = (r) => dealsState.deals.find((d) => d.requestId === r.id) || null
+const reqStatus = (r) => (r.status === 'accepted' && { 거래불발: 'failed', 거래완료: 'done' }[dealOf(r)?.status]) || r.status || 'pending'
 
 </script>
 
@@ -135,7 +138,8 @@ const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '
         <div class="my-trade-row" v-for="r in myRequests" :key="'buy-' + r.id">
           <span class="my-trade-icon"><img v-if="tradeIconUrl(r.post)" :src="tradeIconUrl(r.post)" alt="" /></span>
           <router-link :to="`/trade/${r.post.id}`" class="my-trade-name">{{ postName(r.post) }}</router-link>
-          <span class="request-status" :class="'status-' + (r.status || 'pending')">{{ $t(REQUEST_STATUS_LABEL[r.status || 'pending']) }}</span>
+          <span class="request-status" :class="'status-' + reqStatus(r)">{{ $t(REQUEST_STATUS_LABEL[reqStatus(r)]) }}</span>
+          <router-link v-if="reqStatus(r) === 'accepted' && dealOf(r)" :to="`/deals/${dealOf(r).id}`" class="my-relist">{{ $t('거래방 열기 →') }}</router-link>
           <span class="my-trade-date">{{ r.date }}</span>
         </div>
       </div>

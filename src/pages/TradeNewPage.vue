@@ -17,6 +17,7 @@ import {
   GOLD_MAX,
   MAX_QTY,
   isValidQty,
+  PRICE_MAX,
   uniqueDefenseRange as uniqueDefenseRangeFor,
   optionPresetsFor,
   addTradePost,
@@ -214,6 +215,8 @@ function pickQuality(q) {
   socketAffixCount.value = ''
   // 제작법이 하나뿐이면 바로 고름
   craftPick.value = { id: craftRecipes.value.length === 1 ? craftRecipes.value[0].id : '', values: [] }
+  // 요구 레벨은 매직·레어·크래프트에만 들어감 - 그 밖의 품질로 바꾸면 입력값도 비움 (안 들어가는데 남아 있으면 헷갈림)
+  if (!isAffixQuality.value) levelReq.value = ''
 }
 const isAffixQuality = computed(() => isManualEquip.value && ['magic', 'rare', 'crafted'].includes(itemQuality.value))
 const isCrafted = computed(() => isAffixQuality.value && itemQuality.value === 'crafted')
@@ -728,6 +731,7 @@ function buildMaterialsOption() {
 const availableOptionPresets = computed(() => optionPresetsFor(effectiveBaseKind.value))
 const customOptionType = ref(availableOptionPresets.value[0].key)
 const customOptionValue = ref('')
+const customOptionError = ref('')
 const selectedOptionPreset = computed(
   () => availableOptionPresets.value.find((p) => p.key === customOptionType.value) || availableOptionPresets.value[0]
 )
@@ -849,8 +853,19 @@ function pickFallbackCategory(cat) {
 function addCustomOption() {
   const preset = selectedOptionPreset.value
   const v = customOptionValue.value.toString().trim()
+  customOptionError.value = ''
   if (!v) return
-  customOptions.value.push(preset.freeText ? v : preset.format(v))
+  if (!preset.freeText) {
+    // 소켓은 최대 6개, % 옵션은 999까지, 나머지는 9999까지의 1 이상 정수만
+    const max = preset.key === 'sockets' ? 6 : /\(%\)/.test(preset.label) ? 999 : 9999
+    if (!isValidQty(v, max)) { customOptionError.value = t('1~{n} 사이의 정수로 입력', { n: max }); return }
+  }
+  const line = preset.freeText ? v : preset.format(Number(v))
+  if (customOptions.value.includes(line) || (!preset.freeText && customOptions.value.some((o) => o === preset.format(Number(o.match(/\d+/)?.[0]))))) {
+    customOptionError.value = t('이미 추가한 옵션')
+    return
+  }
+  customOptions.value.push(line)
   customOptionValue.value = ''
 }
 
@@ -927,6 +942,7 @@ function submitBundle() {
   if (!bundleItems.value.length) { formError.value = t('팔 룬·보석·재료를 하나 이상 담을 것'); return }
   if (!form.value.offerOnly && !priceItems.value.length) { formError.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   if (bundleItems.value.some((b) => !isValidQty(b.qty)) || (!form.value.offerOnly && priceItems.value.some((p) => !isValidQty(p.qty)))) { formError.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  if (buildPriceString().length > PRICE_MAX) { formError.value = t('희망 가격이 너무 김 ({n}자 이하) - 종류를 줄여 주세요', { n: PRICE_MAX }); return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -1005,6 +1021,7 @@ function submitPost() {
   }
   if (!form.value.offerOnly && !priceItems.value.length) { formError.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   if (!form.value.offerOnly && priceItems.value.some((p) => !isValidQty(p.qty))) { formError.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  if (buildPriceString().length > PRICE_MAX) { formError.value = t('희망 가격이 너무 김 ({n}자 이하) - 종류를 줄여 주세요', { n: PRICE_MAX }); return }
   if (invalidInputs.value.length) {
     formError.value = `${t('게임에서 나올 수 없는 수치')}: ${affixText(invalidInputs.value[0])}`
     return
@@ -1516,6 +1533,7 @@ function submitPost() {
           />
           <button type="button" class="custom-option-add-btn" @click="addCustomOption">{{ $t('추가') }}</button>
         </div>
+        <div class="option-editor-hint invalid-hint" v-if="customOptionError">{{ customOptionError }}</div>
       </div>
       </template>
 
@@ -1718,6 +1736,7 @@ function submitPost() {
 .option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
 .option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
+.option-editor-hint.invalid-hint{color:#e0775f;}
 .option-row{display:flex; align-items:center; gap:10px;}
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}

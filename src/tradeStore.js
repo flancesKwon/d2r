@@ -614,6 +614,7 @@ export function postRarity(post) {
 export const POST_AUTHOR = 'author:tb_profile!tb_trade_post_author_id_fkey(nickname, avatar_url)'
 const REQUEST_BUYER = 'buyer:tb_profile!tb_trade_request_buyer_id_fkey(nickname, contact, avatar_url)'
 const LIST_LIMIT = 300
+const DONE_LIMIT = 1000
 
 export const tradeState = reactive({ posts: [], loaded: false, loading: false, error: '' })
 
@@ -639,6 +640,8 @@ function unpackOptions(o) {
 
 // 판매 기간: 올린(재등록한) 때부터 7일 (028 SQL - 7일은 매물이 한 번에 만료돼 목록이 비었음) - 지나면 목록에서 내려감(기간 만료). 판매자는 판매가만 고쳐 재등록 (016 SQL)
 // 예약중·거래완료 글은 기간과 상관없음. bumped_at = 판매 시작 시각
+// 판매가 글자 수 위쪽 - 재등록(DB 함수)이 100자까지만 받아서 등록·수정에서도 같은 기준으로 막음
+export const PRICE_MAX = 100
 export const SALE_HOURS = 168
 // 화면에 적는 기간 ("판매 기간 7일")
 export const SALE_DAYS = SALE_HOURS / 24
@@ -722,6 +725,13 @@ export async function loadTradePosts(force = false) {
     if (error) ({ data, error } = await list('created_at'))
     if (error) throw error
     tradeState.posts = data.map(mapTradePost)
+    // 최근 LIST_LIMIT 개만 받다 보면 오래된 거래완료 글이 잘려서 아이템별 거래내역·시세가 빠짐 - 목록이 꽉 찼을 때만 거래완료 글을 따로 더 받음
+    if (data.length >= LIST_LIMIT) {
+      const { data: done } = await supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`)
+        .eq('status', '거래완료').is('deleted_at', null).order('updated_at', { ascending: false }).limit(DONE_LIMIT)
+      const have = new Set(tradeState.posts.map((p) => String(p.id)))
+      for (const r of done || []) if (!have.has(String(r.id))) tradeState.posts.push(mapTradePost(r))
+    }
     tradeState.loaded = true
     lastLoadedAt = Date.now()
   } catch (e) {
@@ -738,7 +748,7 @@ export function getTradePost(postId) {
 // 판매글 하나 (목록에 없으면 DB에서)
 export async function fetchTradePost(postId) {
   if (!supabase) return null
-  const { data, error } = await supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`).eq('id', postId).maybeSingle()
+  const { data, error } = await supabase.from('tb_trade_post').select(`*, ${POST_AUTHOR}`).eq('id', postId).is('deleted_at', null).maybeSingle()
   if (error) throw error
   if (!data) return null
   const post = mapTradePost(data)
@@ -836,7 +846,9 @@ export async function relistTradePost(post, price) {
   needUser()
   const { data, error } = await supabase.rpc('d2r_relist_trade_post', { p_post: Number(post.id), p_price: price })
   if (error) throw new Error(/function|schema cache/i.test(error.message) ? '재등록 준비 중 (DB 업데이트 필요)' : error.message || '재등록 실패')
-  const patch = { price: price.trim(), bumpedAt: data, expired: false }
+  // 제안만 받기 글을 가격을 정해 재등록하면 일반 글 (DB 함수도 같이 바꿈)
+  const offerOnly = price.trim() === OFFER_ONLY_PRICE
+  const patch = { price: price.trim(), bumpedAt: data, expired: false, offerOnly, negotiable: offerOnly || (post.offerOnly ? false : post.negotiable) }
   Object.assign(post, patch)
   const cached = getTradePost(post.id)
   if (cached && cached !== post) Object.assign(cached, patch)
@@ -895,7 +907,8 @@ function mapRequest(r) {
     buyerAvatar: r.buyer?.avatar_url || null,
     qty: r.qty,
     message: r.message || '',
-    kind: (r.message || '').startsWith('가격 제안 - ') ? 'offer' : (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
+    // 흥정 가능 글에서 룬·보석을 제안한 신청도 '가격 제안' (제안 내용이 붙은 메시지)
+    kind: /^(가격 제안|구매하기) - 제안: /.test(r.message || '') ? 'offer' : (r.message || '').startsWith('구매하기') ? 'buy_now' : 'inquiry',
     offerItems: offerItemsFromMessage(r.message),
     status: REQUEST_STATUS_FROM_DB[r.status] || r.status,
     date: fmtDateTime(r.created_at),
@@ -1004,5 +1017,5 @@ export async function fetchMyRequests() {
     .from('tb_trade_request').select(`*, ${REQUEST_BUYER}, post:tb_trade_post!tb_trade_request_post_id_fkey(*, ${POST_AUTHOR})`)
     .eq('buyer_id', authState.user.id).order('created_at', { ascending: false }).limit(100)
   if (error) throw error
-  return data.filter((r) => r.post).map((r) => ({ ...mapRequest(r), post: mapTradePost(r.post) }))
+  return data.filter((r) => r.post && !r.post.deleted_at).map((r) => ({ ...mapRequest(r), post: mapTradePost(r.post) }))
 }

@@ -1966,5 +1966,10 @@ export default {
   '판매중인 글만 수정 가능': 'Only listings on sale can be edited',
   '판매중인 글만 재등록 가능': 'Only listings on sale can be relisted',
   '수락 실패': 'Failed to accept',
+  '희망 가격이 너무 김 ({n}자 이하) - 종류를 줄여 주세요': 'The wanted price is too long (max {n} characters) - use fewer kinds',
+  '1~{n} 사이의 정수로 입력': 'Enter a whole number from 1 to {n}',
+  '이미 추가한 옵션': 'Option already added',
+  '알아보지 못한 가격은 저장하면 빠져요: {s}': 'Unrecognized prices are dropped when you save: {s}',
+  '거래방을 찾을 수 없음 (삭제됐거나 내 거래가 아님)': 'Trade room not found (deleted, or not your deal)',
   '판매 상태 변경 권한 없음': 'No permission to change the sale status',
 }

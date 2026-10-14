@@ -36,6 +36,7 @@ function mapDeal(r) {
   return {
     id: r.id,
     postId: r.post_id,
+    requestId: r.request_id || null,
     itemId: r.item_id,
     postTitle: r.post_title,
     // 합의한 거래가 (023 SQL) - 수락한 신청의 제안 내용, 즉시 구매면 판매가
