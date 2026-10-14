@@ -8,7 +8,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, relistTradePost, isSaleExpired, saleLeftMs, statusLabel, SALE_DAYS,
-  CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens, OFFER_ONLY_PRICE,
+  CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens, OFFER_ONLY_PRICE, MAX_QTY, isValidQty,
 } from '../tradeStore.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -54,7 +54,7 @@ function addItem(it) {
   else priceItems.value.push({ item: it, qty: 1 })
   query.value = ''
 }
-const newPrice = computed(() => priceItems.value.filter((p) => Number(p.qty) > 0).map((p) => `${p.item.name_ko} ${Number(p.qty)}개`).join(' + '))
+const newPrice = computed(() => priceItems.value.map((p) => `${p.item.name_ko} ${Number(p.qty)}개`).join(' + '))
 
 const error = ref('')
 const saving = ref(false)
@@ -62,6 +62,7 @@ async function submit() {
   error.value = ''
   // 제안만 받기 글은 판매가를 비워 두면 그대로 제안만 받음
   const price = newPrice.value || (post.value.offerOnly ? OFFER_ONLY_PRICE : '')
+  if (priceItems.value.some((p) => !isValidQty(p.qty))) { error.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
   if (!price) { error.value = t('판매가(룬·보석·재료) 하나 이상'); return }
   saving.value = true
   try {

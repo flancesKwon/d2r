@@ -525,6 +525,10 @@ export function baseFromLabel(label) {
   return (label && BASE_BY_LABEL.get(label)) || null
 }
 
+// 개수 입력 검사 - 1 이상의 정수, 위쪽은 max (골드는 GOLD_MAX)
+export const MAX_QTY = 9999
+export const isValidQty = (v, max = MAX_QTY) => v !== '' && v !== null && Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= max
+
 // 콤보박스 없이 숫자만 입력받아서 "N개"로 만듦
 // 골드는 액수("2,500,000 골드"), 나머지는 개수("5개")
 export function buildAmountLabel(count, category = '') {

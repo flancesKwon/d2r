@@ -10,7 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, fetchTradeRequests, updateTradePost, tradeEditBlockReason,
   CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, getTradeItem,
-  TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, GAME_VERSIONS, categoryHasQuantity, buildAmountLabel, GOLD_MAX,
+  TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, GAME_VERSIONS, categoryHasQuantity, buildAmountLabel, GOLD_MAX, MAX_QTY, isValidQty,
 } from '../tradeStore.js'
 import { editableOptionLines, buildEditedLines } from '../tradeEdit.js'
 import { buildTooltip } from '../itemTooltip.js'
@@ -77,11 +77,11 @@ function addItem(it) {
   else priceItems.value.push({ item: it, qty: 1 })
   query.value = ''
 }
-const newPrice = computed(() => priceItems.value.filter((p) => Number(p.qty) > 0).map((p) => `${p.item.name_ko} ${Number(p.qty)}개`).join(' + '))
+const newPrice = computed(() => priceItems.value.map((p) => `${p.item.name_ko} ${Number(p.qty)}개`).join(' + '))
 
 const edited = computed(() => buildEditedLines(lines.value))
 const editableCount = computed(() => lines.value.filter((l) => l.editable).length)
-const isOut = (p) => p.value === '' || !Number.isInteger(Number(p.value)) || Number(p.value) < p.min || Number(p.value) > p.max
+const isOut = (p) => (p.value === '' && p.original === '') ? false : p.value === '' || !Number.isInteger(Number(p.value)) || Number(p.value) < p.min || Number(p.value) > p.max
 
 // 바뀐 옵션 줄로 바로 보는 미리보기
 const tooltip = computed(() => post.value && buildTooltip({
@@ -94,8 +94,11 @@ const saving = ref(false)
 async function submit() {
   error.value = ''
   if (edited.value.errors.length) { error.value = `${t('게임에서 나올 수 없는 수치')}: ${affixText(edited.value.errors[0])}`; return }
-  if (hasQty.value && !(Number(form.value.qty) > 0)) { error.value = t(post.value.category === '골드' ? '골드 액수 입력' : '개수 입력'); return }
-  if (post.value.category === '골드' && Number(form.value.qty) > GOLD_MAX) { error.value = t('최대 1500만 골드까지'); return }
+  const gold = post.value.category === '골드'
+  if (hasQty.value && !(Number(form.value.qty) > 0)) { error.value = t(gold ? '골드 액수 입력' : '개수 입력'); return }
+  if (gold && Number(form.value.qty) > GOLD_MAX) { error.value = t('최대 1500만 골드까지'); return }
+  if (hasQty.value && !isValidQty(form.value.qty, gold ? GOLD_MAX : MAX_QTY)) { error.value = gold ? t('골드 액수는 정수로 입력') : t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  if (!form.value.offerOnly && priceItems.value.some((p) => !isValidQty(p.qty))) { error.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
   if (!form.value.offerOnly && !newPrice.value) { error.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
   saving.value = true
   try {
@@ -151,7 +154,7 @@ async function submit() {
                 <template v-for="(p, j) in l.parts" :key="j">
                   <span v-if="!('value' in p)">{{ p.text }}</span>
                   <input
-                    v-else type="number" v-model="p.value" class="edit-num" :class="{ invalid: isOut(p), changed: Number(p.value) !== p.original }"
+                    v-else type="number" v-model="p.value" class="edit-num" :class="{ invalid: isOut(p), changed: String(p.value) !== String(p.original) }" :placeholder="`${p.min}~${p.max}`"
                     :min="p.min" :max="p.max" :title="`${p.min}~${p.max}`" :aria-label="`${affixText(l.text)} ${p.min}~${p.max}`"
                   />
                 </template>
