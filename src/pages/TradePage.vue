@@ -500,7 +500,6 @@ const mrOptStats = computed(() => mrOptInfo.value.list)
 // 이 베이스에서 이 옵션이 나오는 범위 [lo, hi] (모르면 null)
 const condRange = (c) => (!c.keyword && (mrOn.value || groupOn.value) && mrOptInfo.value.ranges[c.key]) || null
 const mrOptQuery = ref('')
-const mrOptMore = ref(false)
 const mrOptHits = computed(() => {
   // 한글 조합 중간('모ㄷ')에 목록이 잠깐 비지 않게 끝에 남은 자모는 떼고 찾음 (메인 검색창과 같은 방식)
   const q = squash(mrOptQuery.value.replace(JAMO_TAIL, '').toLowerCase())
@@ -509,7 +508,6 @@ const mrOptHits = computed(() => {
   if (!q) return pool.filter(notAdded)
   return pool.filter((st) => notAdded(st) && statSearchTexts(st).some((x) => squash(String(x).toLowerCase()).includes(q))).slice(0, 30)
 })
-const MR_OPT_SHOW = 10
 // 칩 태그 - 이름에 이미 직업이 들어 있으면("네크로맨서 기술 레벨") 태그는 생략
 function chipTag(st) {
   const p = statParts(st)
@@ -562,11 +560,12 @@ function resetMr() {
 // 판매글이 조건에 맞는지
 function mrMatches(p, skip) {
   const no = (k) => skip === k
+  const A = applied.value
   if (!mrActive.value) return true
   if (!no('mr:quality')) {
     // 품질을 고르면 그것만. 안 골랐으면 매직·레어 (일반·크래프트는 버튼이 따로 있으니 뺌)
     // 품질을 안 적고 올린 글(빈값)은 어느 버튼에도 안 걸리면 사라지므로 여기에 남겨 둠
-    if (mrQuality.value) { if (p.quality !== mrQuality.value) return false }
+    if (A.mrQuality) { if (p.quality !== A.mrQuality) return false }
     else if (p.quality === 'normal' || p.quality === 'crafted') return false
   }
   if (mrBase.value && !no('mr:base')) {
@@ -579,24 +578,24 @@ function mrMatches(p, skip) {
     // 베이스 줄이 없는 옛 글은 아이템 이름으로 ("레어 반지")
     if (!(name === want || (!line && (p.itemName || '').includes(want)))) return false
   }
-  if (mrShape.value && !no('mr:shape') && p.iconKey !== mrShape.value) return false
-  if (mrLvlOn.value && !no('mr:lvl')) {
+  if (A.mrShape && !no('mr:shape') && p.iconKey !== A.mrShape) return false
+  if (rangeOn(A.mrLvl) && !no('mr:lvl')) {
     const v = lineValue(LVL_LINE)(p)
     if (v === null) return false
-    if (mrLvl.value.min !== '' && v < Number(mrLvl.value.min)) return false
-    if (mrLvl.value.max !== '' && v > Number(mrLvl.value.max)) return false
+    if (A.mrLvl.min !== '' && v < Number(A.mrLvl.min)) return false
+    if (A.mrLvl.max !== '' && v > Number(A.mrLvl.max)) return false
   }
-  if (mrSockOn.value && !no('mr:sock')) {
+  if (rangeOn(A.mrSock) && !no('mr:sock')) {
     // 소켓 줄이 없으면 0개
     const v = lineValue(SOCK_LINE)(p) ?? 0
-    if (mrSock.value.min !== '' && v < Number(mrSock.value.min)) return false
-    if (mrSock.value.max !== '' && v > Number(mrSock.value.max)) return false
+    if (A.mrSock.min !== '' && v < Number(A.mrSock.min)) return false
+    if (A.mrSock.max !== '' && v > Number(A.mrSock.max)) return false
   }
-  if (mrSup.value && !no('mr:sup')) {
+  if (A.mrSup && !no('mr:sup')) {
     // 흰 베이스라 상급 옵션 줄이 붙어 있으면 상급
     const sup = (p.options || []).some((l) => SUPERIOR_RES.some((re) => re.test(l)))
-    if ((mrSup.value === '상급') !== sup) return false
-    for (const [k, r] of Object.entries(mrSupVals.value)) {
+    if ((A.mrSup === '상급') !== sup) return false
+    for (const [k, r] of Object.entries(A.mrSupVals)) {
       if (!r || (r.min === '' && r.max === '')) continue
       const m = SUPERIOR_MODS[k]
       const v = lineValue(new RegExp('^' + escRe(m.text).replace('\\{v\\}', '(\\d+)') + '$'))(p)
@@ -605,9 +604,9 @@ function mrMatches(p, skip) {
       if (r.max !== '' && v > Number(r.max)) return false
     }
   }
-  if (mrCraft.value && !no('mr:craft')) {
+  if (A.mrCraft && !no('mr:craft')) {
     // 크래프트 제작법은 그 제작법의 고정 옵션이 전부 붙어 있는지로 봄
-    const c = (magicAffixData.crafts || []).find((x) => x.name === mrCraft.value)
+    const c = (magicAffixData.crafts || []).find((x) => x.name === A.mrCraft)
     if (!c) return false
     const lines = p.options || []
     if (!CRAFT_LINES(c).every((re) => lines.some((l) => re.test(l)))) return false
@@ -718,8 +717,11 @@ watch(supPicked, (on) => {
 const activeItemRanges = computed(() =>
   itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (d.choices ? r.pick : r.min !== '' || r.max !== '') })
 )
+const appliedItemRanges = computed(() =>
+  itemVarDefs.value.filter((d) => { const r = applied.value.itemRanges[d.key]; return r && (d.choices ? r.pick : r.min !== '' || r.max !== '') })
+)
 function itemRangeMatches(p, d) {
-  const r = itemRanges.value[d.key]
+  const r = applied.value.itemRanges[d.key]
   const v = d.get(p)
   if (v === null || v === undefined) return false
   if (d.choices) return v === r.pick
@@ -732,9 +734,9 @@ const VIEW_MODE_KEY = 'd2r-trade-view-mode'
 function loadViewMode() {
   try {
     const saved = localStorage.getItem(VIEW_MODE_KEY)
-    return saved === 'grid' ? 'grid' : 'list'
+    return saved === 'list' ? 'list' : 'grid'
   } catch {
-    return 'list'
+    return 'grid'
   }
 }
 const viewMode = ref(loadViewMode())
@@ -816,6 +818,7 @@ function resetExceptBase() {
   baseGroup.value = group
   mrBase.value = base
   mrBaseObj.value = obj
+  commit()
 }
 
 function resetFilters() {
@@ -833,6 +836,7 @@ function resetFilters() {
   searchQuery.value = ''
   statConditions.value = []
   pickedItem.value = null
+  commit()
 }
 
 // ───────── 조건 <-> 주소 ─────────
@@ -847,7 +851,25 @@ const rng = (r) => (r && (r.min !== '' && r.min !== null || r.max !== '' && r.ma
 const unrng = (v) => { const p = String(v || '').split('~'); return p.length === 2 ? { min: p[0], max: p[1] } : { min: '', max: '' } }
 const numOrNull = (v) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v))
 
-function buildQuery() {
+// 왼쪽 조건 칸(품질·모양·제작법·상급·소켓·요구 레벨·옵션 조건)은 '검색' 버튼을 눌러야 결과와 주소에 반영됨
+// - 칸을 만지는 동안 매물이 계속 다시 걸러지지 않게. 아래 값이 '마지막으로 검색한 때'의 조건
+// (아이템·베이스·서버 같은 큰 선택은 고르는 즉시 검색됨)
+const rangeOn = (r) => r.min !== '' && r.min !== null || r.max !== '' && r.max !== null
+const draftNow = () => ({
+  mrQuality: mrQuality.value, mrShape: mrShape.value, mrCraft: mrCraft.value, mrSup: mrSup.value,
+  mrSupVals: mrSupVals.value, mrSock: mrSock.value, mrLvl: mrLvl.value,
+  itemShape: itemShape.value, itemRanges: itemRanges.value, statConditions: statConditions.value,
+})
+const snapDraft = () => JSON.parse(JSON.stringify(draftNow()))
+const applied = ref(snapDraft())
+const commit = () => { applied.value = snapDraft() }
+const appliedMrCount = computed(() => {
+  const A = applied.value
+  return [A.mrQuality, mrBase.value, A.mrShape, A.mrCraft, rangeOn(A.mrSock), A.mrSup, rangeOn(A.mrLvl)].filter(Boolean).length
+})
+
+function buildQuery(useApplied = false) {
+  const S = useApplied ? applied.value : draftNow()
   const q = {}
   if (pickedItem.value) q.item = pickedItem.value.id
   if (appliedQuery.value.trim()) q.q = appliedQuery.value.trim()
@@ -862,24 +884,24 @@ function buildQuery() {
   if (etherealOnly.value) q.eth = '1'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
-  if (mrQuality.value) q.bq = mrQuality.value
-  if (mrShape.value) q.shape = mrShape.value
-  if (mrCraft.value) q.craft = mrCraft.value
-  if (mrSup.value) q.sup = mrSup.value
-  if (rng(mrSock.value)) q.sock = rng(mrSock.value)
-  if (rng(mrLvl.value)) q.lvl = rng(mrLvl.value)
-  if (itemShape.value) q.ishape = itemShape.value
-  const supv = Object.entries(mrSupVals.value).filter(([, r]) => rng(r)).map(([k, r]) => `${k}|${rng(r)}`)
+  if (S.mrQuality) q.bq = S.mrQuality
+  if (S.mrShape) q.shape = S.mrShape
+  if (S.mrCraft) q.craft = S.mrCraft
+  if (S.mrSup) q.sup = S.mrSup
+  if (rng(S.mrSock)) q.sock = rng(S.mrSock)
+  if (rng(S.mrLvl)) q.lvl = rng(S.mrLvl)
+  if (S.itemShape) q.ishape = S.itemShape
+  const supv = Object.entries(S.mrSupVals).filter(([, r]) => rng(r)).map(([k, r]) => `${k}|${rng(r)}`)
   if (supv.length) q.supv = supv.join(';')
   // 아이템 변동 옵션 칸은 순서(번호)로 - 문구를 그대로 넣으면 주소가 너무 길어짐
   const ir = itemVarDefs.value.map((d, i) => {
-    const r = itemRanges.value[d.key]
+    const r = S.itemRanges[d.key]
     if (!r) return null
     if (d.choices) return r.pick ? `${i}|p:${r.pick}` : null
     return rng(r) ? `${i}|${rng(r)}` : null
   }).filter(Boolean)
   if (ir.length) q.ir = ir.join(';')
-  const opt = statConditions.value.map((c) =>
+  const opt = S.statConditions.map((c) =>
     `${c.keyword ? 'k' : 's'}|${c.keyword || c.key}|${c.min ?? ''}~${c.max ?? ''}`)
   if (opt.length) q.opt = opt.join(';')
   return q
@@ -932,21 +954,23 @@ function applyQuery(q) {
       if (v.startsWith('p:')) itemRanges.value[d.key].pick = v.slice(2)
       else itemRanges.value[d.key] = { ...itemRanges.value[d.key], ...unrng(v) }
     }
+    commit()
   })
+  commit()
 }
 const sameQuery = (a, b) => {
   const ka = Object.keys(a), kb = Object.keys(b).filter((k) => b[k] !== undefined && b[k] !== '')
   return ka.length === kb.length && ka.every((k) => String(a[k]) === String(b[k]))
 }
 // 조건이 바뀌면 주소를 맞춤 (검색 화면에서만 - 첫 화면은 주소를 깔끔하게 둠)
-watch(buildQuery, (q) => {
+watch(() => buildQuery(true), (q) => {
   if (syncing || !isSearchRoute.value) return
   if (!sameQuery(q, route.query)) router.replace({ path: route.path, query: q })
 }, { deep: true })
 // 주소가 바뀌면(뒤로 가기·링크) 조건을 되살림
 watch(() => route.fullPath, () => {
   if (syncing) return
-  if (sameQuery(buildQuery(), route.query)) return
+  if (sameQuery(buildQuery(true), route.query)) return
   syncing = true
   applyQuery(route.query)
   nextTick(() => { syncing = false })
@@ -974,7 +998,8 @@ function runSearch() {
   suggestOpen.value = false
   // 지금 창에 쳐둔 글자를 여기서 '적용'함 - 이 값만 주소와 매물 거르기에 쓰임
   appliedQuery.value = searchQuery.value
-  const q = buildQuery()
+  commit()
+  const q = buildQuery(true)
   if (isSearchRoute.value) {
     if (!sameQuery(q, route.query)) router.replace({ path: route.path, query: q })
     return
@@ -983,8 +1008,15 @@ function runSearch() {
 }
 // 조건을 고르면 검색 화면으로 이동 (첫 화면에서 고른 경우)
 function goSearch() {
+  commit()
   if (isSearchRoute.value) return
-  nextTick(() => router.push({ path: SEARCH_PATH, query: buildQuery() }))
+  nextTick(() => router.push({ path: SEARCH_PATH, query: buildQuery(true) }))
+}
+// 왼쪽 '검색' 버튼 - 칸에 쌓아 둔 조건을 지금 적용. 좁은 화면에서는 결과가 보이게 조건 칸을 접음
+const dirty = computed(() => JSON.stringify(buildQuery(false)) !== JSON.stringify(buildQuery(true)))
+function searchFromFilters() {
+  runSearch()
+  if (window.innerWidth < 900) filtersOpen.value = false
 }
 
 // 판매 기간(7일) 남은 시간을 1분마다 다시 셈
@@ -1020,7 +1052,7 @@ function filterPosts(skip) {
   if (unidOnly.value && !no('unid')) list = list.filter((p) => p.unidentified)
   if (pickedItem.value && !no('item')) {
     list = list.filter((p) => p.itemId === pickedItem.value.id)
-    for (const d of activeItemRanges.value) if (!no('ir:' + d.key)) list = list.filter((p) => itemRangeMatches(p, d))
+    for (const d of appliedItemRanges.value) if (!no('ir:' + d.key)) list = list.filter((p) => itemRangeMatches(p, d))
   }
   const q = no('q') ? '' : appliedQuery.value.trim()
   if (q) {
@@ -1034,13 +1066,13 @@ function filterPosts(skip) {
         (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), appliedQuery.value))
     )
   }
-  if (mrActive.value && mrCount.value) list = list.filter((p) => mrMatches(p, skip))
+  if (mrActive.value && appliedMrCount.value) list = list.filter((p) => mrMatches(p, skip))
   // 유니크·세트 장신구 모양 - 판매자가 안 고른 글은 그 아이템의 대표 모양으로 봄
-  if (pickedItem.value && itemShape.value && !no('item') && !no('ishape')) {
+  if (pickedItem.value && applied.value.itemShape && !no('item') && !no('ishape')) {
     const first = uniqueShapes.value[0]
-    list = list.filter((p) => (p.iconKey || first) === itemShape.value)
+    list = list.filter((p) => (p.iconKey || first) === applied.value.itemShape)
   }
-  statConditions.value.forEach((c, i) => { if (!no('opt:' + i)) list = list.filter((p) => condMatches(p, c)) })
+  applied.value.statConditions.forEach((c, i) => { if (!no('opt:' + i)) list = list.filter((p) => condMatches(p, c)) })
   // 기간 안 매물이 먼저, 그 안에서 최신순
   return [...list].sort((a, b) => Number(isExpired(a)) - Number(isExpired(b)) || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 }
@@ -1546,16 +1578,13 @@ function variantLines(p) {
               :value="mrOptQuery" @input="mrOptQuery = $event.target.value" class="mr-opt-input" type="search" autocomplete="off"
               :placeholder="$t('옵션 찾기 (예: 모든 기술, 시전 속도, 생명력)')" :aria-label="$t('옵션 찾기')"
             />
-            <div class="mr-opt-chips">
+            <div class="mr-opt-chips" v-if="mrOptQuery">
               <button
-                type="button" class="mr-opt" v-for="st in (mrOptQuery || mrOptMore ? mrOptHits : mrOptHits.slice(0, MR_OPT_SHOW))" :key="st.key"
+                type="button" class="mr-opt" v-for="st in mrOptHits" :key="st.key"
                 @click="addMrOpt(st)"
                 :class="{ fixed: mrOptInfo.fixed.has(st.key) }"
               >+ {{ statParts(st).name }}<em class="mr-fixed" v-if="mrOptInfo.fixed.has(st.key)">{{ $t('고정') }}</em><span class="stat-tag" v-if="chipTag(st)" :style="{ '--tag': chipTag(st).color }">{{ chipTag(st).text }}</span></button>
-              <button type="button" class="mr-opt more" v-if="!mrOptQuery && mrOptHits.length > MR_OPT_SHOW" @click="mrOptMore = !mrOptMore">
-                {{ mrOptMore ? $t('접기') : $t('{n}개 더 보기', { n: mrOptHits.length - MR_OPT_SHOW }) }}
-              </button>
-              <span class="mr-opt-none" v-if="mrOptQuery && !mrOptHits.length">{{ $t('맞는 옵션 없음') }}</span>
+              <span class="mr-opt-none" v-if="!mrOptHits.length">{{ $t('맞는 옵션 없음') }}</span>
             </div>
           </div>
           </template>
@@ -1638,6 +1667,7 @@ function variantLines(p) {
         </div>
         <div class="item-range-empty" v-if="!itemVarDefs.length && !uniqueShapes.length">{{ $t('변동 옵션 없음 (옵션이 고정된 아이템)') }}</div>
       </div>
+      <button type="button" class="tr-filters-search" :class="{ dirty }" @click="searchFromFilters">{{ $t('검색') }}</button>
     </div>
   </aside>
   <div class="tr-main">
@@ -1713,7 +1743,7 @@ function variantLines(p) {
         {{ appliedCount ? $t('조건에 맞는 매물 없음') : $t('판매중인 글 없음') }}
         <div class="empty-drop" v-if="dropHints.length">
           <span>{{ $t('조건 하나를 빼면') }}</span>
-          <button type="button" v-for="h in dropHints" :key="h.key" @click="h.drop()">{{ h.label }} <em>{{ $t('빼면 {n}개', { n: h.n }) }}</em></button>
+          <button type="button" v-for="h in dropHints" :key="h.key" @click="h.drop(); commit()">{{ h.label }} <em>{{ $t('빼면 {n}개', { n: h.n }) }}</em></button>
         </div>
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
         <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
@@ -1890,6 +1920,8 @@ function variantLines(p) {
 .mr-x{color:var(--text-dim); font-size:15px; padding:0 6px;}
 .mr-x:hover{color:var(--text);}
 .mr-opt-input{max-width:360px; width:100%; padding:7px 12px; border-radius:9px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:13px; font-family:inherit;}
+.tr-filters-search{position:sticky; bottom:0; width:100%; margin-top:10px; padding:12px; border:1px solid var(--border,#444); border-radius:8px; background:var(--bg-elev,#222); color:inherit; font-weight:700; font-size:15px; cursor:pointer;}
+.tr-filters-search.dirty{background:var(--accent,#c8a050); color:#111; border-color:var(--accent,#c8a050);}
 .mr-opt-chips{display:flex; flex-wrap:wrap; gap:6px;}
 .mr-opt{display:inline-flex; align-items:center; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--panel-2);}
 .mr-opt:hover{color:var(--text); border-color:#4A5FA8;}
