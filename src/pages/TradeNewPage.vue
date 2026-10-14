@@ -60,6 +60,7 @@ import {
 import { authState, signIn } from '../profileStore.js'
 import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
+import { modeText } from '../tradeI18n.js'
 // 베이스 이름 - 영어면 영어 이름만
 const baseLabel = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle || baseItemLabel(b))
 const baseNameOf = (b) => (locale.value === 'ko' ? b.name_ko || b.subtitle : b.subtitle || b.name_ko)
@@ -186,7 +187,7 @@ function pickMiscBase(b) {
 // 매직·레어는 그 베이스에 붙을 수 있는 접사만(src/magicAffixes.js), 크래프트는 제작법 고정 옵션 +
 // 레어 접사 풀에서 최대 4개, 일반은 상급 옵션·소켓만
 const itemQuality = ref('')
-const QUALITY_KO = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반(흰색)' }
+const QUALITY_KO = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
 const isManualEquip = computed(() => !selectedItem.value && form.value.category === '매직/레어/일반')
 // 이 베이스로 만들 수 있는 크래프트 제작법 (예: 반지 = 히트 파워·블러드·캐스터·세이프티)
 const craftRecipes = computed(() => (selectedBaseItem.value ? craftRecipesFor(magicAffixData, selectedBaseItem.value) : []))
@@ -1202,7 +1203,7 @@ function submitPost() {
           <button
             type="button" v-for="q in qualityChoices" :key="q" :class="{ active: itemQuality === q }"
             @click="pickQuality(q)"
-          >{{ QUALITY_KO[q] }}</button>
+          >{{ $t(QUALITY_KO[q]) }}</button>
         </div>
         <template v-if="isCrafted">
           <div class="option-editor-title">{{ $t('크래프트 제작법') }}</div>
@@ -1599,7 +1600,7 @@ function submitPost() {
           <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
         </select>
         <select v-model="form.hardcore" class="write-select trade-meta-select" :aria-label="$t('하드코어')">
-          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
+          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
         </select>
       </div>
 

@@ -24,6 +24,9 @@ export function priceText(text) {
   return parsePriceTokens(text).map(priceTok).join('')
 }
 
+// 판매글의 서버·래더·모드 값 - '일반'(소프트코어)만 사전을 못 씀: 같은 글자가 품질 '일반'(Normal)으로도 쓰임
+export const modeText = (v) => (locale.value === 'en' && v === '일반' ? 'Softcore' : t(v))
+
 // 판매 종료까지 남은 시간
 export function saleLeftText(ms) {
   if (locale.value === 'ko') return fmtSaleLeft(ms)

@@ -1,5 +1,5 @@
 <script setup>
-import { postName, countText, priceTok } from '../tradeI18n.js'
+import { postName, countText, priceTok, modeText } from '../tradeI18n.js'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -70,19 +70,6 @@ const gameVersion = ref((() => { try { const v = localStorage.getItem(GAME_KEY);
 watch(gameVersion, (v) => { try { if (v) localStorage.setItem(GAME_KEY, v); else localStorage.removeItem(GAME_KEY) } catch { /* 프라이빗 창 등 */ } })
 // 부위(착용 위치) - 판매글의 베이스 줄이나 사전 아이템의 세부 종류로 정함
 const SLOT_ORDER = ['머리', '몸통', '방패', '장갑', '신발', '허리', '목걸이', '반지', '무기']
-// 부위 통째로 찾기 ('장갑' -> 장갑 베이스 6종 전부). 부르는 이름이 여러 가지라 별칭도 받음
-// 목걸이·반지는 베이스가 하나씩이라 베이스 줄로 충분해서 뺌
-const SLOT_ALIASES = {
-  머리: ['머리', '투구', '헬름', '모자'],
-  몸통: ['몸통', '갑옷', '아머', '상의'],
-  방패: ['방패', '실드'],
-  장갑: ['장갑', '글러브', '건틀릿'],
-  신발: ['신발', '장화', '부츠'],
-  허리: ['허리', '벨트', '허리띠'],
-  무기: ['무기'],
-}
-// 룬워드를 만들 수 있는 부위 - 장갑·신발·허리에는 룬워드가 없음
-const RUNEWORD_SLOTS = ['머리', '몸통', '방패', '무기']
 // 베이스 세부 종류 -> 부위 (사전 아이템과 베이스 목록이 쓰는 이름이 조금 달라 둘 다 적음)
 const SLOT_BY_SUB = {
   투구: '머리', '드루이드 투구': '머리', '바바리안 투구': '머리', 서클릿: '머리',
@@ -123,6 +110,8 @@ function postSlot(p) {
   return sl
 }
 const activeSlot = ref(null)
+// 베이스 이름 묶음 조건 (친 글자 그대로 - 판매글 베이스 이름에 이 글자가 들어가면 통과)
+const baseGroup = ref('')
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
 const etherealOnly = ref(false)
@@ -182,8 +171,9 @@ function onSearchKey(e) {
     // 추천 줄을 직접 고른 경우에만 그 줄, 아니면 친 글자로 검색
     if (suggestNav.value && suggestOpen.value && list.length) chooseSuggestion(list[suggestActive.value] || list[0])
     else {
-      const b = exactBase.value
-      if (b) pickBase(b)
+      const grp = nameMatchBases(searchQuery.value.trim().replace(JAMO_TAIL, ''))
+      if (grp.length > 1) pickGroup(searchQuery.value.trim().replace(JAMO_TAIL, ''))
+      else if (exactBase.value) pickBase(exactBase.value)
       else runSearch()
     }
   } else if (e.key === 'Escape') {
@@ -249,7 +239,7 @@ const runewordBaseKinds = computed(() => {
 // 판매글에는 품질(options.quality)·베이스 줄·모양(options.iconKey)이 저장돼 있어서 그걸로 거름
 const QUALITY_PICKS = [
   { v: 'magic', label: '매직' }, { v: 'rare', label: '레어' },
-  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반(흰색)' },
+  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반' },
 ]
 const mrQuality = ref('')
 const mrBase = ref('')
@@ -264,6 +254,24 @@ const mrSup = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
+// 베이스 이름 묶음 - 친 글자가 '이름'에 든 베이스들 ('부츠' -> 부츠·체인부츠·헤비부츠 ...)
+// 세부 종류(type_sub)나 등급으로는 안 묶음: 글러브는 글러브만, 건틀릿은 건틀릿만
+const nameMatchBases = (word) => {
+  const q = squash(word)
+  if (!q) return []
+  return [...MISC_BASES, ...BASE_ITEMS].filter((b) =>
+    squash(b.name_ko || '').includes(q) || squash(b.subtitle || '').toLowerCase().includes(q.toLowerCase()))
+}
+const baseGroupBases = computed(() => nameMatchBases(baseGroup.value))
+// 추천 줄에서도 대표 아이콘을 쓰려고 (아직 고르기 전이라 baseGroup 이 안 정해짐)
+const baseGroupIconOf = (word) => { const l = nameMatchBases(word); return l.length ? [...l].sort((a, b) => (a.name_ko || '').length - (b.name_ko || '').length)[0] : null }
+// 묶음을 대표하는 베이스 = 이름이 가장 짧은 것 (부츠 묶음 -> '부츠')
+const baseGroupIcon = computed(() => {
+  const list = baseGroupBases.value
+  if (!list.length) return null
+  return [...list].sort((a, b) => (a.name_ko || '').length - (b.name_ko || '').length)[0]
+})
+const groupOn = computed(() => !pickedItem.value && !mrBase.value && !!baseGroup.value && baseGroupBases.value.length > 1)
 // 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
 // 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
 const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -294,6 +302,27 @@ const exactBase = computed(() => {
   if (!q) return null
   return baseCandidates.value.find((b) => squash(b.name_ko) === q || squash(b.subtitle || '').toLowerCase() === q.toLowerCase()) || null
 })
+// 이름 묶음 고르기 ('부츠' -> 부츠류 전체)
+function pickGroup(word) {
+  pickedItem.value = null
+  mrBase.value = ''
+  mrBaseObj.value = null
+  mrQuality.value = ''
+  mrShape.value = ''
+  mrCraft.value = ''
+  baseGroup.value = word
+  searchQuery.value = ''
+  suggestOpen.value = false
+  goSearch()
+}
+// 묶음 안에서 베이스 하나로 좁히기 (묶음은 그대로 둠)
+function pickBaseInGroup(label) {
+  const b = baseGroupBases.value.find((x) => baseLabelOf(x) === label)
+  mrBaseObj.value = b || null
+  mrBase.value = b ? label : ''
+  mrShape.value = ''
+  mrCraft.value = ''
+}
 function pickBase(b, quality = '') {
   suggestPointer = false
   pickedItem.value = null
@@ -332,11 +361,14 @@ const mrShapeChoices = computed(() => {
   const code = mrBaseItem.value?.code
   return code && ICON_VARIANTS[code] ? ICON_VARIANTS[code] : []
 })
-// 그 베이스로 고를 수 있는 품질만
+// 조건을 추릴 기준 베이스들 - 하나 골랐으면 그것만, 이름 묶음이면 묶음 안 베이스 전부
+const mrBases = computed(() => (mrBaseItem.value ? [mrBaseItem.value] : baseGroupBases.value))
+// 고를 수 있는 품질만 (묶음이면 묶음 안 베이스들의 합집합)
 const mrQualityPicks = computed(() => {
-  const b = mrBaseItem.value
-  const allow = b ? baseQualities(b) : QUALITY_PICKS.map((q) => q.v)
-  return QUALITY_PICKS.filter((q) => allow.includes(q.v))
+  const list = mrBases.value
+  if (!list.length) return QUALITY_PICKS
+  const allow = new Set(list.flatMap(baseQualities))
+  return QUALITY_PICKS.filter((q) => allow.has(q.v))
 })
 // 이 베이스·품질에서 가능한 소켓 최대 개수 (등록 화면과 같은 규칙)
 //  일반(흰색)·품질 안 고름 = 베이스 최대 / 매직·레어·크래프트 = 소켓 접두사 범위 또는 라르주크(매직 2, 나머지 1)
@@ -422,13 +454,13 @@ function addBaseOwnOpts(b, q, found, ranges) {
 // 옵션마다 이 베이스에서 나오는 수치 범위도 같이 (최소·최대 칸에 보여줌) - 접사 하나 기준 (레어는 두 접사가 겹치면 더 높을 수 있음)
 const mrOptCache = new Map()
 const mrOptInfo = computed(() => {
-  const b = mrBaseItem.value
-  if (!b) return { list: [], ranges: {}, fixed: new Set() }
+  const bases = mrBases.value
+  if (!bases.length) return { list: [], ranges: {}, fixed: new Set() }
   const q = mrQuality.value
-  // 일반(흰색)은 접사가 안 붙음 - 베이스 자체 옵션만 모음
+  // 일반은 접사가 안 붙음 - 베이스 자체 옵션만 모음
   const qs = q === 'normal' ? [] : q ? [q] : ['magic', 'rare']
   const craft = q === 'crafted' ? mrCraftCard.value : null
-  const ck = b.code + ':' + (q || '') + ':' + (craft?.name || '')
+  const ck = bases.map((b) => b.code).join(',') + ':' + (q || '') + ':' + (craft?.name || '')
   if (mrOptCache.has(ck)) return mrOptCache.get(ck)
   const found = new Map()
   const ranges = {}
@@ -439,19 +471,21 @@ const mrOptInfo = computed(() => {
     fixed.add(x.st.key)
     addRange(ranges, x.st.key, x.lo, x.hi)
   }
-  for (const q of qs) {
-    for (const f of affixFamiliesFor(magicAffixData, b, q)) {
-      const loLines = familyLines(f, f.slotRanges.map(([lo]) => lo))
-      const hiLines = familyLines(f, f.slotRanges.map(([, hi]) => hi))
-      hiLines.forEach((line, i) => {
-        const st = statOfLine(line)
-        if (!st) return
-        if (!found.has(st.key)) found.set(st.key, st)
-        addRange(ranges, st.key, firstNumOf(st, loLines[i]), firstNumOf(st, line))
-      })
+  for (const b of bases) {
+    for (const qq of qs) {
+      for (const f of affixFamiliesFor(magicAffixData, b, qq)) {
+        const loLines = familyLines(f, f.slotRanges.map(([lo]) => lo))
+        const hiLines = familyLines(f, f.slotRanges.map(([, hi]) => hi))
+        hiLines.forEach((line, i) => {
+          const st = statOfLine(line)
+          if (!st) return
+          if (!found.has(st.key)) found.set(st.key, st)
+          addRange(ranges, st.key, firstNumOf(st, loLines[i]), firstNumOf(st, line))
+        })
+      }
     }
+    addBaseOwnOpts(b, q, found, ranges)
   }
-  addBaseOwnOpts(b, q, found, ranges)
   const rank = (st) => { const i = MR_OPT_FIRST.findIndex((re) => re.test(st.label)); return i < 0 ? 99 : i }
   const list = [...found.values()].sort((a, b2) => (fixed.has(b2.key) - fixed.has(a.key)) || (/충전|확률로/.test(a.label) - /충전|확률로/.test(b2.label)) || rank(a) - rank(b2) || a.label.localeCompare(b2.label, 'ko'))
   const info = { list, ranges, fixed }
@@ -460,7 +494,7 @@ const mrOptInfo = computed(() => {
 })
 const mrOptStats = computed(() => mrOptInfo.value.list)
 // 이 베이스에서 이 옵션이 나오는 범위 [lo, hi] (모르면 null)
-const condRange = (c) => (!c.keyword && mrOn.value && mrOptInfo.value.ranges[c.key]) || null
+const condRange = (c) => (!c.keyword && (mrOn.value || groupOn.value) && mrOptInfo.value.ranges[c.key]) || null
 const mrOptQuery = ref('')
 const mrOptMore = ref(false)
 const mrOptHits = computed(() => {
@@ -779,6 +813,7 @@ function resetExceptBase() {
 }
 
 function resetFilters() {
+  baseGroup.value = ''
   activeCats.value = []
   resetMr()
   itemShape.value = ''
@@ -816,6 +851,8 @@ function buildQuery() {
   if (activeLadder.value) q.ladder = activeLadder.value
   if (activeHardcore.value) q.hc = activeHardcore.value
   if (activeSlot.value) q.slot = activeSlot.value
+  // 묶음 안에서 한 종류를 골라도 묶음은 주소에 남김 - 새로고침해도 '전체'로 돌아갈 수 있게
+  if (baseGroup.value) q.bg = baseGroup.value
   if (etherealOnly.value) q.eth = '1'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
@@ -842,7 +879,7 @@ function buildQuery() {
   return q
 }
 // 주소에 조건이 하나라도 있나 (옛 ?item= 링크로 첫 화면에 들어온 경우 검색 화면으로 넘기려고)
-const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'base', 'bq', 'shape', 'craft', 'sup', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
+const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'bg', 'base', 'bq', 'shape', 'craft', 'sup', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
 const hasQueryFilters = (q) => QUERY_KEYS.some((k) => q[k])
 
 let syncing = false
@@ -856,6 +893,7 @@ function applyQuery(q) {
   activeLadder.value = TRADE_LADDERS.includes(q.ladder) ? q.ladder : null
   activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
   activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
+  baseGroup.value = typeof q.bg === 'string' ? q.bg : ''
   etherealOnly.value = q.eth === '1'
   unidOnly.value = q.unid === '1'
   mrBase.value = typeof q.base === 'string' ? q.base : ''
@@ -962,6 +1000,14 @@ function filterPosts(skip) {
   if (activeRegion.value && !no('realm')) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value && !no('game')) list = list.filter((p) => p.gameVersion === gameVersion.value)
   if (activeSlot.value && !no('slot')) list = list.filter((p) => postSlot(p) === activeSlot.value)
+  if (baseGroup.value && !mrBase.value && !no('bg')) {
+    const g = squash(baseGroup.value)
+    list = list.filter((p) => {
+      const line = (p.options || []).find((l) => l.startsWith('베이스: '))
+      const nm = line ? line.slice('베이스: '.length) : (p.itemName || '')
+      return squash(nm).includes(g)
+    })
+  }
   if (activeLadder.value && !no('ladder')) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value && !no('hc')) list = list.filter((p) => p.hardcore === activeHardcore.value)
   if (etherealOnly.value && !no('eth')) list = list.filter((p) => p.ethereal)
@@ -1002,7 +1048,6 @@ const expiredCount = computed(() => filteredPosts.value.length - liveCount.value
 const dropHints = computed(() => {
   if (filteredPosts.value.length || !appliedCount.value) return []
   const c = []
-  if (activeSlot.value) c.push({ key: 'slot', label: t('부위') + ' ' + t(activeSlot.value), drop: () => { activeSlot.value = null } })
   if (activeCats.value.length) c.push({ key: 'cat', label: t('종류') + ' ' + activeCats.value.map((x) => t(x)).join('·'), drop: () => { activeCats.value = [] } })
   if (activeRegion.value) c.push({ key: 'realm', label: t(activeRegion.value), drop: () => { activeRegion.value = null } })
   if (gameVersion.value) c.push({ key: 'game', label: t(gameVersion.value), drop: () => { gameVersion.value = null } })
@@ -1076,9 +1121,8 @@ const unifiedSuggestions = computed(() => {
   if (!raw) return []
   const q = squash(raw)
   const out = []
-  for (const [sl, names] of Object.entries(SLOT_ALIASES)) {
-    if (names.some((n) => squash(n).startsWith(q))) out.push({ type: 'slot', key: 'sl' + sl, sl })
-  }
+  const grp = nameMatchBases(raw)
+  if (grp.length > 1) out.push({ type: 'group', key: 'g' + raw, raw, n: grp.length })
   for (const it of suggestions.value.slice(0, 5)) out.push({ type: 'item', key: 'i' + it.id, it })
   for (const b of baseCandidates.value) out.push({ type: 'base', key: 'b' + b.code, b })
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
@@ -1100,17 +1144,17 @@ const unifiedSuggestions = computed(() => {
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
   const groups = [
-    { name: '부위', cls: 'g-slot', rows: [] },
+    { name: '베이스 묶음', cls: 'g-group', rows: [] },
     { name: '아이템', cls: 'g-item', rows: [] }, { name: '매직·레어·크래프트 (베이스)', cls: 'g-base', rows: [] }, { name: '종류', cls: 'g-cat', rows: [] },
     { name: '옵션', cls: 'g-stat', rows: [] }, { name: '글자로 찾기', cls: 'g-text', rows: [] },
   ]
-  const at = { slot: 0, item: 1, base: 2, cat: 3, stat: 4, text: 5, kw: 5 }
+  const at = { group: 0, item: 1, base: 2, cat: 3, stat: 4, text: 5, kw: 5 }
   list.forEach((sug, i) => groups[at[sug.type]].rows.push({ sug, i }))
   return groups.filter((g) => g.rows.length)
 })
 function chooseSuggestion(sug) {
   suggestPointer = false
-  if (sug.type === 'slot') return pickSlot(sug.sl)
+  if (sug.type === 'group') return pickGroup(sug.raw)
   if (sug.type === 'item') return pickItem(sug.it)
   if (sug.type === 'base') return pickBase(sug.b)
   if (sug.type === 'text') { suggestOpen.value = false; goSearch(); return }
@@ -1124,16 +1168,6 @@ function chooseSuggestion(sug) {
   searchQuery.value = ''
   suggestOpen.value = false
 }
-// '<부위> 전체' - 그 부위 매물을 한 번에. 유니크·세트는 빼고,
-// 룬워드가 있는 부위(머리·몸통·방패·무기)만 룬워드도 같이 봄
-function pickSlot(sl) {
-  activeSlot.value = sl
-  activeCats.value = RUNEWORD_SLOTS.includes(sl) ? ['룬워드', '매직/레어/일반'] : ['매직/레어/일반']
-  searchQuery.value = ''
-  suggestOpen.value = false
-  goSearch()
-}
-
 function toggleCat(c, onlyAdd = false) {
   const i = activeCats.value.indexOf(c)
   if (i >= 0) { if (!onlyAdd) activeCats.value.splice(i, 1) } else activeCats.value.push(c)
@@ -1209,7 +1243,7 @@ const pickedWantCount = ref(0)
 watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
 
 const appliedCount = computed(() =>
-  activeCats.value.length + (activeSlot.value ? 1 : 0) + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
+  activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
 
 // ───────── 목록에 보여줄 것 ─────────
@@ -1295,9 +1329,10 @@ function variantLines(p) {
                 type="button" role="option" v-for="r in g.rows" :key="r.sug.key" class="tr-suggest-row" :class="{ active: suggestNav && r.i === suggestActive }"
                 :aria-selected="r.i === suggestActive" @mousedown.prevent @click="chooseSuggestion(r.sug)" @mousemove="suggestActive = r.i; suggestNav = true"
               >
-                <template v-if="r.sug.type === 'slot'">
-                  <span class="item-suggest-name">{{ $t('{s} 전체', { s: $t(r.sug.sl) }) }}</span>
-                  <small>{{ $t('유니크·세트 빼고 한 번에') }}</small>
+                <template v-if="r.sug.type === 'group'">
+                  <span class="item-suggest-icon"><img v-if="baseGroupIconOf(r.sug.raw) && iconUrlFor(baseIconKey(baseGroupIconOf(r.sug.raw)))" :src="iconUrlFor(baseIconKey(baseGroupIconOf(r.sug.raw)))" alt="" /></span>
+                  <span class="item-suggest-name">{{ r.sug.raw }}</span>
+                  <small>{{ $t('{n}종 전체', { n: r.sug.n }) }}</small>
                 </template>
                 <template v-else-if="r.sug.type === 'item'">
                   <span class="item-suggest-icon" :class="r.sug.it.category"><img v-if="iconUrlFor(r.sug.it.icon_key)" :src="iconUrlFor(r.sug.it.icon_key)" alt="" /></span>
@@ -1337,7 +1372,6 @@ function variantLines(p) {
 
       <div class="tr-applied" v-if="appliedCount" :aria-label="$t('적용된 조건')">
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
-        <span class="tr-chip kind" v-if="activeSlot"><em>{{ $t('부위') }}</em>{{ $t(activeSlot) }}<button type="button" :aria-label="`${$t(activeSlot)} ×`" @click="activeSlot = null">×</button></span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
         <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="dropMrBase">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
@@ -1346,6 +1380,7 @@ function variantLines(p) {
         <span class="tr-chip flag" v-if="mrOn && mrSup"><em>{{ $t('상급 여부') }}</em>{{ $t(SUP_CHOICES.find((c) => c.v === mrSup)?.label || mrSup) }}<button type="button" aria-label="×" @click="mrSup = ''">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
         <span class="tr-chip flag" v-if="mrOn && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
+        <span class="tr-chip kind" v-if="baseGroup && !mrBase"><em>{{ $t('베이스') }}</em>{{ baseGroup }}<button type="button" :aria-label="`${baseGroup} ×`" @click="baseGroup = ''">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="dropPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -1373,7 +1408,7 @@ function variantLines(p) {
           <!-- 고르는 칸은 알약 전체를 덮는 투명 select - 알약 어디를 눌러도 목록이 열림 -->
           <select :value="f.ref.value || ''" @change="f.ref.value = $event.target.value || null" :aria-label="$t(f.label)">
             <option value="">{{ $t('전체') }}</option>
-            <option v-for="o in f.options" :key="o" :value="o">{{ $t(o) }}</option>
+            <option v-for="o in f.options" :key="o" :value="o">{{ modeText(o) }}</option>
           </select>
         </label>
         <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
@@ -1383,22 +1418,29 @@ function variantLines(p) {
   </section>
 
   <div class="tr-body" :class="{ 'view-list': isSearchRoute && viewMode === 'list' }">
-  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || pickedItem)" :class="{ closed: !filtersOpen }">
+  <aside class="tr-filters" v-if="isSearchRoute && (mrOn || groupOn || pickedItem)" :class="{ closed: !filtersOpen }">
     <button type="button" class="tr-filters-toggle" @click="filtersOpen = !filtersOpen">
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
-      <div class="item-range-panel mr-panel" v-if="mrOn">
+      <div class="item-range-panel mr-panel" v-if="mrOn || groupOn">
         <div class="mr-head">
-          <span class="mr-head-icon"><img v-if="mrBaseItem && iconUrlFor(baseIconKey(mrBaseItem))" :src="iconUrlFor(baseIconKey(mrBaseItem))" alt="" /></span>
+          <span class="mr-head-icon"><img v-if="(mrBaseItem || baseGroupIcon) && iconUrlFor(baseIconKey(mrBaseItem || baseGroupIcon))" :src="iconUrlFor(baseIconKey(mrBaseItem || baseGroupIcon))" alt="" /></span>
           <div class="mr-head-text">
-            <b>{{ mrBaseText }}</b>
+            <b>{{ mrBase ? mrBaseText : baseGroup }}</b>
           </div>
           <button type="button" class="mr-change" @click="resetExceptBase()">{{ $t('검색조건 초기화') }}</button>
         </div>
         <!-- 이름 칸 너비를 맞춰서 줄마다 같은 자리에서 시작 -->
         <div class="mr-grid">
+          <template v-if="baseGroup && baseGroupBases.length > 1">
+            <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
+            <select class="sort-select" :value="mrBase" :aria-label="$t('베이스')" @change="pickBaseInGroup($event.target.value)">
+              <option value="">{{ $t('{n}종 전체', { n: baseGroupBases.length }) }}</option>
+              <option v-for="b in baseGroupBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseLabelOf(b) }}</option>
+            </select>
+          </template>
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
             <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어') }}</button>
@@ -1645,7 +1687,7 @@ function variantLines(p) {
             <span class="tf expired-tag" v-if="isExpired(p)">{{ $t('기간 지남') }}</span>
             <span class="tf realm">{{ $t(p.realm) }}</span>
             <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
-            <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ $t(p.hardcore) }}</span>
+            <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ modeText(p.hardcore) }}</span>
             <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
             <span class="tf unid" v-if="p.unidentified">{{ $t('미확인') }}</span>
           </div>
@@ -1684,7 +1726,7 @@ function variantLines(p) {
           <span class="tf expired-tag" v-if="isExpired(p)">{{ $t('기간 지남') }}</span>
           <span class="tf realm">{{ $t(p.realm) }}</span>
           <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
-          <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ $t(p.hardcore) }}</span>
+          <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ modeText(p.hardcore) }}</span>
           <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
           <span class="tf unid" v-if="p.unidentified">{{ $t('미확인') }}</span>
         </span>
@@ -2024,7 +2066,6 @@ function variantLines(p) {
 .tr-suggest-title{font-size:11px; font-weight:800; padding:6px 10px 4px; color:var(--text-dim);}
 .g-item .tr-suggest-title{color:var(--gold-dim);}
 .g-cat .tr-suggest-title{color:#C9A56B;}
-.g-slot .tr-suggest-title{color:#C9A56B;}
 .g-stat .tr-suggest-title{color:#9FB0FF;}
 .tr-suggest-row{display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border-radius:9px; text-align:left; font-size:14px; color:var(--text);}
 .tr-suggest-row small{margin-left:auto; font-size:11.5px; color:var(--text-dim);}

@@ -3,7 +3,7 @@
 // 아이템·옵션은 그대로 (바꾸려면 새 글). 실제 확인(주인·기간·가격)은 DB 함수 d2r_relist_trade_post
 import { showAlert } from '../dialog.js'
 import { t, itemName, affixText } from '../i18n.js'
-import { postName, countText, priceTok, priceText, saleLeftText } from '../tradeI18n.js'
+import { postName, countText, priceTok, priceText, saleLeftText, modeText } from '../tradeI18n.js'
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -97,7 +97,7 @@ async function submit() {
           <span class="relist-icon" :class="postRarity(post)"><img v-if="iconUrl(postIconKey(post))" :src="iconUrl(postIconKey(post))" alt="" /></span>
           <span class="relist-item-body">
             <b>{{ postName(post) }}</b>
-            <small>{{ countText(post.amountLabel) }} · {{ $t(post.ladder) }} · {{ $t(post.hardcore) }} · {{ $t('{date} 등록', { date: post.date }) }}</small>
+            <small>{{ countText(post.amountLabel) }} · {{ $t(post.ladder) }} · {{ modeText(post.hardcore) }} · {{ $t('{date} 등록', { date: post.date }) }}</small>
             <small class="relist-opts" v-if="post.options.length">{{ post.options.slice(0, 4).map(affixText).join(' · ') }}{{ post.options.length > 4 ? ' …' : '' }}</small>
           </span>
           <span class="relist-lock">{{ $t('아이템·옵션 그대로') }}</span>

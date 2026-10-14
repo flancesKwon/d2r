@@ -29,7 +29,7 @@ import {
 } from '../tradeStore.js'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
-import { postName, countText, priceTok, priceText } from '../tradeI18n.js'
+import { postName, countText, priceTok, priceText, modeText } from '../tradeI18n.js'
 
 const route = useRoute()
 loadTradePosts()
@@ -158,7 +158,7 @@ function openItem(it) {
 }
 const summaryIcon = (s) => iconUrl(s.iconKey)
 // 묶음 판매(베르 1개 + 이스트 2개)는 가격이 묶음 전체 값이라 표시해 둠. 빈 칸은 빼고 이어 붙임
-const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? t('묶음') + ': ' + priceText(p.itemName) : '', countText(p.amountLabel), t(p.ladder), t(p.hardcore), p.completedAt || p.date].filter(Boolean).join(' · ')
+const doneMeta = (p) => [(p.itemName || '').includes(' + ') ? t('묶음') + ': ' + priceText(p.itemName) : '', countText(p.amountLabel), t(p.ladder), modeText(p.hardcore), p.completedAt || p.date].filter(Boolean).join(' · ')
 // 요약 목록의 아이템 이름
 const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) : s.name)
 </script>
@@ -202,7 +202,7 @@ const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) 
           </select>
           <select v-model="hardcore" class="write-select" :aria-label="$t('하드코어 구분')">
             <option value="">{{ $t('일반·하드코어 전체') }}</option>
-            <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ $t(h) }}</option>
+            <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
           </select>
         </div>
 
@@ -286,7 +286,7 @@ const summaryName = (s) => (s.itemId ? itemName(getTradeItem(s.itemId), s.name) 
                   </template>
                 </div>
                 <div class="th-chips" v-if="varChips(p).length"><span class="th-mini" v-for="c in varChips(p)" :key="c.key" :class="{ on: c.on }">{{ c.text }}</span></div>
-                <div class="th-row-meta">{{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ $t(p.hardcore) }} · {{ p.author }} · {{ $t('{date} 등록', { date: p.date }) }}<template v-if="p.completedAt"> · {{ $t('거래완료') }} {{ p.completedAt }}</template></div>
+                <div class="th-row-meta">{{ $t(p.realm) }} · {{ $t(p.ladder) }} · {{ modeText(p.hardcore) }} · {{ p.author }} · {{ $t('{date} 등록', { date: p.date }) }}<template v-if="p.completedAt"> · {{ $t('거래완료') }} {{ p.completedAt }}</template></div>
               </div>
               <span class="th-req" v-if="p.requests && p.requests.length">{{ $t('신청') }} {{ p.requests.length }}</span>
             </router-link>
