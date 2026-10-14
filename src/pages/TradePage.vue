@@ -272,6 +272,8 @@ const baseGroupIcon = computed(() => {
   return [...list].sort((a, b) => (a.name_ko || '').length - (b.name_ko || '').length)[0]
 })
 const groupOn = computed(() => !pickedItem.value && !mrBase.value && !!baseGroup.value && baseGroupBases.value.length > 1)
+// 품질·제작법·소켓 등 베이스 조건 칸이 켜져 있나 (베이스 하나를 골랐거나, 이름 묶음 전체)
+const mrActive = computed(() => mrOn.value || groupOn.value)
 // 매물을 거르는 데 쓰는 검색어 - 검색창에 치는 중인 글자(searchQuery)가 아니라
 // 검색(엔터·버튼)을 눌렀을 때의 글자. 타자 치는 동안 아래 목록이 흔들리지 않게 함
 const appliedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -416,9 +418,10 @@ function addRange(ranges, key, a, b) {
 }
 // 크래프트 제작법 카드 - 이름 + 고정 옵션 줄(범위)
 const mrCraftCards = computed(() => {
-  const b = mrBaseItem.value
-  if (!b) return []
-  return craftRecipesFor(magicAffixData, b).map((c) => {
+  // 묶음('글러브 전체')이면 묶음 안 베이스들의 제작법을 이름으로 합침 (수치 범위는 먼저 나온 베이스 기준)
+  const recipes = new Map()
+  for (const b of mrBases.value) for (const c of craftRecipesFor(magicAffixData, b)) if (!recipes.has(c.name)) recipes.set(c.name, c)
+  return [...recipes.values()].map((c) => {
     const lo = familyLines(c.fam, c.fam.slotRanges.map(([x]) => x))
     const hi = familyLines(c.fam, c.fam.slotRanges.map(([, y]) => y))
     const lines = familyLines(c.fam, c.fam.slotRanges.map(([x, y]) => (x === y ? x : `${x}~${y}`)))
@@ -558,7 +561,7 @@ function resetMr() {
 // 판매글이 조건에 맞는지
 function mrMatches(p, skip) {
   const no = (k) => skip === k
-  if (!mrOn.value) return true
+  if (!mrActive.value) return true
   if (!no('mr:quality')) {
     // 품질을 고르면 그것만. 안 골랐으면 매직·레어 (일반·크래프트는 버튼이 따로 있으니 뺌)
     // 품질을 안 적고 올린 글(빈값)은 어느 버튼에도 안 걸리면 사라지므로 여기에 남겨 둠
@@ -802,12 +805,14 @@ const hasActiveFilters = computed(
     activeHardcore.value !== null || etherealOnly.value || unidOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 || !!pickedItem.value
 )
-// '검색조건 초기화' - 고른 베이스만 남기고 나머지 조건을 전부 비움
-// (검색어는 주소에 실린 것이 걸러내는 기준이라 runSearch 로 주소까지 맞춰야 풀림)
+// '검색조건 초기화' - 처음 검색한 베이스(묶음·고른 베이스)만 남기고 나머지 조건을 전부 비움
+// (묶음을 비우면 필터창이 닫히고 전체 매물이 나오며 묶음 안 다른 베이스도 못 고르게 됨)
 function resetExceptBase() {
+  const group = baseGroup.value
   const base = mrBase.value
   const obj = mrBaseObj.value
   resetFilters()
+  baseGroup.value = group
   mrBase.value = base
   mrBaseObj.value = obj
 }
@@ -1028,7 +1033,7 @@ function filterPosts(skip) {
         (!!getTradeItem(p.itemId) && itemMatchesQuery(getTradeItem(p.itemId), appliedQuery.value))
     )
   }
-  if (mrOn.value && mrCount.value) list = list.filter((p) => mrMatches(p, skip))
+  if (mrActive.value && mrCount.value) list = list.filter((p) => mrMatches(p, skip))
   // 유니크·세트 장신구 모양 - 판매자가 안 고른 글은 그 아이템의 대표 모양으로 봄
   if (pickedItem.value && itemShape.value && !no('item') && !no('ishape')) {
     const first = uniqueShapes.value[0]
@@ -1057,7 +1062,7 @@ const dropHints = computed(() => {
   if (unidOnly.value) c.push({ key: 'unid', label: t('미확인'), drop: () => { unidOnly.value = false } })
   if (pickedItem.value) c.push({ key: 'item', label: itemName(pickedItem.value), drop: clearPickedItem })
   if (searchQuery.value.trim()) c.push({ key: 'q', label: '"' + searchQuery.value.trim() + '"', drop: () => { searchQuery.value = '' } })
-  if (mrOn.value) {
+  if (mrActive.value) {
     if (mrQuality.value) c.push({ key: 'mr:quality', label: t(QUALITY_PICKS.find((q) => q.v === mrQuality.value)?.label || mrQuality.value), drop: () => { mrQuality.value = '' } })
     if (mrShape.value) c.push({ key: 'mr:shape', label: t('모양'), drop: () => { mrShape.value = '' } })
     if (mrCraft.value) c.push({ key: 'mr:craft', label: t(mrCraft.value), drop: () => { mrCraft.value = '' } })
@@ -1374,12 +1379,12 @@ function variantLines(p) {
         <span class="tr-applied-label">{{ $t('적용된 조건') }} {{ appliedCount }}</span>
         <span class="tr-chip kind" v-for="c in activeCats" :key="'k' + c"><em>{{ $t('종류') }}</em>{{ $t(c) }}<button type="button" :aria-label="`${$t(c)} ×`" @click="toggleCat(c)">×</button></span>
         <span class="tr-chip item" v-if="mrBase"><em>{{ $t('베이스') }}</em>{{ mrBaseText }}<button type="button" :aria-label="`${mrBaseText} ×`" @click="dropMrBase">×</button></span>
-        <span class="tr-chip flag" v-if="mrOn && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
-        <span class="tr-chip flag" v-if="mrOn && mrCraft"><em>{{ $t('제작법') }}</em>{{ $t(mrCraft) }}<button type="button" aria-label="×" @click="mrCraft = ''">×</button></span>
-        <span class="tr-chip flag" v-if="mrOn && mrShape"><em>{{ $t('모양') }}</em><img class="chip-shape" v-if="iconUrlFor(mrShape)" :src="iconUrlFor(mrShape)" alt="" /><button type="button" aria-label="×" @click="mrShape = ''">×</button></span>
-        <span class="tr-chip flag" v-if="mrOn && mrSup"><em>{{ $t('상급 여부') }}</em>{{ $t(SUP_CHOICES.find((c) => c.v === mrSup)?.label || mrSup) }}<button type="button" aria-label="×" @click="mrSup = ''">×</button></span>
-        <span class="tr-chip flag" v-if="mrOn && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
-        <span class="tr-chip flag" v-if="mrOn && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
+        <span class="tr-chip flag" v-if="mrActive && mrQuality"><em>{{ $t('품질') }}</em>{{ $t(QUALITY_PICKS.find((q) => q.v === mrQuality)?.label || mrQuality) }}<button type="button" aria-label="×" @click="mrQuality = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrActive && mrCraft"><em>{{ $t('제작법') }}</em>{{ $t(mrCraft) }}<button type="button" aria-label="×" @click="mrCraft = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrActive && mrShape"><em>{{ $t('모양') }}</em><img class="chip-shape" v-if="iconUrlFor(mrShape)" :src="iconUrlFor(mrShape)" alt="" /><button type="button" aria-label="×" @click="mrShape = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrActive && mrSup"><em>{{ $t('상급 여부') }}</em>{{ $t(SUP_CHOICES.find((c) => c.v === mrSup)?.label || mrSup) }}<button type="button" aria-label="×" @click="mrSup = ''">×</button></span>
+        <span class="tr-chip flag" v-if="mrActive && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
+        <span class="tr-chip flag" v-if="mrActive && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
         <span class="tr-chip kind" v-if="baseGroup && !mrBase"><em>{{ $t('베이스') }}</em>{{ baseGroup }}<button type="button" :aria-label="`${baseGroup} ×`" @click="baseGroup = ''">×</button></span>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="dropPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
