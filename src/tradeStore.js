@@ -418,6 +418,22 @@ export const TRADE_STAT_FILTERS = [
 // 옵션 검색 전체 목록 (scripts/build-stat-filters.js 가 만듦) - 아이템 사전·매직/레어 접사·직업별 개별 스킬까지
 // 위의 TRADE_STAT_FILTERS 는 '자주 쓰는 옵션'으로 계속 씀 (여러 줄 합산 같은 특별 규칙이 있어서)
 export const ALL_STAT_FILTERS = statFilterData.map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
+// 검색창·삽니다 글에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
+// 그 뒤에 아이템 사전·매직/레어 접사·개별 스킬에서 뽑은 전체 목록 (같은 문구는 앞의 것만)
+export const STAT_PICKS = (() => {
+  // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백·끝의 '증가'는 떼고 봄
+  // ('시전 속도(%)' 와 '시전 속도 X%', '마법 아이템 발견 확률' 과 '마법 아이템 발견 확률 X% 증가' 는 같은 것)
+  const norm = (l) => l.replace('(%)', '').replace(/[X%\s]/g, '').replace(/증가$/, '')
+  const out = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
+  const seen = new Set(out.map((st) => norm(st.label)))
+  for (const st of ALL_STAT_FILTERS) {
+    const k = norm(st.label)
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(st)
+  }
+  return out
+})()
 const STAT_FILTER_BY_KEY = new Map([...ALL_STAT_FILTERS, ...TRADE_STAT_FILTERS].map((s) => [s.key, s]))
 export const statFilterByKey = (key) => STAT_FILTER_BY_KEY.get(key) || null
 

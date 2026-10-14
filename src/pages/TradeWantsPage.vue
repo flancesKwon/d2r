@@ -11,7 +11,7 @@ import {
 } from '../wantsStore.js'
 import {
   tradeState, loadTradePosts, searchAllItems, tradeCategoryForItem, getTradeItem, statFilterByKey,
-  ALL_STAT_FILTERS, TRADE_STAT_FILTERS, TRADE_CATEGORIES, TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, GAME_VERSIONS,
+  STAT_PICKS, TRADE_CATEGORIES, TRADE_REALMS, TRADE_LADDERS, TRADE_HARDCORE, GAME_VERSIONS,
   postStatValue, saleLeftMs,
 } from '../tradeStore.js'
 import { authState, signIn } from '../profileStore.js'
@@ -159,22 +159,10 @@ function pickItem(it) {
   form.item = it
   form.itemQuery = ''
 }
-// 옵션 후보 - 매물 검색 화면과 같은 목록 (자주 쓰는 묶음 먼저)
-const STAT_CHOICES = (() => {
-  const seen = new Set()
-  const out = []
-  for (const st of [...TRADE_STAT_FILTERS.filter((s) => !/입력값|가장 높은/.test(s.label)), ...ALL_STAT_FILTERS]) {
-    const k = st.label.replace('(%)', '').replace(/[X%\s]/g, '')
-    if (seen.has(k)) continue
-    seen.add(k)
-    out.push(st)
-  }
-  return out
-})()
 const statHits = computed(() => {
   const q = squash(form.statQuery)
   if (!q) return []
-  return STAT_CHOICES.filter((st) => !form.conds.some((c) => c.key === st.key) && statSearchTexts(st).some((x) => squash(x).includes(q))).slice(0, 8)
+  return STAT_PICKS.filter((st) => !form.conds.some((c) => c.key === st.key) && statSearchTexts(st).some((x) => squash(x).includes(q))).slice(0, 8)
 })
 function addCond(st) {
   if (form.conds.length >= WANT_MAX_CONDS) return
