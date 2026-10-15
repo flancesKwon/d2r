@@ -25,7 +25,8 @@ function template(text, marks) {
       if (i >= 0 && (!best || i < best.i)) best = { i, m }
     }
     if (!best) break
-    src += esc(rest.slice(0, best.i)) + '(\\d+)'
+    // 수치를 비우고 등록하면 '15~20' 처럼 범위가 그대로 저장돼서 그것도 같은 자리로 받음
+    src += esc(rest.slice(0, best.i)) + '(\\d+(?:~\\d+)?)'
     ranges.push(best.m.range)
     rest = rest.slice(best.i + best.m.token.length)
   }
@@ -125,16 +126,20 @@ export function editableOptionLines(post) {
       const m = t.re.exec(text)
       if (!m) continue
       const spans = m.indices.slice(1)
-      const vals = spans.map(([s, e]) => Number(text.slice(s, e)))
+      const raws = spans.map(([s, e]) => text.slice(s, e))
+      // 비워 둔 값 = 그 자리의 범위 문구 그대로 ('15~20') - 값은 빈칸으로 보여주고 그대로 두면 원래 줄로 저장
+      const blank = raws.map((r, i) => r === `${t.ranges[i][0]}~${t.ranges[i][1]}`)
+      if (raws.some((r, i) => r.includes('~') && !blank[i])) continue
+      const vals = raws.map((r, i) => (blank[i] ? '' : Number(r)))
       // 지금 값이 그 옵션 범위 안이어야 같은 옵션 (룬 고정 옵션 "피해 증가 +50%"가 다른 옵션 틀에 걸리는 것 막기),
       // 범위가 한 값뿐이면(고정 수치) 고칠 게 없음. 크래프트 고정 옵션과 접사가 합쳐진 줄처럼 범위 밖이면 잠금
-      if (vals.some((v, i) => v < t.ranges[i][0] || v > t.ranges[i][1])) continue
+      if (vals.some((v, i) => v !== '' && (v < t.ranges[i][0] || v > t.ranges[i][1]))) continue
       if (t.ranges.every(([lo, hi]) => lo === hi)) continue
       const parts = []
       let at = 0
       spans.forEach(([s, e], i) => {
         if (s > at) parts.push({ text: text.slice(at, s) })
-        parts.push({ value: vals[i], original: vals[i], min: t.ranges[i][0], max: t.ranges[i][1] })
+        parts.push({ value: vals[i], original: vals[i], raw: raws[i], min: t.ranges[i][0], max: t.ranges[i][1] })
         at = e
       })
       if (at < text.length) parts.push({ text: text.slice(at) })
@@ -150,12 +155,15 @@ export function buildEditedLines(lines) {
   const out = lines.map((l) => {
     if (!l.editable) return l.text
     const nums = l.parts.filter((p) => 'value' in p)
+    // 처음부터 비워 둔 값은 그대로 두면 원래 범위 문구로 저장 (채우면 그 값으로)
+    const kept = (p) => p.value === '' && p.original === ''
     for (const p of nums) {
       const n = Number(p.value)
+      if (kept(p)) continue
       if (p.value === '' || !Number.isInteger(n) || n < p.min || n > p.max) errors.push(`${l.text} (${p.min}~${p.max})`)
     }
-    if (l.ordered && Number(nums[0].value) > Number(nums[1].value)) errors.push(`${l.text} (최소 ≤ 최대)`)
-    return l.parts.map((p) => ('value' in p ? String(Number(p.value)) : p.text)).join('')
+    if (l.ordered && !nums.some(kept) && Number(nums[0].value) > Number(nums[1].value)) errors.push(`${l.text} (최소 ≤ 최대)`)
+    return l.parts.map((p) => ('value' in p ? (kept(p) ? p.raw : String(Number(p.value))) : p.text)).join('')
   })
   return { lines: out, errors }
 }

@@ -6,7 +6,7 @@ import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, SALE_HOURS, SALE_DAYS, saleLeftMs, countTradeView, fetchTradeRequests, addTradeRequest, respondToRequest, deleteTradePost,
-  getTradeItem, tradeEditBlockReason, statusLabel, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
+  getTradeItem, MAX_QTY, isValidQty, tradeEditBlockReason, statusLabel, parsePriceTokens, searchAllItems, postIconKey, postRarity, isCurrencyItem,
 } from '../tradeStore.js'
 import { renderContent } from '../richText.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -70,8 +70,10 @@ async function run(fn) {
   if (!authState.user) return signIn()
   try {
     await fn()
+    return true
   } catch (e) {
     actionError.value = t(e.message || '처리 실패')
+    return false
   }
 }
 const contentHtml = computed(() => (post.value ? renderContent(post.value.content) : ''))
@@ -178,7 +180,8 @@ async function respond(r, decision) {
 const pendingCount = computed(() => (post.value?.requests || []).filter((r) => (r.status || 'pending') === 'pending').length)
 const requestsEl = ref(null)
 const scrollToRequests = () => requestsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && d.buyerId === r.buyerId) || null
+// 같은 구매자가 불발 뒤 다시 신청해도 신청마다 자기 거래방으로 연결 (거래방이 신청 번호를 기억함)
+const dealFor = (r) => dealsState.deals.find((d) => d.postId === post.value?.id && (d.requestId ? d.requestId === r.id : d.buyerId === r.buyerId)) || null
 
 const REQUEST_STATUS_LABEL = { pending: '대기중', held: '보류', accepted: '수락됨', declined: '거절됨', cancelled: '취소됨', failed: '불발', done: '거래완료' }
 // 구매신청 메시지 (한국어로 저장: '구매하기 - 제안: 베르 룬 1개 + ...')
@@ -211,6 +214,10 @@ const offerItems = ref([])
 const offerQuery = ref('')
 const showOfferDropdown = ref(false)
 const showBuySentToast = ref(false)
+const offerError = ref('')
+const buying = ref(false)
+// 내 신청이 이미 처리 중(대기·보류·수락)이면 또 신청하지 않게 - 불발·완료·거절·취소된 뒤엔 다시 가능
+const myOpenRequest = computed(() => (post.value?.requests || []).find((r) => r.buyerId === authState.user?.id && ['pending', 'held', 'accepted'].includes(reqStatus(r))) || null)
 const offerCandidates = computed(() => {
   if (!offerQuery.value.trim()) return []
   return searchAllItems(offerQuery.value).filter(isCurrencyItem)
@@ -220,6 +227,8 @@ function openBuyModal() {
   if (!authState.user) return signIn()
   offerItems.value = []
   offerQuery.value = ''
+  offerError.value = ''
+  actionError.value = ''
   showOfferDropdown.value = false
   buyStep.value = post.value.negotiable ? 'offer' : 'confirm'
   showBuyModal.value = true
@@ -242,10 +251,14 @@ function hideOfferDropdownSoon() {
 }
 function goToConfirm() {
   if (post.value.negotiable && !offerItems.value.length) return
+  if (offerItems.value.some((o) => !isValidQty(o.qty))) { offerError.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  offerError.value = ''
   buyStep.value = 'confirm'
 }
 async function confirmBuy() {
-  await run(async () => {
+  if (buying.value) return
+  buying.value = true
+  const ok = await run(async () => {
     const r = await addTradeRequest(post.value.id, {
       qty: 1,
       // 제안 내용은 메시지 한 줄로 저장 (보여줄 때 칩으로 다시 만듦)
@@ -257,7 +270,9 @@ async function confirmBuy() {
     showBuySentToast.value = true
     setTimeout(() => (showBuySentToast.value = false), 2500)
   })
-  showBuyModal.value = false
+  buying.value = false
+  // 실패하면 팝업을 닫지 않고 그 자리에서 오류를 보여줌
+  if (ok) showBuyModal.value = false
 }
 </script>
 
@@ -350,9 +365,9 @@ async function confirmBuy() {
             <span v-if="post.negotiable" class="nego">{{ $t('흥정 가능') }}</span>
           </div>
           <button
-            type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner"
+            type="button" class="btn-primary buy-now-btn" :disabled="post.status === '거래완료' || isOwner || saleExpired || !!myOpenRequest"
             @click="openBuyModal"
-          >{{ $t(isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기') }}</button>
+          >{{ $t(isOwner ? '내 판매글' : post.status === '거래완료' ? '거래 완료된 글' : saleExpired ? '판매 기간이 끝난 글' : myOpenRequest ? '신청 중 (아래 신청 목록 참고)' : post.offerOnly ? '가격 제안하기' : post.negotiable ? '구매하기 · 가격 제안' : '구매하기') }}</button>
           <p class="buy-now-hint" v-if="post.status === '예약중'">{{ $t('다른 구매자와 거래중 - 지금 신청하면 보류됐다가, 그 거래가 불발되면 대기로 바뀜') }}</p>
           <p class="buy-now-hint" v-else>{{ $t(post.offerOnly ? '룬·보석·재료로 가격 제안 - 판매자가 보고 수락' : post.negotiable ? '룬·보석·재료로 가격 제안 가능' : '가격 그대로 즉시 구매 신청') }}</p>
         </section>
@@ -394,7 +409,8 @@ async function confirmBuy() {
             <router-link v-if="saleExpired" class="owner-bump" :to="`/trade/${post.id}/relist`">{{ $t('재등록 (판매가 수정)') }}</router-link>
             <small class="owner-bump-note">{{ $t('판매 기간 {n}일 · 끝나면 판매가만 고쳐 재등록', { n: SALE_DAYS }) }}</small>
           </template>
-          <button type="button" class="owner-delete" @click="removePost">{{ $t('✕ 판매글 삭제') }}</button>
+          <small v-if="activeDeal" class="owner-bump-note">{{ $t('거래중인 거래방이 있어서 삭제할 수 없음 - 거래방에서 거래완료·거래불발 처리 후 삭제') }}</small>
+          <button v-else type="button" class="owner-delete" @click="removePost">{{ $t('✕ 판매글 삭제') }}</button>
         </section>
         <div class="action-error" v-if="actionError">{{ actionError }}</div>
       </aside>
@@ -493,6 +509,7 @@ async function confirmBuy() {
           </div>
         </div>
         <div class="empty-state offer-empty" v-else>{{ $t('선택 없음') }}</div>
+        <div class="action-error" v-if="offerError">{{ offerError }}</div>
 
         <div class="modal-actions">
           <button type="button" class="btn-primary" :disabled="!offerItems.length" @click="goToConfirm">{{ $t('다음') }}</button>
@@ -536,9 +553,10 @@ async function confirmBuy() {
           <span class="v">{{ $t('즉시 구매 (가격 협의 없이 구매 신청)') }}</span>
         </div>
 
+        <div class="action-error" v-if="actionError">{{ actionError }}</div>
         <div class="modal-actions">
           <button type="button" class="btn-ghost" v-if="post.negotiable" @click="buyStep = 'offer'">{{ $t('이전') }}</button>
-          <button type="button" class="btn-primary" @click="confirmBuy">{{ $t('구매 신청') }}</button>
+          <button type="button" class="btn-primary" :disabled="buying" @click="confirmBuy">{{ $t('구매 신청') }}</button>
         </div>
       </template>
     </div>

@@ -15,6 +15,9 @@ import {
   buildAmountLabel,
   OFFER_ONLY_PRICE,
   GOLD_MAX,
+  MAX_QTY,
+  isValidQty,
+  PRICE_MAX,
   uniqueDefenseRange as uniqueDefenseRangeFor,
   optionPresetsFor,
   addTradePost,
@@ -212,6 +215,8 @@ function pickQuality(q) {
   socketAffixCount.value = ''
   // 제작법이 하나뿐이면 바로 고름
   craftPick.value = { id: craftRecipes.value.length === 1 ? craftRecipes.value[0].id : '', values: [] }
+  // 요구 레벨은 매직·레어·크래프트에만 들어감 - 그 밖의 품질로 바꾸면 입력값도 비움 (안 들어가는데 남아 있으면 헷갈림)
+  if (!isAffixQuality.value) levelReq.value = ''
 }
 const isAffixQuality = computed(() => isManualEquip.value && ['magic', 'rare', 'crafted'].includes(itemQuality.value))
 const isCrafted = computed(() => isAffixQuality.value && itemQuality.value === 'crafted')
@@ -726,6 +731,7 @@ function buildMaterialsOption() {
 const availableOptionPresets = computed(() => optionPresetsFor(effectiveBaseKind.value))
 const customOptionType = ref(availableOptionPresets.value[0].key)
 const customOptionValue = ref('')
+const customOptionError = ref('')
 const selectedOptionPreset = computed(
   () => availableOptionPresets.value.find((p) => p.key === customOptionType.value) || availableOptionPresets.value[0]
 )
@@ -758,7 +764,7 @@ function rarityClass(item) {
 
 // 아이템을 바꾸면(변경 버튼으로 다른 아이템 재선택, 또는 클리어) 이전 아이템 기준으로
 // 입력해뒀던 수치들이 새 아이템에는 안 맞을 수 있어서 화면 처음 들어왔을 때처럼
-// 전부 초기화함 - 개수/에테리얼/옵션값/베이스 스탯/직접 추가한 옵션/희망 가격까지 전부
+// 전부 초기화함 - 개수/에테리얼/옵션값/베이스 스탯/직접 추가한 옵션까지 (희망 가격은 아이템과 상관없어서 그대로 둠)
 function resetItemDependentFields() {
   form.value.quantity = ''
   form.value.ethereal = false
@@ -770,7 +776,11 @@ function resetItemDependentFields() {
   resetBaseStats()
   customOptions.value = []
   uniqueSockets.value = ''
-  priceItems.value = []
+  socketOn.value = false
+  socketSource.value = ''
+  socketAffixCount.value = ''
+  craftPick.value = { id: '', values: [] }
+  form.value.unidentified = false
 }
 
 function pickItem(it) {
@@ -843,8 +853,19 @@ function pickFallbackCategory(cat) {
 function addCustomOption() {
   const preset = selectedOptionPreset.value
   const v = customOptionValue.value.toString().trim()
+  customOptionError.value = ''
   if (!v) return
-  customOptions.value.push(preset.freeText ? v : preset.format(v))
+  if (!preset.freeText) {
+    // 소켓은 최대 6개, % 옵션은 999까지, 나머지는 9999까지의 1 이상 정수만
+    const max = preset.key === 'sockets' ? 6 : /\(%\)/.test(preset.label) ? 999 : 9999
+    if (!isValidQty(v, max)) { customOptionError.value = t('1~{n} 사이의 정수로 입력', { n: max }); return }
+  }
+  const line = preset.freeText ? v : preset.format(Number(v))
+  if (customOptions.value.includes(line) || (!preset.freeText && customOptions.value.some((o) => o === preset.format(Number(o.match(/\d+/)?.[0]))))) {
+    customOptionError.value = t('이미 추가한 옵션')
+    return
+  }
+  customOptions.value.push(line)
   customOptionValue.value = ''
 }
 
@@ -920,6 +941,8 @@ async function savePost(payload) {
 function submitBundle() {
   if (!bundleItems.value.length) { formError.value = t('팔 룬·보석·재료를 하나 이상 담을 것'); return }
   if (!form.value.offerOnly && !priceItems.value.length) { formError.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
+  if (bundleItems.value.some((b) => !isValidQty(b.qty)) || (!form.value.offerOnly && priceItems.value.some((p) => !isValidQty(p.qty)))) { formError.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  if (buildPriceString().length > PRICE_MAX) { formError.value = t('희망 가격이 너무 김 ({n}자 이하) - 종류를 줄여 주세요', { n: PRICE_MAX }); return }
   formError.value = ''
   const itemName = bundleItems.value.map((b) => `${b.item.name_ko} ${b.qty}개`).join(' + ')
   const category = tradeCategoryForItem(bundleItems.value[0].item) || '룬'
@@ -988,11 +1011,17 @@ function submitPost() {
   if (!form.value.itemName.trim()) { formError.value = t('아이템 검색·선택 또는 이름 입력'); return }
   if (!amountLabel.trim()) { formError.value = t(isGold.value ? '골드 액수 입력' : '개수 입력'); return }
   if (isGold.value && Number(form.value.quantity) > GOLD_MAX) { formError.value = t('골드는 한 글에 최대 {n} (1500만) 골드까지', { n: GOLD_MAX.toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US') }); return }
+  if (hasQuantity.value && !isValidQty(form.value.quantity, isGold.value ? GOLD_MAX : MAX_QTY)) {
+    formError.value = isGold.value ? t('골드 액수는 정수로 입력') : t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY })
+    return
+  }
   if (selectedItem.value?.category === 'runeword' && !selectedBaseItem.value) {
     formError.value = t('룬워드는 베이스 아이템 선택 필수')
     return
   }
   if (!form.value.offerOnly && !priceItems.value.length) { formError.value = t('희망 가격(룬·보석·재료) 하나 이상 선택 (또는 제안만 받기)'); return }
+  if (!form.value.offerOnly && priceItems.value.some((p) => !isValidQty(p.qty))) { formError.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
+  if (buildPriceString().length > PRICE_MAX) { formError.value = t('희망 가격이 너무 김 ({n}자 이하) - 종류를 줄여 주세요', { n: PRICE_MAX }); return }
   if (invalidInputs.value.length) {
     formError.value = `${t('게임에서 나올 수 없는 수치')}: ${affixText(invalidInputs.value[0])}`
     return
@@ -1504,6 +1533,7 @@ function submitPost() {
           />
           <button type="button" class="custom-option-add-btn" @click="addCustomOption">{{ $t('추가') }}</button>
         </div>
+        <div class="option-editor-hint invalid-hint" v-if="customOptionError">{{ customOptionError }}</div>
       </div>
       </template>
 
@@ -1706,6 +1736,7 @@ function submitPost() {
 .option-editor{border:1px solid var(--border-soft); background:var(--panel); padding:16px 18px; display:flex; flex-direction:column; gap:10px; border-radius:14px;}
 .option-editor-title{font-size:12.5px; color:var(--gold-dim); font-weight:600;}
 .option-editor-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
+.option-editor-hint.invalid-hint{color:#e0775f;}
 .option-row{display:flex; align-items:center; gap:10px;}
 .option-text{font-size:12.5px; color:var(--text-muted); flex:1;}
 .option-text.fixed{color:var(--text-dim);}

@@ -11,7 +11,7 @@ import {
   TRADE_HARDCORE,
   getTradeItem,
   parsePriceTokens,
-  TRADE_STAT_FILTERS,
+  STAT_PICKS,
   ALL_STAT_FILTERS,
   statFilterByKey,
   postStatValue,
@@ -1137,22 +1137,6 @@ const QUICK_SELECTS = [
 ]
 
 // 옵션 후보 - 직접 숫자를 넣는 칸(입력값)·"가장 높은 수치" 같은 특수 항목은 빼고
-// 검색창에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
-// 그 뒤에 아이템 사전·매직/레어 접사·개별 스킬에서 뽑은 전체 목록 (같은 문구는 앞의 것만)
-const plainLabel = (l) => l.replace('(%)', '')
-const STAT_PICKS = (() => {
-  // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백은 떼고 봄 ('시전 속도(%)' 와 '시전 속도 X%' 는 같은 것)
-  const norm = (l) => plainLabel(l).replace(/[X%\s]/g, '')
-  const out = TRADE_STAT_FILTERS.filter((st) => !/입력값|가장 높은/.test(st.label))
-  const seen = new Set(out.map((st) => norm(st.label)))
-  for (const st of ALL_STAT_FILTERS) {
-    const k = norm(st.label)
-    if (seen.has(k)) continue
-    seen.add(k)
-    out.push(st)
-  }
-  return out
-})()
 const unifiedSuggestions = computed(() => {
   const raw = searchQuery.value.trim().replace(JAMO_TAIL, '')
   if (!raw) return []

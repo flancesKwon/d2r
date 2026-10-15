@@ -31,6 +31,7 @@ const baseItems = read('baseItems.json')
 const NUM = /[+-]?\d+(?:\.\d+)?(?:~[+-]?\d+(?:\.\d+)?)?/g
 const shape = (text) => String(text).trim().replace(NUM, 'X')
 
+const ONE_NUM = '[+-]?\\d+(?:\\.\\d+)?(?:~[+-]?\\d+(?:\\.\\d+)?)?'
 const found = new Map() // 모양 -> { label, from:Set, aliases:Set, allClass, ex:Set(아이템 id) }
 function add(text, from, meta = {}) {
   if (!text || typeof text !== 'string') return
@@ -172,6 +173,21 @@ for (const r of rows) {
   }
   const lv = /^(.+) 기술 레벨 X$/.exec(r.label)
   if (lv && Object.values(CLASS_KO).includes(lv[1])) r.cls = lv[1]
+}
+
+// 충전 스킬은 문구가 둘("5~10 레벨 X (충전)" / "5 레벨 X (충전 20/20회)") - 고르는 목록엔 "(충전)" 하나만 두고 패턴이 둘 다 잡게 함
+for (const r of rows) {
+  const m = /^(.+) \(충전 X\/X회\)$/.exec(r.label)
+  if (!m) continue
+  const twin = byLabel.get(`${m[1]} (충전)`)
+  if (twin) {
+    twin.pattern = twin.pattern.replace('\\(충전\\)$', () => `\\(충전(?: ${ONE_NUM}/${ONE_NUM}회)?\\)$`)
+    merged.add(r)
+  } else {
+    r.label = `${m[1]} (충전)`
+    r.key = 'x:' + r.label
+    r.pattern = r.pattern.replace('\\(충전 ', () => '\\(충전(?: ').replace('회\\)$', () => '회)?\\)$')
+  }
 }
 
 const out = path.join(DIR, '..', 'src', 'data', 'statFilters.json')

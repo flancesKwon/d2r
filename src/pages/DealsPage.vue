@@ -211,7 +211,7 @@ function submitReview() {
         </div>
         <div class="deal-closed" v-else>{{ $t(activeDeal.status) }} - {{ $t('대화 종료') }}</div>
       </div>
-      <div class="deal-thread deal-thread-empty" v-else>{{ $t('거래 선택') }}</div>
+      <div class="deal-thread deal-thread-empty" v-else>{{ $t(!dealsState.loaded ? '불러오는 중…' : routeId ? '거래방을 찾을 수 없음 (삭제됐거나 내 거래가 아님)' : '거래 선택') }}</div>
 
       <!-- 3) 거래 정보 (단계·거래 결과·후기) -->
       <aside class="deal-info" v-if="activeDeal" ref="infoEl">

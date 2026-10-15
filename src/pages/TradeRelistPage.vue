@@ -8,7 +8,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getTradePost, fetchTradePost, relistTradePost, isSaleExpired, saleLeftMs, statusLabel, SALE_DAYS,
-  CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens, OFFER_ONLY_PRICE,
+  CURRENCY_ITEMS, EXTRA_MATERIALS, itemLevelReq, postIconKey, postRarity, parsePriceTokens, OFFER_ONLY_PRICE, MAX_QTY, isValidQty,
 } from '../tradeStore.js'
 import { itemMatchesQuery } from '../itemSearch.js'
 import { ITEM_ICONS } from '../itemIcons.js'
@@ -35,12 +35,18 @@ const reason = computed(() => {
 
 // 판매가: 기존 "베르 룬 2개 + 이스트 룬 1개" 를 칩으로 풀어서 개수만 고치거나 더하고 빼기
 const BY_NAME = new Map(CURRENCY_ITEMS.map((it) => [it.name_ko, it]))
+// 알아보지 못한 조각(예전 자유 글 가격 등)은 저장하면 빠지니까 따로 모아서 알려줌
+const droppedPrice = ref([])
 function parsePrice(text) {
-  return (text || '').split(' + ').map((part) => {
+  const dropped = []
+  const out = (text || '').split(' + ').map((part) => {
     const m = part.trim().match(/^(.+?) (\d+)개$/)
     const it = m && BY_NAME.get(m[1])
+    if (!it && part.trim()) dropped.push(part.trim())
     return it ? { item: it, qty: Number(m[2]) } : null
   }).filter(Boolean)
+  droppedPrice.value = dropped
+  return out
 }
 const priceItems = ref([])
 let started = false
@@ -54,7 +60,7 @@ function addItem(it) {
   else priceItems.value.push({ item: it, qty: 1 })
   query.value = ''
 }
-const newPrice = computed(() => priceItems.value.filter((p) => Number(p.qty) > 0).map((p) => `${p.item.name_ko} ${Number(p.qty)}개`).join(' + '))
+const newPrice = computed(() => priceItems.value.map((p) => `${p.item.name_ko} ${Number(p.qty)}개`).join(' + '))
 
 const error = ref('')
 const saving = ref(false)
@@ -62,6 +68,7 @@ async function submit() {
   error.value = ''
   // 제안만 받기 글은 판매가를 비워 두면 그대로 제안만 받음
   const price = newPrice.value || (post.value.offerOnly ? OFFER_ONLY_PRICE : '')
+  if (priceItems.value.some((p) => !isValidQty(p.qty))) { error.value = t('개수는 1~{n} 사이의 정수로 입력', { n: MAX_QTY }); return }
   if (!price) { error.value = t('판매가(룬·보석·재료) 하나 이상'); return }
   saving.value = true
   try {
@@ -116,6 +123,7 @@ async function submit() {
             </span>
           </div>
 
+          <small class="price-drop-note" style="display:block; color:#e0775f; font-size:12px; margin:4px 0;" v-if="droppedPrice.length">{{ $t('알아보지 못한 가격은 저장하면 빠져요: {s}', { s: droppedPrice.join(', ') }) }}</small>
           <div class="price-chips">
             <div class="price-chip" v-for="(p, i) in priceItems" :key="p.item.id">
               <span class="price-chip-icon"><img v-if="iconUrl(p.item.icon_key)" :src="iconUrl(p.item.icon_key)" alt="" /></span>
