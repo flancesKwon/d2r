@@ -40,6 +40,7 @@ import {
   classSkillsForBase,
   baseForItem,
   superiorCombosFor,
+  superiorComboLabel,
   SUPERIOR_MODS,
   isAllowedValue,
   isCurrencyItem,
@@ -393,8 +394,6 @@ const superiorCombos = computed(() =>
 )
 const superiorPick = ref({ combo: '', values: {} })
 const pickedSuperiorCombo = computed(() => superiorCombos.value[superiorPick.value.combo] || null)
-const superiorComboLabel = (combo) =>
-  combo.map((k) => SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`)).join(' + ')
 function buildSuperiorOptions() {
   return (pickedSuperiorCombo.value || [])
     .filter((k) => superiorPick.value.values[k] !== undefined && superiorPick.value.values[k] !== '')
@@ -1355,7 +1354,7 @@ function submitPost() {
           <div class="option-row">
             <select v-model="superiorPick.combo" class="write-select random-group-select" :aria-label="$t('상급 옵션 조합')">
               <option value="">{{ $t('상급 아님 (일반 베이스)') }}</option>
-              <option v-for="(c, ci) in superiorCombos" :key="ci" :value="ci">{{ superiorComboLabel(c) }}</option>
+              <option v-for="(c, ci) in superiorCombos" :key="ci" :value="ci">{{ superiorComboLabel(c, affixText) }}</option>
             </select>
           </div>
           <div class="option-row" v-for="k in pickedSuperiorCombo || []" :key="k">

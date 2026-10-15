@@ -604,6 +604,8 @@ export default {
   '최소 데미지': 'Min damage',
   '비워두면 베이스 기본값{r} - 피해 증가 등으로 바뀐 값은 게임에 보이는 그대로 입력': 'Leave empty for the base value{r} — if Enhanced Damage changes it, enter what the game shows',
   '상급(Superior) 베이스 옵션': 'Superior base stats',
+  '상급 전체': 'Any superior',
+  '상급 수치': 'Superior values',
   '상급 옵션 조합': 'Superior combination',
   '상급 아님 (일반 베이스)': 'Not superior (normal base)',
   '소켓 여부': 'Sockets',
