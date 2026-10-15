@@ -1369,7 +1369,7 @@ function variantLines(p) {
         <div class="tr-search-box">
           <input
             ref="searchEl" type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
-            :placeholder="pickedItem ? $t('옵션·내용으로 더 좁히기') : $t('아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)')"
+            :placeholder="$t('아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)')"
             :aria-label="$t('매물 검색')" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && unifiedSuggestions.length > 0" aria-controls="tr-suggest"
           />
           <div class="tr-suggest" id="tr-suggest" role="listbox" v-if="suggestOpen && unifiedSuggestions.length">
@@ -1618,7 +1618,6 @@ function variantLines(p) {
           <div class="mr-head-text">
             <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b>
           </div>
-          <button type="button" class="mr-change" @click="clearPickedItem(); focusSearch()">{{ $t('다른 아이템') }}</button>
         </div>
         <!-- 판매글 등록과 같은 순서: 베이스 -> 상급 -> 상급 옵션 -> 베이스 수치 -> 변동 옵션 -->
         <div class="mr-grid">
@@ -2204,18 +2203,28 @@ function variantLines(p) {
 .trade-page.searching .tr-body{width:100%; max-width:1470px; margin:0 auto; padding:20px 20px 64px; gap:20px; flex-wrap:nowrap;}
 /* 목록형은 한 줄에 내용이 왼쪽으로 쌓여서 카드형만큼 넓으면 오른쪽이 비어 보임 - 조금 좁게 (머리글도 같이 맞춰지게 칸 자체를 좁힘) */
 .trade-page.searching .tr-body.view-list{max-width:1250px;}
-.tr-filters{flex:0 0 400px; min-width:0; position:sticky; top:12px;}
+.tr-filters{flex:0 0 440px; min-width:0; position:sticky; top:12px;}
 .tr-filters-toggle{display:none;}
 .tr-filters .item-range-panel{margin-top:0;}
 .tr-filters .item-range-panel + .item-range-panel{margin-top:10px;}
 /* 조건 칸이 좁아지니 이름 칸도 줄이고 옵션 줄은 한 줄씩 */
 .tr-filters .mr-grid{grid-template-columns:62px minmax(0, 1fr); gap:9px 10px;}
 .tr-filters .item-range-grid{grid-template-columns:1fr;}
-/* 조건 칸이 좁아서 한 줄에 '이름 최소 ~ 최대' 가 다 안 들어감 - 이름은 윗줄, 수치는 아랫줄 */
-.tr-filters .pk-row{display:grid; grid-template-columns:1fr auto 1fr; gap:4px 6px; align-items:center;}
-.tr-filters .pk-row .pk-name{grid-column:1 / -1; margin:0;}
+/* 옵션 수치 입력은 한 줄 - 이름이 길면 이름 안에서만 줄이 바뀌고 칸은 아래로 안 내려감 */
+.tr-filters .pk-row{display:grid; grid-template-columns:minmax(0, 1fr) 70px auto 70px; gap:4px 6px; align-items:center; flex-wrap:nowrap;}
+.tr-filters .pk-row .pk-name{margin:0;}
 .tr-filters .pk-row .sort-select{grid-column:1 / -1; width:100%;}
-.tr-filters .pk-row input{width:100%; min-width:0;}
+.tr-filters .pk-row input{width:100%; min-width:0; padding:6px;}
+.tr-filters .mr-cond{flex-wrap:nowrap;}
+.tr-filters .mr-cond-name{flex:1 1 0; min-width:0; margin-right:0;}
+.tr-filters .mr-cond input{width:62px; flex:none; padding:5px 6px;}
+@media (max-width:640px){
+  /* 폰은 폭이 좁아서 이름을 윗줄에 */
+  .tr-filters .pk-row .pk-name{grid-column:1 / -1;}
+  .tr-filters .pk-row{grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr);}
+  .tr-filters .mr-cond{flex-wrap:wrap;}
+  .tr-filters .mr-cond-name{flex:1 1 100%;}
+}
 @media (max-width:1100px){
   .trade-page.searching .tr-body{flex-wrap:wrap;}
   .tr-filters{flex:1 1 100%; position:static;}
