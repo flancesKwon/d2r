@@ -20,7 +20,7 @@ const pages = [
   { p: '', title: '디아허브 — 디아블로 2 레저렉션 거래·정보',
     body: [
       '디아블로 2 레저렉션 아이템 거래소. 아시아·미주·유럽 서버의 유니크·세트·룬워드·룬 매물을 아이템 이름, 베이스, 옵션 수치로 검색.',
-      '판매글은 올린 때부터 7일 동안 노출되고, 끝나면 판매가만 고쳐 재등록. 찾는 아이템을 삽니다 글로 올려두면 맞는 매물이 올라올 때 알림.',
+      '판매글은 올린 때부터 7일 동안 노출되고, 끝나면 판매가만 고쳐 재등록.',
       '아이템 사전 730여 종, 룬워드 찾기, 큐브 레시피, 브레이크포인트·소켓·크래프트 계산기, 직업별 빌드 가이드.',
     ],
     desc: '디아블로 2 레저렉션 아이템 거래 (아시아·미주·유럽 서버) - 아이템 이름·종류·옵션으로 매물 검색, 고룬 매물, 거래 게시판' },
@@ -37,7 +37,6 @@ const pages = [
   { p: 'ladder', title: '레더 시즌 정보', desc: '디아블로 2 레저렉션 현재 레더 시즌 일정·남은 기간과 시즌 변경 사항 정리' },
   { p: 'market', title: '시세 게시판', desc: '디아블로 2 레저렉션 룬·유니크·룬워드 체감 가치 등급표 - 하이룬부터 잡템까지 거래 참고용' },
   { p: 'trade/history', title: '아이템별 거래내역', desc: '디아블로 2 레저렉션 아이템별 판매글과 거래완료 가격 - 변동 옵션별로 실제 거래된 값 확인' },
-  { p: 'trade/wants', title: '삽니다', desc: '디아블로 2 레저렉션 아이템 구매 글 - 원하는 아이템·옵션을 올려두면 매물이 올라올 때 알림' },
   { p: 'community', title: '커뮤니티', desc: '디아블로 2 레저렉션 질문·공략·빌드 상담·잡담 게시판 - 거래 후기와 시즌 소식' },
   { p: 'terms', title: '이용 규칙', desc: '디아허브 이용 규칙 - 거래 진행 방식, 금지 행위, 신고와 제재 기준' },
   { p: 'privacy', title: '개인정보 처리 안내', desc: '디아허브가 모으는 정보와 쓰는 곳, 보관 기간, 지우는 방법 안내' },
@@ -118,10 +117,9 @@ const EN_DESC = {
   cube: 'Diablo II: Resurrected Horadric Cube recipes: upgrades, repairs, crafting and uber portals.',
   market: 'Diablo II: Resurrected rune, unique and runeword value tiers — from high runes down to junk, as a trading reference.',
   'trade/history': 'Diablo II: Resurrected listings and completed trade prices by item, broken down by variable rolls.',
-  'trade/wants': 'Diablo II: Resurrected buy requests — post the item and stat rolls you want and get notified when a matching listing goes up.',
   community: 'DiabloHub community board — questions, builds, trade feedback and season news for Diablo II: Resurrected.',
 }
-const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'trade/wants', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
+const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
 function enVersion(page) {
   if (page.noindex) return { ...page, p: 'en' + (page.p ? '/' + page.p : ''), title: EN[page.title] || page.title, desc: null, body: null, links: null, lang: 'en' }
   if (page.en) return { ...page, p: 'en/' + page.p, title: page.en.title, desc: page.en.desc, body: null, links: page.en.links || null, lang: 'en' }
@@ -133,14 +131,14 @@ const urlOf = (p) => SITE + (p ? p + '/' : '')
 
 // 정적 HTML 에 넣을 사이트 주요 메뉴 (JS 를 안 돌리는 검색로봇이 사이트를 돌 수 있게)
 const NAV_KO = [
-  ['/', '매물 검색'], ['/trade/wants/', '삽니다'], ['/trade/history/', '아이템별 거래내역'], ['/market/', '시세 게시판'],
+  ['/', '매물 검색'], ['/trade/history/', '아이템별 거래내역'], ['/market/', '시세 게시판'],
   ['/db/', 'DB·도구'], ['/items/', '아이템 사전'], ['/runewords/', '룬워드 찾기'], ['/cube/', '큐브 레시피'],
   ['/breakpoints/', '브레이크포인트 계산기'], ['/sockets/', '소켓 계산기'], ['/craft-sim/', '크래프트 시뮬레이터'],
   ['/simulator/', '스킬·스탯 시뮬레이터'], ['/guides/', '빌드 가이드'], ['/patch/', '패치노트'], ['/ladder/', '레더 시즌 정보'],
   ['/community/', '커뮤니티'], ['/terms/', '이용 규칙'], ['/privacy/', '개인정보 처리 안내'],
 ]
 const NAV_EN = [
-  ['/en/', 'Trade search'], ['/en/trade/wants/', 'Buy requests'], ['/en/trade/history/', 'Trade history'], ['/en/market/', 'Value tiers'],
+  ['/en/', 'Trade search'], ['/en/trade/history/', 'Trade history'], ['/en/market/', 'Value tiers'],
   ['/en/db/', 'Database & tools'], ['/en/items/', 'Item database'], ['/en/runewords/', 'Runeword finder'], ['/en/cube/', 'Cube recipes'],
   ['/en/breakpoints/', 'Breakpoints'], ['/en/sockets/', 'Sockets'], ['/en/craft-sim/', 'Crafting simulator'],
   ['/en/simulator/', 'Skill planner'], ['/en/guides/', 'Build guides'], ['/en/patch/', 'Patch notes'], ['/en/ladder/', 'Ladder season'],

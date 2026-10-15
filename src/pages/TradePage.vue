@@ -52,7 +52,6 @@ import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale, affixText } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
-import { countWantsForItem } from '../wantsStore.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -1253,25 +1252,6 @@ onMounted(() => {
 })
 onUnmounted(() => io?.disconnect())
 
-// 지금 검색 조건 그대로 삽니다 글 쓰기 (맞는 매물이 올라오면 알림) - 아이템이나 옵션 조건이 있을 때만
-const wantLink = computed(() => {
-  const conds = statConditions.value.filter((c) => !c.keyword).map((c) => ({ key: c.key, min: c.min, max: c.max }))
-  const cat = !pickedItem.value && activeCats.value.length === 1 && activeCats.value[0] !== '골드' ? activeCats.value[0] : null
-  if (!pickedItem.value && !(cat && conds.length) && !conds.length) return null
-  const query = { new: '1' }
-  if (pickedItem.value) query.item = pickedItem.value.id
-  else if (cat) query.cat = cat
-  if (conds.length) query.conds = JSON.stringify(conds)
-  if (activeRegion.value) query.realm = activeRegion.value
-  if (activeLadder.value) query.ladder = activeLadder.value
-  if (activeHardcore.value) query.hc = activeHardcore.value
-  if (gameVersion.value) query.game = gameVersion.value
-  if (etherealOnly.value) query.eth = '1'
-  return { path: '/trade/wants', query }
-})
-const pickedWantCount = ref(0)
-watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
-
 const appliedCount = computed(() =>
   activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
@@ -1683,8 +1663,6 @@ function variantLines(p) {
       <h2 v-if="liveCount || !expiredCount">{{ appliedCount ? $t('검색 결과') : $t('전체 매물') }} <span>{{ liveCount }}</span>{{ $t('개') }}</h2>
       <h2 v-else>{{ $t('기간 지난 매물 {n}개', { n: expiredCount }) }}</h2>
       <span class="tr-results-note"><template v-if="liveCount && expiredCount">{{ $t('기간 지난 매물 {n}개 포함', { n: expiredCount }) }} · </template>{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
-      <router-link v-if="wantLink" class="want-cta" :to="wantLink">🔔 {{ $t('이 조건으로 알림 받기') }}</router-link>
-      <router-link v-if="pickedItem && pickedWantCount" class="want-count" :to="{ path: '/trade/wants', query: { q: pickedItem.name_ko } }">{{ $t('구하는 사람 {n}명', { n: pickedWantCount }) }}</router-link>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -1739,7 +1717,6 @@ function variantLines(p) {
           <button type="button" v-for="h in dropHints" :key="h.key" @click="h.drop(); commit()">{{ h.label }} <em>{{ $t('빼면 {n}개', { n: h.n }) }}</em></button>
         </div>
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
-        <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
       </div>
     </div>
 
@@ -1779,7 +1756,6 @@ function variantLines(p) {
       <div class="empty-state" v-else-if="filteredPosts.length === 0">
         {{ appliedCount ? $t('조건에 맞는 매물 없음') : $t('판매중인 글 없음') }}
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
-        <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
       </div>
     </div>
     <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
@@ -2209,8 +2185,6 @@ function variantLines(p) {
 .tr-gap{flex:1;}
 .tr-results-head .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;}
 .tr-results-head .quality-toggle:hover{background:#e3cd92;}
-.want-cta{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:5px 12px;}
-.want-cta:hover{background:#2A2216;}
 .empty-drop{display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--text-dim);}
 .empty-drop button{white-space:nowrap; padding:6px 12px; border-radius:999px; border:1px solid var(--gold-dim);
   background:#211b11; color:var(--gold); font-size:12.5px; font-weight:600; cursor:pointer;}
@@ -2232,9 +2206,7 @@ function variantLines(p) {
 .empty-clear{display:inline-block; margin-top:10px; padding:7px 14px; border:1px solid var(--line); border-radius:999px;
   background:transparent; color:var(--text-muted); font-size:13px; cursor:pointer;}
 .empty-clear:hover{color:var(--text); border-color:var(--gold-dim);}
-.want-cta.big{display:inline-block; margin-top:12px; font-size:13.5px; padding:9px 18px;}
 .empty-state .want-cta.big{display:table; margin:12px auto 0;}
-.want-count{font-size:12px; font-weight:700; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:4px 10px;}
 
 @media (max-width:640px){
   .tr-hero-inner{padding:24px 14px 18px; gap:12px;}

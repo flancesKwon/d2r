@@ -418,7 +418,7 @@ export const TRADE_STAT_FILTERS = [
 // 옵션 검색 전체 목록 (scripts/build-stat-filters.js 가 만듦) - 아이템 사전·매직/레어 접사·직업별 개별 스킬까지
 // 위의 TRADE_STAT_FILTERS 는 '자주 쓰는 옵션'으로 계속 씀 (여러 줄 합산 같은 특별 규칙이 있어서)
 export const ALL_STAT_FILTERS = statFilterData.map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
-// 검색창·삽니다 글에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
+// 검색창에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
 // 그 뒤에 아이템 사전·매직/레어 접사·개별 스킬에서 뽑은 전체 목록 (같은 문구는 앞의 것만)
 export const STAT_PICKS = (() => {
   // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백·끝의 '증가'는 떼고 봄
