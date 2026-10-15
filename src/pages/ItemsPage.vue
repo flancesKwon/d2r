@@ -77,6 +77,11 @@ function applyRouteQuery() {
   if (typeof q.q === 'string') searchQuery.value = q.q
   if (q.by === 'option' || q.by === 'name') searchBy.value = q.by
   selected.value = (id && items.find((it) => it.id === id)) || null
+  // 없는 아이템 주소(/items/u200)는 전체 목록이 아니라 404 로
+  if (route.params.id && !selected.value) {
+    router.replace({ name: 'not-found', params: { pathMatch: route.path.split('/').filter(Boolean) }, query: route.query })
+    return
+  }
   const cat = URL_CATS.includes(q.cat) ? q.cat : 'all'
   if (cat !== activeCat.value && !id) setCat(cat)
 }
