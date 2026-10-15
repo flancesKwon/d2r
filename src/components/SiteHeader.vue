@@ -32,7 +32,6 @@ const TRADE_MENUS = [
       { label: '이용 안내', action: openTradeGuide },
     ],
   },
-  { key: 'wants', label: '삽니다', to: '/trade/wants', match: ['/trade/wants'], links: [] },
   { key: 'market', label: '시세', to: '/market', match: ['/market'], links: [] },
   { key: 'history', label: '거래내역', to: '/trade/history', match: ['/trade/history'], links: [] },
   { key: 'deals', label: '내 거래', to: '/deals', match: ['/deals'], links: [] },

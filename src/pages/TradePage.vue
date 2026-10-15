@@ -27,6 +27,9 @@ import {
   SUPERIOR_MODS,
   EXTRA_MATERIALS,
   superiorCombosFor,
+  superiorCombosByKind,
+  superiorComboKey,
+  superiorComboLabel,
   baseForItem,
   searchBaseItems,
   classSkillsForBase,
@@ -52,7 +55,6 @@ import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale, affixText } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
-import { countWantsForItem } from '../wantsStore.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -206,20 +208,23 @@ const DMG_LINE = /^기본 데미지 (\d+)~(\d+)$/
 const SOCK_LINE = /^소켓 (\d+)개$/
 const BASE_LINE = /^베이스: (.+?)(?: \(.+\))?$/
 const normLine = (t) => t.replace(/\d+/g, '#')
-const SUPERIOR_RES = Object.values(SUPERIOR_MODS).map((m) => new RegExp('^' + escRe(m.text).replace('\\{v\\}', '\\d+') + '$'))
-// 상급 베이스인지 - 상급 옵션 줄(피해 증가·방어력 증가·명중률·최대 내구도)이 아이템 자기 옵션 말고 따로 붙어 있으면 상급
-function isSuperiorPost(p, item) {
+const SUPERIOR_RES = Object.entries(SUPERIOR_MODS).map(([k, m]) => [k, new RegExp('^' + escRe(m.text).replace('\\{v\\}', '\\d+') + '$')])
+// 글에 붙은 상급 옵션 조합 - 'ac%+dur%' 처럼 (없으면 ''). 아이템 자기 옵션과 같은 줄은 빼고 그 위로 더 붙은 것만 상급
+function superiorKeysOf(p, item) {
   const own = new Map()
   for (const a of getItemAffixes(item)) if (a.text) own.set(normLine(a.text), (own.get(normLine(a.text)) || 0) + 1)
   const seen = new Map()
+  const keys = []
   for (const l of p.options || []) {
-    if (!SUPERIOR_RES.some((re) => re.test(l))) continue
+    const hit = SUPERIOR_RES.find(([, re]) => re.test(l))
+    if (!hit) continue
     const k = normLine(l)
     seen.set(k, (seen.get(k) || 0) + 1)
-    if (seen.get(k) > (own.get(k) || 0)) return true
+    if (seen.get(k) > (own.get(k) || 0)) keys.push(hit[0])
   }
-  return false
+  return superiorComboKey(keys)
 }
+const isSuperiorPost = (p, item) => !!superiorKeysOf(p, item)
 // 이 아이템 글 (베이스 종류 고르기·방어력/데미지 칸을 보여줄지 정할 때 씀)
 const pickedItemPosts = computed(() => (pickedItem.value ? tradeState.posts.filter((p) => p.itemId === pickedItem.value.id) : []))
 const anyLine = (re) => pickedItemPosts.value.some((p) => (p.options || []).some((l) => re.test(l)))
@@ -251,6 +256,7 @@ const mrCraft = ref('')
 const mrSock = ref({ min: '', max: '' })
 const mrLvl = ref({ min: '', max: '' })
 const mrSup = ref('')
+const mrSupCombo = ref('')
 const mrSupVals = ref({})
 // 베이스를 고르면 켜짐 (유니크·세트·룬워드는 아이템 지정으로 찾음)
 const mrOn = computed(() => !pickedItem.value && !!mrBase.value)
@@ -310,10 +316,10 @@ function pickGroup(word) {
   pickedItem.value = null
   mrBase.value = ''
   mrBaseObj.value = null
-  mrQuality.value = ''
   mrShape.value = ''
   mrCraft.value = ''
   baseGroup.value = word
+  mrQuality.value = defaultQuality()
   searchQuery.value = ''
   suggestOpen.value = false
   goSearch()
@@ -331,7 +337,7 @@ function pickBase(b, quality = '') {
   pickedItem.value = null
   mrBaseObj.value = b
   mrBase.value = baseLabelOf(b)
-  mrQuality.value = quality
+  mrQuality.value = quality || (baseQualities(b).includes('normal') ? 'normal' : '')
   mrShape.value = ''
   mrCraft.value = ''
   searchQuery.value = ''
@@ -373,6 +379,8 @@ const mrQualityPicks = computed(() => {
   const allow = new Set(list.flatMap(baseQualities))
   return QUALITY_PICKS.filter((q) => allow.has(q.v))
 })
+// 베이스를 고르면 품질은 일반이 기본 (일반이 없는 반지·목걸이 같은 건 매직·레어)
+const defaultQuality = () => (mrQualityPicks.value.some((q) => q.v === 'normal') ? 'normal' : '')
 // 이 베이스·품질에서 가능한 소켓 최대 개수 (등록 화면과 같은 규칙)
 //  일반(흰색)·품질 안 고름 = 베이스 최대 / 매직·레어·크래프트 = 소켓 접두사 범위 또는 라르주크(매직 2, 나머지 1)
 const mrSockMax = computed(() => {
@@ -394,10 +402,8 @@ const LVL_LINE = /^요구 레벨 (\d+)$/
 watch(mrLvlShow, (on) => { if (!on) mrLvl.value = { min: '', max: '' } })
 // 상급은 흰 베이스만 - 매직·레어는 같은 문구(피해 증가 등)가 접사로도 붙어서 구분이 안 됨
 const mrSupCombos = computed(() => (mrQuality.value === 'normal' ? superiorCombosFor(mrBaseItem.value) : []))
-const mrSupMods = computed(() => {
-  const ks = new Set(mrSupCombos.value.flat())
-  return Object.keys(SUPERIOR_MODS).filter((k) => ks.has(k))
-})
+const mrSupComboChoices = computed(() => mrSupCombos.value.map((c) => ({ key: superiorComboKey(c), mods: c })))
+const mrSupMods = computed(() => (mrSupCombo.value ? mrSupCombo.value.split('+') : []))
 watch(mrSupMods, (ks) => {
   const old = mrSupVals.value
   mrSupVals.value = Object.fromEntries(ks.map((k) => [k, old[k] || { min: '', max: '' }]))
@@ -405,6 +411,8 @@ watch(mrSupMods, (ks) => {
 // 베이스·품질을 바꾸면 범위를 넘는 값이 남지 않게 비움
 watch(mrSockMax, () => { mrSock.value = { min: '', max: '' } })
 watch(mrSupCombos, (c) => { if (!c.length) mrSup.value = '' })
+watch(mrSupComboChoices, (cs) => { if (!cs.some((c) => c.key === mrSupCombo.value)) mrSupCombo.value = '' })
+watch(mrSup, (v) => { if (v !== '상급') mrSupCombo.value = '' })
 
 // 이 베이스·품질에 붙을 수 있는 옵션 (매직/레어 접사 사전 -> 옵션 검색 항목). 품질을 안 골랐으면 매직+레어
 // 접사마다 최대 수치로 문구를 만들어 옵션 검색 정규식에 맞춰 봄 - 자주 찾는 옵션 먼저
@@ -554,7 +562,7 @@ const mrCount = computed(() =>
 )
 function resetMr() {
   mrQuality.value = ''; mrBase.value = ''; mrBaseObj.value = null; mrShape.value = ''; mrCraft.value = ''
-  mrSock.value = { min: '', max: '' }; mrSup.value = ''; mrLvl.value = { min: '', max: '' }
+  mrSock.value = { min: '', max: '' }; mrSup.value = ''; mrSupCombo.value = ''; mrLvl.value = { min: '', max: '' }
   for (const k of Object.keys(mrSupVals.value)) mrSupVals.value[k] = { min: '', max: '' }
 }
 // 판매글이 조건에 맞는지
@@ -593,8 +601,10 @@ function mrMatches(p, skip) {
   }
   if (A.mrSup && !no('mr:sup')) {
     // 흰 베이스라 상급 옵션 줄이 붙어 있으면 상급
-    const sup = (p.options || []).some((l) => SUPERIOR_RES.some((re) => re.test(l)))
-    if ((A.mrSup === '상급') !== sup) return false
+    const keys = superiorKeysOf(p, null)
+    if ((A.mrSup === '상급') !== !!keys) return false
+    // 조합을 골랐으면 그 옵션만 붙은 글 (방어력만 / 내구도만 / 둘 다)
+    if (A.mrSupCombo && keys !== A.mrSupCombo) return false
     for (const [k, r] of Object.entries(A.mrSupVals)) {
       if (!r || (r.min === '' && r.max === '')) continue
       const m = SUPERIOR_MODS[k]
@@ -655,6 +665,8 @@ const itemBaseDefs = computed(() => {
     // 붙는 종류가 무기·방어구마다 달라서, 이 룬워드가 쓸 수 있는 베이스 종류에 맞는 것만
     const SUP_BY_KIND = { weapon: ['dmg%', 'att', 'dur%'], armor: ['ac%', 'dur%'] }
     const supKeys = [...new Set(rwKinds.flatMap((kk) => SUP_BY_KIND[kk] || []))]
+    // 어떤 상급 옵션이 붙었는지 (방어력만 / 내구도만 / 둘 다) - 고르면 그 옵션이 붙은 글만
+    defs.push({ key: 'supc', label: '상급 옵션 조합', choices: [...new Set(rwKinds.flatMap(superiorCombosByKind).map(superiorComboKey))], get: (p) => superiorKeysOf(p, it) || null })
     // 상급이면 붙는 수치 - 칸은 늘 만들어 두고, '상급만' 을 골랐을 때만 화면에 보여줌 (supOnly)
     for (const [k, m] of Object.entries(SUPERIOR_MODS).filter(([kk]) => supKeys.includes(kk))) {
       const re = new RegExp('^' + escRe(m.text).replace('\\{v\\}', '(\\d+)') + '$')
@@ -695,14 +707,32 @@ const itemVarDefs = computed(() => [...itemBaseDefs.value, ...itemOptionDefs.val
 // 판매글 등록과 같은 순서로 보여줌: 베이스 -> 상급 여부 -> 상급 옵션 -> 베이스 수치(방어력·데미지·소켓) -> 변동 옵션
 const pickBaseDef = computed(() => itemBaseDefs.value.find((d) => d.key === 'base') || null)
 const pickSupDef = computed(() => itemBaseDefs.value.find((d) => d.key === 'sup') || null)
-const pickSupModDefs = computed(() => itemBaseDefs.value.filter((d) => d.supOnly))
-// 상급 방어력 증가가 붙는 방어구는 기본 방어력이 그 수치로 정해져서 따로 안 받음 (룬워드 자체 방어력 옵션이 있으면 예외)
-const hideBaseDefense = computed(() => {
-  const it = pickedItem.value
-  return supPicked.value && it?.category === 'runeword' && runewordBaseKinds.value.every((k) => k === 'armor') &&
-    !getItemAffixes(it).some((a) => /^ac(%|\/lvl)?$/.test(a.prop))
+// 고른 룬워드 베이스 (안 골랐으면 null)
+const pickedRwBase = computed(() => {
+  const pick = itemRanges.value.base?.pick
+  return pick && pickedItem.value?.category === 'runeword' ? searchBaseItems('', null, pickedItem.value).find((b) => baseItemLabel(b) === pick) || null : null
 })
-const pickStatDefs = computed(() => itemBaseDefs.value.filter((d) => !d.supOnly && d.key !== 'base' && d.key !== 'sup' && !(d.key === 'def' && hideBaseDefense.value)))
+// 상급 옵션 조합 후보 - 베이스를 골랐으면 그 베이스 종류(무기·방어구)에 붙는 것만
+const supcOptions = computed(() => {
+  const kinds = pickedRwBase.value ? [pickedRwBase.value.base_stats.category] : runewordBaseKinds.value
+  const seen = new Set()
+  return kinds.flatMap(superiorCombosByKind).map((mods) => ({ key: superiorComboKey(mods), mods })).filter((c) => !seen.has(c.key) && seen.add(c.key))
+})
+const supcKeys = computed(() => (itemRanges.value.supc?.pick || '').split('+').filter(Boolean))
+// 상급 방어력·피해 증가가 붙으면 기본 방어력·데미지는 그 수치로 정해져서 따로 안 받음 (룬워드 자체 방어력·피해 옵션이 있으면 예외)
+const baseKindsNow = computed(() => (pickedRwBase.value ? [pickedRwBase.value.base_stats.category] : runewordBaseKinds.value))
+const ownHas = (re) => getItemAffixes(pickedItem.value).some((a) => re.test(a.prop))
+const hideBaseDefense = computed(() =>
+  supPicked.value && supcKeys.value.includes('ac%') && baseKindsNow.value.every((k) => k === 'armor') && !ownHas(/^ac(%|\/lvl)?$/)
+)
+const hideBaseDamage = computed(() =>
+  supPicked.value && supcKeys.value.includes('dmg%') && baseKindsNow.value.every((k) => k === 'weapon') && !ownHas(/^dmg%$/)
+)
+const pickSupModDefs = computed(() => itemBaseDefs.value.filter((d) => d.supOnly && supcKeys.value.includes(d.key.slice(4))))
+const pickStatDefs = computed(() => itemBaseDefs.value.filter((d) =>
+  !d.supOnly && !['base', 'sup', 'supc'].includes(d.key) &&
+  !(d.key === 'def' && hideBaseDefense.value) && !((d.key === 'dmin' || d.key === 'dmax') && hideBaseDamage.value)
+))
 // 칸 이름 - 화면 사전에 있으면("기본 방어력") 그걸로, 없으면 옵션 문구 변환("방어력 +750~775")
 const pkLabel = (l) => (t(l) !== l ? t(l) : affixText(l))
 const SUP_CHOICES = [{ v: '', label: '전체' }, { v: '상급', label: '상급만' }, { v: '일반', label: '일반 베이스만' }]
@@ -716,13 +746,19 @@ watch(itemVarDefs, (defs) => {
   itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, old[d.key] || { min: '', max: '', pick: '' }]))
 }, { immediate: true })
 const supPicked = computed(() => itemRanges.value.sup?.pick === '상급')
+const clearRange = (k) => { if (itemRanges.value[k]) itemRanges.value[k] = { min: '', max: '', pick: '' } }
 watch(supPicked, (on) => {
-  if (on) {
-    if (hideBaseDefense.value && itemRanges.value.def) itemRanges.value.def = { min: '', max: '', pick: '' }
-    return
-  }
-  for (const k of Object.keys(itemRanges.value)) if (k.startsWith('sup:')) itemRanges.value[k] = { min: '', max: '', pick: '' }
+  if (on) return
+  for (const k of Object.keys(itemRanges.value)) if (k === 'supc' || k.startsWith('sup:')) clearRange(k)
 })
+// 조합을 바꾸거나 베이스를 바꿔서 후보에 없어지면 조합과 그 수치를 비움
+watch(supcOptions, (cs) => { if (!cs.some((c) => c.key === itemRanges.value.supc?.pick)) clearRange('supc') })
+watch(supcKeys, (ks) => {
+  for (const k of Object.keys(itemRanges.value)) if (k.startsWith('sup:') && !ks.includes(k.slice(4))) clearRange(k)
+})
+// 기본 방어력·데미지 칸이 숨겨지면 거기 넣어 둔 범위도 비움
+watch(hideBaseDefense, (on) => { if (on) clearRange('def') })
+watch(hideBaseDamage, (on) => { if (on) { clearRange('dmin'); clearRange('dmax') } })
 const activeItemRanges = computed(() =>
   itemVarDefs.value.filter((d) => { const r = itemRanges.value[d.key]; return r && (d.choices ? r.pick : r.min !== '' || r.max !== '') })
 )
@@ -827,6 +863,7 @@ function resetExceptBase() {
   baseGroup.value = group
   mrBase.value = base
   mrBaseObj.value = obj
+  mrQuality.value = defaultQuality()
   commit()
 }
 
@@ -865,7 +902,7 @@ const numOrNull = (v) => (v === '' || v === null || v === undefined || !Number.i
 // (아이템·베이스·서버 같은 큰 선택은 고르는 즉시 검색됨)
 const rangeOn = (r) => r.min !== '' && r.min !== null || r.max !== '' && r.max !== null
 const draftNow = () => ({
-  mrQuality: mrQuality.value, mrShape: mrShape.value, mrCraft: mrCraft.value, mrSup: mrSup.value,
+  mrQuality: mrQuality.value, mrShape: mrShape.value, mrCraft: mrCraft.value, mrSup: mrSup.value, mrSupCombo: mrSupCombo.value,
   mrSupVals: mrSupVals.value, mrSock: mrSock.value, mrLvl: mrLvl.value,
   itemShape: itemShape.value, itemRanges: itemRanges.value, statConditions: statConditions.value,
 })
@@ -897,6 +934,7 @@ function buildQuery(useApplied = false) {
   if (S.mrShape) q.shape = S.mrShape
   if (S.mrCraft) q.craft = S.mrCraft
   if (S.mrSup) q.sup = S.mrSup
+  if (S.mrSupCombo) q.supc = S.mrSupCombo
   if (rng(S.mrSock)) q.sock = rng(S.mrSock)
   if (rng(S.mrLvl)) q.lvl = rng(S.mrLvl)
   if (S.itemShape) q.ishape = S.itemShape
@@ -916,7 +954,7 @@ function buildQuery(useApplied = false) {
   return q
 }
 // 주소에 조건이 하나라도 있나 (옛 ?item= 링크로 첫 화면에 들어온 경우 검색 화면으로 넘기려고)
-const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'bg', 'base', 'bq', 'shape', 'craft', 'sup', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
+const QUERY_KEYS = ['item', 'q', 'cat', 'slot', 'bg', 'base', 'bq', 'shape', 'craft', 'sup', 'supc', 'sock', 'lvl', 'ishape', 'supv', 'ir', 'opt']
 const hasQueryFilters = (q) => QUERY_KEYS.some((k) => q[k])
 
 let syncing = false
@@ -939,6 +977,7 @@ function applyQuery(q) {
   mrShape.value = typeof q.shape === 'string' ? q.shape : ''
   mrCraft.value = typeof q.craft === 'string' ? q.craft : ''
   mrSup.value = typeof q.sup === 'string' ? q.sup : ''
+  mrSupCombo.value = typeof q.supc === 'string' ? q.supc : ''
   mrSock.value = unrng(q.sock)
   mrLvl.value = unrng(q.lvl)
   itemShape.value = typeof q.ishape === 'string' ? q.ishape : ''
@@ -1253,25 +1292,6 @@ onMounted(() => {
 })
 onUnmounted(() => io?.disconnect())
 
-// 지금 검색 조건 그대로 삽니다 글 쓰기 (맞는 매물이 올라오면 알림) - 아이템이나 옵션 조건이 있을 때만
-const wantLink = computed(() => {
-  const conds = statConditions.value.filter((c) => !c.keyword).map((c) => ({ key: c.key, min: c.min, max: c.max }))
-  const cat = !pickedItem.value && activeCats.value.length === 1 && activeCats.value[0] !== '골드' ? activeCats.value[0] : null
-  if (!pickedItem.value && !(cat && conds.length) && !conds.length) return null
-  const query = { new: '1' }
-  if (pickedItem.value) query.item = pickedItem.value.id
-  else if (cat) query.cat = cat
-  if (conds.length) query.conds = JSON.stringify(conds)
-  if (activeRegion.value) query.realm = activeRegion.value
-  if (activeLadder.value) query.ladder = activeLadder.value
-  if (activeHardcore.value) query.hc = activeHardcore.value
-  if (gameVersion.value) query.game = gameVersion.value
-  if (etherealOnly.value) query.eth = '1'
-  return { path: '/trade/wants', query }
-})
-const pickedWantCount = ref(0)
-watch(pickedItem, async (it) => { pickedWantCount.value = 0; if (it) pickedWantCount.value = await countWantsForItem(it.id) }, { immediate: true })
-
 const appliedCount = computed(() =>
   activeCats.value.length + (pickedItem.value ? 1 : 0) + statConditions.value.length + mrCount.value + (itemShape.value ? 1 : 0) + (searchQuery.value.trim() && !suggestOpen.value ? 1 : 0)
 )
@@ -1519,8 +1539,16 @@ function variantLines(p) {
             </span>
           </template>
 
-          <template v-if="mrSup === '상급' && mrSupMods.length">
-            <span class="mr-label top on">{{ $t('상급 옵션') }}</span>
+          <template v-if="mrSup === '상급' && mrSupComboChoices.length">
+            <span class="mr-label" :class="{ on: mrSupCombo }">{{ $t('상급 옵션') }}</span>
+            <select class="sort-select" v-model="mrSupCombo" :aria-label="$t('상급 옵션 조합')">
+              <option value="">{{ $t('상급 전체') }}</option>
+              <option v-for="c in mrSupComboChoices" :key="c.key" :value="c.key">{{ superiorComboLabel(c.mods, affixText) }}</option>
+            </select>
+          </template>
+
+          <template v-if="mrSupMods.length">
+            <span class="mr-label top on">{{ $t('상급 수치') }}</span>
             <div class="pk-rows">
               <div class="pk-row" v-for="k in mrSupMods" :key="k" :class="{ on: mrSupVals[k] && (mrSupVals[k].min !== '' || mrSupVals[k].max !== '') }">
                 <span class="pk-name">{{ $affix(SUPERIOR_MODS[k].text.replace('{v}', SUPERIOR_MODS[k].min + '~' + SUPERIOR_MODS[k].max)) }}</span>
@@ -1620,8 +1648,16 @@ function variantLines(p) {
             </span>
           </template>
 
+          <template v-if="supPicked && supcOptions.length && itemRanges.supc">
+            <span class="mr-label" :class="{ on: itemRanges.supc.pick }">{{ $t('상급 옵션') }}</span>
+            <select v-model="itemRanges.supc.pick" class="sort-select" :aria-label="$t('상급 옵션 조합')">
+              <option value="">{{ $t('상급 전체') }}</option>
+              <option v-for="c in supcOptions" :key="c.key" :value="c.key">{{ superiorComboLabel(c.mods, affixText) }}</option>
+            </select>
+          </template>
+
           <template v-if="supPicked && pickSupModDefs.length">
-            <span class="mr-label top on">{{ $t('상급 옵션') }}</span>
+            <span class="mr-label top on">{{ $t('상급 수치') }}</span>
             <div class="pk-rows">
               <div class="pk-row" v-for="d in pickSupModDefs" :key="d.key" :class="{ on: activeItemRanges.includes(d) }">
                 <span class="pk-name">{{ pkLabel(d.label) }}</span>
@@ -1683,8 +1719,6 @@ function variantLines(p) {
       <h2 v-if="liveCount || !expiredCount">{{ appliedCount ? $t('검색 결과') : $t('전체 매물') }} <span>{{ liveCount }}</span>{{ $t('개') }}</h2>
       <h2 v-else>{{ $t('기간 지난 매물 {n}개', { n: expiredCount }) }}</h2>
       <span class="tr-results-note"><template v-if="liveCount && expiredCount">{{ $t('기간 지난 매물 {n}개 포함', { n: expiredCount }) }} · </template>{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
-      <router-link v-if="wantLink" class="want-cta" :to="wantLink">🔔 {{ $t('이 조건으로 알림 받기') }}</router-link>
-      <router-link v-if="pickedItem && pickedWantCount" class="want-count" :to="{ path: '/trade/wants', query: { q: pickedItem.name_ko } }">{{ $t('구하는 사람 {n}명', { n: pickedWantCount }) }}</router-link>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -1739,7 +1773,6 @@ function variantLines(p) {
           <button type="button" v-for="h in dropHints" :key="h.key" @click="h.drop(); commit()">{{ h.label }} <em>{{ $t('빼면 {n}개', { n: h.n }) }}</em></button>
         </div>
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
-        <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
       </div>
     </div>
 
@@ -1779,7 +1812,6 @@ function variantLines(p) {
       <div class="empty-state" v-else-if="filteredPosts.length === 0">
         {{ appliedCount ? $t('조건에 맞는 매물 없음') : $t('판매중인 글 없음') }}
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
-        <router-link v-if="wantLink" class="want-cta big" :to="wantLink">🔔 {{ $t('삽니다 글 올려두고 매물 올라오면 알림 받기') }}</router-link>
       </div>
     </div>
     <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
@@ -2209,8 +2241,6 @@ function variantLines(p) {
 .tr-gap{flex:1;}
 .tr-results-head .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;}
 .tr-results-head .quality-toggle:hover{background:#e3cd92;}
-.want-cta{font-size:12.5px; font-weight:700; color:var(--gold); border:1px solid var(--gold-dim); border-radius:999px; padding:5px 12px;}
-.want-cta:hover{background:#2A2216;}
 .empty-drop{display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--text-dim);}
 .empty-drop button{white-space:nowrap; padding:6px 12px; border-radius:999px; border:1px solid var(--gold-dim);
   background:#211b11; color:var(--gold); font-size:12.5px; font-weight:600; cursor:pointer;}
@@ -2232,9 +2262,7 @@ function variantLines(p) {
 .empty-clear{display:inline-block; margin-top:10px; padding:7px 14px; border:1px solid var(--line); border-radius:999px;
   background:transparent; color:var(--text-muted); font-size:13px; cursor:pointer;}
 .empty-clear:hover{color:var(--text); border-color:var(--gold-dim);}
-.want-cta.big{display:inline-block; margin-top:12px; font-size:13.5px; padding:9px 18px;}
 .empty-state .want-cta.big{display:table; margin:12px auto 0;}
-.want-count{font-size:12px; font-weight:700; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:4px 10px;}
 
 @media (max-width:640px){
   .tr-hero-inner{padding:24px 14px 18px; gap:12px;}

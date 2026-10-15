@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { countWantsForItem } from '../wantsStore.js'
 import { useRouter, useRoute } from 'vue-router'
 import { askConfirm } from '../dialog.js'
 import EventBanner from '../components/EventBanner.vue'
@@ -41,6 +40,7 @@ import {
   classSkillsForBase,
   baseForItem,
   superiorCombosFor,
+  superiorComboLabel,
   SUPERIOR_MODS,
   isAllowedValue,
   isCurrencyItem,
@@ -394,8 +394,6 @@ const superiorCombos = computed(() =>
 )
 const superiorPick = ref({ combo: '', values: {} })
 const pickedSuperiorCombo = computed(() => superiorCombos.value[superiorPick.value.combo] || null)
-const superiorComboLabel = (combo) =>
-  combo.map((k) => SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`)).join(' + ')
 function buildSuperiorOptions() {
   return (pickedSuperiorCombo.value || [])
     .filter((k) => superiorPick.value.values[k] !== undefined && superiorPick.value.values[k] !== '')
@@ -801,15 +799,11 @@ function pickItem(it) {
   resetItemDependentFields()
 }
 
-// 삽니다 글에서 "판매글 올리기"로 오면 (?item=) 그 아이템을 골라 둠
+// 주소에 ?item= 이 있으면 그 아이템을 골라 둠
 onMounted(() => {
   const it = typeof route.query.item === 'string' ? getTradeItem(route.query.item) : null
   if (it && !form.value.itemId) pickItem(it)
 })
-// 고른 아이템을 구하는 삽니다 글 수 (있으면 "구하는 사람 N명" 링크)
-const wantCount = ref(0)
-watch(() => form.value.itemId, async (id) => { wantCount.value = 0; if (id) wantCount.value = await countWantsForItem(id) }, { immediate: true })
-
 function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
@@ -1088,9 +1082,6 @@ function submitPost() {
           {{ $t('아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)') }}
         </button>
       </div>
-      <router-link v-if="selectedItem && wantCount" class="want-hint" :to="{ path: '/trade/wants', query: { q: selectedItem.name_ko } }">
-        {{ $t('이 아이템을 구하는 사람 {n}명 - 삽니다 글 보기', { n: wantCount }) }} →
-      </router-link>
 
       <div class="modal-overlay" v-if="showItemModal" @click.self="showItemModal = false">
         <div class="modal-panel item-modal-panel">
@@ -1363,7 +1354,7 @@ function submitPost() {
           <div class="option-row">
             <select v-model="superiorPick.combo" class="write-select random-group-select" :aria-label="$t('상급 옵션 조합')">
               <option value="">{{ $t('상급 아님 (일반 베이스)') }}</option>
-              <option v-for="(c, ci) in superiorCombos" :key="ci" :value="ci">{{ superiorComboLabel(c) }}</option>
+              <option v-for="(c, ci) in superiorCombos" :key="ci" :value="ci">{{ superiorComboLabel(c, affixText) }}</option>
             </select>
           </div>
           <div class="option-row" v-for="k in pickedSuperiorCombo || []" :key="k">
@@ -1680,8 +1671,6 @@ function submitPost() {
 .unit-hint{font-size:11px; color:var(--text-dim); margin-top:-4px;}
 
 .item-picker{position:relative;}
-.want-hint{display:inline-block; margin-top:8px; font-size:12.5px; font-weight:700; color:var(--teal); border:1px solid var(--teal); border-radius:999px; padding:4px 12px;}
-.want-hint:hover{background:color-mix(in srgb, var(--teal) 12%, transparent);}
 .item-picker-search-wrap{position:relative;}
 .item-picker-selected{
   display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--gold-dim);

@@ -313,6 +313,14 @@ const SUPERIOR_COMBOS = {
 export function superiorCombosFor(base) {
   return base ? SUPERIOR_COMBOS[base.base_stats.category] || [] : []
 }
+// 상급 조합 하나를 가리키는 값 - 옵션 종류를 SUPERIOR_MODS 순서로 정렬해 '+' 로 이음 ('ac%+dur%')
+const SUPERIOR_KEY_ORDER = Object.keys(SUPERIOR_MODS)
+export const superiorComboKey = (mods) => [...mods].sort((a, b) => SUPERIOR_KEY_ORDER.indexOf(a) - SUPERIOR_KEY_ORDER.indexOf(b)).join('+')
+// 무기·방어구 종류별 상급 조합 (베이스를 아직 안 골랐을 때)
+export const superiorCombosByKind = (kind) => SUPERIOR_COMBOS[kind] || []
+// 조합 이름 - '방어력 증가 +5~15% + 최대 내구도 +10~15%' (tr = 옵션 문구 번역 함수, 화면에서는 affixText)
+export const superiorComboLabel = (mods, tr = (s) => s) =>
+  mods.map((k) => tr(SUPERIOR_MODS[k].text.replace('{v}', `${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max}`))).join(' + ')
 
 // 입력값이 게임에서 나올 수 있는 값인지 - 정수이고 min~max 안(순서 무관), values가 있으면 그 중 하나
 export function isAllowedValue(v, { min, max, values } = {}) {
@@ -418,7 +426,7 @@ export const TRADE_STAT_FILTERS = [
 // 옵션 검색 전체 목록 (scripts/build-stat-filters.js 가 만듦) - 아이템 사전·매직/레어 접사·직업별 개별 스킬까지
 // 위의 TRADE_STAT_FILTERS 는 '자주 쓰는 옵션'으로 계속 씀 (여러 줄 합산 같은 특별 규칙이 있어서)
 export const ALL_STAT_FILTERS = statFilterData.map((s) => ({ ...s, regex: new RegExp(s.pattern) }))
-// 검색창·삽니다 글에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
+// 검색창에서 고를 수 있는 옵션 - '자주 쓰는' 묶음(여러 줄 합산 같은 특별 규칙이 있는 것) 먼저,
 // 그 뒤에 아이템 사전·매직/레어 접사·개별 스킬에서 뽑은 전체 목록 (같은 문구는 앞의 것만)
 export const STAT_PICKS = (() => {
   // 같은 옵션인지 비교할 때 수치 자리(X)·%·공백·끝의 '증가'는 떼고 봄
