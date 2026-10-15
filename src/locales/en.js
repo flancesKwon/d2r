@@ -35,6 +35,7 @@ export default {
   '재등록': 'Relist',
   '시세': 'Prices',
   '시세 게시판': 'Price guide',
+  '시세 게시판은 개발 예정입니다.': 'The price guide is coming soon.',
   '시세 보기': 'Price guide',
   '거래내역': 'Trade history',
   '아이템별 거래내역': 'Trade history by item',
@@ -113,7 +114,7 @@ export default {
   // ── 거래 첫 화면
   '디아블로 2 레저렉션 거래소': 'Diablo II: Resurrected Trade',
   '유니크 · 룬워드 · 룬부터 옵션 수치까지, 한 번에 검색': 'Uniques, runewords, runes and exact stat rolls — all in one search',
-  '아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)': 'Item name · type · stat (e.g. Harlequin Crest, Runewords, Faster Cast Rate)',
+  '아이템 · 종류 · 옵션 검색': 'Search item · type · stat',
   '매물 검색': 'Search listings',
   '서버': 'Realm',
   '서버 구분': 'Realm',

@@ -35,7 +35,7 @@ const pages = [
   { p: 'guides', title: '빌드 가이드', desc: '직업별 빌드 가이드와 시즌 티어리스트 - 스킬 순서·스탯·추천 장비' },
   { p: 'patch', title: '패치노트', desc: '디아블로 2 레저렉션 패치노트 한글 요약 (악마술사의 군림 이후)' },
   { p: 'ladder', title: '레더 시즌 정보', desc: '디아블로 2 레저렉션 현재 레더 시즌 일정·남은 기간과 시즌 변경 사항 정리' },
-  { p: 'market', title: '시세 게시판', desc: '디아블로 2 레저렉션 룬·유니크·룬워드 체감 가치 등급표 - 하이룬부터 잡템까지 거래 참고용' },
+  { p: 'market', title: '시세 게시판', desc: '디아블로 2 레저렉션 시세 게시판 - 개발 예정' },
   { p: 'trade/history', title: '아이템별 거래내역', desc: '디아블로 2 레저렉션 아이템별 판매글과 거래완료 가격 - 변동 옵션별로 실제 거래된 값 확인' },
   { p: 'community', title: '커뮤니티', desc: '디아블로 2 레저렉션 질문·공략·빌드 상담·잡담 게시판 - 거래 후기와 시즌 소식' },
   { p: 'terms', title: '이용 규칙', desc: '디아허브 이용 규칙 - 거래 진행 방식, 금지 행위, 신고와 제재 기준' },
@@ -115,7 +115,7 @@ const EN_DESC = {
   sockets: 'Maximum sockets by base item and item level for Diablo II: Resurrected.',
   'craft-sim': 'Blood, Caster, Hit Power and Safety crafting odds simulator for Diablo II: Resurrected.',
   cube: 'Diablo II: Resurrected Horadric Cube recipes: upgrades, repairs, crafting and uber portals.',
-  market: 'Diablo II: Resurrected rune, unique and runeword value tiers — from high runes down to junk, as a trading reference.',
+  market: 'Diablo II: Resurrected price guide — coming soon.',
   'trade/history': 'Diablo II: Resurrected listings and completed trade prices by item, broken down by variable rolls.',
   community: 'DiabloHub community board — questions, builds, trade feedback and season news for Diablo II: Resurrected.',
 }
@@ -138,7 +138,7 @@ const NAV_KO = [
   ['/community/', '커뮤니티'], ['/terms/', '이용 규칙'], ['/privacy/', '개인정보 처리 안내'],
 ]
 const NAV_EN = [
-  ['/en/', 'Trade search'], ['/en/trade/history/', 'Trade history'], ['/en/market/', 'Value tiers'],
+  ['/en/', 'Trade search'], ['/en/trade/history/', 'Trade history'], ['/en/market/', 'Price guide'],
   ['/en/db/', 'Database & tools'], ['/en/items/', 'Item database'], ['/en/runewords/', 'Runeword finder'], ['/en/cube/', 'Cube recipes'],
   ['/en/breakpoints/', 'Breakpoints'], ['/en/sockets/', 'Sockets'], ['/en/craft-sim/', 'Crafting simulator'],
   ['/en/simulator/', 'Skill planner'], ['/en/guides/', 'Build guides'], ['/en/patch/', 'Patch notes'], ['/en/ladder/', 'Ladder season'],

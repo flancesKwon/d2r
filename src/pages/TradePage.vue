@@ -1369,7 +1369,7 @@ function variantLines(p) {
         <div class="tr-search-box">
           <input
             ref="searchEl" type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
-            :placeholder="$t('아이템 이름 · 종류 · 옵션 (예: 할리퀸 관모, 룬워드, 시전 속도)')"
+            :placeholder="$t('아이템 · 종류 · 옵션 검색')"
             :aria-label="$t('매물 검색')" autocomplete="off" role="combobox" :aria-expanded="suggestOpen && unifiedSuggestions.length > 0" aria-controls="tr-suggest"
           />
           <div class="tr-suggest" id="tr-suggest" role="listbox" v-if="suggestOpen && unifiedSuggestions.length">
