@@ -696,7 +696,13 @@ const itemVarDefs = computed(() => [...itemBaseDefs.value, ...itemOptionDefs.val
 const pickBaseDef = computed(() => itemBaseDefs.value.find((d) => d.key === 'base') || null)
 const pickSupDef = computed(() => itemBaseDefs.value.find((d) => d.key === 'sup') || null)
 const pickSupModDefs = computed(() => itemBaseDefs.value.filter((d) => d.supOnly))
-const pickStatDefs = computed(() => itemBaseDefs.value.filter((d) => !d.supOnly && d.key !== 'base' && d.key !== 'sup'))
+// 상급 방어력 증가가 붙는 방어구는 기본 방어력이 그 수치로 정해져서 따로 안 받음 (룬워드 자체 방어력 옵션이 있으면 예외)
+const hideBaseDefense = computed(() => {
+  const it = pickedItem.value
+  return supPicked.value && it?.category === 'runeword' && runewordBaseKinds.value.every((k) => k === 'armor') &&
+    !getItemAffixes(it).some((a) => /^ac(%|\/lvl)?$/.test(a.prop))
+})
+const pickStatDefs = computed(() => itemBaseDefs.value.filter((d) => !d.supOnly && d.key !== 'base' && d.key !== 'sup' && !(d.key === 'def' && hideBaseDefense.value)))
 // 칸 이름 - 화면 사전에 있으면("기본 방어력") 그걸로, 없으면 옵션 문구 변환("방어력 +750~775")
 const pkLabel = (l) => (t(l) !== l ? t(l) : affixText(l))
 const SUP_CHOICES = [{ v: '', label: '전체' }, { v: '상급', label: '상급만' }, { v: '일반', label: '일반 베이스만' }]
@@ -711,7 +717,10 @@ watch(itemVarDefs, (defs) => {
 }, { immediate: true })
 const supPicked = computed(() => itemRanges.value.sup?.pick === '상급')
 watch(supPicked, (on) => {
-  if (on) return
+  if (on) {
+    if (hideBaseDefense.value && itemRanges.value.def) itemRanges.value.def = { min: '', max: '', pick: '' }
+    return
+  }
   for (const k of Object.keys(itemRanges.value)) if (k.startsWith('sup:')) itemRanges.value[k] = { min: '', max: '', pick: '' }
 })
 const activeItemRanges = computed(() =>

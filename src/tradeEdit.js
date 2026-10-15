@@ -120,8 +120,11 @@ export function editableOptionLines(post) {
     ...(item ? itemTemplates(item) : []),
     ...(item?.category === 'runeword' || !item ? baseTemplates(base, item ? '' : post.quality) : []),
   ]
+  // 상급 방어력 증가가 있는 방어구는 기본 방어력이 그 수치로 정해져서 (등록 화면에서 자동 계산) 따로 고치면 어긋남 - 둘 다 잠금
+  const superiorDefense = base?.base_stats?.category === 'armor' && (post.options || []).some((l) => /^방어력 증가 \+\d+%$/.test(l)) &&
+    (item ? item.category === 'runeword' && !getItemAffixes(item).some((a) => /^ac(%|\/lvl)?$/.test(a.prop)) : post.quality === 'normal')
   return (post.options || []).map((text) => {
-    if (post.unidentified) return { text, parts: [{ text }], editable: false }
+    if (post.unidentified || (superiorDefense && /^(방어력 증가 \+\d+%|기본 방어력 \d+)$/.test(text))) return { text, parts: [{ text }], editable: false }
     for (const t of templates) {
       const m = t.re.exec(text)
       if (!m) continue

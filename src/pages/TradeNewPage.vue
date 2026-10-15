@@ -496,6 +496,14 @@ watch(defenseFixed, (v, old) => {
   if (v !== null) armorStats.value.baseDefense = String(v)
   else if (old !== null && String(armorStats.value.baseDefense) === String(old)) armorStats.value.baseDefense = ''
 })
+// 상급 방어력 증가를 고르면 기본 방어력은 입력 없이 그 수치로 정해짐 (룬워드 자체 방어력 옵션이 있으면 합쳐져서 따로 입력)
+const superiorDefenseAuto = computed(() =>
+  effectiveBaseKind.value === 'armor' && (pickedSuperiorCombo.value || []).includes('ac%') &&
+  !itemAffixes.value.some((a) => /^ac(%|\/lvl)?$/.test(a.prop))
+)
+watch([superiorDefenseAuto, defenseFixed], ([auto, v]) => {
+  if (auto) armorStats.value.baseDefense = v === null ? '' : String(v)
+})
 const baseDefenseWarning = computed(() => {
   const exp = expectedDefense.value
   const v = armorStats.value.baseDefense
@@ -711,6 +719,7 @@ const invalidInputs = computed(() => {
   bad.push(...craftErrors.value, ...affixErrors.value)
   if (hasSockets.value && !uniqueSockets.value) bad.push(t('소켓 개수 선택'))
   if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push(t('소켓 개수 선택'))
+  if (superiorDefenseAuto.value && !filled(superiorPick.value.values['ac%'])) bad.push(t('상급 방어력 증가 수치'))
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
       bad.push(`${SUPERIOR_MODS[k].text.replace('{v}', '')} (${SUPERIOR_MODS[k].min}~${SUPERIOR_MODS[k].max})`)
@@ -1312,7 +1321,7 @@ function submitPost() {
             <span v-if="selectedBaseItem.base_stats.reqstr">{{ $t('요구 힘') }} {{ selectedBaseItem.base_stats.reqstr }}</span>
             <span v-if="selectedBaseItem.base_stats.reqdex">{{ $t('요구 민첩') }} {{ selectedBaseItem.base_stats.reqdex }}</span>
           </div>
-          <div class="base-stats-input-row">
+          <div class="base-stats-input-row" v-if="!superiorDefenseAuto">
             <label>
               {{ $t('기본 방어력') }}
               <input
@@ -1324,7 +1333,8 @@ function submitPost() {
               />
             </label>
           </div>
-          <div class="unit-hint" v-if="defenseFixed !== null">{{ $t('방어력 증가가 붙으면 베이스 방어력은 최댓값 +1 로 고정 - 값이 하나뿐이라 자동 입력') }}</div>
+          <div class="unit-hint" v-if="superiorDefenseAuto">{{ defenseFixed !== null ? $t('기본 방어력 {n} - 상급 방어력 증가로 자동 계산', { n: defenseFixed }) : $t('상급 방어력 증가 수치를 입력하면 기본 방어력은 자동 계산') }}</div>
+          <div class="unit-hint" v-else-if="defenseFixed !== null">{{ $t('방어력 증가가 붙으면 베이스 방어력은 최댓값 +1 로 고정 - 값이 하나뿐이라 자동 입력') }}</div>
           <div class="unit-hint" v-else-if="baseDefenseWarning">{{ baseDefenseWarning }}</div>
         </template>
 
