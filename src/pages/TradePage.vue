@@ -116,7 +116,7 @@ const activeSlot = ref(null)
 const baseGroup = ref('')
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
-// 에테리얼 여부: '' 전체 / 'eth' 에테리얼만 / 'noeth' 에테리얼 아닌 것만 (왼쪽 필터창, 에테리얼이 붙을 수 있는 아이템일 때만 보임)
+// 에테리얼 여부: 'eth' 에테리얼만 / '' 에테리얼 아닌 것만 (체크박스, 기본은 꺼짐. 왼쪽 필터창에 에테리얼이 붙을 수 있는 아이템일 때만 보임)
 const ethFilter = ref('')
 const unidOnly = ref(false)
 // 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
@@ -690,13 +690,9 @@ const itemBaseDefs = computed(() => {
       defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, supOnly: true, get: lineValue(re) })
     }
   }
-  // 기본 방어력 범위: 에테리얼 여부를 고르면 그 기준 (에테리얼은 1.5배), 안 고르면 둘을 합친 범위
+  // 기본 방어력 범위: 에테리얼 체크면 1.5배 기준, 아니면 일반 기준
   const def = uniqueDefenseRange(it, ethFilter.value === 'eth')
-  if (def) {
-    const canEth = !!baseForItem(it)?.can_eth
-    const hi = ethFilter.value || !canEth ? def.max : uniqueDefenseRange(it, true).max
-    defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi, get: lineValue(DEF_LINE) })
-  }
+  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: def.max, get: lineValue(DEF_LINE) })
   else if (kind === 'armor' || rwKinds.includes('armor')) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
   // 무기 룬워드는 베이스 공격력을 안 받음 (어떤 베이스·상급으로 만들었는지가 중요) - 베이스·상급 여부·상급 옵션으로만 거름
   if (it.category !== 'runeword' && kind === 'weapon') {
@@ -735,7 +731,6 @@ const pickedRwBase = computed(() => {
   const pick = itemRanges.value.base?.pick
   return pick && pickedItem.value?.category === 'runeword' ? searchBaseItems('', null, pickedItem.value).find((b) => baseItemLabel(b) === pick) || null : null
 })
-const ETH_CHOICES = [{ v: '', label: '전체' }, { v: 'eth', label: '에테리얼' }, { v: 'noeth', label: '에테리얼 아님' }]
 // 상급 옵션 조합 후보 - 베이스를 골랐으면 그 베이스 종류(무기·방어구)에 붙는 것만
 const supcOptions = computed(() => {
   const kinds = pickedRwBase.value ? [pickedRwBase.value.base_stats.category] : runewordBaseKinds.value
@@ -966,7 +961,7 @@ function buildQuery(useApplied = false) {
   if (activeSlot.value) q.slot = activeSlot.value
   // 묶음 안에서 한 종류를 골라도 묶음은 주소에 남김 - 새로고침해도 '전체'로 돌아갈 수 있게
   if (baseGroup.value) q.bg = baseGroup.value
-  if (ethFilter.value) q.eth = ethFilter.value === 'eth' ? '1' : '0'
+  if (ethFilter.value) q.eth = '1'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
   if (S.mrQuality) q.bq = S.mrQuality
@@ -1008,7 +1003,7 @@ function applyQuery(q) {
   activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
   activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
   baseGroup.value = typeof q.bg === 'string' ? q.bg : ''
-  ethFilter.value = q.eth === '1' ? 'eth' : q.eth === '0' ? 'noeth' : ''
+  ethFilter.value = q.eth === '1' ? 'eth' : ''
   unidOnly.value = q.unid === '1'
   mrBase.value = typeof q.base === 'string' ? q.base : ''
   mrBaseObj.value = null
@@ -1135,7 +1130,7 @@ function filterPosts(skip) {
   }
   if (activeLadder.value && !no('ladder')) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value && !no('hc')) list = list.filter((p) => p.hardcore === activeHardcore.value)
-  if (ethFilter.value && !no('eth')) list = list.filter((p) => !!p.ethereal === (ethFilter.value === 'eth'))
+  if (ethCapable.value && !no('eth')) list = list.filter((p) => !!p.ethereal === (ethFilter.value === 'eth'))
   if (unidOnly.value && !no('unid')) list = list.filter((p) => p.unidentified)
   if (pickedItem.value && !no('item')) {
     list = list.filter((p) => p.itemId === pickedItem.value.id)
@@ -1178,7 +1173,7 @@ const dropHints = computed(() => {
   if (gameVersion.value) c.push({ key: 'game', label: t(gameVersion.value), drop: () => { gameVersion.value = null } })
   if (activeLadder.value) c.push({ key: 'ladder', label: t(activeLadder.value), drop: () => { activeLadder.value = null } })
   if (activeHardcore.value) c.push({ key: 'hc', label: t(activeHardcore.value), drop: () => { activeHardcore.value = null } })
-  if (ethFilter.value) c.push({ key: 'eth', label: t(ethFilter.value === 'eth' ? '에테리얼' : '에테리얼 아님'), drop: () => { ethFilter.value = '' } })
+  if (ethFilter.value) c.push({ key: 'eth', label: t('에테리얼'), drop: () => { ethFilter.value = '' } })
   if (unidOnly.value) c.push({ key: 'unid', label: t('미확인'), drop: () => { unidOnly.value = false } })
   if (pickedItem.value) c.push({ key: 'item', label: itemName(pickedItem.value), drop: clearPickedItem })
   if (searchQuery.value.trim()) c.push({ key: 'q', label: '"' + searchQuery.value.trim() + '"', drop: () => { searchQuery.value = '' } })
@@ -1574,12 +1569,10 @@ function variantLines(p) {
 
           <template v-if="ethCapable">
             <span class="mr-label" :class="{ on: ethFilter }">{{ $t('에테리얼') }}</span>
-            <span class="mr-seg">
-              <button
-                type="button" v-for="c in ETH_CHOICES" :key="c.v" :class="{ on: ethFilter === c.v }"
-                :aria-pressed="ethFilter === c.v" @click="ethFilter = c.v"
-              >{{ $t(c.label) }}</button>
-            </span>
+            <label class="mr-check">
+              <input type="checkbox" :checked="ethFilter === 'eth'" @change="ethFilter = $event.target.checked ? 'eth' : ''" />
+              {{ $t('에테리얼만 보기') }}
+            </label>
           </template>
 
           <template v-if="mrSupCombos.length">
@@ -1692,12 +1685,10 @@ function variantLines(p) {
 
           <template v-if="ethCapable">
             <span class="mr-label" :class="{ on: ethFilter }">{{ $t('에테리얼') }}</span>
-            <span class="mr-seg">
-              <button
-                type="button" v-for="c in ETH_CHOICES" :key="c.v" :class="{ on: ethFilter === c.v }"
-                :aria-pressed="ethFilter === c.v" @click="ethFilter = c.v"
-              >{{ $t(c.label) }}</button>
-            </span>
+            <label class="mr-check">
+              <input type="checkbox" :checked="ethFilter === 'eth'" @change="ethFilter = $event.target.checked ? 'eth' : ''" />
+              {{ $t('에테리얼만 보기') }}
+            </label>
           </template>
 
           <template v-if="pickSupDef && itemRanges.sup">
@@ -1994,6 +1985,8 @@ function variantLines(p) {
 .mr-head-icon.unique, .mr-head-icon.runeword{border-color:#6b5f3c;} .mr-head-icon.set{border-color:#1f6b1f;}
 .mr-head-text b.unique, .mr-head-text b.runeword{color:#c7b377;} .mr-head-text b.set{color:#00c400;}
 .mr-fixed{font-style:normal; font-size:10.5px; font-weight:700; margin-left:5px; color:#e0913a;}
+.mr-check{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--text-muted); cursor:pointer;}
+.mr-check input{width:16px; height:16px; accent-color:var(--gold);}
 .mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
 .mr-seg button.on{border-color:var(--gold); color:var(--gold); background:rgba(200,163,77,0.12);}
