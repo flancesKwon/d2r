@@ -116,7 +116,8 @@ const activeSlot = ref(null)
 const baseGroup = ref('')
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
-const etherealOnly = ref(false)
+// 에테리얼 여부: '' 전체 / 'eth' 에테리얼만 / 'noeth' 에테리얼 아닌 것만 (왼쪽 필터창, 에테리얼이 붙을 수 있는 아이템일 때만 보임)
+const ethFilter = ref('')
 const unidOnly = ref(false)
 // 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
 const route = useRoute()
@@ -673,10 +674,16 @@ const itemBaseDefs = computed(() => {
       defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, supOnly: true, get: lineValue(re) })
     }
   }
-  const def = uniqueDefenseRange(it, false)
-  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: uniqueDefenseRange(it, true)?.max ?? def.max, get: lineValue(DEF_LINE) })
+  // 기본 방어력 범위: 에테리얼 여부를 고르면 그 기준 (에테리얼은 1.5배), 안 고르면 둘을 합친 범위
+  const def = uniqueDefenseRange(it, ethFilter.value === 'eth')
+  if (def) {
+    const canEth = !!baseForItem(it)?.can_eth
+    const hi = ethFilter.value || !canEth ? def.max : uniqueDefenseRange(it, true).max
+    defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi, get: lineValue(DEF_LINE) })
+  }
   else if (kind === 'armor' || rwKinds.includes('armor')) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
-  if (kind === 'weapon' || rwKinds.includes('weapon')) {
+  // 무기 룬워드는 베이스 공격력을 안 받음 (어떤 베이스·상급으로 만들었는지가 중요) - 베이스·상급 여부·상급 옵션으로만 거름
+  if (it.category !== 'runeword' && kind === 'weapon') {
     defs.push({ key: 'dmin', label: '기본 최소 데미지', get: lineValue(DMG_LINE, 1) })
     defs.push({ key: 'dmax', label: '기본 최대 데미지', get: lineValue(DMG_LINE, 2) })
   }
@@ -712,6 +719,7 @@ const pickedRwBase = computed(() => {
   const pick = itemRanges.value.base?.pick
   return pick && pickedItem.value?.category === 'runeword' ? searchBaseItems('', null, pickedItem.value).find((b) => baseItemLabel(b) === pick) || null : null
 })
+const ETH_CHOICES = [{ v: '', label: '전체' }, { v: 'eth', label: '에테리얼' }, { v: 'noeth', label: '에테리얼 아님' }]
 // 상급 옵션 조합 후보 - 베이스를 골랐으면 그 베이스 종류(무기·방어구)에 붙는 것만
 const supcOptions = computed(() => {
   const kinds = pickedRwBase.value ? [pickedRwBase.value.base_stats.category] : runewordBaseKinds.value
@@ -745,8 +753,23 @@ watch(itemVarDefs, (defs) => {
   rangesItemId = pickedItem.value?.id ?? null
   itemRanges.value = Object.fromEntries(defs.map((d) => [d.key, old[d.key] || { min: '', max: '', pick: '' }]))
 }, { immediate: true })
+// 에테리얼이 붙을 수 있는 걸 찾는 중인가 - 유니크·세트는 그 베이스, 룬워드는 고른 베이스(안 골랐으면 쓸 수 있는 베이스 중 하나라도),
+// 매직·레어는 고른 베이스(묶음이면 그중 하나라도). 그 밖(룬·보석·장신구 등)엔 에테리얼이 없어서 칸을 안 보여줌
+const ethCapable = computed(() => {
+  const it = pickedItem.value
+  if (it) {
+    if (it.category === 'runeword') return pickedRwBase.value ? !!pickedRwBase.value.can_eth : searchBaseItems('', null, it).some((b) => b.can_eth)
+    return ['unique', 'set'].includes(it.category) && !!baseForItem(it)?.can_eth
+  }
+  if (mrBase.value) return !!mrBaseItem.value?.can_eth
+  return groupOn.value && baseGroupBases.value.some((b) => b.can_eth)
+})
+// 에테리얼이 안 붙는 걸로 바꾸면 걸어 둔 에테리얼 조건을 풂
+watch(ethCapable, (on) => { if (!on) ethFilter.value = '' })
 const supPicked = computed(() => itemRanges.value.sup?.pick === '상급')
 const clearRange = (k) => { if (itemRanges.value[k]) itemRanges.value[k] = { min: '', max: '', pick: '' } }
+// 에테리얼 여부를 바꾸면 방어력 범위 기준(1.5배)이 바뀌니 넣어 둔 방어력 범위는 비움
+watch(ethFilter, () => clearRange('def'))
 watch(supPicked, (on) => {
   if (on) return
   for (const k of Object.keys(itemRanges.value)) if (k === 'supc' || k.startsWith('sup:')) clearRange(k)
@@ -850,7 +873,7 @@ function condMatches(p, c) {
 const hasActiveFilters = computed(
   () =>
     activeCats.value.length > 0 || activeLadder.value !== null || activeRegion.value !== null || activeSlot.value !== null ||
-    activeHardcore.value !== null || etherealOnly.value || unidOnly.value ||
+    activeHardcore.value !== null || !!ethFilter.value || unidOnly.value ||
     searchQuery.value.trim() !== '' || statConditions.value.length > 0 || !!pickedItem.value
 )
 // '검색조건 초기화' - 처음 검색한 베이스(묶음·고른 베이스)만 남기고 나머지 조건을 전부 비움
@@ -877,7 +900,7 @@ function resetFilters() {
   gameVersion.value = null
   activeLadder.value = null
   activeHardcore.value = null
-  etherealOnly.value = false
+  ethFilter.value = ''
   unidOnly.value = false
   searchQuery.value = ''
   statConditions.value = []
@@ -927,7 +950,7 @@ function buildQuery(useApplied = false) {
   if (activeSlot.value) q.slot = activeSlot.value
   // 묶음 안에서 한 종류를 골라도 묶음은 주소에 남김 - 새로고침해도 '전체'로 돌아갈 수 있게
   if (baseGroup.value) q.bg = baseGroup.value
-  if (etherealOnly.value) q.eth = '1'
+  if (ethFilter.value) q.eth = ethFilter.value === 'eth' ? '1' : '0'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
   if (S.mrQuality) q.bq = S.mrQuality
@@ -969,7 +992,7 @@ function applyQuery(q) {
   activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
   activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
   baseGroup.value = typeof q.bg === 'string' ? q.bg : ''
-  etherealOnly.value = q.eth === '1'
+  ethFilter.value = q.eth === '1' ? 'eth' : q.eth === '0' ? 'noeth' : ''
   unidOnly.value = q.unid === '1'
   mrBase.value = typeof q.base === 'string' ? q.base : ''
   mrBaseObj.value = null
@@ -1096,7 +1119,7 @@ function filterPosts(skip) {
   }
   if (activeLadder.value && !no('ladder')) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value && !no('hc')) list = list.filter((p) => p.hardcore === activeHardcore.value)
-  if (etherealOnly.value && !no('eth')) list = list.filter((p) => p.ethereal)
+  if (ethFilter.value && !no('eth')) list = list.filter((p) => !!p.ethereal === (ethFilter.value === 'eth'))
   if (unidOnly.value && !no('unid')) list = list.filter((p) => p.unidentified)
   if (pickedItem.value && !no('item')) {
     list = list.filter((p) => p.itemId === pickedItem.value.id)
@@ -1139,7 +1162,7 @@ const dropHints = computed(() => {
   if (gameVersion.value) c.push({ key: 'game', label: t(gameVersion.value), drop: () => { gameVersion.value = null } })
   if (activeLadder.value) c.push({ key: 'ladder', label: t(activeLadder.value), drop: () => { activeLadder.value = null } })
   if (activeHardcore.value) c.push({ key: 'hc', label: t(activeHardcore.value), drop: () => { activeHardcore.value = null } })
-  if (etherealOnly.value) c.push({ key: 'eth', label: t('에테리얼'), drop: () => { etherealOnly.value = false } })
+  if (ethFilter.value) c.push({ key: 'eth', label: t(ethFilter.value === 'eth' ? '에테리얼' : '에테리얼 아님'), drop: () => { ethFilter.value = '' } })
   if (unidOnly.value) c.push({ key: 'unid', label: t('미확인'), drop: () => { unidOnly.value = false } })
   if (pickedItem.value) c.push({ key: 'item', label: itemName(pickedItem.value), drop: clearPickedItem })
   if (searchQuery.value.trim()) c.push({ key: 'q', label: '"' + searchQuery.value.trim() + '"', drop: () => { searchQuery.value = '' } })
@@ -1450,7 +1473,7 @@ function variantLines(p) {
         <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">{{ $t('모두 지우기') }}</button>
       </div>
 
-      <!-- 서버·게임·래더·모드는 한 줄 드롭다운 (고른 값은 금색), 에테리얼·미확인은 켜고 끄는 버튼 -->
+      <!-- 서버·게임·래더·모드는 한 줄 드롭다운 (고른 값은 금색), 미확인은 켜고 끄는 버튼 (에테리얼은 왼쪽 필터창) -->
       <div class="tr-quick">
         <label class="tr-pill" v-for="f in QUICK_SELECTS" :key="f.label" :class="{ on: f.ref.value }">
           <span class="tr-pill-cap">{{ $t(f.label) }}</span>
@@ -1461,7 +1484,6 @@ function variantLines(p) {
             <option v-for="o in f.options" :key="o" :value="o">{{ modeText(o) }}</option>
           </select>
         </label>
-        <button type="button" class="tr-toggle eth" :class="{ on: etherealOnly }" :aria-pressed="etherealOnly" @click="etherealOnly = !etherealOnly">{{ $t('에테리얼') }}</button>
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
     </div>
@@ -1527,6 +1549,16 @@ function variantLines(p) {
               </button>
             </div>
             <p class="mr-hint" v-else>{{ $t('이 베이스로 만드는 크래프트 제작법이 없음') }}</p>
+          </template>
+
+          <template v-if="ethCapable">
+            <span class="mr-label" :class="{ on: ethFilter }">{{ $t('에테리얼') }}</span>
+            <span class="mr-seg">
+              <button
+                type="button" v-for="c in ETH_CHOICES" :key="c.v" :class="{ on: ethFilter === c.v }"
+                :aria-pressed="ethFilter === c.v" @click="ethFilter = c.v"
+              >{{ $t(c.label) }}</button>
+            </span>
           </template>
 
           <template v-if="mrSupCombos.length">
@@ -1635,6 +1667,16 @@ function variantLines(p) {
           <template v-if="pickBaseDef && itemRanges.base">
             <span class="mr-label" :class="{ on: itemRanges.base.pick }">{{ $t('베이스') }}</span>
             <SearchSelect v-model="itemRanges.base.pick" :options="pickBaseDef.choices" :label="$t('베이스')" class="mr-field" />
+          </template>
+
+          <template v-if="ethCapable">
+            <span class="mr-label" :class="{ on: ethFilter }">{{ $t('에테리얼') }}</span>
+            <span class="mr-seg">
+              <button
+                type="button" v-for="c in ETH_CHOICES" :key="c.v" :class="{ on: ethFilter === c.v }"
+                :aria-pressed="ethFilter === c.v" @click="ethFilter = c.v"
+              >{{ $t(c.label) }}</button>
+            </span>
           </template>
 
           <template v-if="pickSupDef && itemRanges.sup">
@@ -2181,7 +2223,6 @@ function variantLines(p) {
 .tr-pill.on::after{border-color:var(--gold);}
 .tr-toggle{height:36px; padding:0 15px; border-radius:999px; font-size:13px; font-weight:700; border:1px dashed var(--border); background:transparent; color:var(--text-dim);}
 .tr-toggle:hover{color:var(--text);}
-.tr-toggle.eth.on{border:1px solid var(--teal); color:var(--teal); background:color-mix(in srgb, var(--teal) 12%, transparent);}
 .tr-toggle.unid.on{border:1px solid #e0775f; color:#e0775f; background:color-mix(in srgb, #e0775f 12%, transparent);}
 
 /* 내용이 짧아도(첫 화면) 본문이 화면을 채워서 푸터가 위로 딸려 올라오지 않게 */
