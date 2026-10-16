@@ -190,6 +190,18 @@ for (const r of rows) {
   }
 }
 
+// 레벨당 옵션은 문구가 둘 - 유니크·세트는 "캐릭터 레벨당 생명력 X", 매직·레어는 "생명력 X (캐릭터 레벨당)" (게임에선 같은 옵션).
+// 고르는 목록엔 앞 문구 하나만 두고 패턴이 둘 다 잡게 함 (하나만 잡으면 다른 쪽 매물이 안 걸렸음)
+for (const r of rows) {
+  const m = /^(.+) X \(캐릭터 레벨당\)$/.exec(r.label)
+  const twin = m && byLabel.get(`캐릭터 레벨당 ${m[1]} X`)
+  if (!twin) continue
+  twin.pattern = twin.pattern
+    .replace('^캐릭터 레벨당 ', () => '^(?=캐릭터 레벨당 |.*\\(캐릭터 레벨당\\)$)(?:캐릭터 레벨당 )?')
+    .replace(/\$$/, () => '(?: \\(캐릭터 레벨당\\))?$')
+  merged.add(r)
+}
+
 const out = path.join(DIR, '..', 'src', 'data', 'statFilters.json')
 fs.writeFileSync(out, JSON.stringify(rows.filter((r) => !merged.has(r)), null, 0) + '\n')
 const bySrc = {}

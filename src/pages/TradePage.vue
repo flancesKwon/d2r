@@ -116,7 +116,7 @@ const activeSlot = ref(null)
 const baseGroup = ref('')
 const activeLadder = ref(null)
 const activeHardcore = ref(null)
-// 에테리얼 여부: '' 전체 / 'eth' 에테리얼만 / 'noeth' 에테리얼 아닌 것만 (왼쪽 필터창, 에테리얼이 붙을 수 있는 아이템일 때만 보임)
+// 에테리얼 여부: 'eth' 에테리얼만 / '' 에테리얼 아닌 것만 (체크박스, 기본은 꺼짐. 왼쪽 필터창에 에테리얼이 붙을 수 있는 아이템일 때만 보임)
 const ethFilter = ref('')
 const unidOnly = ref(false)
 // 다른 화면(룬워드 찾기의 "사러 가기" 등)에서 ?q=검색어 로 들어오면 그걸로 바로 검색
@@ -301,6 +301,10 @@ watch(searchQuery, (v) => { if (!v.trim()) appliedQuery.value = '' })
 const QUALITY_SHORT = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
 const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
 const baseLabelOf = (b) => (b.base_stats.category === 'misc' ? b.name_ko : baseItemLabel(b))
+// 화면에 보여줄 베이스 이름 - 영어 화면에선 영어 이름 (값·검색 조건은 baseLabelOf 그대로)
+const baseShown = (b) => (locale.value === 'ko' ? baseLabelOf(b) : b.subtitle || baseLabelOf(b))
+// 위 baseItemLabel("이름 (Subtitle)") 문자열을 화면용으로
+const baseLabelShown = (label) => (locale.value === 'ko' ? label : /\(([^)]+)\)\s*$/.exec(label)?.[1] || label)
 // 그 베이스로 나올 수 있는 품질 (등록 화면과 같은 규칙)
 function baseQualities(b) {
   const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
@@ -686,13 +690,9 @@ const itemBaseDefs = computed(() => {
       defs.push({ key: 'sup:' + k, label: m.text.replace('{v}', `${m.min}~${m.max}`), lo: m.min, hi: m.max, supOnly: true, get: lineValue(re) })
     }
   }
-  // 기본 방어력 범위: 에테리얼 여부를 고르면 그 기준 (에테리얼은 1.5배), 안 고르면 둘을 합친 범위
+  // 기본 방어력 범위: 에테리얼 체크면 1.5배 기준, 아니면 일반 기준
   const def = uniqueDefenseRange(it, ethFilter.value === 'eth')
-  if (def) {
-    const canEth = !!baseForItem(it)?.can_eth
-    const hi = ethFilter.value || !canEth ? def.max : uniqueDefenseRange(it, true).max
-    defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi, get: lineValue(DEF_LINE) })
-  }
+  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: def.max, get: lineValue(DEF_LINE) })
   else if (kind === 'armor' || rwKinds.includes('armor')) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
   // 무기 룬워드는 베이스 공격력을 안 받음 (어떤 베이스·상급으로 만들었는지가 중요) - 베이스·상급 여부·상급 옵션으로만 거름
   if (it.category !== 'runeword' && kind === 'weapon') {
@@ -731,7 +731,6 @@ const pickedRwBase = computed(() => {
   const pick = itemRanges.value.base?.pick
   return pick && pickedItem.value?.category === 'runeword' ? searchBaseItems('', null, pickedItem.value).find((b) => baseItemLabel(b) === pick) || null : null
 })
-const ETH_CHOICES = [{ v: '', label: '전체' }, { v: 'eth', label: '에테리얼' }, { v: 'noeth', label: '에테리얼 아님' }]
 // 상급 옵션 조합 후보 - 베이스를 골랐으면 그 베이스 종류(무기·방어구)에 붙는 것만
 const supcOptions = computed(() => {
   const kinds = pickedRwBase.value ? [pickedRwBase.value.base_stats.category] : runewordBaseKinds.value
@@ -962,7 +961,7 @@ function buildQuery(useApplied = false) {
   if (activeSlot.value) q.slot = activeSlot.value
   // 묶음 안에서 한 종류를 골라도 묶음은 주소에 남김 - 새로고침해도 '전체'로 돌아갈 수 있게
   if (baseGroup.value) q.bg = baseGroup.value
-  if (ethFilter.value) q.eth = ethFilter.value === 'eth' ? '1' : '0'
+  if (ethFilter.value) q.eth = '1'
   if (unidOnly.value) q.unid = '1'
   if (mrBase.value) q.base = mrBase.value
   if (S.mrQuality) q.bq = S.mrQuality
@@ -1004,7 +1003,7 @@ function applyQuery(q) {
   activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
   activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
   baseGroup.value = typeof q.bg === 'string' ? q.bg : ''
-  ethFilter.value = q.eth === '1' ? 'eth' : q.eth === '0' ? 'noeth' : ''
+  ethFilter.value = q.eth === '1' ? 'eth' : ''
   unidOnly.value = q.unid === '1'
   mrBase.value = typeof q.base === 'string' ? q.base : ''
   mrBaseObj.value = null
@@ -1131,7 +1130,7 @@ function filterPosts(skip) {
   }
   if (activeLadder.value && !no('ladder')) list = list.filter((p) => p.ladder === activeLadder.value)
   if (activeHardcore.value && !no('hc')) list = list.filter((p) => p.hardcore === activeHardcore.value)
-  if (ethFilter.value && !no('eth')) list = list.filter((p) => !!p.ethereal === (ethFilter.value === 'eth'))
+  if (ethCapable.value && !no('eth')) list = list.filter((p) => !!p.ethereal === (ethFilter.value === 'eth'))
   if (unidOnly.value && !no('unid')) list = list.filter((p) => p.unidentified)
   if (pickedItem.value && !no('item')) {
     list = list.filter((p) => p.itemId === pickedItem.value.id)
@@ -1174,7 +1173,7 @@ const dropHints = computed(() => {
   if (gameVersion.value) c.push({ key: 'game', label: t(gameVersion.value), drop: () => { gameVersion.value = null } })
   if (activeLadder.value) c.push({ key: 'ladder', label: t(activeLadder.value), drop: () => { activeLadder.value = null } })
   if (activeHardcore.value) c.push({ key: 'hc', label: t(activeHardcore.value), drop: () => { activeHardcore.value = null } })
-  if (ethFilter.value) c.push({ key: 'eth', label: t(ethFilter.value === 'eth' ? '에테리얼' : '에테리얼 아님'), drop: () => { ethFilter.value = '' } })
+  if (ethFilter.value) c.push({ key: 'eth', label: t('에테리얼'), drop: () => { ethFilter.value = '' } })
   if (unidOnly.value) c.push({ key: 'unid', label: t('미확인'), drop: () => { unidOnly.value = false } })
   if (pickedItem.value) c.push({ key: 'item', label: itemName(pickedItem.value), drop: clearPickedItem })
   if (searchQuery.value.trim()) c.push({ key: 'q', label: '"' + searchQuery.value.trim() + '"', drop: () => { searchQuery.value = '' } })
@@ -1431,7 +1430,7 @@ function variantLines(p) {
                 </template>
                 <template v-else-if="r.sug.type === 'base'">
                   <span class="item-suggest-icon"><img v-if="iconUrlFor(baseIconKey(r.sug.b))" :src="iconUrlFor(baseIconKey(r.sug.b))" alt="" /></span>
-                  <span class="item-suggest-name">{{ baseLabelOf(r.sug.b) }}</span>
+                  <span class="item-suggest-name">{{ baseShown(r.sug.b) }}</span>
                   <span class="base-q-chips">
                     <button
                       type="button" v-for="q in baseQualities(r.sug.b)" :key="q" :class="'q-' + q"
@@ -1527,7 +1526,7 @@ function variantLines(p) {
             <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
             <select class="sort-select" :value="mrBase" :aria-label="$t('베이스')" @change="pickBaseInGroup($event.target.value)">
               <option value="">{{ $t('{n}종 전체', { n: baseGroupBases.length }) }}</option>
-              <option v-for="b in baseGroupBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseLabelOf(b) }}</option>
+              <option v-for="b in baseGroupBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseShown(b) }}</option>
             </select>
           </template>
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
@@ -1570,12 +1569,10 @@ function variantLines(p) {
 
           <template v-if="ethCapable">
             <span class="mr-label" :class="{ on: ethFilter }">{{ $t('에테리얼') }}</span>
-            <span class="mr-seg">
-              <button
-                type="button" v-for="c in ETH_CHOICES" :key="c.v" :class="{ on: ethFilter === c.v }"
-                :aria-pressed="ethFilter === c.v" @click="ethFilter = c.v"
-              >{{ $t(c.label) }}</button>
-            </span>
+            <label class="mr-check">
+              <input type="checkbox" :checked="ethFilter === 'eth'" @change="ethFilter = $event.target.checked ? 'eth' : ''" />
+              {{ $t('에테리얼만 보기') }}
+            </label>
           </template>
 
           <template v-if="mrSupCombos.length">
@@ -1683,17 +1680,15 @@ function variantLines(p) {
 
           <template v-if="pickBaseDef && itemRanges.base">
             <span class="mr-label" :class="{ on: itemRanges.base.pick }">{{ $t('베이스') }}</span>
-            <SearchSelect v-model="itemRanges.base.pick" :options="pickBaseDef.choices" :label="$t('베이스')" class="mr-field" />
+            <SearchSelect v-model="itemRanges.base.pick" :options="pickBaseDef.choices" :display="baseLabelShown" :label="$t('베이스')" class="mr-field" />
           </template>
 
           <template v-if="ethCapable">
             <span class="mr-label" :class="{ on: ethFilter }">{{ $t('에테리얼') }}</span>
-            <span class="mr-seg">
-              <button
-                type="button" v-for="c in ETH_CHOICES" :key="c.v" :class="{ on: ethFilter === c.v }"
-                :aria-pressed="ethFilter === c.v" @click="ethFilter = c.v"
-              >{{ $t(c.label) }}</button>
-            </span>
+            <label class="mr-check">
+              <input type="checkbox" :checked="ethFilter === 'eth'" @change="ethFilter = $event.target.checked ? 'eth' : ''" />
+              {{ $t('에테리얼만 보기') }}
+            </label>
           </template>
 
           <template v-if="pickSupDef && itemRanges.sup">
@@ -1984,10 +1979,14 @@ function variantLines(p) {
 .pk-row.on{border-color:var(--gold-dim);}
 .pk-name{margin-right:auto; color:var(--text-muted); line-height:1.4;}
 .pk-row.on .pk-name{color:var(--gold);}
+.pk-row :deep(.range-input input){width:84px; padding:7px 8px; appearance:textfield; -moz-appearance:textfield;} /* 488~1035 같은 범위 안내가 안 잘리게 (위아래 화살표가 자리를 먹음) */
+.pk-row :deep(.range-input input::-webkit-inner-spin-button), .pk-row :deep(.range-input input::-webkit-outer-spin-button){-webkit-appearance:none; margin:0;}
 .pk-num{width:84px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12.5px;}
 .mr-head-icon.unique, .mr-head-icon.runeword{border-color:#6b5f3c;} .mr-head-icon.set{border-color:#1f6b1f;}
 .mr-head-text b.unique, .mr-head-text b.runeword{color:#c7b377;} .mr-head-text b.set{color:#00c400;}
 .mr-fixed{font-style:normal; font-size:10.5px; font-weight:700; margin-left:5px; color:#e0913a;}
+.mr-check{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--text-muted); cursor:pointer;}
+.mr-check input{width:16px; height:16px; accent-color:var(--gold);}
 .mr-seg{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .mr-seg button{padding:5px 12px; font-size:12.5px; font-weight:700; border-radius:999px; border:1px solid var(--border); color:var(--text-muted);}
 .mr-seg button.on{border-color:var(--gold); color:var(--gold); background:rgba(200,163,77,0.12);}
@@ -2158,7 +2157,6 @@ function variantLines(p) {
 .guide-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
 
 /* ───── 거래 모드 첫 화면 (시안: 큰 검색 + 적용된 조건 줄 + 오른쪽 사이드) ───── */
-.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
 .tr-hero{background:var(--bg-raise); border-bottom:1px solid var(--border-soft);}
 .tr-hero-inner{max-width:1040px; margin:0 auto; padding:48px 24px 28px; display:flex; flex-direction:column; gap:14px;}
 .tr-hero h1{text-align:center; font-size:32px; margin:0;}
@@ -2192,6 +2190,13 @@ function variantLines(p) {
 /* 옵션 태그 - 직업 전용(직업 색) / 모든 직업(금색), 색은 src/statDisplay.js */
 .stat-tag{flex:none; display:inline-flex; align-items:center; margin:0 4px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; line-height:1.5; color:var(--tag); border:1px solid var(--tag); background:color-mix(in srgb, var(--tag) 14%, transparent); white-space:nowrap;}
 .tr-suggest-row.active{background:rgba(200,163,77,.14);}
+/* 폰: 추천 목록이 하단 탭바 밑으로 안 들어가게 높이를 줄이고(안에서 스크롤), 베이스 줄은 품질 버튼을 아래 줄로 */
+@media (max-width:720px){
+  .tr-suggest{max-height:max(200px, calc(100dvh - 400px));}
+  .tr-suggest-row{flex-wrap:wrap;}
+  .tr-suggest-row .item-suggest-name{flex:1; min-width:0;}
+  .tr-suggest-row .base-q-chips{flex-basis:100%; margin-left:0; flex-wrap:wrap; padding-left:38px;}
+}
 .tr-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 2px; border-top:1px solid var(--border-soft); margin-top:4px;}
 
 .tr-applied{display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; border-radius:12px; background:var(--panel); border:1px solid var(--border);}
@@ -2269,7 +2274,7 @@ function variantLines(p) {
 .tr-filters .mr-grid{grid-template-columns:62px minmax(0, 1fr); gap:9px 10px;}
 .tr-filters .item-range-grid{grid-template-columns:1fr;}
 /* 옵션 수치 입력은 한 줄 - 이름이 길면 이름 안에서만 줄이 바뀌고 칸은 아래로 안 내려감 */
-.tr-filters .pk-row{display:grid; grid-template-columns:minmax(0, 1fr) 70px auto 70px; gap:4px 6px; align-items:center; flex-wrap:nowrap;}
+.tr-filters .pk-row{display:grid; grid-template-columns:minmax(0, 1fr) 84px auto 84px; gap:4px 6px; align-items:center; flex-wrap:nowrap;}
 .tr-filters .pk-row .pk-name{margin:0;}
 .tr-filters .pk-row .sort-select{grid-column:1 / -1; width:100%;}
 .tr-filters .pk-row input{width:100%; min-width:0; padding:6px;}

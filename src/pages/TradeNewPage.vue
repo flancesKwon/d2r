@@ -1463,7 +1463,7 @@ function submitPost() {
       </template>
 
       <div class="option-editor" v-if="itemAffixes.length && !isUnidentified">
-        <div class="option-editor-title">{{ $t('실제 옵션 값 입력') }}</div>
+        <div class="option-editor-title">{{ $t(itemAffixes.some((a) => isRandomClassSkillAffix(a) || isRollRangeAffix(a)) ? '실제 옵션 값 입력' : '고정 옵션') }}</div>
         <div class="option-row" v-for="(a, i) in itemAffixes" :key="i">
           <template v-if="isRandomClassSkillAffix(a)">
             <span class="option-text">{{ $t('직업 기술 레벨') }}<template v-if="a.min === a.max"> +{{ a.min }}</template></span>

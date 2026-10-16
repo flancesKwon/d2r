@@ -213,7 +213,7 @@ export default {
   '조건에 맞는 매물 없음': 'No listings match these filters',
   '거래중': 'In trade',
   '에테리얼': 'Ethereal',
-  '에테리얼 아님': 'Non-ethereal',
+  '에테리얼만 보기': 'Ethereal only',
   '미확인': 'Unidentified',
   '판매 종료까지': 'Time left',
   '판매자 접속 중': 'Seller online',

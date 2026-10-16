@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { itemMatchesQuery } from './itemSearch.js'
+import { itemMatchesQuery, shortEnglishMatch, HANGUL } from './itemSearch.js'
 import itemsData from './data/items.json'
 import statFilterData from './data/statFilters.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
@@ -258,7 +258,10 @@ export function searchBaseItems(query, kind, runeword = null) {
   // 띄어쓰기 차이(메이지플레이트 / 메이지 플레이트)는 무시하고, 세부 종류(갑옷, 폴암)나
   // 등급(엘리트)으로도 찾을 수 있게 함
   const q = squash(query)
-  if (q) {
+  if (q && !HANGUL.test(q) && q.length <= 3) {
+    // 영어 3글자 이하는 단어 앞에서만 (cta -> Runic Talons 안 걸림)
+    list = list.filter((b) => shortEnglishMatch([b.subtitle], q))
+  } else if (q) {
     list = list.filter((b) =>
       [b.subtitle, b.name_ko, b.alt_ko, b.type_sub, b.tier].some((s) => squash(s).includes(q))
     )
