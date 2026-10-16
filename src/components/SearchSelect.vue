@@ -10,6 +10,8 @@ const props = defineProps({
   options: { type: Array, required: true },
   allLabel: { type: String, default: '전체' },
   label: { type: String, default: '' },
+  // 화면에 보여줄 글자 (값은 그대로) - 영어 화면에서 한국어 이름 대신 영어 이름을 보여줄 때
+  display: { type: Function, default: (o) => o },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -21,7 +23,7 @@ const boxEl = ref(null)
 const JAMO_TAIL = /[ㄱ-ㅎㅏ-ㅣ]+$/
 const hits = computed(() => {
   const s = squashText(q.value.trim().replace(JAMO_TAIL, ''))
-  const list = s ? props.options.filter((o) => squashText(o).includes(s)) : props.options
+  const list = s ? props.options.filter((o) => squashText(o).includes(s) || squashText(props.display(o)).includes(s)) : props.options
   return list.slice(0, 60)
 })
 function pick(v) {
@@ -49,7 +51,7 @@ function onKey(e) {
   }
 }
 const closeSoon = () => setTimeout(() => (open.value = false), 150)
-const shown = computed(() => props.modelValue || t(props.allLabel))
+const shown = computed(() => props.modelValue ? props.display(props.modelValue) : t(props.allLabel))
 </script>
 
 <template>
@@ -70,7 +72,7 @@ const shown = computed(() => props.modelValue || t(props.allLabel))
         type="button" role="option" class="ss-opt" v-for="(o, i) in hits" :key="o"
         :class="{ active: active === i + 1, on: modelValue === o }" :aria-selected="active === i + 1"
         @mousedown.prevent="pick(o)" @mousemove="active = i + 1"
-      >{{ o }}</button>
+      >{{ display(o) }}</button>
       <span class="ss-empty" v-if="!hits.length">{{ t('일치하는 것 없음') }}</span>
     </span>
   </span>

@@ -6,7 +6,7 @@
 
 export const squashText = (s) => (s || '').toLowerCase().replace(/\s+/g, '')
 const normalizeText = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim()
-const HANGUL = /[가-힣]/
+export const HANGUL = /[가-힣]/
 
 export function textMatchesQuery(text, query) {
   return HANGUL.test(query) ? squashText(text).includes(squashText(query)) : normalizeText(text).includes(normalizeText(query))
@@ -14,7 +14,7 @@ export function textMatchesQuery(text, query) {
 
 // 영어 3글자 이하 검색어(ik, cta, ber)는 아무 데나 포함되면 너무 많이 걸려서(ik -> Spike, Strike)
 // 별칭과 정확히 같거나, 이름의 어떤 단어가 그걸로 시작할 때만 (tal -> Tal Rasha's, ber -> Ber Rune)
-function shortEnglishMatch(texts, q) {
+export function shortEnglishMatch(texts, q) {
   return texts.some((s) => {
     const t = normalizeText(s)
     return t === q || t.split(/[\s\-']+/).some((w) => w.startsWith(q))

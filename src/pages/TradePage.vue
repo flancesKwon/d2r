@@ -301,6 +301,10 @@ watch(searchQuery, (v) => { if (!v.trim()) appliedQuery.value = '' })
 const QUALITY_SHORT = { magic: '매직', rare: '레어', crafted: '크래프트', normal: '일반' }
 const baseIconKey = (b) => b.icon_key || magicAffixData.bases[b.code]?.icon || null
 const baseLabelOf = (b) => (b.base_stats.category === 'misc' ? b.name_ko : baseItemLabel(b))
+// 화면에 보여줄 베이스 이름 - 영어 화면에선 영어 이름 (값·검색 조건은 baseLabelOf 그대로)
+const baseShown = (b) => (locale.value === 'ko' ? baseLabelOf(b) : b.subtitle || baseLabelOf(b))
+// 위 baseItemLabel("이름 (Subtitle)") 문자열을 화면용으로
+const baseLabelShown = (label) => (locale.value === 'ko' ? label : /\(([^)]+)\)\s*$/.exec(label)?.[1] || label)
 // 그 베이스로 나올 수 있는 품질 (등록 화면과 같은 규칙)
 function baseQualities(b) {
   const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
@@ -1431,7 +1435,7 @@ function variantLines(p) {
                 </template>
                 <template v-else-if="r.sug.type === 'base'">
                   <span class="item-suggest-icon"><img v-if="iconUrlFor(baseIconKey(r.sug.b))" :src="iconUrlFor(baseIconKey(r.sug.b))" alt="" /></span>
-                  <span class="item-suggest-name">{{ baseLabelOf(r.sug.b) }}</span>
+                  <span class="item-suggest-name">{{ baseShown(r.sug.b) }}</span>
                   <span class="base-q-chips">
                     <button
                       type="button" v-for="q in baseQualities(r.sug.b)" :key="q" :class="'q-' + q"
@@ -1527,7 +1531,7 @@ function variantLines(p) {
             <span class="mr-label" :class="{ on: mrBase }">{{ $t('베이스') }}</span>
             <select class="sort-select" :value="mrBase" :aria-label="$t('베이스')" @change="pickBaseInGroup($event.target.value)">
               <option value="">{{ $t('{n}종 전체', { n: baseGroupBases.length }) }}</option>
-              <option v-for="b in baseGroupBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseLabelOf(b) }}</option>
+              <option v-for="b in baseGroupBases" :key="b.code || b.name_ko" :value="baseLabelOf(b)">{{ baseShown(b) }}</option>
             </select>
           </template>
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
@@ -1683,7 +1687,7 @@ function variantLines(p) {
 
           <template v-if="pickBaseDef && itemRanges.base">
             <span class="mr-label" :class="{ on: itemRanges.base.pick }">{{ $t('베이스') }}</span>
-            <SearchSelect v-model="itemRanges.base.pick" :options="pickBaseDef.choices" :label="$t('베이스')" class="mr-field" />
+            <SearchSelect v-model="itemRanges.base.pick" :options="pickBaseDef.choices" :display="baseLabelShown" :label="$t('베이스')" class="mr-field" />
           </template>
 
           <template v-if="ethCapable">
@@ -1984,6 +1988,8 @@ function variantLines(p) {
 .pk-row.on{border-color:var(--gold-dim);}
 .pk-name{margin-right:auto; color:var(--text-muted); line-height:1.4;}
 .pk-row.on .pk-name{color:var(--gold);}
+.pk-row :deep(.range-input input){width:84px; padding:7px 8px; appearance:textfield; -moz-appearance:textfield;} /* 488~1035 같은 범위 안내가 안 잘리게 (위아래 화살표가 자리를 먹음) */
+.pk-row :deep(.range-input input::-webkit-inner-spin-button), .pk-row :deep(.range-input input::-webkit-outer-spin-button){-webkit-appearance:none; margin:0;}
 .pk-num{width:84px; padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12.5px;}
 .mr-head-icon.unique, .mr-head-icon.runeword{border-color:#6b5f3c;} .mr-head-icon.set{border-color:#1f6b1f;}
 .mr-head-text b.unique, .mr-head-text b.runeword{color:#c7b377;} .mr-head-text b.set{color:#00c400;}
@@ -2158,7 +2164,6 @@ function variantLines(p) {
 .guide-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
 
 /* ───── 거래 모드 첫 화면 (시안: 큰 검색 + 적용된 조건 줄 + 오른쪽 사이드) ───── */
-.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
 .tr-hero{background:var(--bg-raise); border-bottom:1px solid var(--border-soft);}
 .tr-hero-inner{max-width:1040px; margin:0 auto; padding:48px 24px 28px; display:flex; flex-direction:column; gap:14px;}
 .tr-hero h1{text-align:center; font-size:32px; margin:0;}
@@ -2192,6 +2197,13 @@ function variantLines(p) {
 /* 옵션 태그 - 직업 전용(직업 색) / 모든 직업(금색), 색은 src/statDisplay.js */
 .stat-tag{flex:none; display:inline-flex; align-items:center; margin:0 4px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; line-height:1.5; color:var(--tag); border:1px solid var(--tag); background:color-mix(in srgb, var(--tag) 14%, transparent); white-space:nowrap;}
 .tr-suggest-row.active{background:rgba(200,163,77,.14);}
+/* 폰: 추천 목록이 하단 탭바 밑으로 안 들어가게 높이를 줄이고(안에서 스크롤), 베이스 줄은 품질 버튼을 아래 줄로 */
+@media (max-width:720px){
+  .tr-suggest{max-height:max(200px, calc(100dvh - 400px));}
+  .tr-suggest-row{flex-wrap:wrap;}
+  .tr-suggest-row .item-suggest-name{flex:1; min-width:0;}
+  .tr-suggest-row .base-q-chips{flex-basis:100%; margin-left:0; flex-wrap:wrap; padding-left:38px;}
+}
 .tr-suggest-hint{font-size:11px; color:var(--text-dim); padding:6px 10px 2px; border-top:1px solid var(--border-soft); margin-top:4px;}
 
 .tr-applied{display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; border-radius:12px; background:var(--panel); border:1px solid var(--border);}
@@ -2269,7 +2281,7 @@ function variantLines(p) {
 .tr-filters .mr-grid{grid-template-columns:62px minmax(0, 1fr); gap:9px 10px;}
 .tr-filters .item-range-grid{grid-template-columns:1fr;}
 /* 옵션 수치 입력은 한 줄 - 이름이 길면 이름 안에서만 줄이 바뀌고 칸은 아래로 안 내려감 */
-.tr-filters .pk-row{display:grid; grid-template-columns:minmax(0, 1fr) 70px auto 70px; gap:4px 6px; align-items:center; flex-wrap:nowrap;}
+.tr-filters .pk-row{display:grid; grid-template-columns:minmax(0, 1fr) 84px auto 84px; gap:4px 6px; align-items:center; flex-wrap:nowrap;}
 .tr-filters .pk-row .pk-name{margin:0;}
 .tr-filters .pk-row .sort-select{grid-column:1 / -1; width:100%;}
 .tr-filters .pk-row input{width:100%; min-width:0; padding:6px;}

@@ -357,3 +357,6 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 
 /* 폰: 하단 탭(MobileTabBar) 높이만큼 아래 여백 */
 @media (max-width:720px){ body{padding-bottom:calc(64px + env(safe-area-inset-bottom));} }
+
+/* 화면에선 숨기고 읽기 프로그램에만 보이는 제목 */
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
