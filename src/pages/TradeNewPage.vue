@@ -236,11 +236,12 @@ function familyLinesOrRange(fam, values) {
 }
 // 같은 옵션이 크래프트 고정 옵션과 무작위 옵션에 둘 다 붙으면 게임 툴팁처럼 한 줄로 합침
 // (예: 캐스터 목걸이 고정 "시전 속도 +10%" + 접미사 "시전 속도 +10%" = "시전 속도 +20%")
-// 수치가 하나인 줄끼리만 합치고, 범위("5~10")로 남은 줄은 그대로 둠
+// 수치가 하나인 줄끼리만 합치고, 범위("5~10")로 남은 줄은 그대로 둠. 수치 없는 줄("대상의 방어력 무시")은 같은 줄이 또 나오면 하나만 남김
 function mergeSameStatLines(lines) {
   const out = []
   const at = new Map()
   for (const line of lines) {
+    if (!/\d/.test(line) && out.includes(line)) continue
     const m = /^(.*?)(\+?)(\d+)(%?)$/.exec(line)
     const key = m && !/[~\d]$/.test(m[1]) ? m[1] + '|' + m[2] + '|' + m[4] : null
     if (key && at.has(key)) {
@@ -970,8 +971,9 @@ function buildAllOptions() {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
     return isRollRangeAffix(a) ? resolveAffixText(a, rolledValues.value[i]) : a.text
   })
+  // 룬워드는 고유 옵션과 박힌 룬 효과가 겹치는 줄(뼈 "화염 저항 +15%" 두 줄 등)을 게임 툴팁처럼 한 줄로 합침
   return [
-    ...dbOptions, ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...levelReqLines(), ...customOptions.value,
+    ...(isRuneword.value ? mergeSameStatLines(dbOptions) : dbOptions), ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...levelReqLines(), ...customOptions.value,
   ]
 }
 

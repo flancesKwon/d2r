@@ -18,6 +18,11 @@ const SLOT_KO = { p: '접두사', s: '접미사' }
 // 옵션 이름 (영어 화면이면 영어 문구 - 검색·강조도 이 이름으로)
 const labelOf = (f) => affixText(f.label)
 const famByKey = computed(() => new Map(props.families.map((f) => [f.key, f])))
+// 검색어가 없을 땐 잘 붙는 옵션(게임의 출현 가중치 합) 순 - 가나다순이면 드문 옵션이 맨 위에 옴
+const byCommon = computed(() => {
+  const w = (f) => f.tiers.reduce((n, t) => n + t.freq, 0)
+  return props.families.map((f, i) => ({ f, i, w: w(f) })).sort((a, b) => b.w - a.w || a.i - b.i).map((e) => e.f)
+})
 
 // 화면 목록 (고른 순서 그대로, 아직 안 고른 빈 줄 포함)
 const blank = () => ({ slot: '', key: '', values: [], q: '', open: false, active: 0 })
@@ -46,7 +51,7 @@ const queryOf = (row) => squashText(row.q).replace(JAMO_TAIL, '')
 function optionsFor(row) {
   const taken = new Set(list.value.filter((r) => r !== row).map((r) => r.key))
   const q = queryOf(row)
-  const hits = props.families.filter((f) => !taken.has(f.key) && (!q || squashText(labelOf(f)).includes(q)))
+  const hits = (q ? props.families : byCommon.value).filter((f) => !taken.has(f.key) && (!q || squashText(labelOf(f)).includes(q)))
   // 검색어로 시작하는 옵션 먼저 ("시전" -> 시전 속도가 "…번개 시전"보다 위)
   if (q) hits.sort((a, b) => squashText(labelOf(b)).startsWith(q) - squashText(labelOf(a)).startsWith(q))
   return hits.slice(0, 60)

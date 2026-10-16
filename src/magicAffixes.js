@@ -177,7 +177,7 @@ const withRanges = (f) => {
 }
 
 // 이 베이스·품질(magic|rare|crafted)에 붙을 수 있는 옵션 종류 목록 (크래프트는 레어 접사 풀)
-// -> [{ key, slot:'p'|'s', mods, tiers:[{ level, maxlevel, group, slots }], slotRanges, label }]
+// -> [{ key, slot:'p'|'s', mods, tiers:[{ level, maxlevel, group, freq, slots }], slotRanges, label }]
 // base: { code, sockets } (baseItems.json 항목이나 MISC_BASES 항목)
 export function affixFamiliesFor(data, base, quality) {
   const info = base && data.bases[base.code]
@@ -200,7 +200,7 @@ export function affixFamiliesFor(data, base, quality) {
     if (a.mods.some((m) => m.code === 'sock') && slots.some(([, hi]) => hi <= 0)) continue
     const key = familyKey(a)
     if (!fams.has(key)) fams.set(key, { key, slot: a.slot, mods: a.mods, tiers: [] })
-    fams.get(key).tiers.push({ level: a.level, maxlevel: a.maxlevel || 99, group: a.group, slots })
+    fams.get(key).tiers.push({ level: a.level, maxlevel: a.maxlevel || 99, group: a.group, freq: a.freq || 0, slots })
   }
   return [...fams.values()].map(withRanges).sort((x, y) => x.label.localeCompare(y.label, 'ko'))
 }
@@ -292,7 +292,8 @@ export function validateAffixPicks(data, base, quality, picks) {
     }
     const ts = p.fam.tiers.filter((t) => t.slots.every(([lo, hi], i) => vals[i] === null || (vals[i] >= lo && vals[i] <= hi)))
     if (!ts.length) {
-      errs.push(`${familyText(p.fam, vals.map((v, i) => v ?? p.fam.slotRanges[i].join('~')))} - 한 단계에서 나올 수 없는 수치 조합`)
+      const valid = [...new Set(p.fam.tiers.map((t) => familyText(p.fam, t.slots.map((r) => [...new Set(r)].join('~')))))]
+      errs.push(`${familyText(p.fam, vals.map((v, i) => v ?? p.fam.slotRanges[i].join('~')))} - 한 단계에서 나올 수 없는 수치 조합 (가능: ${valid.join(' / ')})`)
       continue
     }
     cands.push({ p, ts })
@@ -303,21 +304,32 @@ export function validateAffixPicks(data, base, quality, picks) {
   const amin = affixLevelAt(info, ilvlMin)
   const amax = affixLevelAt(info, ilvlMax)
   const levels = [amin, ...cands.flatMap((c) => c.ts.map((t) => t.level))].filter((l) => l >= amin && l <= amax)
-  const ok = levels.some((L) => {
-    const used = new Set()
-    const pick = (i) => {
-      if (i === cands.length) return true
-      for (const t of cands[i].ts) {
-        if (t.level > L || t.maxlevel < L || used.has(t.group)) continue
-        used.add(t.group)
-        if (pick(i + 1)) return true
-        used.delete(t.group)
+  const feasible = (cs) =>
+    levels.some((L) => {
+      const used = new Set()
+      const pick = (i) => {
+        if (i === cs.length) return true
+        for (const t of cs[i].ts) {
+          if (t.level > L || t.maxlevel < L || used.has(t.group)) continue
+          used.add(t.group)
+          if (pick(i + 1)) return true
+          used.delete(t.group)
+        }
+        return false
       }
-      return false
+      return pick(0)
+    })
+  if (feasible(cands)) return errs
+  // 어느 옵션끼리 부딪히는지 알려줌 (둘씩 짝지어 안 되는 첫 쌍), 쌍으로는 되는데 셋 이상이 안 되면 일반 문구
+  for (let i = 0; i < cands.length; i++) {
+    for (let j = i + 1; j < cands.length; j++) {
+      if (!feasible([cands[i], cands[j]])) {
+        errs.push(`${cands[i].p.fam.label} / ${cands[j].p.fam.label} - 같이 붙을 수 없음 (같은 종류 중복 또는 아이템 레벨 조건)`)
+        return errs
+      }
     }
-    return pick(0)
-  })
-  if (!ok) errs.push('한 아이템에 같이 붙을 수 없는 조합 (같은 종류 중복 또는 아이템 레벨 조건)')
+  }
+  errs.push('한 아이템에 같이 붙을 수 없는 조합 (같은 종류 중복 또는 아이템 레벨 조건)')
   return errs
 }
 
