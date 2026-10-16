@@ -4,6 +4,22 @@
 // 그래서 실제로 자주 검색·거래되는 베이스 위주로만 한글 이름을 붙이고, 나머지는
 // 영문 이름 + 기존 한글 종류(무기/방어구 세부 분류)로 표시함.
 export const BASE_ITEM_KO_NAMES = {
+  // 워록 마법서 (d2data 한글 문자열에 아직 없어서 게임 item-names 의 koKR 로 채움)
+  'Old Book': '오래된 책',
+  'Tome': '고서',
+  'Codex': '고문서',
+  'Compendium': '전서',
+  'Grimoire': '마법서',
+  'Burnt Text': '불탄 문헌',
+  'Dark Tome': '어두운 고서',
+  'Dark Codex': '어두운 고문서',
+  'Possessed Compendium': '빙의된 전서',
+  'Possessed Grimoire': '빙의된 마법서',
+  'Forgotten Volume': '잊힌 책자',
+  'Occult Tome': '비술 고서',
+  'Occult Codex': '비술 고문서',
+  'Blasphemous Compendium': '신성모독 전서',
+  'Blasphemous Grimoire': '신성모독 마법서',
   // 도끼
   'Hand Axe': '손도끼',
   Axe: '도끼',
