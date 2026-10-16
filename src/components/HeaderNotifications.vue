@@ -73,22 +73,26 @@ function openNotification(n) {
         <div class="header-notif-empty" v-if="!notificationsState.items.length">{{ $t('알림 없음') }}</div>
       </div>
     </div>
-    <router-link to="/messages" class="header-icon-btn" :class="{ here: isHere('/messages') }" :title="$t('쪽지함')">
+    <router-link to="/messages" class="header-icon-btn hdr-mobile-hide" :class="{ here: isHere('/messages') }" :title="$t('쪽지함')">
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
       <span class="header-icon-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</span>
     </router-link>
-    <router-link to="/deals" class="header-icon-btn" :class="{ here: isHere('/deals') }" :title="$t('거래중인 품목')">
+    <router-link to="/deals" class="header-icon-btn hdr-mobile-hide" :class="{ here: isHere('/deals') }" :title="$t('거래중인 품목')">
       <svg viewBox="0 0 24 24" class="hi" aria-hidden="true"><path d="M7 7h10l3 3-3 3M17 17H7l-3-3 3-3"/></svg>
       <span class="header-icon-badge" v-if="activeDealCount > 0">{{ activeDealCount > 9 ? '9+' : activeDealCount }}</span>
     </router-link>
     <div class="header-profile">
       <button type="button" class="header-avatar" :title="authState.profile?.nickname || $t('내 정보')" @click="showMenu = !showMenu" @blur="hideMenuSoon">
+        <span class="header-icon-badge only-mobile" v-if="unreadMessageCount + activeDealCount > 0">{{ unreadMessageCount + activeDealCount > 9 ? '9+' : unreadMessageCount + activeDealCount }}</span>
         <img v-if="avatarSrc(authState.profile?.avatar_url)" :src="avatarSrc(authState.profile?.avatar_url)" :class="{ item: presetOf(authState.profile?.avatar_url)?.item }" alt="" />
         <svg v-else viewBox="0 0 24 24" class="hi" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1-3.5 4-5 7-5s6 1.5 7 5"/></svg>
       </button>
       <div class="header-profile-menu" v-if="showMenu">
         <div class="header-profile-name">{{ authState.profile?.nickname }}</div>
         <router-link to="/mypage" class="header-profile-link" @mousedown.prevent="showMenu = false; router.push('/mypage')">{{ $t('마이페이지') }}</router-link>
+        <!-- 폰에선 헤더에 자리가 없어서 쪽지함·거래중인 품목 아이콘을 여기로 -->
+        <router-link to="/messages" class="header-profile-link only-mobile" @mousedown.prevent="showMenu = false; router.push('/messages')">{{ $t('쪽지함') }}<em v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</em></router-link>
+        <router-link to="/deals" class="header-profile-link only-mobile" @mousedown.prevent="showMenu = false; router.push('/deals')">{{ $t('거래중인 품목') }}<em v-if="activeDealCount > 0">{{ activeDealCount }}</em></router-link>
         <router-link to="/admin" class="header-profile-link" v-if="isStaff()" @mousedown.prevent="showMenu = false; router.push('/admin')">{{ $t('관리자') }}</router-link>
         <button type="button" class="header-profile-link" @mousedown.prevent="setSound(!soundState.on)">{{ $t(soundState.on ? '알림 소리 끄기' : '알림 소리 켜기') }}</button>
         <button type="button" class="header-profile-link" @mousedown.prevent="logout">{{ $t('로그아웃') }}</button>
@@ -154,5 +158,14 @@ function openNotification(n) {
 .header-login{display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:10px; background:var(--gold); color:#1a1511; font-size:12.5px; font-weight:600; white-space:nowrap;}
 .header-login svg{width:16px; height:16px;}
 .header-login:hover{filter:brightness(1.08);}
-@media (max-width:560px){ .header-login span{display:none;} .header-login{padding:8px;} }
+.only-mobile{display:none;}
+.header-profile-link em{font-style:normal; margin-left:6px; font-size:11px; font-weight:700; color:#fff; background:var(--blood); border-radius:999px; padding:1px 6px;}
+.header-avatar{position:relative; overflow:visible;}
+.header-avatar img, .header-avatar svg.hi{border-radius:999px;}
+@media (max-width:560px){
+  .header-login span{display:none;} .header-login{padding:8px;}
+  .hdr-mobile-hide{display:none;}
+  .header-icon-badge.only-mobile{display:flex;}
+  .header-profile-link.only-mobile{display:block;}
+}
 </style>

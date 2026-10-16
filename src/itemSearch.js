@@ -91,16 +91,28 @@ export function itemOptionLines(item, extraLines = []) {
   return lines
 }
 
+// 줄임말 하나(패캐, fcr ...)를 옵션 검색어로 풀어줌 - 줄임말이 아니면 null (매물 검색의 옵션 후보에서 씀)
+export function optionAliasTerm(query, lang = 'ko') {
+  const q = (query || '').trim().toLowerCase()
+  const target = lang === 'en' ? OPTION_ALIASES_EN[q.replace(/\s+/g, ' ')] : OPTION_ALIASES[q.replace(/\s+/g, '')]
+  return target ? target.trim().split(/\s+/).map(squashOption).join('*') : null
+}
+
+// 옵션 검색어(* 로 이은 조각들)가 한 줄에 순서대로 다 들어 있나
+export function termMatchesLine(term, line) {
+  const s = squashOption(line)
+  let at = 0
+  return term.split('*').every((p) => (at = s.indexOf(p, at)) >= 0 && (at += p.length))
+}
+
 // 검색어마다 맞는 줄을 하나씩 찾음. 하나라도 없으면 null, 다 있으면 맞은 줄 목록
 export function matchOptionLines(lines, terms) {
   if (!terms.length) return []
-  const squashed = lines.map(squashOption)
   const hits = []
   for (const t of terms) {
-    const parts = t.split('*')
-    const i = squashed.findIndex((s) => { let at = 0; return parts.every((p) => (at = s.indexOf(p, at)) >= 0 && (at += p.length)) })
-    if (i < 0) return null
-    if (!hits.includes(lines[i])) hits.push(lines[i])
+    const line = lines.find((l) => termMatchesLine(t, l))
+    if (line === undefined) return null
+    if (!hits.includes(line)) hits.push(line)
   }
   return hits
 }
