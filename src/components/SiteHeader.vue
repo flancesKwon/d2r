@@ -374,6 +374,7 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   .site-clock{margin-left:auto; margin-right:-4px;}
   .site-clock-time{font-size:12px; letter-spacing:0;}
   .site-header-inner{gap:10px; padding:0 12px;}
+  :root:lang(en) .site-header-inner{gap:6px;}
   .site-logo img{height:40px;}
   .mode-btn{padding:5px 11px; font-size:13px;}
   .mode-btn svg{display:none;}
@@ -383,8 +384,10 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 }
 /* 아주 좁은 폰: 시계까지 한 줄에 들어가게 (위 560px 규칙보다 뒤에 있어야 이김) */
 @media (max-width:400px){
-  .site-header-inner{gap:6px;}
+  .site-header-inner{gap:4px; padding:0 8px;}
+  :root:lang(en) .site-header-inner{gap:4px;}
   .site-logo img{height:34px;}
+  .mode-btn{padding:5px 8px;}
 }
 /* 320px 폰에서는 그래도 한 줄에 안 들어감 - 시계를 빼고 로고를 더 줄임 */
 @media (max-width:360px){

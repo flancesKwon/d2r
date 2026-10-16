@@ -49,7 +49,7 @@ import { openTradeGuide } from '../tradeGuide.js'
 
 const LOGO = import.meta.env.BASE_URL + 'hero-logo.webp'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { itemMatchesQuery, textMatchesQuery } from '../itemSearch.js'
+import { itemMatchesQuery, textMatchesQuery, optionAliasTerm, termMatchesLine } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
@@ -140,10 +140,19 @@ const suggestNav = ref(false)
 const JAMO_TAIL = /[ㄱ-ㅎㅏ-ㅣ]+$/
 const suggestions = computed(() => {
   const q = searchQuery.value.trim().replace(JAMO_TAIL, '')
-  if (!q || pickedItem.value) return []
+  if (!q) return []
+  // (이미 아이템을 골라 둔 상태에서도 후보가 떠야 다른 아이템으로 바꿀 수 있음 - 고르면 골라 둔 아이템을 대신함)
   // 이름이 검색어로 시작하는 것 먼저 (별칭으로만 걸린 건 뒤로)
   const starts = (it) => it.name_ko.replace(/\s+/g, '').startsWith(q.replace(/\s+/g, ''))
   return PICKABLE.filter((it) => itemMatchesQuery(it, q)).sort((x, y) => starts(y) - starts(x)).slice(0, 8)
+})
+// 엔터로 고를 아이템 - 이름을 정확히 다 쳤거나, 이미 다른 아이템을 골라 둔 상태에서 이름 일부를 친 경우 (첫 후보)
+// (이 경우 글자 검색은 골라 둔 아이템과 AND 로 묶여 늘 0개가 되고, 새 아이템을 찾으려는 게 거의 확실함)
+const enterItem = computed(() => {
+  const q = squash(searchQuery.value.trim().replace(JAMO_TAIL, '')).toLowerCase()
+  if (!q) return null
+  return PICKABLE.find((it) => squash(it.name_ko).toLowerCase() === q || squash(it.name_en || '').toLowerCase() === q)
+    || (pickedItem.value ? suggestions.value[0] || null : null)
 })
 function onSearchInput(e) {
   searchQuery.value = e.target.value
@@ -177,6 +186,7 @@ function onSearchKey(e) {
       const grp = nameMatchBases(searchQuery.value.trim().replace(JAMO_TAIL, ''))
       if (grp.length > 1) pickGroup(searchQuery.value.trim().replace(JAMO_TAIL, ''))
       else if (exactBase.value) pickBase(exactBase.value)
+      else if (enterItem.value) { pickItem(enterItem.value); runSearch() }
       else runSearch()
     }
   } else if (e.key === 'Escape') {
@@ -515,7 +525,9 @@ const mrOptHits = computed(() => {
   const pool = mrOptStats.value.length ? mrOptStats.value : ALL_STAT_FILTERS
   const notAdded = (st) => !statConditions.value.some((c) => !c.keyword && c.key === st.key)
   if (!q) return pool.filter(notAdded)
-  return pool.filter((st) => notAdded(st) && statSearchTexts(st).some((x) => squash(String(x).toLowerCase()).includes(q))).slice(0, 30)
+  const alias = optionAliasTerm(mrOptQuery.value, locale.value)
+  const hit = (st) => statSearchTexts(st).some((x) => squash(String(x).toLowerCase()).includes(q) || (alias && termMatchesLine(alias, String(x))))
+  return pool.filter((st) => notAdded(st) && hit(st)).slice(0, 30)
 })
 // 칩 태그 - 이름에 이미 직업이 들어 있으면("네크로맨서 기술 레벨") 태그는 생략
 function chipTag(st) {
@@ -1220,7 +1232,12 @@ const unifiedSuggestions = computed(() => {
   for (const c of TRADE_CATEGORIES) if (squash(c).includes(q)) out.push({ type: 'cat', key: 'c' + c, c })
   // 한국어 이름·음차 별칭(데스 센트리)·영어 이름 어느 걸로 쳐도 찾음
   const ql = q.toLowerCase()
-  const hitOf = (st) => statSearchTexts(st).map((x) => squash(x).toLowerCase()).find((x) => x.includes(ql))
+  // 줄임말(패캐·공속·fcr ...)도 그 옵션으로 찾음
+  const alias = optionAliasTerm(raw, locale.value)
+  const hitOf = (st) => {
+    const texts = statSearchTexts(st)
+    return texts.map((x) => squash(x).toLowerCase()).find((x) => x.includes(ql)) || (alias && texts.some((x) => termMatchesLine(alias, x)) ? squash(texts[0]).toLowerCase() : undefined)
+  }
   const stats = STAT_PICKS.map((st) => ({ st, hit: hitOf(st) })).filter((x) => x.hit)
   // 검색어로 시작하는 옵션을 위로 ("저항" -> "저항 ..." 이 "모든 저항"보다 먼저가 아니라, 짧은 것부터)
   // 같은 이름이면 [모든 직업] -> 직업 전용 순서로 붙어 나오게
