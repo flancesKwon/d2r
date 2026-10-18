@@ -1,4 +1,4 @@
-// 공포의 영역 가져오기 - d2runewizard API → tb_terror_zone (030 SQL)
+// 공포의 영역 가져오기 - d2runewizard API → tb_terror_zone (030 SQL), 구역이 바뀌었을 때만 한 줄 추가
 // 배포: Supabase 대시보드 Edge Functions 에 이 파일을 붙여넣고, Cron 으로 1분마다 호출 (그쪽 규칙: 30초보다 자주 부르지 않기)
 // 필요한 Secrets: D2R_CONTACT (연락 이메일). SUPABASE_URL·SUPABASE_SERVICE_ROLE_KEY 는 Supabase 가 자동으로 넣어줌
 // 이 키는 서버(Edge Function) 안에서만 씀 - 프론트에 넣지 않음
@@ -18,9 +18,10 @@ Deno.serve(async () => {
   if (!current) throw new Error('현재 구역 없음: ' + JSON.stringify(j))
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { error } = await db.from('tb_terror_zone').upsert({
-    id: 1, current_zone: current, next_zone: j?.nextTerrorZone?.zone ?? null, fetched_at: new Date().toISOString(),
-  })
+  const { data: last, error: e1 } = await db.from('tb_terror_zone').select('current_zone').order('id', { ascending: false }).limit(1).maybeSingle()
+  if (e1) throw e1
+  if (last?.current_zone === current) return new Response('unchanged')
+  const { error } = await db.from('tb_terror_zone').insert({ current_zone: current, next_zone: j?.nextTerrorZone?.zone ?? null })
   if (error) throw error
   return new Response('ok')
 })
