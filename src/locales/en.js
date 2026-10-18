@@ -1929,4 +1929,7 @@ export default {
   '알아보지 못한 가격은 저장하면 빠져요: {s}': 'Unrecognized prices are dropped when you save: {s}',
   '거래방을 찾을 수 없음 (삭제됐거나 내 거래가 아님)': 'Trade room not found (deleted, or not your deal)',
   '판매 상태 변경 권한 없음': 'No permission to change the sale status',
+  '공포의 영역': 'Terror Zone',
+  '다음': 'Next',
+  '제공: d2runewizard': 'Data: d2runewizard',
 }
