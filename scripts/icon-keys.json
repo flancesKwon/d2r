@@ -456,5 +456,10 @@
 "invob4__sword",
 "invops__sword",
 "invopm__sword",
-"invopl__sword"
+"invopl__sword",
+"worldstone__west",
+"worldstone__east",
+"worldstone__south",
+"worldstone__north",
+"worldstone__deep"
 ]
