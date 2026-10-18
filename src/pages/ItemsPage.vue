@@ -2,15 +2,21 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import itemsData from '../data/items.json'
+import materialInfo from '../data/materialInfo.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from '../itemSearch.js'
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypes } from '../itemStats.js'
 import { itemDamage, formatDamage } from '../itemDamage.js'
-import { itemLevelReq, itemStatReqs } from '../tradeStore.js'
+import { itemLevelReq, itemStatReqs, EXTRA_MATERIALS } from '../tradeStore.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
 
-const items = itemsData
+// 재료(열쇠·장기·정수·징표·세계석 파편)는 거래 쪽 목록(tradeStore)에 있는 걸 사전에도 같이 보여줌 - 얻는 곳·쓰임은 materialInfo.json
+const materials = EXTRA_MATERIALS.map((m) => {
+  if (!materialInfo[m.id]) throw new Error(`materialInfo.json 에 ${m.id} 없음`)
+  return { ...m, ...materialInfo[m.id], category: 'material' }
+})
+const items = [...itemsData, ...materials]
 const icons = ITEM_ICONS
 const route = useRoute()
 const router = useRouter()
@@ -69,7 +75,7 @@ const searchBy = ref(route.query.by === 'option' ? 'option' : 'name')
 // (이미 사전 페이지에 있을 때도 주소만 바뀌니 watch 로 따라감)
 // 상단 메뉴의 유니크·세트·룬워드 등(?cat=)도 이미 사전 페이지에 있을 때 주소만 바뀌어서, 탭도 주소를 따라가게 함
 // (예전엔 처음 들어올 때만 읽어서 유니크 -> 세트로 메뉴를 옮겨도 탭이 안 바뀌었음)
-const URL_CATS = ['unique', 'set', 'runeword', 'gem']
+const URL_CATS = ['unique', 'set', 'runeword', 'gem', 'material']
 // 아이템 하나는 /items/아이템id (예전 주소 ?id= 도 그대로 됨)
 function applyRouteQuery() {
   const q = route.query
@@ -173,6 +179,7 @@ const optionHits = computed(() => {
         <button :class="{ active: activeCat === 'set' }" @click="setCat('set')">{{ $t('세트') }}</button>
         <button :class="{ active: activeCat === 'runeword' }" @click="setCat('runeword')">{{ $t('룬워드') }}</button>
         <button :class="{ active: activeCat === 'gem' }" @click="setCat('gem')">{{ $t('보석·룬') }}</button>
+        <button :class="{ active: activeCat === 'material' }" @click="setCat('material')">{{ $t('재료') }}</button>
       </div>
 
       <div class="cat-tabs sub-tabs" v-if="groupOptions.length">
@@ -490,6 +497,29 @@ const optionHits = computed(() => {
             <div v-for="(a, i) in selected.extra[slot[1]]" :key="i" class="affix-line" :class="{ variable: isVariable(a) }">
               <span class="a-text">{{ affixText(a.text) }}</span>
             </div>
+          </div>
+        </div>
+      </template>
+      <template v-else-if="selected.category === 'material'">
+        <div class="d-eyebrow">{{ $t(selected.category_label) }} · {{ $t(selected.subtitle) }}</div>
+        <div class="d-head">
+          <span class="icon-box material">
+            <img v-if="selected.icon_key && icons[selected.icon_key]" :src="icons[selected.icon_key]" alt="" />
+          </span>
+          <div>
+            <h1 class="d-name">{{ itemName(selected) }}</h1>
+            <div class="d-base" v-if="locale === 'ko'">{{ selected.name_en }}</div>
+          </div>
+        </div>
+        <div class="d-section-title">{{ $t('얻는 곳') }}</div>
+        <div class="affix-list">
+          <div class="affix-line" v-for="(line, i) in selected.source" :key="i"><span class="a-text">{{ $t(line) }}</span></div>
+        </div>
+        <div class="d-section-title">{{ $t('쓰임') }}</div>
+        <div class="affix-list">
+          <div class="affix-line" v-for="(u, i) in selected.use" :key="i">
+            <span class="a-text" v-if="u.text">{{ $t(u.text) }}</span>
+            <span class="a-text" v-else>{{ u.in.map((x) => $t(x)).join(' + ') }} → <b>{{ $t(u.out) }}</b></span>
           </div>
         </div>
       </template>

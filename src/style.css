@@ -106,6 +106,7 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .item-card.set .card-icon{border-color:var(--green); box-shadow:0 0 14px -2px rgba(92,138,91,0.45);}
 .item-card.runeword .card-icon{border-color:var(--blood); box-shadow:0 0 14px -2px rgba(162,81,63,0.45);}
 .item-card.gem .card-icon{border-color:var(--teal); box-shadow:0 0 14px -2px rgba(78,138,138,0.45);}
+.item-card.material .card-icon{border-color:var(--text-dim);}
 
 /* 룬워드: 게임에서도 전용 아이콘 없이 베이스 아이템 모양 그대로라서, 대표 베이스의 실제
    그림 위에 소켓 개수만큼 룬을 줄지어 얹음 */
@@ -117,7 +118,7 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .d-head .rw-runes{bottom:12px; gap:2px;}
 .d-head .rw-rune{flex-basis:26px;}
 .card-icon.unique{color:var(--gold);} .card-icon.set{color:var(--green);}
-.card-icon.runeword{color:var(--blood);} .card-icon.gem{color:var(--teal);}
+.card-icon.runeword{color:var(--blood);} .card-icon.gem{color:var(--teal);} .card-icon.material{color:var(--text-muted);}
 .card-name{
   font-family:'Noto Serif KR', serif; font-weight:700; font-size:14.5px; color:var(--gold);
   line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
@@ -150,13 +151,14 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 .d-head .icon-box{width:176px; height:208px; border:1px solid var(--border); background:radial-gradient(circle at 50% 45%, #2a231c, var(--panel-2) 70%); display:flex; align-items:center; justify-content:center; flex:none; border-radius:14px; padding:14px;}
 .d-head .icon-box > img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 /* 룬·보석은 원본이 28px 로 아주 작아서 칸 가득 키우면 뭉툭해 보임 - 4배(112px)까지만 */
-.d-head .icon-box.gem > img{width:112px; height:112px;}
+.d-head .icon-box.gem > img, .d-head .icon-box.material > img{width:112px; height:112px;}
 .d-head .icon-box .rw-base{width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; image-rendering:pixelated;}
 .d-head .icon-box svg{width:72px; height:72px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round;}
 .d-head .icon-box.unique{color:var(--gold); border-color:var(--gold-dim);}
 .d-head .icon-box.set{color:var(--green); border-color:var(--green);}
 .d-head .icon-box.runeword{color:var(--blood); border-color:var(--blood);}
 .d-head .icon-box.gem{color:var(--teal); border-color:var(--teal);}
+.d-head .icon-box.material{color:var(--text-muted); border-color:var(--text-dim);}
 .d-name{font-size:34px; color:var(--gold);}
 .d-base{font-size:15px; color:var(--text-muted);}
 
@@ -210,7 +212,7 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 @media (max-width:600px){
   .d-head{align-items:flex-start;}
   .d-head .icon-box{width:112px; height:136px; padding:10px;}
-  .d-head .icon-box.gem > img{width:84px; height:84px;}
+  .d-head .icon-box.gem > img, .d-head .icon-box.material > img{width:84px; height:84px;}
   .d-head .rw-rune{flex-basis:18px;}
   .item-grid{grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px;}
   .item-card{padding:16px 10px;}
