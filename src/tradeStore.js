@@ -39,18 +39,18 @@ export const ESSENCE_MATERIALS = [
   essence('essence-destruction', '파괴의 부패한 정수', 'Festering Essence of Destruction', 'invfed__uber', ['파괴의 곪은 정수']),
   essence('token', '면죄의 징표', 'Token of Absolution', 'invtoa__uber', ['토큰', '면죄', '용서의 증표']),
 ]
-// 세계석 파편 5종 (악마술사의 군림). 게임 그림 파일(invfile)이 면죄의 징표와 같은 invtoa
+// 세계석 파편 5종 (악마술사의 군림). 그림은 파편마다 따로 (src/assets/itemicons/worldstone__*.png, 게임 데이터의 invtoa는 면죄의 징표 그림이라 안 씀)
 // 쓰는 곳: 잠복하는 선더 참 + 최상급 보석 + 룬 + 파편 -> 새로워진 선더 참 (큐브 레시피 참고)
 // 파편마다 공포의 영역으로 만드는 액트가 다름: 서쪽 1막 / 동쪽 2막 / 남쪽 3막 / 깊은 4막 / 북쪽 5막
 // 지옥 난이도의 챔피언·유니크·슈퍼 유니크·전령이 떨어뜨리고, 매직 아이템 발견 확률은 영향 없음
 // 거래 분류는 우버보스 재료 칸을 같이 씀 (판매글 분류 값을 새로 만들지 않음)
 // 한글 이름은 방향 그대로 옮긴 이름 - 게임 공식 한글 표기가 다르면 여기만 고치면 됨 (예전 이름은 별칭으로)
 export const WORLDSTONE_MATERIALS = [
-  worldstone('worldstone-west', '서쪽 세계석 파편', 'Western Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '서부 세계석 파편', '파편', '샤드']),
-  worldstone('worldstone-east', '동쪽 세계석 파편', 'Eastern Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '동부 세계석 파편', '파편', '샤드']),
-  worldstone('worldstone-south', '남쪽 세계석 파편', 'Southern Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '남부 세계석 파편', '파편', '샤드']),
-  worldstone('worldstone-north', '북쪽 세계석 파편', 'Northern Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '북부 세계석 파편', '파편', '샤드']),
-  worldstone('worldstone-deep', '깊은 세계석 파편', 'Deep Worldstone Shard', 'invtoa__uber', ['세계석', '세계석 파편', '심층 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-west', '서쪽 세계석 파편', 'Western Worldstone Shard', 'worldstone__west', ['세계석', '세계석 파편', '서부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-east', '동쪽 세계석 파편', 'Eastern Worldstone Shard', 'worldstone__east', ['세계석', '세계석 파편', '동부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-south', '남쪽 세계석 파편', 'Southern Worldstone Shard', 'worldstone__south', ['세계석', '세계석 파편', '남부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-north', '북쪽 세계석 파편', 'Northern Worldstone Shard', 'worldstone__north', ['세계석', '세계석 파편', '북부 세계석 파편', '파편', '샤드']),
+  worldstone('worldstone-deep', '깊은 세계석 파편', 'Deep Worldstone Shard', 'worldstone__deep', ['세계석', '세계석 파편', '심층 세계석 파편', '파편', '샤드']),
 ]
 export const EXTRA_MATERIALS = [...UBER_MATERIALS, ...ESSENCE_MATERIALS, ...WORLDSTONE_MATERIALS]
 // 골드 판매글 한 건 최대 액수
