@@ -17,8 +17,11 @@ export async function loadTerrorZone() {
   Object.assign(terrorZoneState, { current: data.current_zone, next: data.next_zone || '' })
 }
 
-// 구역 이름 영어 → 한국어. d2runewizard 는 "The" 를 붙이거나 빼기도 해서 둘 다 찾아봄 (사전에 없으면 영어 그대로)
-const koArea = (name) => AREA_KO[name] ?? AREA_KO[`The ${name}`] ?? AREA_KO[name.replace(/^The /, '')] ?? name
+// 구역 이름 영어 → 한국어 (사전에 없으면 영어 그대로).
+// d2runewizard 철자가 게임 데이터와 달라서(Ancient's Way ↔ The Ancients' Way) 대소문자·아포스트로피·앞의 The를 무시하고 찾음
+const areaKey = (name) => name.toLowerCase().replace(/['’]/g, '').replace(/^the /, '')
+const AREA_BY_KEY = new Map(Object.entries(AREA_KO).map(([en, ko]) => [areaKey(en), ko]))
+const koArea = (name) => AREA_BY_KEY.get(areaKey(name)) ?? name
 
 // d2runewizard 는 구역이 둘이면 'A and B', 셋 이상이면 'A, B, and C' 로 보냄
 // 'Dark Wood and Underground Passage' → 한국어면 '어둠숲, 지하 통로'
