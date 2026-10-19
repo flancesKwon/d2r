@@ -803,10 +803,18 @@ function pickItem(it) {
   resetItemDependentFields()
 }
 
-// 주소에 ?item= 이 있으면 그 아이템을 골라 둠
+// 주소에 ?item= 이 있으면 그 아이템을 골라 둠. ?rolls=3:65,5:12 (옵션 번호:값) 가 있으면 굴러가는 옵션 값도 채움
+// (오버레이 프로그램이 게임 화면에서 읽은 값을 넘길 때 씀. 범위를 벗어난 값은 채우지 않음)
 onMounted(() => {
   const it = typeof route.query.item === 'string' ? getTradeItem(route.query.item) : null
-  if (it && !form.value.itemId) pickItem(it)
+  if (!it || form.value.itemId) return
+  pickItem(it)
+  if (typeof route.query.rolls !== 'string') return
+  for (const pair of route.query.rolls.split(',')) {
+    const [index, value] = pair.split(':').map(Number)
+    const affix = itemAffixes.value[index]
+    if (affix && isRollRangeAffix(affix) && isAllowedValue(value, affix)) rolledValues.value[index] = value
+  }
 })
 function clearPickedItem() {
   form.value.itemId = null
