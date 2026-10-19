@@ -608,6 +608,14 @@ export function uniqueDefenseRange(item, ethereal = false) {
   return { min, max }
 }
 
+// 유니크·세트 방어구에 방어력 증가(ac%), 무기에 피해 증가(dmg%)가 붙어 있으면 방어력·데미지는 그 옵션 수치로 정해져서
+// (방어구는 베이스가 최댓값+1로 고정, 무기는 베이스 데미지가 원래 고정) 판매글·검색에서 따로 입력받지 않음
+export function hasFixedBaseStat(item) {
+  if (!['unique', 'set'].includes(item?.category)) return false
+  const prop = { armor: 'ac%', weapon: 'dmg%' }[item.base_stats?.category]
+  return !!prop && (item.affixes || []).some((a) => a.prop === prop)
+}
+
 // 아이콘 테두리 색 - 사전 아이템은 카테고리, 사전에 없는 장비는 고른 품질(예전 글은 이름의 매직/레어)
 export function postRarity(post) {
   const item = getTradeItem(post?.itemId)

@@ -31,6 +31,7 @@ import {
   superiorComboKey,
   superiorComboLabel,
   baseForItem,
+  hasFixedBaseStat,
   searchBaseItems,
   classSkillsForBase,
   BASE_ITEMS,
@@ -692,11 +693,13 @@ const itemBaseDefs = computed(() => {
     }
   }
   // 기본 방어력 범위: 에테리얼 체크면 1.5배 기준, 아니면 일반 기준
+  // 방어력 증가·피해 증가가 붙은 유니크·세트는 방어력·데미지가 그 옵션 수치로 정해져서 칸을 안 만듦
+  const fixedStat = hasFixedBaseStat(it)
   const def = uniqueDefenseRange(it, ethFilter.value === 'eth')
-  if (def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: def.max, get: lineValue(DEF_LINE) })
-  else if (kind === 'armor' || rwKinds.includes('armor')) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
+  if (!fixedStat && def) defs.push({ key: 'def', label: '기본 방어력', lo: def.min, hi: def.max, get: lineValue(DEF_LINE) })
+  else if (!fixedStat && (kind === 'armor' || rwKinds.includes('armor'))) defs.push({ key: 'def', label: '기본 방어력', get: lineValue(DEF_LINE) })
   // 무기 룬워드는 베이스 공격력을 안 받음 (어떤 베이스·상급으로 만들었는지가 중요) - 베이스·상급 여부·상급 옵션으로만 거름
-  if (it.category !== 'runeword' && kind === 'weapon') {
+  if (it.category !== 'runeword' && kind === 'weapon' && !fixedStat) {
     defs.push({ key: 'dmin', label: '기본 최소 데미지', get: lineValue(DMG_LINE, 1) })
     defs.push({ key: 'dmax', label: '기본 최대 데미지', get: lineValue(DMG_LINE, 2) })
   }

@@ -573,6 +573,8 @@ export default {
   '내구도': 'Durability',
   '기본 데미지': 'Base damage',
   '방어력 (게임에 보이는 값 · 선택)': 'Defense (as shown in game · optional)',
+  '방어력 증가 옵션으로 방어력이 정해져서 따로 입력하지 않아요': 'Defense is set by the enhanced defense option, so there is nothing to enter',
+  '피해 증가 옵션으로 데미지가 정해져서 따로 입력하지 않아요': 'Damage is set by the enhanced damage option, so there is nothing to enter',
   '예: 141': 'e.g. 141',
   '최소 데미지 (게임에 보이는 값 · 선택)': 'Min damage (as shown in game · optional)',
   '최대 데미지': 'Max damage',
