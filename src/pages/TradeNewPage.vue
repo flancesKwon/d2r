@@ -39,6 +39,7 @@ import {
   itemLevelReq,
   classSkillsForBase,
   baseForItem,
+  hasFixedBaseStat,
   superiorCombosFor,
   superiorComboLabel,
   SUPERIOR_MODS,
@@ -371,6 +372,8 @@ const baseItemQuery = ref('')
 const showBaseItemDropdown = ref(false)
 const isRuneword = computed(() => selectedItem.value?.category === 'runeword')
 const isUniqueOrSet = computed(() => ['unique', 'set'].includes(selectedItem.value?.category))
+// 방어력 증가·피해 증가가 붙은 유니크·세트 - 방어력·데미지 입력 없음
+const baseStatFixed = computed(() => hasFixedBaseStat(selectedItem.value))
 // 미확인 판매 (유니크·세트만)
 const isUnidentified = computed(() => isUniqueOrSet.value && form.value.unidentified)
 // 이 아이템의 실제 베이스 - 룬워드·매직/레어는 판매자가 고른 베이스, 유니크·세트는 고정 베이스
@@ -1149,7 +1152,8 @@ function submitPost() {
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">{{ $t('공격 속도') }} {{ baseStatsRef.speed }}</span>
           <span>{{ $t('내구도') }} {{ baseStatsRef.durability }}</span>
         </div>
-        <template v-if="isUniqueOrSet">
+        <div class="unit-hint" v-if="isUniqueOrSet && baseStatFixed">{{ $t(baseStatsRef.category === 'armor' ? '방어력 증가 옵션으로 방어력이 정해져서 따로 입력하지 않아요' : '피해 증가 옵션으로 데미지가 정해져서 따로 입력하지 않아요') }}</div>
+        <template v-else-if="isUniqueOrSet">
           <div class="base-stats-input-row" v-if="baseStatsRef.category === 'armor'">
             <label>
               {{ $t('방어력 (게임에 보이는 값 · 선택)') }}

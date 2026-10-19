@@ -1,7 +1,8 @@
 // 판매글(또는 등록 중인 폼) 정보를 게임 아이템 툴팁 모양의 줄 목록으로 바꿈 - ItemTooltipCanvas가 그림
 // 색은 게임 툴팁 규칙: 유니크 금색, 세트 초록, 룬워드 이름 금색 + 베이스 회색, 룬 주황,
 // 매직 파랑, 레어 노랑, 방어력·데미지·요구 민첩·힘·레벨 흰색, 옵션 줄 파랑
-import { itemLevelReq, baseForItem, getItemAffixes, itemStatReqs, baseFromLabel } from './tradeStore.js'
+import { itemLevelReq, baseForItem, getItemAffixes, itemStatReqs, baseFromLabel, hasFixedBaseStat } from './tradeStore.js'
+import { itemDamage, formatDamage } from './itemDamage.js'
 import { runePips } from './itemStats.js'
 import { sortOptionLines } from './statOrder.js'
 import { locale, t, itemName, affixText } from './i18n.js'
@@ -30,6 +31,33 @@ const META = [
   { key: 'unid', re: /^미확인$/ },
   { key: 'lvreq', re: /^요구 레벨 (\d+)$/ },
 ]
+
+// 방어력 증가·피해 증가가 붙은 유니크·세트는 방어력·데미지를 입력받지 않고 옵션 수치로 계산해서 보여줌.
+// 판매글 옵션 줄에 굴린 값("방어력 증가 +40%")이 있으면 그 값, 없으면 사전 범위로 계산
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function rolledAffixes(item, options) {
+  return getItemAffixes(item).map((a) => {
+    if (!a.text.includes(`${a.min}~${a.max}`) || a.min === a.max) return a
+    const [pre, post] = a.text.split(`${a.min}~${a.max}`)
+    const re = new RegExp('^' + escRe(pre) + '(-?\\d+)' + escRe(post) + '$')
+    const hit = options.map((l) => re.exec(l)).find(Boolean)
+    return hit ? { ...a, min: hit[1], max: hit[1] } : a
+  })
+}
+const rangeText = (lo, hi) => (lo === hi ? `${lo}` : `(${lo}-${hi})`)
+function computedBaseStat(item, options, ethereal) {
+  const affixes = rolledAffixes(item, options)
+  const b = item.base_stats
+  if (b.category === 'armor') {
+    const sum = (prop, k) => affixes.filter((a) => a.prop === prop).reduce((s, a) => s + (Number(a[k]) || 0), 0)
+    const base = Math.floor((b.maxac + 1) * (ethereal ? 1.5 : 1))
+    const at = (k) => Math.floor((base * (100 + sum('ac%', k))) / 100) + sum('ac', k)
+    return { defense: rangeText(at('min'), at('max')) }
+  }
+  const d = itemDamage({ ...item, affixes }, { ethereal })
+  const hands = ['one', 'two'].filter((h) => d?.[h])
+  return { damage: hands.map((h) => formatDamage(d[h])).join(' / ') }
+}
 
 function nameColor(item, category, name, quality) {
   if (quality === 'magic') return TOOLTIP_COLORS.magic
@@ -83,6 +111,7 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
     push(en && baseItem ? baseItem.subtitle : baseName(meta.base), TOOLTIP_COLORS.white)
   }
 
+  if (hasFixedBaseStat(item)) Object.assign(meta, computedBaseStat(item, options, ethereal))
   if (meta.defense) push(`${t('방어력')}: ${meta.defense}`)
   if (meta.damage) push(`${t('데미지')}: ${meta.damage}`)
   if (amountLabel && amountLabel !== '1개') push(`${t('수량')}: ${en ? amountLabel.replace(/(\d+)\s*개/, '$1').replace(/(\d+)종 묶음/, '$1') : amountLabel}`)
