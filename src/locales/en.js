@@ -1930,7 +1930,6 @@ export default {
   '거래방을 찾을 수 없음 (삭제됐거나 내 거래가 아님)': 'Trade room not found (deleted, or not your deal)',
   '판매 상태 변경 권한 없음': 'No permission to change the sale status',
   '공포의 영역': 'Terror Zone',
-  '다음': 'Next',
   '제공: d2runewizard': 'Data: d2runewizard',
   '재료': 'Materials',
   '얻는 곳': 'Where to get',
@@ -1958,4 +1957,9 @@ export default {
   '정수 4종을 큐브에 1개씩 넣어서 만듦': 'Made by putting one of each of the 4 essences into the Cube',
   '사용하면 스킬·스탯을 한 번 초기화': 'Using it resets skills and stats once',
   '지옥 난이도의 챔피언·유니크·슈퍼 유니크·전령이 떨어뜨림 (주로 공포의 영역)': 'Dropped by Hell champions, uniques, super uniques and heralds (mostly in Terror Zones)',
+  '우버 디아': 'Diablo Clone',
+  '레더 하드코어': 'Ladder Hardcore',
+  '논레더 하드코어': 'Non-ladder Hardcore',
+  '유저 제보 · 제공: d2runewizard': 'Player reports · Data: d2runewizard',
+  '오늘': 'Today',
 }
