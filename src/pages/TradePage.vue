@@ -52,6 +52,7 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery, optionAliasTerm, termMatchesLine } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
+import DcloneBadge from '../components/DcloneBadge.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale, affixText } from '../i18n.js'
@@ -1504,6 +1505,7 @@ function variantLines(p) {
         <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
       <TerrorZoneBadge v-if="!isSearchRoute" />
+      <DcloneBadge v-if="!isSearchRoute" />
     </div>
   </section>
 
