@@ -135,6 +135,8 @@ const PICKABLE = [
   ...itemsData.filter((it) => ['unique', 'set', 'runeword', 'gem'].includes(it.category)),
   ...EXTRA_MATERIALS,
 ]
+// 다른 거래사이트 Traderie 의 검색 화면 주소 (영어 이름으로만 검색됨. 데이터를 가져오지 않고 링크로 열기만 함)
+const traderieUrl = (it) => `https://traderie.com/diablo2resurrected/products?search=${encodeURIComponent(it.name_en)}`
 const pickedItem = ref(getTradeItem(typeof route.query.item === 'string' ? route.query.item : null) || null)
 const suggestOpen = ref(false)
 const suggestActive = ref(0)
@@ -1670,6 +1672,7 @@ function variantLines(p) {
           <span class="mr-head-icon" :class="pickedItem.category"><img v-if="iconUrlFor(pickedItem.icon_key)" :src="iconUrlFor(pickedItem.icon_key)" alt="" /></span>
           <div class="mr-head-text">
             <b :class="pickedItem.category">{{ $itemName(pickedItem) }}</b>
+            <a v-if="pickedItem.name_en" class="mr-ext" :href="traderieUrl(pickedItem)" target="_blank" rel="noopener noreferrer">{{ $t('Traderie에서도 찾기') }} ↗</a>
           </div>
         </div>
         <!-- 판매글 등록과 같은 순서: 베이스 -> 상급 -> 상급 옵션 -> 베이스 수치 -> 변동 옵션 -->
@@ -1970,6 +1973,8 @@ function variantLines(p) {
 .mr-head-icon img{max-width:34px; max-height:34px; image-rendering:pixelated;}
 .mr-head-text{display:flex; flex-direction:column; gap:2px; min-width:0;}
 .mr-head-text b{font-size:15px; color:var(--text);}
+.mr-ext{font-size:12px; color:var(--text-muted); text-decoration:none;}
+.mr-ext:hover{color:var(--gold); text-decoration:underline;}
 .mr-head-text span{font-size:11.5px; color:var(--text-dim);}
 .mr-change{margin-left:auto; flex:none; font-size:12px; font-weight:700; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px;}
 .mr-change:hover{color:var(--gold); border-color:var(--gold-dim);}

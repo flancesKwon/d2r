@@ -55,6 +55,7 @@ export default {
   '아이템 사전': 'Item database',
   '아이템': 'Items',
   '아이템 지정': 'Item',
+  'Traderie에서도 찾기': 'Also search on Traderie',
   '유니크': 'Unique',
   '세트': 'Set',
   '룬워드': 'Runewords',
