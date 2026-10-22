@@ -10,7 +10,8 @@ import { guidesState, loadGuides } from '../guideStore.js'
 import patchNotes from '../data/patchNotes.json'
 import ladder from '../data/ladder.json'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { fetchPosts, fetchRecentNotice } from '../communityStore.js'
+import { fetchPosts } from '../communityStore.js'
+import NoticeBar from '../components/NoticeBar.vue'
 import { AVATAR_PRESETS } from '../avatars.js'
 import { t, locale, itemName } from '../i18n.js'
 
@@ -73,14 +74,12 @@ const topGuides = computed(() =>
 
 // ── 오른쪽: 공지 / 거래 / 커뮤니티 / 패치
 const byDate = (a, b) => (b.date || '').localeCompare(a.date || '')
-const notice = ref(null)
 const latestCommunity = ref([])
 function loadSide() {
-  fetchRecentNotice().then((p) => (notice.value = p)).catch(() => {})
   fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})
 }
 loadSide()
-// 보고 있는 동안 30초마다 공지·최신 글·최신 매물 새로
+// 보고 있는 동안 30초마다 최신 글·최신 매물 새로
 useAutoRefresh(() => { loadSide(); trade.value?.loadTradePosts(true) })
 const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
 // 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
@@ -137,9 +136,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
   </section>
 
   <div class="hm-wrap">
-    <router-link v-if="notice" :to="`/community/${notice.id}`" class="hm-notice">
-      <span class="hm-notice-tag">{{ $t('공지') }}</span><span class="hm-notice-title">{{ notice.title }}</span><span class="hm-notice-date">{{ notice.date }}</span>
-    </router-link>
+    <NoticeBar />
 
     <nav class="hm-shortcuts" :aria-label="$t('바로가기')">
       <router-link v-for="s in SHORTCUTS" :key="s.to" :to="s.to" class="hm-shortcut">
@@ -250,11 +247,6 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
 
 /* ── 본문 */
 .hm-wrap{max-width:1180px; margin:0 auto; padding:28px 24px 72px;}
-.hm-notice{display:flex; align-items:center; gap:10px; padding:11px 16px; margin-bottom:20px; border-radius:12px;
-  background:rgba(200,163,77,0.06); border:1px solid rgba(200,163,77,0.25); font-size:13.5px;}
-.hm-notice-tag{font-size:11px; font-weight:700; color:#1b1714; background:var(--gold); border-radius:6px; padding:2px 8px; flex:none;}
-.hm-notice-title{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);}
-.hm-notice-date{font-size:11.5px; color:var(--text-dim); flex:none;}
 
 .hm-shortcuts{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; margin-bottom:40px;}
 .hm-shortcut{display:flex; align-items:center; gap:12px; padding:16px; border-radius:14px; background:var(--panel);

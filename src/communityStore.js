@@ -94,7 +94,7 @@ export async function fetchPinnedPosts() {
   return error ? [] : data.map(mapPost)
 }
 // 메인 화면에 띄울 공지 - 올린 지 7일 안의 공지 글 중 가장 최근 것
-export const NOTICE_DAYS = 7
+const NOTICE_DAYS = 7
 export async function fetchRecentNotice() {
   if (!supabase) return null
   const since = new Date(Date.now() - NOTICE_DAYS * 86400000).toISOString()
