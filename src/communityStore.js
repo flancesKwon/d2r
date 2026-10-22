@@ -93,6 +93,16 @@ export async function fetchPinnedPosts() {
     .eq('pinned', true).is('deleted_at', null).order('created_at', { ascending: false }).limit(5)
   return error ? [] : data.map(mapPost)
 }
+// 메인 화면에 띄울 공지 - 올린 지 7일 안의 공지 글 중 가장 최근 것
+const NOTICE_DAYS = 7
+export async function fetchRecentNotice() {
+  if (!supabase) return null
+  const since = new Date(Date.now() - NOTICE_DAYS * 86400000).toISOString()
+  const { data, error } = await supabase.from('tb_community_post').select(`*, ${POST_AUTHOR}`)
+    .eq('category', '공지').is('deleted_at', null).gte('created_at', since).order('created_at', { ascending: false }).limit(1)
+  if (error) throw error
+  return data[0] ? mapPost(data[0]) : null
+}
 // 고정·고정 해제 (운영진, DB 함수가 다시 확인)
 export async function setPinned(post, pinned) {
   const { error } = await supabase.rpc('d2r_set_pinned', { p_post: post.id, p_pinned: pinned })
