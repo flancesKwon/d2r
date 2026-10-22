@@ -54,7 +54,6 @@ import { itemMatchesQuery, textMatchesQuery, optionAliasTerm, termMatchesLine } 
 import EventBanner from '../components/EventBanner.vue'
 import NoticeBar from '../components/NoticeBar.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
-import DcloneBadge from '../components/DcloneBadge.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale, affixText } from '../i18n.js'
@@ -1512,7 +1511,6 @@ function variantLines(p) {
       </div>
       <NoticeBar v-if="!isSearchRoute" />
       <TerrorZoneBadge v-if="!isSearchRoute" />
-      <DcloneBadge v-if="!isSearchRoute" />
     </div>
   </section>
 

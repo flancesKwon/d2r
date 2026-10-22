@@ -1,7 +1,6 @@
 <script setup>
 import EventBanner from '../components/EventBanner.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
-import DcloneBadge from '../components/DcloneBadge.vue'
 // DB 모드 첫 화면(/db) - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
 import { computed, shallowRef, ref } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
@@ -111,7 +110,6 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
       <h1>{{ $t('디아블로 2 레저렉션') }}<br /><span>{{ $t('정보 · 계산기 · 도구') }}</span></h1>
       <EventBanner class="hm-event" />
       <TerrorZoneBadge />
-      <DcloneBadge />
 
       <form class="hm-search" role="search" @submit.prevent="search">
         <div class="hm-search-by" role="group" :aria-label="$t('검색 기준')">
