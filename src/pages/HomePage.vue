@@ -10,7 +10,7 @@ import { guidesState, loadGuides } from '../guideStore.js'
 import patchNotes from '../data/patchNotes.json'
 import ladder from '../data/ladder.json'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { fetchPosts, fetchPinnedPosts } from '../communityStore.js'
+import { fetchPosts, fetchRecentNotice } from '../communityStore.js'
 import { AVATAR_PRESETS } from '../avatars.js'
 import { t, locale, itemName } from '../i18n.js'
 
@@ -76,7 +76,7 @@ const byDate = (a, b) => (b.date || '').localeCompare(a.date || '')
 const notice = ref(null)
 const latestCommunity = ref([])
 function loadSide() {
-  fetchPinnedPosts().then((list) => (notice.value = list[0] || null)).catch(() => {})
+  fetchRecentNotice().then((p) => (notice.value = p)).catch(() => {})
   fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})
 }
 loadSide()
