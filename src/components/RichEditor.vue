@@ -42,7 +42,7 @@ const editor = useEditor({
   editorProps: {
     // 다른 사이트에서 복사한 이미지 태그는 빼고 (저장소 밖 사진은 보여줄 때 어차피 지워짐)
     transformPastedHTML: (html) => html.replace(/<img[^>]*>/gi, ''),
-    handlePaste: (_view, e) => takeFiles(e.clipboardData?.files),
+    handlePaste: (_view, e) => takeFiles(e.clipboardData?.files) || takePastedHtmlImages(e.clipboardData?.getData('text/html')),
     handleDrop: (_view, e) => takeFiles(e.dataTransfer?.files),
   },
   onUpdate: ({ editor: ed }) => {
@@ -71,6 +71,38 @@ function takeFiles(list) {
   if (!files.length) return false
   addImages(files)
   return true
+}
+
+// 사진이 든 HTML 을 복사해 붙인 경우 (data: 사진만) - 올린 뒤 주소를 바꿔 순서 그대로 붙임
+function takePastedHtmlImages(html) {
+  if (!html || !/<img[^>]+src=["']data:image\//i.test(html)) return false
+  pasteWithUploadedImages(html)
+  return true
+}
+
+async function pasteWithUploadedImages(html) {
+  uploadError.value = ''
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const room = MAX_IMAGES - imageCount() - uploading.value
+  let used = 0
+  uploading.value++
+  try {
+    for (const img of [...doc.querySelectorAll('img')]) {
+      const src = img.getAttribute('src') || ''
+      if (!src.startsWith('data:image/') || used >= room) { img.remove(); continue }
+      used++
+      try {
+        const blob = await (await fetch(src)).blob()
+        img.setAttribute('src', await uploadImage(new File([blob], 'pasted', { type: blob.type })))
+      } catch (e) {
+        img.remove()
+        uploadError.value = t(e.message || '사진 올리기 실패')
+      }
+    }
+    editor.value?.chain().focus().insertContent(doc.body.innerHTML).run()
+  } finally {
+    uploading.value--
+  }
 }
 
 async function addImages(files) {
