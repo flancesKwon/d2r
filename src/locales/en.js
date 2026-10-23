@@ -832,6 +832,8 @@ export default {
   '거래 이용 안내': 'Trading guide',
   '디아허브 거래게시판': 'DiabloHub trade board',
   '닫기': 'Close',
+  '로그인 유지': 'Keep me signed in',
+  '공용 PC(PC방 등)에서는 끄고 쓰세요': 'Turn this off on shared computers',
   '아시아 서버 디아블로 2 레저렉션 유저끼리 아이템을 사고파는 곳. 등록부터 거래완료·리뷰까지 사이트 안에서 이어집니다.': 'A place for Diablo II: Resurrected players on the Asia server to buy and sell items. Everything from listing to completion and reviews happens on the site.',
   '게임 그대로의 아이템 카드': 'In-game style item cards',
   '옵션을 고르면 게임 툴팁 모양으로 바로 보이고 이미지로 저장도 가능': 'Pick stats and see the in-game tooltip right away — you can save it as an image too',

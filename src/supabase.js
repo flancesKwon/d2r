@@ -6,8 +6,21 @@ import { createClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// 로그인 유지: 켜면 localStorage(브라우저를 닫아도 유지), 끄면 sessionStorage(탭·브라우저를 닫으면 로그아웃). 기본 꺼짐
+const KEEP_KEY = 'd2r-keep-login'
+export const keepLogin = () => localStorage.getItem(KEEP_KEY) === '1'
+export function setKeepLogin(on) {
+  if (on) localStorage.setItem(KEEP_KEY, '1')
+  else localStorage.removeItem(KEEP_KEY)
+}
+const authStorage = {
+  getItem: (k) => (keepLogin() ? localStorage : sessionStorage).getItem(k),
+  setItem: (k, v) => (keepLogin() ? localStorage : sessionStorage).setItem(k, v),
+  removeItem: (k) => (keepLogin() ? localStorage : sessionStorage).removeItem(k),
+}
+
 export const supabase = url && key
-  ? createClient(url, key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } })
+  ? createClient(url, key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, storage: authStorage } })
   : null
 
 if (!supabase) console.warn('Supabase 설정(VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)없음 - 로그인·게시판 꺼짐')
