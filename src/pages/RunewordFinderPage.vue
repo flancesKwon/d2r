@@ -8,6 +8,7 @@ import { itemLevelReq, BASE_ITEMS, baseItemLabel, baseFitsRuneword, searchBaseIt
 import { useRoute } from 'vue-router'
 import { buildRuneTable, buildRunewordList } from '../runewordFinder.js'
 import { locale, itemName } from '../i18n.js'
+import ItemDetailModal from '../components/ItemDetailModal.vue'
 
 // 룬워드 찾기 - 룬을 눌러 고르면 그 룬이 하나라도 들어가는 룬워드를 전부 보여줌
 //   바로 제작 가능(고른 룬으로 다 채워짐) / 룬 더 필요(부족한 룬이 적은 순)
@@ -56,7 +57,12 @@ const socketFilter = ref(0)
 
 // 베이스로 찾기 - 주운 베이스(예: 맨캐쳐)를 고르면 그 베이스로 만들 수 있는 룬워드만 (종류와 소켓 수가 맞는 것). 주소 ?base=베이스이름 으로도 들어옴
 const route = useRoute()
+// 룬워드 이름을 누르면 아이템 상세를 팝업으로 (페이지 이동 없이)
+const detail = ref(null)
+watch(() => route.fullPath, () => (detail.value = null))
 const baseFilter = ref(BASE_ITEMS.find((b) => baseItemLabel(b) === route.query.base) || null)
+// 팝업의 베이스 칩이 같은 페이지의 ?base= 로 오므로 주소를 따라감
+watch(() => route.query.base, (v) => (baseFilter.value = BASE_ITEMS.find((b) => baseItemLabel(b) === v) || null))
 const baseQuery = ref('')
 const baseCandidates = computed(() => (baseQuery.value.trim() ? searchBaseItems(baseQuery.value, null).slice(0, 8) : []))
 const baseShown = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle)
@@ -181,7 +187,7 @@ function missingGroups(missing) {
       <div class="rw-list">
         <article class="rw-card" v-for="{ rw } in baseOnly" :key="rw.item.id">
           <div class="rw-card-top">
-            <span class="rw-name">{{ itemName(rw.item) }}</span>
+            <button type="button" class="rw-name" @click="detail = rw.item">{{ itemName(rw.item) }}</button>
             <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
           </div>
           <div class="rw-seq">
@@ -200,7 +206,7 @@ function missingGroups(missing) {
         <div class="rw-list">
           <article class="rw-card ready" v-for="{ rw } in ready" :key="rw.item.id">
             <div class="rw-card-top">
-              <span class="rw-name">{{ itemName(rw.item) }}</span>
+              <button type="button" class="rw-name" @click="detail = rw.item">{{ itemName(rw.item) }}</button>
               <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
             </div>
             <div class="rw-seq">
@@ -219,7 +225,7 @@ function missingGroups(missing) {
         <div class="rw-list">
           <article class="rw-card" v-for="{ rw, missing } in needMore" :key="rw.item.id">
             <div class="rw-card-top">
-              <span class="rw-name">{{ itemName(rw.item) }}</span>
+              <button type="button" class="rw-name" @click="detail = rw.item">{{ itemName(rw.item) }}</button>
               <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
             </div>
             <div class="rw-seq">
@@ -238,6 +244,7 @@ function missingGroups(missing) {
       </section>
     </template>
   </div>
+  <ItemDetailModal v-if="detail" :item="detail" @close="detail = null" />
   </div>
 </template>
 
@@ -282,7 +289,8 @@ function missingGroups(missing) {
 .rw-card{border:1px solid var(--border-soft); background:var(--panel); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; gap:10px;}
 .rw-card.ready{border-color:var(--gold-dim);}
 .rw-card-top{display:flex; flex-direction:column; gap:3px;}
-.rw-name{font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; color:var(--gold);}
+.rw-name{font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; color:var(--gold); text-align:left;}
+.rw-name:hover{text-decoration:underline;}
 .rw-meta{font-size:11.5px; color:var(--text-dim);}
 .rw-seq{display:flex; flex-wrap:wrap; gap:6px;}
 .rw-seq-rune{
