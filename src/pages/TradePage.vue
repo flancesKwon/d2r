@@ -1541,7 +1541,7 @@ function variantLines(p) {
             <option v-for="o in f.options" :key="o" :value="o">{{ modeText(o) }}</option>
           </select>
         </label>
-        <button type="button" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
+        <button type="button" v-if="isSearchRoute" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
       <NoticeBar v-if="!isSearchRoute" />
       <TerrorZoneBadge v-if="!isSearchRoute" />
