@@ -1,18 +1,25 @@
 <script setup>
 // 공포의 영역 한 줄 (메인) - 지금·다음 구역, 출처 링크는 d2runewizard 약관상 필수
-import { onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
-import { terrorZoneState as tz, loadTerrorZone, zoneText, TERROR_ZONE_SOURCE } from '../terrorZoneStore.js'
+import { terrorZoneState as tz, loadTerrorZone, zoneNow, zoneText, TERROR_ZONE_SOURCE } from '../terrorZoneStore.js'
 
-onMounted(() => loadTerrorZone().catch(() => {}))
+const now = ref(Date.now())
+const zone = computed(() => zoneNow(now.value))
+let timer
+onMounted(() => {
+  loadTerrorZone().catch(() => {})
+  timer = setInterval(() => { now.value = Date.now() }, 1000)
+})
+onUnmounted(() => clearInterval(timer))
 useAutoRefresh(loadTerrorZone, 60000)
 </script>
 
 <template>
   <div v-if="tz.current" class="tz-badge">
     <span class="tz-label">{{ $t('공포의 영역') }}</span>
-    <b class="tz-now">{{ zoneText(tz.current) }}</b>
-    <span v-if="tz.next" class="tz-next">{{ $t('다음') }} {{ zoneText(tz.next) }}</span>
+    <b class="tz-now">{{ zoneText(zone.current) }}</b>
+    <span v-if="zone.next" class="tz-next">{{ $t('다음') }} {{ zoneText(zone.next) }}</span>
     <a class="tz-src" :href="TERROR_ZONE_SOURCE" target="_blank" rel="noopener">{{ $t('제공: d2runewizard') }}</a>
   </div>
 </template>
