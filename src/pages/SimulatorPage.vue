@@ -43,7 +43,7 @@ function itemIconUrl(item) {
 }
 
 // 8개 직업 모두 D2R HD 스프라이트(*skillicon.sprite) 프레임 webp로 통일 (skilldesc.txt IconCel로 매칭).
-// 워록은 클래식 DC6가 드루이드 복사본(더미)이라 HD가 유일한 원본이기도 함. 그림에 장식 테두리가
+// 악마술사은 클래식 DC6가 드루이드 복사본(더미)이라 HD가 유일한 원본이기도 함. 그림에 장식 테두리가
 // 포함돼 있어서 .hd-frame으로 안쪽만 보이게 잘라 씀
 const iconFileModules = import.meta.glob('../assets/skillicons/*.webp', { eager: true, import: 'default' })
 const iconUrlByFilename = Object.fromEntries(Object.entries(iconFileModules).map(([p, url]) => [p.split('/').pop(), url]))
@@ -522,7 +522,7 @@ function layoutForTab(tabIdx) {
   const nodes = []
   tab.skills.forEach((skill, skillIdx) => {
     const row = tierRowOf(skill)
-    const col = (skill.col || 2) - 1 // 데이터 없는 경우(워록 등) 가운데로 대체
+    const col = (skill.col || 2) - 1 // 데이터 없는 경우(악마술사 등) 가운데로 대체
     const y = ((row + 0.5) / 6) * 100
     const x = ((col + 0.5) / 3) * 100
     positions[skillIdx] = { x, y, row, col }

@@ -4,7 +4,7 @@
 // 그래서 실제로 자주 검색·거래되는 베이스 위주로만 한글 이름을 붙이고, 나머지는
 // 영문 이름 + 기존 한글 종류(무기/방어구 세부 분류)로 표시함.
 export const BASE_ITEM_KO_NAMES = {
-  // 워록 마법서 (d2data 한글 문자열에 아직 없어서 게임 item-names 의 koKR 로 채움)
+  // 악마술사 마법서 (d2data 한글 문자열에 아직 없어서 게임 item-names 의 koKR 로 채움)
   'Old Book': '오래된 책',
   'Tome': '고서',
   'Codex': '고문서',
