@@ -407,6 +407,27 @@ const mrQualityPicks = computed(() => {
   const allow = new Set(list.flatMap(baseQualities))
   return QUALITY_PICKS.filter((q) => allow.has(q.v))
 })
+// 유니크 품질 - 고른 베이스(묶음이면 묶음 안 베이스 전부)에 있는 유니크·세트 아이템. 하나뿐이면 바로 그 아이템을 골라서
+// 아이템 검색 필터(방어력·변동 옵션 등)가 뜨게 함. 여러 개면 아래 '아이템' 줄에서 고름
+const mrUniqueItems = computed(() => {
+  const codes = new Set(mrBases.value.map((b) => b.code))
+  return itemsData.filter((it) => ['unique', 'set'].includes(it.category) && codes.has(baseForItem(it)?.code))
+})
+function pickUniqueItem(it) {
+  baseGroup.value = ''
+  mrBase.value = ''
+  mrBaseObj.value = null
+  mrQuality.value = ''
+  mrShape.value = ''
+  mrCraft.value = ''
+  pickItem(it)
+  goSearch()
+}
+function pickQuality(v) {
+  if (mrQuality.value === v) { mrQuality.value = ''; return }
+  mrQuality.value = v
+  if (v === 'unique' && mrUniqueItems.value.length === 1) pickUniqueItem(mrUniqueItems.value[0])
+}
 // 베이스를 고르면 품질은 일반이 기본 (일반이 없는 반지·목걸이 같은 건 매직·레어)
 const defaultQuality = () => (mrQualityPicks.value.some((q) => q.v === 'normal') ? 'normal' : '')
 // 이 베이스·품질에서 가능한 소켓 최대 개수 (등록 화면과 같은 규칙)
@@ -1555,9 +1576,16 @@ function variantLines(p) {
           <span class="mr-seg">
             <button
               type="button" v-for="q in mrQualityPicks" :key="q.v" :class="['q-' + q.v, { on: mrQuality === q.v }]"
-              :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
+              :aria-pressed="mrQuality === q.v" @click="pickQuality(q.v)"
             >{{ $t(q.label) }}</button>
           </span>
+
+          <template v-if="mrQuality === 'unique'">
+            <span class="mr-label">{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</span>
+            <span class="mr-seg">
+              <button type="button" v-for="it in mrUniqueItems" :key="it.id" :class="it.category" @click="pickUniqueItem(it)">{{ $itemName(it) }}</button>
+            </span>
+          </template>
 
 
           <template v-if="mrShapeChoices.length && mrQuality !== 'unique'">
