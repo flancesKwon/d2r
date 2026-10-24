@@ -13,6 +13,7 @@ import {
   REPORT_REASON_LABEL, REPORT_TARGET_LABEL, REPORT_STATUS_LABEL, isMissingSchema,
   fetchReports, countOpenReports, setReportStatus, deleteReport, reportTargetLink, canDeleteTarget, deleteReportTarget,
 } from '../reportStore.js'
+import { FEEDBACK_KIND_LABEL, FEEDBACK_STATUS_LABEL, fetchFeedback, setFeedbackStatus, deleteFeedback } from '../feedbackStore.js'
 
 const staff = computed(() => isStaff())
 const admin = computed(() => isAdmin())
@@ -81,6 +82,30 @@ async function loadReports() {
     reports.value = []
   }
 }
+// 피드백 (032 SQL 이후 - 없으면 빈 목록)
+const feedback = ref([])
+const feedbackFilter = ref('open')
+async function loadFeedback() {
+  feedback.value = await fetchFeedback(feedbackFilter.value || null).catch(() => [])
+}
+function changeFeedback(f, status) {
+  return run(async () => {
+    await setFeedbackStatus(f.id, status)
+    await loadFeedback()
+  })
+}
+async function removeFeedback(f) {
+  if (!await askConfirm('피드백 삭제')) return
+  return run(async () => {
+    await deleteFeedback(f.id)
+    await loadFeedback()
+  })
+}
+const feedbackFilters = [
+  { value: 'open', label: '확인 전' },
+  { value: 'done', label: '확인함' },
+  { value: '', label: '전체' },
+]
 async function loadRecent() {
   const [{ data: c }, { data: t }] = await Promise.all([
     supabase.from('tb_community_post').select('id, title, category, created_at, author:tb_profile!tb_community_post_author_id_fkey(nickname)')
@@ -132,10 +157,12 @@ function loadAll() {
   loadStats().catch(() => {})
   loadMembers().catch(() => {})
   loadReports()
+  loadFeedback()
   loadRecent().catch(() => {})
 }
 watch(staff, loadAll, { immediate: true })
 watch(reportFilter, loadReports)
+watch(feedbackFilter, loadFeedback)
 let searchTimer = 0
 watch(memberQuery, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadMembers().catch(() => {}), 300) })
 
@@ -355,6 +382,32 @@ async function removeTradePost(p) {
         <div class="empty-state" v-if="!reports.length">{{ reportFilter === 'open' ? '처리할 신고 없음' : '신고 없음' }}</div>
       </div>
     </template>
+
+    <div class="d-section-title">피드백</div>
+    <div class="admin-filter-row" role="radiogroup" aria-label="피드백 상태">
+      <button
+        v-for="f in feedbackFilters" :key="f.value" type="button" role="radio"
+        :aria-checked="feedbackFilter === f.value" :class="{ active: feedbackFilter === f.value }" @click="feedbackFilter = f.value"
+      >{{ f.label }}</button>
+    </div>
+    <div class="affix-list admin-report-list">
+      <div class="affix-line admin-report-line" v-for="f in feedback" :key="'f' + f.id">
+        <div class="admin-report-info">
+          <div class="admin-report-head"><b>{{ FEEDBACK_KIND_LABEL[f.kind] }}</b> · {{ FEEDBACK_STATUS_LABEL[f.status] }}</div>
+          <div class="admin-report-detail">{{ f.content }}</div>
+          <span class="admin-report-meta">
+            {{ f.user?.nickname || '탈퇴한 회원' }} · {{ formatDate(f.created_at) }}
+            <router-link v-if="f.page" :to="f.page" class="a-text"> · {{ f.page }}</router-link>
+          </span>
+        </div>
+        <div class="admin-report-actions">
+          <button class="admin-action-btn" v-if="f.status === 'open'" @click="changeFeedback(f, 'done')">확인함</button>
+          <button class="admin-action-btn" v-else @click="changeFeedback(f, 'open')">다시 열기</button>
+          <button class="admin-action-btn" v-if="admin" @click="removeFeedback(f)">삭제</button>
+        </div>
+      </div>
+      <div class="empty-state" v-if="!feedback.length">{{ feedbackFilter === 'open' ? '확인할 피드백 없음' : '피드백 없음' }}</div>
+    </div>
 
     <div class="d-section-title">회원 관리</div>
     <input type="search" v-model="memberQuery" class="admin-search" placeholder="닉네임 검색" aria-label="회원 닉네임 검색" />

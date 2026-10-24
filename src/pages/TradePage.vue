@@ -174,6 +174,16 @@ function clearPickedItem() {
   pickedItem.value = null
 }
 
+// 친 글자로 검색 - 후보가 하나뿐이면 글자 검색 대신 그 후보를 고름
+function submitInput() {
+  const raw = searchQuery.value.trim().replace(JAMO_TAIL, '')
+  const found = unifiedSuggestions.value.filter((s) => s.type !== 'text')
+  if (found.length === 1) chooseSuggestion(found[0])
+  else if (nameMatchBases(raw).length > 1) pickGroup(raw)
+  else if (exactBase.value) pickBase(exactBase.value)
+  else if (enterItem.value) { pickItem(enterItem.value); runSearch() }
+  else runSearch()
+}
 function onSearchKey(e) {
   if (e.isComposing) return
   const list = unifiedSuggestions.value
@@ -187,13 +197,7 @@ function onSearchKey(e) {
     e.preventDefault()
     // 추천 줄을 직접 고른 경우에만 그 줄, 아니면 친 글자로 검색
     if (suggestNav.value && suggestOpen.value && list.length) chooseSuggestion(list[suggestActive.value] || list[0])
-    else {
-      const grp = nameMatchBases(searchQuery.value.trim().replace(JAMO_TAIL, ''))
-      if (grp.length > 1) pickGroup(searchQuery.value.trim().replace(JAMO_TAIL, ''))
-      else if (exactBase.value) pickBase(exactBase.value)
-      else if (enterItem.value) { pickItem(enterItem.value); runSearch() }
-      else runSearch()
-    }
+    else submitInput()
   } else if (e.key === 'Escape') {
     suggestOpen.value = false
   } else if (e.key === 'Backspace' && !searchQuery.value) {
@@ -1411,7 +1415,7 @@ function variantLines(p) {
         <h1 class="tr-back-title">{{ $t('매물 검색') }}</h1>
       </div>
 
-      <form class="tr-search" role="search" @submit.prevent="runSearch()">
+      <form class="tr-search" role="search" @submit.prevent="submitInput()">
         <div class="tr-search-box">
           <input
             ref="searchEl" type="search" :value="searchQuery" @input="onSearchInput" @keydown="onSearchKey" @focus="suggestOpen = true" @blur="closeSuggestSoon"
@@ -1492,7 +1496,7 @@ function variantLines(p) {
           </span>
         </span>
         <span class="tr-applied-gap"></span>
-        <button type="button" class="tr-go" v-if="!isSearchRoute" @click="runSearch()">{{ $t('검색') }} →</button>
+        <button type="button" class="tr-go" v-if="!isSearchRoute" @click="submitInput()">{{ $t('검색') }} →</button>
         <button type="button" class="tr-clear" @click="resetFilters(); editIdx = -1">{{ $t('모두 지우기') }}</button>
       </div>
 
