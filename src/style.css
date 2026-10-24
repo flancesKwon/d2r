@@ -362,3 +362,13 @@ ul{list-style:none;} button{font-family:inherit; cursor:pointer; border:none; ba
 
 /* 화면에선 숨기고 읽기 프로그램에만 보이는 제목 */
 .sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+
+/* 아이템 사전 룬워드 상세 - 만들 수 있는 베이스 */
+.rw-bases{margin:0 0 14px; border:1px solid var(--border-soft); border-radius:12px; background:var(--panel); padding:10px 14px;}
+.rw-bases summary{cursor:pointer; font-size:13px; font-weight:600; color:var(--text-muted);}
+.rw-base-group{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:10px;}
+.rw-base-tier{width:100%; font-size:12px; font-weight:700; color:var(--gold);}
+.rw-base-chip{font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim);}
+.rw-base-chip:hover{border-color:var(--gold-dim); color:var(--text);}
+.rw-base-more{display:inline-block; margin-top:10px; font-size:12px; color:var(--text-dim);}
+.rw-base-more:hover{color:var(--gold);}
