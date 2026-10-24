@@ -4,7 +4,8 @@ import itemsData from '../data/items.json'
 import runeChain from '../data/runeUpgradeChain.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { runewordBaseTypes, runewordSlots } from '../itemStats.js'
-import { itemLevelReq } from '../tradeStore.js'
+import { itemLevelReq, BASE_ITEMS, baseItemLabel, baseFitsRuneword, searchBaseItems } from '../tradeStore.js'
+import { useRoute } from 'vue-router'
 import { buildRuneTable, buildRunewordList } from '../runewordFinder.js'
 import { locale, itemName } from '../i18n.js'
 
@@ -52,9 +53,22 @@ const SLOT_FILTERS = [
 ]
 const slotFilter = ref('')
 const socketFilter = ref(0)
+
+// 베이스로 찾기 - 주운 베이스(예: 맨캐쳐)를 고르면 그 베이스로 만들 수 있는 룬워드만 (종류와 소켓 수가 맞는 것). 주소 ?base=베이스이름 으로도 들어옴
+const route = useRoute()
+const baseFilter = ref(BASE_ITEMS.find((b) => baseItemLabel(b) === route.query.base) || null)
+const baseQuery = ref('')
+const baseCandidates = computed(() => (baseQuery.value.trim() ? searchBaseItems(baseQuery.value, null).slice(0, 8) : []))
+const baseShown = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle)
+function pickBase(b) {
+  baseFilter.value = b
+  baseQuery.value = ''
+}
+
 const passesFilter = (rw) =>
   (!slotFilter.value || runewordSlots(rw.item.subtitle).includes(slotFilter.value)) &&
-  (!socketFilter.value || rw.runes.length === socketFilter.value)
+  (!socketFilter.value || rw.runes.length === socketFilter.value) &&
+  (!baseFilter.value || baseFitsRuneword(baseFilter.value, rw.item))
 
 // 고른 룬이 하나라도 들어가는 룬워드 + 부족한 룬
 const matched = computed(() =>
@@ -75,6 +89,10 @@ const byValue = (a, b) => b.rw.top - a.rw.top || a.rw.item.name_ko.localeCompare
 const ready = computed(() => matched.value.filter((x) => !x.missing.length).sort(byValue))
 const needMore = computed(() =>
   matched.value.filter((x) => x.missing.length).sort((a, b) => a.missing.length - b.missing.length || byValue(a, b))
+)
+// 룬은 안 고르고 베이스만 골랐을 때 - 그 베이스로 만들 수 있는 룬워드 전부
+const baseOnly = computed(() =>
+  picked.value.size || !baseFilter.value ? [] : runewords.filter(passesFilter).map((rw) => ({ rw })).sort(byValue)
 )
 
 // 룬 이름 (영어면 Ber, Jah)
@@ -127,6 +145,25 @@ function missingGroups(missing) {
       </div>
     </section>
 
+    <section class="rw-panel rw-base-panel">
+      <div class="rw-panel-head">
+        <div class="rw-panel-title">{{ $t('베이스로 찾기') }}</div>
+      </div>
+      <div class="rw-base-picked" v-if="baseFilter">
+        <b>{{ baseShown(baseFilter) }}</b>
+        <span>{{ $t(baseFilter.type_sub) }} · {{ $t('최대 {n}소켓', { n: baseFilter.sockets }) }}</span>
+        <button type="button" class="rw-clear" @click="baseFilter = null">{{ $t('선택 해제') }}</button>
+      </div>
+      <div class="rw-base-search" v-else>
+        <input type="text" v-model="baseQuery" class="rw-base-input" :placeholder="$t('주운 베이스 검색 (예: 맨캐쳐, 아칸 플레이트)')" />
+        <div class="rw-base-list" v-if="baseCandidates.length">
+          <button type="button" v-for="b in baseCandidates" :key="b.code || b.subtitle" @click="pickBase(b)">
+            {{ baseShown(b) }} <small>{{ $t(b.type_sub) }} · {{ $t('최대 {n}소켓', { n: b.sockets }) }}</small>
+          </button>
+        </div>
+      </div>
+    </section>
+
     <div class="rw-filters">
       <div class="cat-tabs">
         <button v-for="f in SLOT_FILTERS" :key="f.key" :class="{ active: slotFilter === f.key }" @click="slotFilter = f.key">{{ $t(f.label) }}</button>
@@ -137,7 +174,25 @@ function missingGroups(missing) {
       </div>
     </div>
 
-    <div class="empty-state" v-if="!picked.size">{{ $t('룬을 누르면 그 룬이 들어가는 룬워드 표시') }}</div>
+    <div class="empty-state" v-if="!picked.size && !baseFilter">{{ $t('룬을 누르면 그 룬이 들어가는 룬워드 표시') }}</div>
+
+    <section class="rw-section" v-else-if="!picked.size">
+      <h2>{{ $t('이 베이스로 만들 수 있는 룬워드') }} <span>{{ baseOnly.length }}</span></h2>
+      <div class="rw-none" v-if="!baseOnly.length">{{ $t('없음') }}</div>
+      <div class="rw-list">
+        <article class="rw-card" v-for="{ rw } in baseOnly" :key="rw.item.id">
+          <div class="rw-card-top">
+            <router-link class="rw-name" :to="itemLink(rw)">{{ itemName(rw.item) }}</router-link>
+            <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
+          </div>
+          <div class="rw-seq">
+            <span class="rw-seq-rune owned" v-for="(s, k) in runeSlots(rw)" :key="k">
+              <img v-if="iconUrlFor(R[s.i].item.icon_key)" :src="iconUrlFor(R[s.i].item.icon_key)" alt="" />{{ runeName(s.i) }}
+            </span>
+          </div>
+        </article>
+      </div>
+    </section>
 
     <template v-else>
       <section class="rw-section">
@@ -209,6 +264,14 @@ function missingGroups(missing) {
 .rw-rune-icon img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
 .rw-rune-name{font-size:12px; font-weight:600;}
 
+.rw-base-picked{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; font-size:13px; color:var(--text-dim);}
+.rw-base-picked b{color:var(--gold); font-size:15px;}
+.rw-base-search{display:flex; flex-direction:column; gap:8px;}
+.rw-base-input{width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:14px;}
+.rw-base-list{display:flex; flex-direction:column; gap:4px;}
+.rw-base-list button{display:flex; justify-content:space-between; gap:12px; text-align:left; padding:8px 12px; border-radius:8px; border:1px solid var(--border-soft); background:var(--panel-2); color:var(--text); font-size:13px;}
+.rw-base-list button:hover{border-color:var(--gold-dim);}
+.rw-base-list small{color:var(--text-dim); font-size:11.5px;}
 .rw-filters{display:flex; flex-wrap:wrap; gap:10px 20px;}
 .rw-filters .cat-tabs button{border-radius:999px;}
 

@@ -8,7 +8,7 @@ import { itemMatchesQuery, optionTerms, itemOptionLines, matchOptionLines } from
 import { ICONS } from '../icons.js'
 import { runePips, buildRuneLookup, runewordRuneAffixes, runewordBaseTypes } from '../itemStats.js'
 import { itemDamage, formatDamage } from '../itemDamage.js'
-import { itemLevelReq, itemStatReqs, EXTRA_MATERIALS } from '../tradeStore.js'
+import { itemLevelReq, itemStatReqs, EXTRA_MATERIALS, searchBaseItems, baseItemLabel } from '../tradeStore.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
 
 // 재료(열쇠·장기·정수·징표·세계석 파편)는 거래 쪽 목록(tradeStore)에 있는 걸 사전에도 같이 보여줌 - 얻는 곳·쓰임은 materialInfo.json
@@ -26,6 +26,17 @@ const runeLookup = buildRuneLookup(itemsData)
 // 룬워드는 실제 게임에서도 전용 아이콘이 없고(꽂힌 베이스 아이템 모양을 그대로 씀),
 // 소켓에 박힌 룬이 화면에 줄지어 보임 - 그 느낌을 살리려고 대표 베이스의 실제 그림
 // (icon_key, 예: 수수께끼 = 아칸 플레이트) 위에 룬 아이콘을 소켓 개수만큼 겹쳐서 보여줌
+// 룬워드를 만들 수 있는 베이스 - 종류와 소켓 수가 맞는 것, 엘리트부터 (같은 등급끼리 묶음)
+const runewordBases = computed(() => {
+  if (selected.value?.category !== 'runeword') return []
+  const groups = new Map()
+  for (const b of searchBaseItems('', null, selected.value)) {
+    if (!groups.has(b.tier)) groups.set(b.tier, [])
+    groups.get(b.tier).push(b)
+  }
+  return [...groups].map(([tier, bases]) => ({ tier, bases }))
+})
+const baseShown = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle)
 function iconUrl(item) {
   return item.icon_key && icons[item.icon_key] || null
 }
@@ -445,6 +456,17 @@ const optionHits = computed(() => {
           {{ $t('장착 가능 베이스') }}: <b>{{ runewordBaseTypes(selected.subtitle) || '—' }}</b>
           <span v-if="selected.extra.socket_count"> · {{ $t('소켓 {n}개 필요', { n: selected.extra.socket_count }) }}</span>
         </div>
+        <details class="rw-bases" v-if="runewordBases.length">
+          <summary>{{ $t('만들 수 있는 베이스 {n}종 보기', { n: runewordBases.reduce((n, g) => n + g.bases.length, 0) }) }}</summary>
+          <div class="rw-base-group" v-for="g in runewordBases" :key="g.tier">
+            <div class="rw-base-tier">{{ $t(g.tier) }}</div>
+            <router-link
+              v-for="b in g.bases" :key="b.code || b.subtitle" class="rw-base-chip"
+              :to="{ path: '/runewords', query: { base: baseItemLabel(b) } }"
+            >{{ baseShown(b) }}</router-link>
+          </div>
+          <router-link class="rw-base-more" to="/runewords">{{ $t('베이스로 룬워드 찾기 →') }}</router-link>
+        </details>
         <div class="d-section-title">{{ $t('옵션') }}</div>
         <p class="note-box" style="margin-bottom:10px">{{ $t('룬워드 고유 옵션 + 박힌 룬 효과 = 최종 옵션.') }}</p>
         <div class="affix-list">
