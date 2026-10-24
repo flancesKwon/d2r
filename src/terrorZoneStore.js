@@ -4,17 +4,25 @@ import { locale } from './i18n.js'
 import { supabase } from './supabase.js'
 import AREA_KO from './data/areaNames.json'
 
-export const terrorZoneState = reactive({ current: '', next: '', loaded: false })
+export const terrorZoneState = reactive({ current: '', next: '', createdAt: 0, loaded: false })
 
 export const TERROR_ZONE_SOURCE = 'https://d2runewizard.com/terror-zone-tracker'
 
 export async function loadTerrorZone() {
   if (!supabase) return
-  const { data, error } = await supabase.from('tb_terror_zone').select('current_zone, next_zone').order('id', { ascending: false }).limit(1).maybeSingle()
+  const { data, error } = await supabase.from('tb_terror_zone').select('current_zone, next_zone, created_at').order('id', { ascending: false }).limit(1).maybeSingle()
   if (error) throw error
   terrorZoneState.loaded = true
   if (!data) return
-  Object.assign(terrorZoneState, { current: data.current_zone, next: data.next_zone || '' })
+  Object.assign(terrorZoneState, { current: data.current_zone, next: data.next_zone || '', createdAt: Date.parse(data.created_at) })
+}
+
+// 정각(:00/:30)이 지났는데 서버 기록이 아직 이전 구역이면, 이미 알던 '다음' 구역을 지금으로 보여줌
+const SLOT = 30 * 60 * 1000
+export function zoneNow(now) {
+  const slotStart = Math.floor(now / SLOT) * SLOT
+  const carried = terrorZoneState.next && terrorZoneState.createdAt < slotStart && terrorZoneState.createdAt >= slotStart - SLOT
+  return carried ? { current: terrorZoneState.next, next: '' } : { current: terrorZoneState.current, next: terrorZoneState.next }
 }
 
 // 구역 이름 영어 → 한국어 (사전에 없으면 영어 그대로).
