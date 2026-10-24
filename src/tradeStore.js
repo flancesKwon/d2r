@@ -287,7 +287,7 @@ export function classSkillsForBase(base) {
       const o = officialSkillName(s.en)
       return { ...s, ko: o?.ko || s.ko, enDisplay: o?.en || s.en }
     })
-  return { name: cls.name === '워록' ? '악마술사' : cls.name, skills, minReq }
+  return { name: cls.name, skills, minReq }
 }
 
 // 유니크·세트의 베이스 (아이템 사전 subtitle -> 베이스 목록, 철자가 다른 건 aliases로)
@@ -382,7 +382,7 @@ export function optionPresetsFor(kind) {
 // 실제 값을 안 넣어서 "15~20"처럼 범위로 남은 옵션은 보장되는 최솟값(앞 숫자)으로 비교
 // 뒤에 소수점이 이어지면 안 됨 - "생명력 +1.5 (캐릭터 레벨당)"이 "생명력 +1"로 읽혀 일반 생명력 조건에 걸렸음
 const N = '\\+?(-?\\d+)(?:~\\d+)?(?!\\.\\d)'
-const CLASS_NAMES_RE = '아마존|소서리스|네크로맨서|팔라딘|바바리안|드루이드|어쌔신|워록|악마술사'
+const CLASS_NAMES_RE = '아마존|소서리스|네크로맨서|팔라딘|바바리안|드루이드|어쌔신|악마술사'
 const TAB_NAMES_RE = [...SKILL_TAB_NAMES, '보우 & 크로스보우 스킬', '재벌린 & 스피어 스킬'].join('|')
 export const TRADE_STAT_FILTERS = [
   { key: 'allskills', label: '모든 기술', pattern: `^모든 기술 ${N}` },

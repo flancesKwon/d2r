@@ -51,7 +51,7 @@ function ancestors(code) {
 // 직업 전용 베이스(오브·지팡이·클로·드루이드/바바리안 투구·네크로 머리·완드·홀·마법서·단검)는
 // 하얀 상태에서도 그 직업 스킬 최대 3개가 각각 +1~3으로 붙을 수 있음 (itemtypes StaffMods)
 const CLASS_KO = {
-  ama: '아마존', sor: '소서리스', nec: '네크로맨서', pal: '팔라딘', bar: '바바리안', dru: '드루이드', ass: '어쌔신', war: '워록',
+  ama: '아마존', sor: '소서리스', nec: '네크로맨서', pal: '팔라딘', bar: '바바리안', dru: '드루이드', ass: '어쌔신', war: '악마술사',
 }
 // 베이스마다 자동으로 붙는 옵션(armor/weapons의 auto prefix -> automagic 그룹). 아이템 레벨에 따라
 // 단계가 나뉘는데 판매글엔 실제 값을 입력받으니 전체 범위로 합침

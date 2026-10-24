@@ -222,7 +222,7 @@ export const PER_LEVEL = {
 
 export const CLASSES = {
   아마존: 'Amazon', 소서리스: 'Sorceress', 네크로맨서: 'Necromancer', 팔라딘: 'Paladin',
-  바바리안: 'Barbarian', 드루이드: 'Druid', 어쌔신: 'Assassin', 악마술사: 'Warlock', 워록: 'Warlock',
+  바바리안: 'Barbarian', 드루이드: 'Druid', 어쌔신: 'Assassin', 악마술사: 'Warlock',
 }
 
 // 기술 계열 (skilltab)
