@@ -1965,7 +1965,7 @@ export default {
   '논레더 하드코어': 'Non-ladder Hardcore',
   '유저 제보 · 제공: d2runewizard': 'Player reports · Data: d2runewizard',
   '오늘': 'Today',
-  '피드백': 'Feedback',
+  '불편한 점 제보하기': 'Report a problem or idea',
   '피드백 보내기': 'Send feedback',
   '보냈어요. 고맙습니다': 'Sent. Thank you',
   '버그': 'Bug',
