@@ -100,7 +100,6 @@ const runeShort = (r) => (locale.value === 'ko' ? r.short : r.code)
 const runeName = (i) => runeShort(R[i])
 const levelOf = (rw) => itemLevelReq(rw.item)
 const tradeLink = (it) => ({ path: '/trade', query: { item: it.id } })
-const itemLink = (rw) => `/items/${rw.item.id}`
 // 룬워드 룬 칸: 고른 룬은 밝게 (같은 룬이 두 번이면 첫 칸만)
 function runeSlots(rw) {
   const left = new Set(picked.value)
@@ -182,7 +181,7 @@ function missingGroups(missing) {
       <div class="rw-list">
         <article class="rw-card" v-for="{ rw } in baseOnly" :key="rw.item.id">
           <div class="rw-card-top">
-            <router-link class="rw-name" :to="itemLink(rw)">{{ itemName(rw.item) }}</router-link>
+            <span class="rw-name">{{ itemName(rw.item) }}</span>
             <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
           </div>
           <div class="rw-seq">
@@ -201,7 +200,7 @@ function missingGroups(missing) {
         <div class="rw-list">
           <article class="rw-card ready" v-for="{ rw } in ready" :key="rw.item.id">
             <div class="rw-card-top">
-              <router-link class="rw-name" :to="itemLink(rw)">{{ itemName(rw.item) }}</router-link>
+              <span class="rw-name">{{ itemName(rw.item) }}</span>
               <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
             </div>
             <div class="rw-seq">
@@ -220,7 +219,7 @@ function missingGroups(missing) {
         <div class="rw-list">
           <article class="rw-card" v-for="{ rw, missing } in needMore" :key="rw.item.id">
             <div class="rw-card-top">
-              <router-link class="rw-name" :to="itemLink(rw)">{{ itemName(rw.item) }}</router-link>
+              <span class="rw-name">{{ itemName(rw.item) }}</span>
               <span class="rw-meta">{{ runewordBaseTypes(rw.item.subtitle) }} · {{ $t('{n}소켓', { n: rw.runes.length }) }}<template v-if="levelOf(rw)"> · {{ $t('요구 레벨') }} {{ levelOf(rw) }}</template></span>
             </div>
             <div class="rw-seq">
