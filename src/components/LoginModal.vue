@@ -1,11 +1,15 @@
 <script setup>
 // 로그인 방법 고르기 (디스코드 / 구글) - signIn() 을 제공자 없이 부르면 열림
-import { watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { authState, signIn } from '../profileStore.js'
+import { keepLogin, setKeepLogin } from '../supabase.js'
+
+const keep = ref(keepLogin())
 
 const close = () => (authState.loginOpen = false)
 const onKey = (e) => { if (e.key === 'Escape') close() }
 watch(() => authState.loginOpen, (open) => {
+  if (open) keep.value = keepLogin()
   if (open) window.addEventListener('keydown', onKey)
   else window.removeEventListener('keydown', onKey)
 })
@@ -33,6 +37,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         {{ $t('구글로 계속하기') }}
       </button>
 
+      <label class="login-keep">
+        <input type="checkbox" v-model="keep" @change="setKeepLogin(keep)" />
+        {{ $t('로그인 유지') }}
+      </label>
+      <p class="login-keep-note">{{ $t('공용 PC(PC방 등)에서는 끄고 쓰세요') }}</p>
+
       <p class="login-note">
         {{ $t('처음 로그인 시 계정 이름이 닉네임 - 마이페이지에서 변경 가능') }}<br />
         {{ $t('로그인 =') }} <router-link to="/terms" @click="close">{{ $t('이용 규칙') }}</router-link> · <router-link to="/privacy" @click="close">{{ $t('개인정보 처리 안내') }}</router-link> {{ $t('동의') }}
@@ -54,6 +64,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .login-btn.discord:hover{background:#4752c4;}
 .login-btn.google{background:#fff; color:#1f1f1f; border:1px solid #dadce0;}
 .login-btn.google:hover{background:#f3f3f3;}
+.login-keep{display:flex; align-items:center; gap:8px; justify-content:center; font-size:13px; color:var(--text); cursor:pointer; margin-top:4px;}
+.login-keep-note{font-size:11.5px; color:var(--text-dim); text-align:center;}
 .login-note{font-size:11.5px; color:var(--text-dim); line-height:1.6; margin-top:8px; text-align:center;}
 .login-note a{color:var(--gold-dim); text-decoration:underline; margin-left:2px;}
 </style>
