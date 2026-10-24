@@ -67,8 +67,8 @@ async function send() {
 
 <style scoped>
 .fb-fab{
-  position:fixed; right:5vw; bottom:18vh; z-index:40; font-size:15px; font-weight:700; color:#1b1714;
-  background:var(--gold); padding:14px 22px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.5);
+  position:fixed; right:16px; bottom:16px; z-index:40; font-size:13px; font-weight:700; color:#1b1714;
+  background:var(--gold); padding:10px 16px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.5);
 }
 .fb-fab:hover{background:var(--focus);}
 @media (max-width:720px){
