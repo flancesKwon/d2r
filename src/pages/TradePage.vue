@@ -31,6 +31,7 @@ import {
   superiorComboKey,
   superiorComboLabel,
   baseForItem,
+  postBaseItem,
   hasFixedBaseStat,
   searchBaseItems,
   classSkillsForBase,
@@ -263,9 +264,11 @@ const runewordBaseKinds = computed(() => {
 // ── 사전에 없는 아이템(매직/레어/크래프트/일반) 찾기 ──
 // 판매글에는 품질(options.quality)·베이스 줄·모양(options.iconKey)이 저장돼 있어서 그걸로 거름
 const QUALITY_PICKS = [
-  { v: 'magic', label: '매직' }, { v: 'rare', label: '레어' },
-  { v: 'crafted', label: '크래프트' }, { v: 'normal', label: '일반' },
+  { v: 'unique', label: '유니크' }, { v: 'rare', label: '레어' }, { v: 'magic', label: '매직' },
+  { v: 'normal', label: '일반' }, { v: 'crafted', label: '크래프트' },
 ]
+// 유니크·세트 아이템이 있는 베이스 (유니크 버튼은 이런 베이스에만)
+const UNIQUE_BASE_CODES = new Set(itemsData.filter((it) => ['unique', 'set'].includes(it.category)).map((it) => baseForItem(it)?.code).filter(Boolean))
 const mrQuality = ref('')
 const mrBase = ref('')
 // 고른 베이스 객체 - 이름으로 다시 찾지 않고 고를 때 그대로 담아둠
@@ -319,6 +322,7 @@ function baseQualities(b) {
   const out = b.base_stats.category !== 'misc' ? ['normal', 'magic'] : ['magic']
   if (magicAffixData.bases[b.code]?.rare) out.push('rare')
   if (craftRecipesFor(magicAffixData, b).length) out.push('crafted')
+  if (UNIQUE_BASE_CODES.has(b.code)) out.push('unique')
   return out
 }
 const baseCandidates = computed(() => {
@@ -413,6 +417,7 @@ const mrSockMax = computed(() => {
   if (!max) return 0
   const q = mrQuality.value
   if (!q || q === 'normal') return max
+  if (q === 'unique') return 0
   let hi = q === 'magic' ? 2 : 1
   const fam = affixFamiliesFor(magicAffixData, b, q).find((f) => f.mods.some((m) => m.code === 'sock'))
   if (fam) hi = Math.max(hi, Number(fam.slotRanges[0][1]) || 0)
@@ -491,7 +496,7 @@ function addBaseOwnOpts(b, q, found, ranges) {
 const mrOptCache = new Map()
 const mrOptInfo = computed(() => {
   const bases = mrBases.value
-  if (!bases.length) return { list: [], ranges: {}, fixed: new Set() }
+  if (!bases.length || mrQuality.value === 'unique') return { list: [], ranges: {}, fixed: new Set() }
   const q = mrQuality.value
   // 일반은 접사가 안 붙음 - 베이스 자체 옵션만 모음
   const qs = q === 'normal' ? [] : q ? [q] : ['magic', 'rare']
@@ -599,10 +604,14 @@ function mrMatches(p, skip) {
   if (!no('mr:quality')) {
     // 품질을 고르면 그것만. 안 골랐으면 매직·레어 (일반·크래프트는 버튼이 따로 있으니 뺌)
     // 품질을 안 적고 올린 글(빈값)은 어느 버튼에도 안 걸리면 사라지므로 여기에 남겨 둠
-    if (A.mrQuality) { if (p.quality !== A.mrQuality) return false }
+    if (A.mrQuality === 'unique') {
+      // 유니크·세트는 사전 아이템의 베이스로 비교 (판매글에 베이스 줄이 없음)
+      const pb = ['unique', 'set'].includes(getTradeItem(p.itemId)?.category) ? postBaseItem(p) : null
+      if (!pb || !mrBases.value.some((b) => b.code === pb.code)) return false
+    } else if (A.mrQuality) { if (p.quality !== A.mrQuality) return false }
     else if (p.quality === 'normal' || p.quality === 'crafted') return false
   }
-  if (mrBase.value && !no('mr:base')) {
+  if (mrBase.value && !no('mr:base') && A.mrQuality !== 'unique') {
     // 판매글에는 괄호 붙은 이름("베이스: 반지 (Ring)")이 적히고 고르는 값은 장신구면 괄호가 없음("반지")
     // -> 괄호를 뗀 이름끼리 비교 (예전엔 장신구 베이스로 고르면 매물이 하나도 안 나왔음)
     const bare = (x) => x.replace(/ \(.+\)$/, '')
@@ -1131,7 +1140,7 @@ function filterPosts(skip) {
   if (activeRegion.value && !no('realm')) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value && !no('game')) list = list.filter((p) => p.gameVersion === gameVersion.value)
   if (activeSlot.value && !no('slot')) list = list.filter((p) => postSlot(p) === activeSlot.value)
-  if (baseGroup.value && !mrBase.value && !no('bg')) {
+  if (baseGroup.value && !mrBase.value && !no('bg') && applied.value.mrQuality !== 'unique') {
     const g = squash(baseGroup.value)
     list = list.filter((p) => {
       const line = (p.options || []).find((l) => l.startsWith('베이스: '))
@@ -1544,7 +1553,6 @@ function variantLines(p) {
           </template>
           <span class="mr-label" :class="{ on: mrQuality }">{{ $t('품질') }}</span>
           <span class="mr-seg">
-            <button type="button" :class="{ on: !mrQuality }" :aria-pressed="!mrQuality" @click="mrQuality = ''">{{ $t('매직·레어') }}</button>
             <button
               type="button" v-for="q in mrQualityPicks" :key="q.v" :class="['q-' + q.v, { on: mrQuality === q.v }]"
               :aria-pressed="mrQuality === q.v" @click="mrQuality = mrQuality === q.v ? '' : q.v"
@@ -1552,7 +1560,7 @@ function variantLines(p) {
           </span>
 
 
-          <template v-if="mrShapeChoices.length">
+          <template v-if="mrShapeChoices.length && mrQuality !== 'unique'">
             <span class="mr-label" :class="{ on: mrShape }">{{ $t('모양') }}</span>
             <span class="mr-shapes">
               <button
@@ -1642,7 +1650,7 @@ function variantLines(p) {
             </div>
           </template>
 
-          <template v-if="mrQuality !== 'normal' || mrOptStats.length">
+          <template v-if="(mrQuality !== 'normal' && mrQuality !== 'unique') || mrOptStats.length">
           <span class="mr-label top" :class="{ on: statConditions.length }">{{ $t('옵션') }}</span>
           <div class="mr-opts">
             <!-- 고른 옵션 - 수치 범위를 바로 적음 -->
