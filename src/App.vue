@@ -7,6 +7,7 @@ import AppDialog from './components/AppDialog.vue'
 import UserProfileCard from './components/UserProfileCard.vue'
 import TradeGuideModal from './components/TradeGuideModal.vue'
 import MobileTabBar from './components/MobileTabBar.vue'
+import FeedbackButton from './components/FeedbackButton.vue'
 </script>
 
 <template>
@@ -18,6 +19,7 @@ import MobileTabBar from './components/MobileTabBar.vue'
   </router-view>
   <SiteFooter />
   <MobileTabBar />
+  <FeedbackButton />
   <LoginModal />
   <AppDialog />
   <UserProfileCard />
