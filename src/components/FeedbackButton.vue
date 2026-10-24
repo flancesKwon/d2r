@@ -36,7 +36,7 @@ async function send() {
 </script>
 
 <template>
-  <button type="button" class="fb-fab" @click="start">{{ $t('피드백') }}</button>
+  <button type="button" class="fb-fab" @click="start">{{ $t('불편한 점 제보하기') }}</button>
   <Teleport to="body">
     <div class="modal-overlay" v-if="open" @click.self="open = false">
       <div class="modal-panel fb-panel" role="dialog" aria-modal="true" aria-labelledby="fb-title">
@@ -67,12 +67,12 @@ async function send() {
 
 <style scoped>
 .fb-fab{
-  position:fixed; right:16px; bottom:16px; z-index:40; font-size:13px; font-weight:700; color:#1b1714;
-  background:var(--gold); padding:10px 16px; border-radius:999px; box-shadow:0 4px 14px rgba(0,0,0,.45);
+  position:fixed; right:5vw; bottom:18vh; z-index:40; font-size:15px; font-weight:700; color:#1b1714;
+  background:var(--gold); padding:14px 22px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.5);
 }
 .fb-fab:hover{background:var(--focus);}
 @media (max-width:720px){
-  .fb-fab{bottom:calc(72px + env(safe-area-inset-bottom));}
+  .fb-fab{right:16px; bottom:calc(96px + env(safe-area-inset-bottom)); font-size:14px; padding:12px 18px;}
 }
 .fb-panel{max-width:440px; padding:28px 26px 24px; border-radius:16px; margin-top:10vh;}
 .fb-title{font-family:'Noto Serif KR', serif; font-size:18px; color:var(--text); margin-bottom:16px;}
