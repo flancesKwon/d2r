@@ -449,7 +449,6 @@ const optionHits = computed(() => {
           <div class="d-meta-item">
             <div class="label">{{ $t('필요 레벨') }}</div>
             <div class="value">{{ itemLevelReq(selected) || '—' }}</div>
-            <div class="d-meta-sub">{{ $t('박힌 룬 중 가장 높은 요구 레벨 · 힘·민첩은 베이스 따라') }}</div>
           </div>
         </div>
         <div class="note-box">
@@ -468,7 +467,6 @@ const optionHits = computed(() => {
           <router-link class="rw-base-more" to="/runewords">{{ $t('베이스로 룬워드 찾기 →') }}</router-link>
         </details>
         <div class="d-section-title">{{ $t('옵션') }}</div>
-        <p class="note-box" style="margin-bottom:10px">{{ $t('룬워드 고유 옵션 + 박힌 룬 효과 = 최종 옵션.') }}</p>
         <div class="affix-list">
           <div v-if="runewordFullAffixes(selected).length === 0" class="affix-line unresolved">
             <span class="a-text">{{ $t('옵션 데이터 없음') }}</span>
