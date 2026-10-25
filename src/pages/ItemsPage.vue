@@ -33,6 +33,11 @@ function runeIconUrl(runeName) {
   const url = icons['invr' + runeName.toLowerCase() + '__rune']
   return url || null
 }
+// 카드에는 "룬" 글자를 뺀 짧은 이름 (오움 룬 -> 오움)
+function runeShortName(runeName) {
+  const rune = runeLookup[runeName]
+  return rune ? itemName(rune).replace(/ (룬|Rune)$/, '') : runeName
+}
 
 const activeCat = ref('all')
 const activeGroup = ref(null)
@@ -236,6 +241,11 @@ const optionHits = computed(() => {
         </span>
         <div class="card-name">{{ itemName(it) }}</div>
         <div class="card-sub">{{ it.category === 'runeword' ? runewordBaseTypes(it.subtitle) : $t(it.subtitle || '') }}</div>
+        <div class="card-runes" v-if="it.category === 'runeword' && it.extra?.rune_sequence">
+          <span v-for="(r, n) in runePips(it.extra.rune_sequence)" :key="n" class="card-rune">
+            <img v-if="runeIconUrl(r)" :src="runeIconUrl(r)" alt="" loading="lazy" />{{ runeShortName(r) }}
+          </span>
+        </div>
         <div class="card-level" v-if="it.level && it.level !== '0'">Lv {{ it.level }}</div>
         <div class="card-hits" v-if="optionHits.has(it.id)">
           <span v-for="line in optionHits.get(it.id)" :key="line">{{ affixText(line) }}</span>
