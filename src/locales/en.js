@@ -1641,7 +1641,7 @@ export default {
   '직접 입력하는 것: 닉네임, 연락처(배틀태그·디스코드 등), 게시글·댓글·판매글·쪽지·리뷰': 'What you enter: nickname, contact (BattleTag, Discord, etc.), posts, comments, listings, messages, reviews',
   '마지막 활동 시각 (사이트를 쓰는 동안 5분 단위로 기록)': 'Last active time (recorded every 5 minutes while you use the site)',
   '비밀번호 저장 안 함 (로그인은 디스코드·구글이 처리)': 'No passwords stored (Discord and Google handle login)',
-  '방문 통계: 브라우저에 만든 임의 번호, 방문 날짜, 본 페이지 수, 처음 들어온 사이트 주소(예: 검색·커뮤니티). IP·개인정보 아님, 400일 뒤 삭제, 운영진만 합계로 봄': 'Visit stats: a random ID created in your browser, visit date, pages viewed and the referring site (e.g. search, community). No IPs or personal data, deleted after 400 days, staff only see totals.',
+  '방문 통계·열람 기록: 브라우저에 만든 임의 번호, 로그인했다면 계정, 방문 날짜, 본 페이지 수와 본 게시글, 처음 들어온 사이트 주소(예: 검색·커뮤니티), 브라우저 종류. IP는 원문이 아니라 같은 IP인지만 비교할 수 있는 암호화 값으로만 저장. 400일 뒤 삭제, 운영진만 열람': 'Visit stats and view log: a random ID created in your browser, your account if signed in, visit date, pages and posts viewed, the referring site (e.g. search, community) and browser type. The IP address is stored only as an encrypted value that can tell whether two visits share an IP, never as the address itself. Deleted after 400 days, visible to staff only.',
   '공개되는 정보': 'What is public',
   '닉네임, 프로필 사진, 게시글·댓글·판매글·리뷰: 전체 공개': 'Nickname, profile picture, posts, comments, listings, reviews: public',
   '마이페이지 연락처: 거래용 공개 (원치 않으면 비워 둘 것)': 'Contact in My page: public for trading (leave it empty if you prefer)',

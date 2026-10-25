@@ -1,14 +1,18 @@
 <script setup>
-// 방문 통계 (/admin/stats, 운영진) - 013 SQL 의 d2r_visit_stats·d2r_visit_refs
-// 방문자 = 브라우저 기준 하루 1명 (다른 기기·시크릿 창은 따로 셈), 페이지뷰 = 화면 이동 수
+// 방문 통계 (/admin/stats, 운영진) - 013·035 SQL 의 d2r_visit_stats·d2r_visit_refs·d2r_visit_list
+// 방문자 = 브라우저 기준 하루 1명 (다른 기기·시크릿 창은 따로 셈, 봇 제외), 페이지뷰 = 화면 이동 수
+// 같은 IP(해시)면 같은 사람일 수 있음 - 목록에서 IP 값이 같은 줄을 찾으면 됨
 import { ref, computed, watch } from 'vue'
 import { supabase } from '../supabase.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
+import VisitRows from '../components/VisitRows.vue'
 
 const staff = computed(() => isStaff())
 const days = ref([])
 const refs = ref([])
 const refDays = ref(7)
+const listDay = ref('')
+const visits = ref([])
 const error = ref('')
 const loading = ref(false)
 
@@ -28,11 +32,22 @@ async function load() {
   }
   days.value = s.data
   refs.value = r.data
+  if (!listDay.value) listDay.value = days.value[days.value.length - 1]?.day || ''
+}
+async function loadList() {
+  if (!supabase || !staff.value || !listDay.value) return
+  const { data, error: e } = await supabase.rpc('d2r_visit_list', { p_day: listDay.value })
+  if (e) { error.value = /function|schema cache/i.test(e.message) ? '준비 중 (035 SQL 실행 필요)' : e.message; return }
+  visits.value = data.map((v, i) => ({
+    key: i, member: !!v.user_id, who: v.nickname || (v.user_id ? '회원' : '비회원 ' + v.visitor), bot: v.bot, ua: v.ua, ip: v.ip_hash,
+    note: [v.first_path, v.ref && '← ' + v.ref, v.views + '쪽'].filter(Boolean).join(' · '), when: new Date(v.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+  }))
 }
 watch(staff, load, { immediate: true })
 watch(refDays, load)
+watch(listDay, loadList)
 
-const today = computed(() => days.value[days.value.length - 1] || { visitors: 0, members: 0, views: 0 })
+const today = computed(() => days.value[days.value.length - 1] || { visitors: 0, members: 0, views: 0, ips: 0, bots: 0 })
 const yesterday = computed(() => days.value[days.value.length - 2] || { visitors: 0 })
 const sumLast = (n) => days.value.slice(-n).reduce((a, d) => a + d.visitors, 0)
 const max = computed(() => Math.max(1, ...days.value.map((d) => d.visitors)))
@@ -70,7 +85,7 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
       <div class="st-error" v-if="error">{{ error }}</div>
 
       <div class="st-cards">
-        <div class="st-card main"><div class="label">오늘 방문자</div><div class="value">{{ today.visitors.toLocaleString() }}</div><div class="sub">회원 {{ today.members }} · 페이지뷰 {{ today.views.toLocaleString() }}</div></div>
+        <div class="st-card main"><div class="label">오늘 방문자</div><div class="value">{{ today.visitors.toLocaleString() }}</div><div class="sub">회원 {{ today.members }} · 서로 다른 IP {{ today.ips }} · 페이지뷰 {{ today.views.toLocaleString() }} · 봇 {{ today.bots }}</div></div>
         <div class="st-card"><div class="label">어제 방문자</div><div class="value">{{ yesterday.visitors.toLocaleString() }}</div></div>
         <div class="st-card"><div class="label">최근 7일</div><div class="value">{{ sumLast(7).toLocaleString() }}</div><div class="sub">하루 평균 {{ Math.round(sumLast(7) / 7) }}</div></div>
         <div class="st-card"><div class="label">최근 30일</div><div class="value">{{ sumLast(30).toLocaleString() }}</div></div>
@@ -79,7 +94,7 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
       <section class="st-panel">
         <div class="st-title">일별 방문자 <small>최근 30일</small></div>
         <div class="st-chart" v-if="days.length">
-          <div class="st-bar-col" v-for="d in days" :key="d.day" :title="`${d.day} (${dow(d.day)}) 방문자 ${d.visitors} · 회원 ${d.members} · 페이지뷰 ${d.views}`">
+          <div class="st-bar-col" v-for="d in days" :key="d.day" :class="{ picked: d.day === listDay }" :title="`${d.day} (${dow(d.day)}) 방문자 ${d.visitors} · 회원 ${d.members} · IP ${d.ips} · 페이지뷰 ${d.views} · 봇 ${d.bots}`" @click="listDay = d.day">
             <span class="st-bar-num" v-if="d.visitors">{{ d.visitors }}</span>
             <div class="st-bar" :style="{ height: (d.visitors / max) * 100 + '%' }">
               <div class="st-bar-member" :style="{ height: d.visitors ? (d.members / d.visitors) * 100 + '%' : 0 }"></div>
@@ -88,6 +103,11 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
           </div>
         </div>
         <div class="st-legend"><span class="sw all"></span>방문자 <span class="sw mem"></span>그중 회원</div>
+      </section>
+
+      <section class="st-panel">
+        <div class="st-title">방문자 목록 <small>{{ listDay }} · 위 막대를 누르면 그날로 · 봇은 흐리게</small></div>
+        <VisitRows :rows="visits" />
       </section>
 
       <section class="st-panel">
@@ -104,7 +124,7 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
         </div>
         <div class="st-none" v-if="!refs.length && !loading">기록 없음</div>
       </section>
-      <p class="st-note">방문자는 브라우저 기준 하루 1명 (다른 기기·시크릿 창은 따로 셈). IP·개인정보는 저장 안 함.</p>
+      <p class="st-note">방문자는 브라우저 기준 하루 1명 (다른 기기·시크릿 창은 따로 셈), 봇은 제외. IP 는 해시로만 저장해서 같은 IP인지만 비교됨.</p>
     </div>
   </div>
 </template>
@@ -128,7 +148,8 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
 .st-title-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
 .st-title-row .cat-tabs button{border-radius:999px;}
 .st-chart{display:grid; grid-template-columns:repeat(30, minmax(0, 1fr)); gap:4px; height:200px; align-items:end;}
-.st-bar-col{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:0;}
+.st-bar-col{cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:0;}
+.st-bar-col.picked .st-bar-day{color:var(--gold); font-weight:700;}
 .st-bar-num{font-size:10px; color:var(--text-muted); margin-bottom:2px;}
 .st-bar{width:100%; max-width:22px; background:var(--gold-dim); border-radius:4px 4px 0 0; min-height:2px; display:flex; align-items:flex-end; overflow:hidden; flex:none;}
 .st-bar-member{width:100%; background:var(--gold);}
