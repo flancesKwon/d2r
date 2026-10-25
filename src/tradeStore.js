@@ -162,21 +162,13 @@ export function tradePriceOf(post) {
 }
 // 배틀넷 지역 서버 - 지역만 맞추면 해외 유저와도 거래 가능 (DB 값은 한국어, 화면에선 번역)
 export const TRADE_REALMS = ['아시아', '미주', '유럽']
-// 판매글 등록 기본 서버: 마지막에 고른 서버, 없으면 브라우저 시간대로 추측 (아시아·오세아니아 = 아시아, 아메리카 = 미주, 그 외 = 유럽)
-const REALM_KEY = 'd2r-realm'
+// 서버를 고른 적 없을 때 브라우저 시간대로 추측 (아시아·오세아니아 = 아시아, 아메리카 = 미주, 그 외 = 유럽)
 export function guessRealm() {
-  try {
-    const saved = localStorage.getItem(REALM_KEY)
-    if (TRADE_REALMS.includes(saved)) return saved
-  } catch { /* 프라이빗 창 등 */ }
   let tz = ''
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' } catch { /* 옛 브라우저 */ }
   if (/^(America|Pacific\/Honolulu)/.test(tz)) return '미주'
   if (/^(Europe|Africa|Atlantic)/.test(tz)) return '유럽'
   return '아시아'
-}
-export function rememberRealm(realm) {
-  try { if (TRADE_REALMS.includes(realm)) localStorage.setItem(REALM_KEY, realm) } catch { /* 저장 안 돼도 됨 */ }
 }
 export const TRADE_LADDERS = ['레더', '논레더']
 export const TRADE_HARDCORE = ['일반', '하드코어']

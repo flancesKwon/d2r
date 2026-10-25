@@ -1978,4 +1978,9 @@ export default {
   '지금은 보낼 수 없음': 'Cannot send right now',
   '보내기 실패': 'Failed to send',
   '잠시 후 다시 시도': 'Please try again shortly',
+  '선택': 'Select',
+  '소켓에 박힌 것': 'Socketed',
+  '주얼 옵션 선택': 'pick jewel affixes',
+  '유니크 주얼 선택·수치 입력': 'pick unique jewel and enter values',
+  '보석 선택': 'pick a gem',
 }
