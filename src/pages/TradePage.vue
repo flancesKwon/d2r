@@ -54,7 +54,6 @@ const LOGO = import.meta.env.BASE_URL + 'hero-logo.webp'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery, optionAliasTerm, termMatchesLine } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
-import NoticeBar from '../components/NoticeBar.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
@@ -1559,7 +1558,6 @@ function variantLines(p) {
         </label>
         <button type="button" v-if="isSearchRoute" class="tr-toggle unid" :class="{ on: unidOnly }" :aria-pressed="unidOnly" @click="unidOnly = !unidOnly">{{ $t('미확인') }}</button>
       </div>
-      <NoticeBar v-if="!isSearchRoute" />
       <TerrorZoneBadge v-if="!isSearchRoute" />
     </div>
   </section>

@@ -10,7 +10,6 @@ import patchNotes from '../data/patchNotes.json'
 import ladder from '../data/ladder.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { fetchPosts } from '../communityStore.js'
-import NoticeBar from '../components/NoticeBar.vue'
 import { AVATAR_PRESETS } from '../avatars.js'
 import { t, locale, itemName } from '../i18n.js'
 
@@ -134,7 +133,6 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
   </section>
 
   <div class="hm-wrap">
-    <NoticeBar />
 
     <nav class="hm-shortcuts" :aria-label="$t('바로가기')">
       <router-link v-for="s in SHORTCUTS" :key="s.to" :to="s.to" class="hm-shortcut">
