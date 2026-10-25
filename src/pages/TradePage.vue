@@ -1195,13 +1195,10 @@ function filterPosts(skip) {
     list = list.filter((p) => (p.iconKey || first) === applied.value.itemShape)
   }
   applied.value.statConditions.forEach((c, i) => { if (!no('opt:' + i)) list = list.filter((p) => condMatches(p, c)) })
-  // 기간 안 매물이 먼저, 그 안에서 최신순
-  return [...list].sort((a, b) => Number(isExpired(a)) - Number(isExpired(b)) || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  // 기간 지난 글은 목록에서 뺌 (판매자는 내 거래에서 재등록) - 최신순
+  return list.filter((p) => !isExpired(p)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 }
 const filteredPosts = computed(() => filterPosts(null))
-// 개수는 지금 살 수 있는 매물(기간 안)만 셈 - 기간 지난 글은 목록에 보이되 수에는 안 넣음
-const liveCount = computed(() => filteredPosts.value.filter((p) => !isExpired(p)).length)
-const expiredCount = computed(() => filteredPosts.value.length - liveCount.value)
 
 // 결과가 0개일 때, 조건을 하나씩 빼보고 몇 개가 되는지 (많이 나오는 순서로 최대 4개)
 // 어느 조건이 0개로 만들었는지 바로 보이고, 눌러서 그 조건만 뺄 수 있음
@@ -1832,9 +1829,8 @@ function variantLines(p) {
       </div>
     </div>
     <div class="tr-results-head">
-      <h2 v-if="liveCount || !expiredCount">{{ appliedCount ? $t('검색 결과') : $t('전체 매물') }} <span>{{ liveCount }}</span>{{ $t('개') }}</h2>
-      <h2 v-else>{{ $t('기간 지난 매물 {n}개', { n: expiredCount }) }}</h2>
-      <span class="tr-results-note"><template v-if="liveCount && expiredCount">{{ $t('기간 지난 매물 {n}개 포함', { n: expiredCount }) }} · </template>{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
+      <h2>{{ appliedCount ? $t('검색 결과') : $t('전체 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
+      <span class="tr-results-note">{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -1844,7 +1840,7 @@ function variantLines(p) {
       <router-link class="quality-toggle" to="/trade/new">+ {{ $t('판매글 등록') }}</router-link>
     </div>
     <div class="trade-list" v-if="viewMode === 'list'">
-      <router-link class="trade-row" :class="{ expired: isExpired(p) }" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
+      <router-link class="trade-row" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
         <span class="trade-row-icon tip-open" :class="postRarity(p)" role="button" tabindex="0" :title="$t('아이템 그림 보기')" @click.prevent.stop="openTip(p)" @keydown.enter.prevent.stop="openTip(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
@@ -1862,8 +1858,7 @@ function variantLines(p) {
           </div>
           <!-- 서버·래더·모드·에테리얼·미확인 - 옵션보다 위에, 색으로 구분 -->
           <div class="trade-flags">
-            <span class="tf expired-tag" v-if="isExpired(p)">{{ $t('기간 지남') }}</span>
-            <span class="tf realm">{{ $t(p.realm) }}</span>
+                        <span class="tf realm">{{ $t(p.realm) }}</span>
             <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
             <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ modeText(p.hardcore) }}</span>
             <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
@@ -1893,15 +1888,14 @@ function variantLines(p) {
     </div>
 
     <div class="trade-grid" v-else>
-      <router-link class="trade-card" :class="{ expired: isExpired(p) }" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
+      <router-link class="trade-card" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
         <span class="trade-card-icon tip-open" :class="postRarity(p)" role="button" tabindex="0" :title="$t('아이템 그림 보기')" @click.prevent.stop="openTip(p)" @keydown.enter.prevent.stop="openTip(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
         <span class="trade-card-title">{{ postName(p) }}</span>
         <span class="trade-flags">
-          <span class="tf expired-tag" v-if="isExpired(p)">{{ $t('기간 지남') }}</span>
-          <span class="tf realm">{{ $t(p.realm) }}</span>
+                    <span class="tf realm">{{ $t(p.realm) }}</span>
           <span class="tf" :class="p.ladder === '레더' ? 'ladder' : 'nonladder'">{{ $t(p.ladder) }}</span>
           <span class="tf" :class="p.hardcore === '하드코어' ? 'hardcore' : 'softcore'">{{ modeText(p.hardcore) }}</span>
           <span class="tf eth" v-if="p.ethereal">{{ $t('에테리얼') }}</span>
@@ -2209,10 +2203,6 @@ function variantLines(p) {
   transition:transform .15s, box-shadow .15s, border-color .15s, opacity .15s;
 }
 .trade-card:hover{transform:translateY(-3px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55); border-color:var(--gold-dim);}
-/* 판매 기간이 끝난 글 - 흐리게 두되 올려두면 또렷하게 (들어가서 재등록을 요청할 수 있는 글이라) */
-.trade-row.expired, .trade-card.expired{opacity:.5;}
-.trade-row.expired:hover, .trade-card.expired:hover{opacity:1;}
-.tf.expired-tag{color:var(--text-dim);}
 .trade-card-star{position:absolute; top:10px; right:12px; margin:0;}
 .trade-card-status{position:absolute; top:12px; left:12px; margin:0;}
 .trade-card-icon{
