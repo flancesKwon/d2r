@@ -1949,6 +1949,8 @@ function variantLines(p) {
 
 <style scoped>
 .tip-open{cursor:zoom-in;}
+.tip-open{position:relative;}
+.tip-open::after{content:'⌕'; position:absolute; right:-6px; bottom:-6px; width:20px; height:20px; border-radius:50%; background:var(--gold); color:#131110; font-size:13px; font-weight:700; line-height:20px; text-align:center;}
 .tip-open:hover{border-color:var(--gold-dim);}
 .tip-back{position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; padding:16px;}
 .tip-box{max-height:100%; overflow:auto; display:flex; flex-direction:column; gap:10px; align-items:center;}
