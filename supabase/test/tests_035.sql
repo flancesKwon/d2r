@@ -1,5 +1,8 @@
 -- 035 검사: 방문 통계 상세 + 게시글 열람 기록
 \set ON_ERROR_STOP on
+-- 실제 DB 처럼 닉네임은 citext (036 에서 맞춘 부분)
+create extension if not exists citext;
+alter table public.tb_profile alter column nickname type citext;
 -- 준비: 이 검사만 따로 돌릴 때를 위한 역할·로그인 흉내 (이미 있으면 건너뜀)
 do $$ begin create role app_user nologin in role authenticated; exception when duplicate_object then null; end $$;
 create or replace function public.test_login(u uuid) returns void language sql as $f$ select set_config('request.jwt.claim.sub', u::text, false) $f$;

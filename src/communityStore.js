@@ -148,7 +148,7 @@ export async function countView(id) {
 export async function fetchPostViewers(id) {
   needDb()
   const { data, error } = await supabase.rpc('d2r_post_viewers', { p_post_id: Number(id) })
-  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '준비 중 (035 SQL 실행 필요)' : error.message)
+  if (error) throw new Error(/could not find the function|schema cache/i.test(error.message) ? '준비 중 (035·036 SQL 실행 필요)' : error.message)
   return data
 }
 
