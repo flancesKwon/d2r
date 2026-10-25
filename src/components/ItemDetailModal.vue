@@ -63,6 +63,10 @@ function runeIconUrl(runeName) {
   const url = icons['invr' + runeName.toLowerCase() + '__rune']
   return url || null
 }
+function runeLabel(runeName) {
+  const rune = runeLookup[runeName]
+  return rune ? itemName(rune) : runeName
+}
 </script>
 
 <template>
@@ -223,7 +227,8 @@ function runeIconUrl(runeName) {
         </div>
         <div class="rune-pips">
           <div class="rune-pip" v-for="(r, i) in runePips(selected.extra.rune_sequence)" :key="i">
-            {{ r }}
+            <img v-if="runeIconUrl(r)" :src="runeIconUrl(r)" alt="" />
+            {{ runeLabel(r) }}
           </div>
         </div>
         <div class="d-meta-row">

@@ -131,7 +131,7 @@ export const PATTERNS = {
   '밀쳐내기': 'Knockback',
   '괴물 회복 저지': 'Prevent Monster Heal',
   '처치한 괴물이 안식에 듦': 'Slain Monsters Rest in Peace',
-  '처치 시 %#% 확률로 %# 소생': 'Chance to Reanimate Target',
+  '처치 시 #% 확률로 되돌아온 자 소생': '{0}% Reanimate as: Returned',
   '공격자가 피해를 # 받음': 'Attacker Takes Damage of {0}',
   '공격자가 번개 피해를 # 받음': 'Attacker Takes Lightning Damage of {0}',
   '폭발하는 화살 발사': 'Fires Explosive Arrows or Bolts',
