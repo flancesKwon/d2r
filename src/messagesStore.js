@@ -14,7 +14,7 @@ export const messagesState = reactive({ conversations: [], loaded: false, keepId
 let lastSeenId = null
 function chimeIfNew(msgs, uid) {
   const top = Math.max(0, ...msgs.filter((m) => m.sender_id !== uid).map((m) => m.id))
-  if (lastSeenId !== null && top > lastSeenId) playChime()
+  if (lastSeenId !== null && top > lastSeenId) playChime('message')
   if (lastSeenId === null || top > lastSeenId) lastSeenId = top
 }
 

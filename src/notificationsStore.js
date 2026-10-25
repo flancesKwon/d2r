@@ -24,7 +24,7 @@ export async function loadNotifications() {
   const { data, error } = await supabase.from('tb_notification').select('*').order('created_at', { ascending: false }).limit(30)
   if (error) throw error
   notificationsState.items = data.map((n) => ({ id: n.id, text: n.text, link: n.link, read: n.read, date: fmtDate(n.created_at) }))
-  if (seen && data.some((n) => !n.read && !seen.has(n.id))) playChime()
+  if (seen && data.some((n) => !n.read && !seen.has(n.id))) playChime('notification')
   seen = new Set(data.map((n) => n.id))
 }
 
