@@ -6,6 +6,8 @@ import { itemDamage, formatDamage } from './itemDamage.js'
 import { runePips } from './itemStats.js'
 import { sortOptionLines } from './statOrder.js'
 import { locale, t, itemName, affixText } from './i18n.js'
+import { parseSocketLine, socketEffects, socketIconKey, socketSlotOf, mergeSameStatLines } from './sockets.js'
+import { ITEM_ICONS } from './itemIcons.js'
 
 // 베이스 목록(baseItems)에 없는 장신구 베이스의 한글 이름 - 게임 툴팁처럼 이름 아래에 베이스를 보여줌
 const MISC_BASE_KO = { Amulet: '목걸이', Ring: '반지', Jewel: '주얼', 'Small Charm': '작은 부적', 'Large Charm': '큰 부적', 'Grand Charm': '거대 부적' }
@@ -81,8 +83,11 @@ function nameColor(item, category, name, quality) {
 export function buildTooltip({ item = null, name = '', category = '', quality = '', options = [], ethereal = false, amountLabel = '', iconKey = null }) {
   const meta = {}
   const mods = []
+  const socketed = []
   let baseItem = null
   for (const line of options.filter(Boolean)) {
+    const sock = parseSocketLine(line)
+    if (sock) { socketed.push(sock); continue }
     const hit = META.find((m) => m.re.test(line))
     if (hit?.key === 'base') baseItem = baseFromLabel(line.slice('베이스: '.length))
     if (hit) meta[hit.key] = line.match(hit.re)[1] ?? true
@@ -135,7 +140,10 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
 
   // 옵션 줄 - 판매글에 옵션이 없고 사전 아이템이면(유니크 참 등) 사전 옵션을 그대로 보여줌
   // 순서는 게임 툴팁 규칙 (스킬·시전 확률 > 공격 속도 > ... > 저항 > 마법 아이템 발견 > 충전) - src/statOrder.js
-  const modLines = mods.length ? mods : item && !['runeword', 'gem'].includes(item.category) ? getItemAffixes(item).map((a) => a.text) : []
+  const ownLines = mods.length ? mods : item && !['runeword', 'gem'].includes(item.category) ? getItemAffixes(item).map((a) => a.text) : []
+  // 박힌 룬·보석·주얼의 효과는 게임처럼 아이템 옵션과 한 목록에 섞고 같은 옵션은 합침
+  const slot = socketSlotOf(baseItem || baseForItem(item) || item)
+  const modLines = socketed.length ? mergeSameStatLines([...ownLines, ...socketed.flatMap((s) => socketEffects(s, slot))]) : ownLines
   for (const m of sortOptionLines(modLines)) push(affixText(m), TOOLTIP_COLORS.magic)
 
   const tail = []
@@ -144,6 +152,14 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   if (sockets) tail.push(`${t('소켓')} (${sockets})`)
   if (tail.length) push(tail.join(', '), TOOLTIP_COLORS.magic)
 
+  // 아이템 그림 위에 그릴 소켓 구멍 - 박힌 게 있으면 그림 이름, 비었으면 null. 룬워드는 박힌 룬 그림
+  const holes = item?.category === 'runeword'
+    ? runePips(item.extra?.rune_sequence).map((r) => (ITEM_ICONS['invr' + r.toLowerCase()] ? 'invr' + r.toLowerCase() : null))
+    : Array.from({ length: Number(sockets) || 0 }, (_, i) => {
+      const s = socketed.find((x) => x.n === i + 1)
+      return s ? socketIconKey(s) : null
+    })
+
   // iconKey 가 있으면 우선 (룬워드는 사전의 대표 그림 대신 판매자가 고른 베이스 모양)
-  return { icon_key: iconKey || item?.icon_key || null, ethereal, lines }
+  return { icon_key: iconKey || item?.icon_key || null, ethereal, lines, sockets: holes }
 }

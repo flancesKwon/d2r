@@ -3,6 +3,7 @@
 // 줄 목록은 itemTooltip.js의 buildTooltip이 만듦
 import { ref, watch, onMounted } from 'vue'
 import { ITEM_ICONS } from '../itemIcons.js'
+import { socketSpots } from '../sockets.js'
 
 const props = defineProps({
   tooltip: { type: Object, required: true },
@@ -43,6 +44,27 @@ function wrap(ctx, text, maxWidth) {
   return out
 }
 
+// 소켓 구멍 - 박힌 룬·보석 그림이 있으면 안에 그림. 그림이 28px 칸 단위일 때만 (칸 수를 알아야 자리를 정함)
+function drawSockets(ctx, holes, x, y, w, h, scale) {
+  const cellsW = w / (28 * scale)
+  if (!holes.length || !Number.isInteger(cellsW) || !Number.isInteger(h / (28 * scale))) return
+  socketSpots(holes.length, cellsW).forEach(([fx, fy], i) => {
+    const cx = x + fx * w
+    const cy = y + fy * h
+    ctx.beginPath()
+    ctx.arc(cx, cy, 15, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
+    ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = holes[i] ? '#8a7f66' : '#5a5446'
+    ctx.stroke()
+    if (holes[i]) {
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(holes[i], Math.round(cx - 14), Math.round(cy - 14), 28, 28)
+    }
+  })
+}
+
 let drawId = 0
 async function draw() {
   const el = canvas.value
@@ -51,6 +73,7 @@ async function draw() {
   // 웹폰트가 준비되기 전에 그리면 기본 글꼴로 그려져서 기다림
   if (document.fonts?.ready) await document.fonts.ready
   const icon = await loadIcon(props.tooltip.icon_key)
+  const holes = await Promise.all((props.tooltip.sockets || []).map(loadIcon))
   if (id !== drawId) return
 
   const ctx = el.getContext('2d')
@@ -93,6 +116,7 @@ async function draw() {
     ctx.globalAlpha = props.tooltip.ethereal ? 0.55 : 1 // 에테리얼은 게임처럼 반투명
     ctx.drawImage(icon, Math.round((width - iconW) / 2), y, iconW, iconH)
     ctx.globalAlpha = 1
+    drawSockets(ctx, holes, Math.round((width - iconW) / 2), y, iconW, iconH, scale)
     y += iconH + 14
   }
   ctx.textAlign = 'center'

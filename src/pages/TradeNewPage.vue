@@ -56,6 +56,8 @@ import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
 import { itemDamage, formatDamage } from '../itemDamage.js'
 import AffixPicker from '../components/AffixPicker.vue'
+import SocketEditor from '../components/SocketEditor.vue'
+import { emptySocket, socketError, socketLine, mergeSameStatLines } from '../sockets.js'
 import RangeInput from '../components/RangeInput.vue'
 import magicAffixData from '../data/magicAffixes.json'
 import {
@@ -114,6 +116,7 @@ watch(tradePrefs, () => {
 // 룬·퍼펙트 보석은 "베르 룬 1개 + 퍼펙트 자수정 5개"처럼 서로 다른 룬/보석을
 // 섞어서 한 번에 파는 경우가 많아서, 단일 아이템 등록과 별도로 묶음 판매 모드를 둠
 const bundleMode = ref(false)
+const socketPicks = ref([])
 const bundleItems = ref([])
 const bundleQuery = ref('')
 const showBundleDropdown = ref(false)
@@ -244,27 +247,6 @@ const craftInputSlots = computed(() =>
 // (옵션 고르는 칸의 표시 방식과 같음, 크래프트는 수치를 다 넣어야 등록되니 저장엔 영향 없음)
 function familyLinesOrRange(fam, values) {
   return familyLines(fam, filledValues(fam, values).map((v, i) => v ?? fam.slotRanges[i].join('~')))
-}
-// 같은 옵션이 크래프트 고정 옵션과 무작위 옵션에 둘 다 붙으면 게임 툴팁처럼 한 줄로 합침
-// (예: 캐스터 목걸이 고정 "시전 속도 +10%" + 접미사 "시전 속도 +10%" = "시전 속도 +20%")
-// 수치가 하나인 줄끼리만 합치고, 범위("5~10")로 남은 줄은 그대로 둠. 수치 없는 줄("대상의 방어력 무시")은 같은 줄이 또 나오면 하나만 남김
-function mergeSameStatLines(lines) {
-  const out = []
-  const at = new Map()
-  for (const line of lines) {
-    if (!/\d/.test(line) && out.includes(line)) continue
-    const m = /^(.*?)(\+?)(\d+)(%?)$/.exec(line)
-    const key = m && !/[~\d]$/.test(m[1]) ? m[1] + '|' + m[2] + '|' + m[4] : null
-    if (key && at.has(key)) {
-      const i = at.get(key)
-      const prev = /^(.*?)(\+?)(\d+)(%?)$/.exec(out[i])
-      out[i] = `${m[1]}${m[2]}${Number(prev[3]) + Number(m[3])}${m[4]}`
-    } else {
-      if (key) at.set(key, out.length)
-      out.push(line)
-    }
-  }
-  return out
 }
 function buildCraftOptions() {
   if (!pickedCraft.value) return []
@@ -731,6 +713,7 @@ const invalidInputs = computed(() => {
   bad.push(...craftErrors.value, ...affixErrors.value)
   if (hasSockets.value && !uniqueSockets.value) bad.push(t('소켓 개수 선택'))
   if (socketSource.value === 'larzuk' && !uniqueSockets.value) bad.push(t('소켓 개수 선택'))
+  bad.push(...socketErrors.value)
   if (superiorDefenseAuto.value && !filled(superiorPick.value.values['ac%'])) bad.push(t('상급 방어력 증가 수치'))
   for (const k of pickedSuperiorCombo.value || []) {
     if (!isAllowedValue(superiorPick.value.values[k], SUPERIOR_MODS[k])) {
@@ -800,6 +783,7 @@ function resetItemDependentFields() {
   socketOn.value = false
   socketSource.value = ''
   socketAffixCount.value = ''
+  socketPicks.value = []
   craftPick.value = { id: '', values: [] }
   form.value.unidentified = false
 }
@@ -976,6 +960,9 @@ function submitBundle() {
 
 // 판매글에 저장될 옵션 줄 전체 - 등록과 아래 툴팁 미리보기가 같은 걸 씀
 function buildAllOptions() {
+  return [...buildCoreOptions(), ...socketPicks.value.slice(0, socketCount.value).map((e, i) => (socketError(e) ? null : socketLine(i + 1, e))).filter(Boolean)]
+}
+function buildCoreOptions() {
   if (isUnidentified.value) {
     // 옵션 수치는 안 받음 (사전 범위 그대로). 소켓 수는 미확인이어도 게임에서 보이니 남김
     return ['미확인', ...enteredStatLines(), ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
@@ -1055,6 +1042,20 @@ function submitPost() {
     price: buildPriceString(),
   })
 }
+// 소켓에 박힌 것 - 칸 수는 옵션 줄의 "소켓 N개"로 정해지고, 룬워드는 룬이 이미 박혀 있어 따로 안 받음
+const socketCount = computed(() => {
+  if (isRuneword.value || bundleMode.value) return 0
+  const n = buildCoreOptions().map((l) => /^소켓 (\d+)개$/.exec(l)?.[1]).find(Boolean)
+  return n ? Number(n) : 0
+})
+watch(socketCount, (n) => {
+  socketPicks.value = Array.from({ length: n }, (_, i) => socketPicks.value[i] || emptySocket())
+})
+const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value).flatMap((e, i) => {
+  const why = socketError(e)
+  return why ? [`${t('소켓')} ${i + 1} - ${t(why === 'jewel' ? '주얼 옵션 선택' : why === 'unique' ? '유니크 주얼 선택·수치 입력' : why === 'rune' ? '룬 선택' : '보석 선택')}`] : []
+}))
+
 </script>
 
 <template>
@@ -1649,6 +1650,11 @@ function submitPost() {
         <select v-model="form.hardcore" class="write-select trade-meta-select" :aria-label="$t('하드코어')">
           <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
         </select>
+      </div>
+
+      <div class="base-mods" v-if="socketCount">
+        <div class="option-editor-title">{{ $t('소켓에 박힌 것') }}</div>
+        <SocketEditor v-model="socketPicks" />
       </div>
 
       <RichEditor v-model="form.content" :placeholder="$t('추가 설명 (옵션 정보, 거래 방식 등)')" min-height="220px" />

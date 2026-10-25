@@ -1401,7 +1401,7 @@ function optParts(line) {
 // 같은 아이템이라도 개체마다 달라지는 줄만 보여줌
 // · 유니크·세트·룬워드: 사전에서 범위로 굴러가는 옵션 + 방어력·데미지·소켓 (고정 옵션은 다 같으니 뺌)
 // · 매직·레어·크래프트·일반(베이스): 사전에 없어서 판매자가 넣은 옵션 그대로
-const META_LINE = /^(베이스: |베이스 룬 조합: |미확인$)/
+const META_LINE = /^(베이스: |베이스 룬 조합: |박힌 것 |미확인$)/
 const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const PER_ITEM_LINE = /^(기본 방어력|기본 데미지|소켓) /
 const CLASS_SKILL_LINE = new RegExp(`^(?:${Object.values(CLASS_SKILL_NAMES).join('|')}) 기술 레벨 \\+`)
