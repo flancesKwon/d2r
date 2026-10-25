@@ -60,6 +60,8 @@ import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale, affixText } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
 import { tradePrefs } from '../tradePrefs.js'
+import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
+import { buildTooltip } from '../itemTooltip.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -1405,6 +1407,20 @@ const META_LINE = /^(베이스: |베이스 룬 조합: |박힌 것 |미확인$)/
 const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const PER_ITEM_LINE = /^(기본 방어력|기본 데미지|소켓) /
 const CLASS_SKILL_LINE = new RegExp(`^(?:${Object.values(CLASS_SKILL_NAMES).join('|')}) 기술 레벨 \\+`)
+// 아이콘을 누르면 판매글 등록 때 그린 툴팁 그림을 팝업으로
+const tipPost = ref(null)
+const tipTooltip = computed(() => {
+  const p = tipPost.value
+  return buildTooltip({
+    item: getTradeItem(p.itemId), name: p.itemName, category: p.category, quality: p.quality,
+    iconKey: postIconKey(p), options: p.options || [], ethereal: p.ethereal, amountLabel: p.amountLabel,
+  })
+})
+function openTip(p) { tipPost.value = p }
+function onTipKey(e) { if (e.key === 'Escape') tipPost.value = null }
+onMounted(() => window.addEventListener('keydown', onTipKey))
+onUnmounted(() => window.removeEventListener('keydown', onTipKey))
+
 function variantLines(p) {
   const opts = (p.options || []).filter((l) => l && !META_LINE.test(l))
   const item = getTradeItem(p.itemId)
@@ -1829,7 +1845,7 @@ function variantLines(p) {
     </div>
     <div class="trade-list" v-if="viewMode === 'list'">
       <router-link class="trade-row" :class="{ expired: isExpired(p) }" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
-        <span class="trade-row-icon" :class="postRarity(p)">
+        <span class="trade-row-icon tip-open" :class="postRarity(p)" role="button" tabindex="0" :title="$t('아이템 그림 보기')" @click.prevent.stop="openTip(p)" @keydown.enter.prevent.stop="openTip(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
@@ -1878,7 +1894,7 @@ function variantLines(p) {
 
     <div class="trade-grid" v-else>
       <router-link class="trade-card" :class="{ expired: isExpired(p) }" v-for="p in pagedPosts" :key="p.id" :to="`/trade/${p.id}`">
-        <span class="trade-card-icon" :class="postRarity(p)">
+        <span class="trade-card-icon tip-open" :class="postRarity(p)" role="button" tabindex="0" :title="$t('아이템 그림 보기')" @click.prevent.stop="openTip(p)" @keydown.enter.prevent.stop="openTip(p)">
           <img v-if="iconUrlFor(postIconKey(p))" :src="iconUrlFor(postIconKey(p))" alt="" @load="fitIcon" />
           <span v-else class="icon-fallback" aria-hidden="true">{{ p.category.slice(0, 1) }}</span>
         </span>
@@ -1917,12 +1933,28 @@ function variantLines(p) {
     <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
     </template>
   </div>
+  <div class="tip-back" v-if="tipPost" @click.self="tipPost = null">
+    <div class="tip-box" role="dialog" aria-modal="true">
+      <ItemTooltipCanvas :tooltip="tipTooltip" :file-name="postName(tipPost)" />
+      <div class="tip-actions">
+        <router-link :to="`/trade/${tipPost.id}`">{{ $t('상세 보기') }}</router-link>
+        <button type="button" @click="tipPost = null">{{ $t('닫기') }}</button>
+      </div>
+    </div>
+  </div>
 
   </div>
   </div>
 </template>
 
 <style scoped>
+.tip-open{cursor:zoom-in;}
+.tip-open:hover{border-color:var(--gold-dim);}
+.tip-back{position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; padding:16px;}
+.tip-box{max-height:100%; overflow:auto; display:flex; flex-direction:column; gap:10px; align-items:center;}
+.tip-actions{display:flex; gap:8px;}
+.tip-actions a, .tip-actions button{padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:var(--panel); color:var(--text); font-size:13px; text-decoration:none; cursor:pointer;}
+.tip-actions a:hover, .tip-actions button:hover{background:var(--panel-2);}
 /* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
    목록 행을 각진 구분선 대신 카드로, 입력창·태그류는 둥글게 다듬음 */
 .cat-tabs button{border-radius:999px;}
