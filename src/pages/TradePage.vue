@@ -59,6 +59,7 @@ import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
 import { t, itemName, locale, affixText } from '../i18n.js'
 import { statParts, statSearchTexts } from '../statDisplay.js'
+import { tradePrefs } from '../tradePrefs.js'
 
 // 판매글은 DB에서 (최근 글부터) - 들어올 때, 보고 있는 동안 30초마다 새로 받음
 // 첫 화면이라 이용 안내를 자동으로 띄우지 않음 (처음 판매글 등록할 때 한 번 뜸, 여기선 '이용 안내' 버튼)
@@ -66,14 +67,12 @@ onMounted(() => { loadTradePosts() })
 useAutoRefresh(() => loadTradePosts(true))
 // 종류는 여러 개 고를 수 있음 (하나라도 맞으면)
 const activeCats = ref([])
-// 배틀넷 지역 서버 (아시아·미주·유럽) - 고른 서버는 다음 방문에도 유지
-const REGION_KEY = 'd2r-trade-region'
-const activeRegion = ref((() => { try { const v = localStorage.getItem(REGION_KEY); return TRADE_REALMS.includes(v) ? v : null } catch { return null } })())
-watch(activeRegion, (v) => { try { if (v) localStorage.setItem(REGION_KEY, v); else localStorage.removeItem(REGION_KEY) } catch { /* 프라이빗 창 등 */ } })
-// 게임 모드(확장팩) - 고른 모드는 다음 방문에도 유지 (서버 고르는 것과 같은 방식)
-const GAME_KEY = 'd2r-trade-game'
-const gameVersion = ref((() => { try { const v = localStorage.getItem(GAME_KEY); return GAME_VERSIONS.includes(v) ? v : null } catch { return null } })())
-watch(gameVersion, (v) => { try { if (v) localStorage.setItem(GAME_KEY, v); else localStorage.removeItem(GAME_KEY) } catch { /* 프라이빗 창 등 */ } })
+// 서버·게임(확장팩)·레더·하드코어 - 고른 값은 계정(비로그인은 이 브라우저)에 저장돼 다음 방문에도 유지
+const prefRef = (key) => computed({ get: () => tradePrefs[key], set: (v) => { tradePrefs[key] = v } })
+const activeRegion = prefRef('realm')
+const gameVersion = prefRef('game')
+const activeLadder = prefRef('ladder')
+const activeHardcore = prefRef('hardcore')
 // 부위(착용 위치) - 판매글의 베이스 줄이나 사전 아이템의 세부 종류로 정함
 const SLOT_ORDER = ['머리', '몸통', '방패', '장갑', '신발', '허리', '목걸이', '반지', '무기']
 // 베이스 세부 종류 -> 부위 (사전 아이템과 베이스 목록이 쓰는 이름이 조금 달라 둘 다 적음)
@@ -118,8 +117,6 @@ function postSlot(p) {
 const activeSlot = ref(null)
 // 베이스 이름 묶음 조건 (친 글자 그대로 - 판매글 베이스 이름에 이 글자가 들어가면 통과)
 const baseGroup = ref('')
-const activeLadder = ref(null)
-const activeHardcore = ref(null)
 // 에테리얼 여부: 'eth' 에테리얼만 / '' 에테리얼 아닌 것만 (체크박스, 기본은 꺼짐. 왼쪽 필터창에 에테리얼이 붙을 수 있는 아이템일 때만 보임)
 const ethFilter = ref('')
 const unidOnly = ref(false)
@@ -1040,8 +1037,8 @@ function applyQuery(q) {
   activeCats.value = q.cat ? String(q.cat).split(';').filter((c) => TRADE_CATEGORIES.includes(c)) : []
   activeRegion.value = TRADE_REALMS.includes(q.realm) ? q.realm : activeRegion.value
   gameVersion.value = GAME_VERSIONS.includes(q.game) ? q.game : gameVersion.value
-  activeLadder.value = TRADE_LADDERS.includes(q.ladder) ? q.ladder : null
-  activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : null
+  activeLadder.value = TRADE_LADDERS.includes(q.ladder) ? q.ladder : activeLadder.value
+  activeHardcore.value = TRADE_HARDCORE.includes(q.hc) ? q.hc : activeHardcore.value
   activeSlot.value = SLOT_ORDER.includes(q.slot) ? q.slot : null
   baseGroup.value = typeof q.bg === 'string' ? q.bg : ''
   ethFilter.value = q.eth === '1' ? 'eth' : ''

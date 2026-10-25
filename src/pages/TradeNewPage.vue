@@ -2,11 +2,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { askConfirm } from '../dialog.js'
+import { tradePrefs } from '../tradePrefs.js'
 import EventBanner from '../components/EventBanner.vue'
 import {
   TRADE_REALMS,
   guessRealm,
-  rememberRealm,
   TRADE_LADDERS,
   TRADE_HARDCORE,
   GAME_VERSIONS,
@@ -93,13 +93,23 @@ const emptyForm = () => ({
   // 유니크·세트를 미확인으로 팜 - 옵션 수치 입력 없이 사전 범위로
   unidentified: false,
   // "계속 등록"으로 다시 열면 앞 글의 서버·레더·하드코어를 그대로
-  realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : guessRealm(),
-  ladder: TRADE_LADDERS.includes(route.query.ladder) ? route.query.ladder : TRADE_LADDERS[0],
-  hardcore: TRADE_HARDCORE.includes(route.query.hardcore) ? route.query.hardcore : TRADE_HARDCORE[0],
-  gameVersion: GAME_VERSIONS.includes(route.query.game) ? route.query.game : DEFAULT_GAME_VERSION,
+  // 없으면 저장된 거래 설정(계정별), 그것도 없으면 기본값
+  realm: TRADE_REALMS.includes(route.query.realm) ? route.query.realm : tradePrefs.realm || guessRealm(),
+  ladder: TRADE_LADDERS.includes(route.query.ladder) ? route.query.ladder : tradePrefs.ladder || TRADE_LADDERS[0],
+  hardcore: TRADE_HARDCORE.includes(route.query.hardcore) ? route.query.hardcore : tradePrefs.hardcore || TRADE_HARDCORE[0],
+  gameVersion: GAME_VERSIONS.includes(route.query.game) ? route.query.game : tradePrefs.game || DEFAULT_GAME_VERSION,
   content: '',
 })
 const form = ref(emptyForm())
+// 로그인 직후 계정 설정이 늦게 도착하면 기본값만 다시 맞춤 ("계속 등록"으로 넘어온 값은 그대로)
+watch(tradePrefs, () => {
+  const f = form.value
+  const q = route.query
+  if (!TRADE_REALMS.includes(q.realm)) f.realm = tradePrefs.realm || guessRealm()
+  if (!TRADE_LADDERS.includes(q.ladder)) f.ladder = tradePrefs.ladder || TRADE_LADDERS[0]
+  if (!TRADE_HARDCORE.includes(q.hardcore)) f.hardcore = tradePrefs.hardcore || TRADE_HARDCORE[0]
+  if (!GAME_VERSIONS.includes(q.game)) f.gameVersion = tradePrefs.game || DEFAULT_GAME_VERSION
+})
 
 // 룬·퍼펙트 보석은 "베르 룬 1개 + 퍼펙트 자수정 5개"처럼 서로 다른 룬/보석을
 // 섞어서 한 번에 파는 경우가 많아서, 단일 아이템 등록과 별도로 묶음 판매 모드를 둠
@@ -929,12 +939,12 @@ async function savePost(payload) {
   try {
     const post = await addTradePost(payload)
     saving.value = false
+    const { realm, ladder, hardcore, gameVersion } = form.value
+    Object.assign(tradePrefs, { realm, ladder, hardcore, game: gameVersion })
     // 확인 = 등록한 글 보기 / 계속 등록 = 서버·레더·하드코어만 남기고 새 글 쓰기 (창 밖을 눌러 닫아도 계속 등록)
     const view = await askConfirm(t('판매글 등록 완료 - 거래게시판 등록됨'), { confirmText: t('등록한 글 보기'), cancelText: t('계속 등록'), icon: 'success' })
     if (view) router.push(`/trade/${post.id}`)
     else {
-      const { realm, ladder, hardcore, gameVersion } = form.value
-      rememberRealm(realm)
       router.replace({ path: '/trade/new', query: { again: Date.now(), realm, ladder, hardcore, game: gameVersion } })
       window.scrollTo(0, 0)
     }
