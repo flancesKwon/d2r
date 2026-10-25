@@ -1971,6 +1971,7 @@ export default {
   '보내기 실패': 'Failed to send',
   '잠시 후 다시 시도': 'Please try again shortly',
   '선택': 'Select',
+  '해당 조건 거래 없음': 'No trades for these conditions',
   '최근 거래내역': 'Recent trades',
   '보석/룬/주얼': 'Gems / Runes / Jewels',
   '매직 주얼': 'Magic Jewel',

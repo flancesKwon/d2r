@@ -1929,8 +1929,9 @@ function variantLines(p) {
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
       </div>
     </div>
-    <section class="tr-recent" v-if="recentDone.length">
+    <section class="tr-recent" v-if="recentDone.length || appliedCount">
       <div class="tr-recent-head"><h3>{{ $t('최근 거래내역') }}</h3></div>
+      <p class="tr-recent-empty" v-if="!recentDone.length">{{ $t('해당 조건 거래 없음') }}</p>
       <router-link class="tr-recent-row" v-for="p in recentDone" :key="p.id" :to="`/trade/${p.id}`">
         <span class="tr-recent-name">{{ postName(p) }}</span>
         <span class="tr-recent-opts">{{ variantLines(p).slice(0, 3).map((l) => $affix(l)).join(' · ') }}</span>
@@ -2402,7 +2403,7 @@ function variantLines(p) {
 .tr-recent{margin-top:28px; display:flex; flex-direction:column; gap:6px;}
 .tr-recent-head{display:flex; align-items:baseline; justify-content:space-between;}
 .tr-recent-head h3{margin:0; font-size:15px;}
-.tr-recent-head a{font-size:12px; color:var(--text-dim);}
+.tr-recent-empty{margin:0; padding:9px 12px; font-size:13px; color:var(--text-dim);}
 .tr-recent-row{display:grid; grid-template-columns:minmax(120px, 1.2fr) minmax(0, 2fr) auto auto; gap:12px; align-items:center; padding:9px 12px; background:var(--panel); border:1px solid var(--border-soft); border-radius:8px; color:var(--text); text-decoration:none; font-size:13px;}
 .tr-recent-row:hover{border-color:var(--gold-dim);}
 .tr-recent-opts{color:var(--text-muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
