@@ -482,7 +482,7 @@ async function confirmBuy() {
         <div class="item-picker offer-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" :value="offerQuery" :placeholder="$t('이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)')"
+              type="text" :value="offerQuery" :placeholder="$t('이름 검색')"
               class="write-input" @focus="showOfferDropdown = true"
               @input="offerQuery = $event.target.value; showOfferDropdown = true" @blur="hideOfferDropdownSoon"
             />

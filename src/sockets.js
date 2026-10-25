@@ -1,6 +1,6 @@
 // 소켓에 박힌 룬·보석·주얼 - 판매글 옵션 줄로 저장하고(소켓 칸마다 한 줄), 툴팁이 그림과 효과로 바꿈
 // 줄 모양: "박힌 것 1: 이스트 룬" / "박힌 것 2: 비어있음" / "박힌 것 3: 감시자의 빛 | 10,5,35,50" (굴린 수치, 범위 문구 순서대로)
-//         / "박힌 것 4: 주얼 | 공격 속도 +15% | 최대 피해 +30" (옵션 줄 그대로)
+//         / "박힌 것 4: 주얼 | 모양 3 | 공격 속도 +15% | 최대 피해 +30" (모양은 고른 때만, 나머지는 옵션 줄 그대로)
 import itemsData from './data/items.json'
 import magicAffixData from './data/magicAffixes.json'
 import { affixFamiliesFor, familyLines, filledValues } from './magicAffixes.js'
@@ -8,11 +8,14 @@ import { affixFamiliesFor, familyLines, filledValues } from './magicAffixes.js'
 export const SOCKET_LINE = /^박힌 것 (\d+): (.+)$/
 export const SOCKET_EMPTY = '비어있음'
 export const SOCKET_JEWEL = '주얼'
+const SHAPE_LINE = /^모양 ([1-6])$/
+export const JEWEL_SHAPES = [1, 2, 3, 4, 5, 6].map((n) => ({ n, icon: `invjw${n}__jewel` }))
 
 export const SOCKET_KINDS = [
   { key: 'rune', label: '룬' },
   { key: 'gem', label: '보석' },
-  { key: 'jewel', label: '주얼' },
+  { key: 'magicjewel', label: '매직 주얼' },
+  { key: 'jewel', label: '레어 주얼' },
   { key: 'unique', label: '유니크 주얼' },
   { key: 'empty', label: '비어있음' },
 ]
@@ -25,9 +28,13 @@ const byName = new Map([...gems, ...SOCKET_UNIQUE_JEWELS].map((i) => [i.name_ko,
 export const socketItem = (name) => byName.get(name) || null
 
 // 박을 수 있는 매직·레어 주얼의 옵션 종류 (소켓에 박는 주얼은 반지·목걸이 같은 별도 아이템이 아니라 주얼 베이스)
+// 매직 주얼은 레어에 안 붙는 옵션도 나옴 (예: 모든 저항 11~15) -> 품질마다 따로
 const JEWEL_BASE = { ...magicAffixData.miscBases.find((b) => b.code === 'jew'), sockets: 0 }
-export const JEWEL_FAMILIES = affixFamiliesFor(magicAffixData, JEWEL_BASE, 'rare')
-export const JEWEL_LIMITS = { p: 3, s: 3, total: 4 }
+export const JEWELS = {
+  magicjewel: { families: affixFamiliesFor(magicAffixData, JEWEL_BASE, 'magic'), limits: { p: 1, s: 1, total: 2 } },
+  jewel: { families: affixFamiliesFor(magicAffixData, JEWEL_BASE, 'rare'), limits: { p: 3, s: 3, total: 4 } },
+}
+export const isJewelKind = (kind) => kind in JEWELS
 export const JEWEL_ICON = 'invjw1__jewel'
 
 // 유니크 주얼 옵션 줄 중 수치가 범위("5~10")인 자리 - 굴린 수치를 넣는 칸
@@ -44,12 +51,12 @@ function uniqueJewelLines(item, rolls) {
   return (item?.affixes || []).map((a) => a.text.replace(RANGE, (whole) => rolls[n++] ?? whole))
 }
 
-// 칸 하나의 입력 상태: { kind, name(룬·보석·유니크 주얼 이름), rolls(유니크 주얼 굴린 수치), picks(주얼 옵션: AffixPicker 값) }
-export const emptySocket = () => ({ kind: 'empty', name: '', rolls: [], picks: { p: [], s: [] } })
+// 칸 하나의 입력 상태: { kind, name(룬·보석·유니크 주얼 이름), rolls(유니크 주얼 굴린 수치), picks(주얼 옵션: AffixPicker 값), shape(주얼 모양 1~6, 0 = 안 고름) }
+export const emptySocket = () => ({ kind: 'empty', name: '', rolls: [], picks: { p: [], s: [] }, shape: 0 })
 
 // 주얼 옵션 줄 - 수치를 아직 안 넣은 칸은 범위("5~10")로 둠
-function jewelLines(picks) {
-  const byKey = new Map(JEWEL_FAMILIES.map((f) => [f.key, f]))
+function jewelLines(kind, picks) {
+  const byKey = new Map(JEWELS[kind].families.map((f) => [f.key, f]))
   return [...picks.p, ...picks.s].filter((r) => byKey.has(r.key)).flatMap((r) => {
     const fam = byKey.get(r.key)
     return familyLines(fam, filledValues(fam, r.values).map((v, i) => v ?? fam.slotRanges[i].join('~')))
@@ -63,9 +70,9 @@ export function socketError(e) {
     const need = uniqueJewelRolls(socketItem(e.name))
     return !e.name || e.rolls.length < need.length || e.rolls.some((r, i) => r === '' || r === undefined || r < need[i]?.lo || r > need[i]?.hi) ? 'unique' : ''
   }
-  if (e.kind === 'jewel') {
-    const lines = jewelLines(e.picks)
-    return !lines.length || lines.some((l) => /\d+~\d+/.test(l)) ? 'jewel' : ''
+  if (isJewelKind(e.kind)) {
+    const lines = jewelLines(e.kind, e.picks)
+    return !lines.length || lines.some((l) => /\d+~\d+/.test(l)) ? e.kind : ''
   }
   return ''
 }
@@ -75,7 +82,7 @@ export function socketLine(n, e) {
   const body = (() => {
     if (e.kind === 'rune' || e.kind === 'gem') return e.name
     if (e.kind === 'unique') return `${e.name} | ${e.rolls.join(',')}`
-    if (e.kind === 'jewel') return [SOCKET_JEWEL, ...jewelLines(e.picks)].join(' | ')
+    if (isJewelKind(e.kind)) return [SOCKET_JEWEL, ...(e.shape ? [`모양 ${e.shape}`] : []), ...jewelLines(e.kind, e.picks)].join(' | ')
     return SOCKET_EMPTY
   })()
   return `박힌 것 ${n}: ${body}`
@@ -88,7 +95,10 @@ export function parseSocketLine(line) {
   const [head, ...rest] = m[2].split(' | ')
   const n = Number(m[1])
   if (head === SOCKET_EMPTY) return { n, kind: 'empty' }
-  if (head === SOCKET_JEWEL) return { n, kind: 'jewel', lines: rest }
+  if (head === SOCKET_JEWEL) {
+    const shape = SHAPE_LINE.exec(rest[0] || '')?.[1]
+    return { n, kind: 'jewel', shape: Number(shape) || 0, lines: shape ? rest.slice(1) : rest }
+  }
   const item = socketItem(head)
   if (!item) return null
   if (item.category === 'unique') return { n, kind: 'unique', item, rolls: (rest[0] || '').split(',') }
@@ -97,7 +107,7 @@ export function parseSocketLine(line) {
 
 // 칸에 박힌 것의 그림 이름 (ITEM_ICONS 키) - 비어있으면 null
 export function socketIconKey(s) {
-  if (s.kind === 'jewel') return JEWEL_ICON
+  if (s.kind === 'jewel') return s.shape ? `invjw${s.shape}__jewel` : JEWEL_ICON
   return s.item?.icon_key || null
 }
 

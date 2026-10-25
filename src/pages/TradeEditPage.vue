@@ -223,7 +223,7 @@ async function submit() {
             </template>
 
             <div class="relist-title small-title">{{ $t('설명') }}</div>
-            <RichEditor v-model="form.content" :placeholder="$t('추가 설명 (옵션 정보, 거래 방식 등)')" min-height="160px" />
+            <RichEditor v-model="form.content" :placeholder="$t('추가 설명')" min-height="160px" />
 
             <div class="relist-error" v-if="error">{{ error }}</div>
             <div class="relist-actions">
