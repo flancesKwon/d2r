@@ -27,7 +27,7 @@ async function load() {
   loading.value = false
   if (s.error || r.error) {
     const msg = (s.error || r.error).message || ''
-    error.value = /function|schema cache/i.test(msg) ? '준비 중 (013 SQL 실행 필요)' : msg || '불러오기 실패'
+    error.value = /could not find the function|schema cache/i.test(msg) ? '준비 중 (013 SQL 실행 필요)' : msg || '불러오기 실패'
     return
   }
   days.value = s.data
@@ -37,7 +37,7 @@ async function load() {
 async function loadList() {
   if (!supabase || !staff.value || !listDay.value) return
   const { data, error: e } = await supabase.rpc('d2r_visit_list', { p_day: listDay.value })
-  if (e) { error.value = /function|schema cache/i.test(e.message) ? '준비 중 (035 SQL 실행 필요)' : e.message; return }
+  if (e) { error.value = /could not find the function|schema cache/i.test(e.message) ? '준비 중 (035·036 SQL 실행 필요)' : e.message; return }
   visits.value = data.map((v, i) => ({
     key: i, member: !!v.user_id, who: v.nickname || (v.user_id ? '회원' : '비회원 ' + v.visitor), bot: v.bot, ua: v.ua, ip: v.ip_hash,
     note: [v.first_path, v.ref && '← ' + v.ref, v.views + '쪽'].filter(Boolean).join(' · '), when: new Date(v.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
@@ -52,6 +52,13 @@ const yesterday = computed(() => days.value[days.value.length - 2] || { visitors
 const sumLast = (n) => days.value.slice(-n).reduce((a, d) => a + d.visitors, 0)
 const max = computed(() => Math.max(1, ...days.value.map((d) => d.visitors)))
 const md = (s) => { const [, m, d] = String(s).split('-'); return `${Number(m)}.${Number(d)}` }
+const lastDay = computed(() => days.value[days.value.length - 1]?.day || '')
+const shiftDay = (n) => {
+  const d = new Date(listDay.value + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  const next = d.toISOString().slice(0, 10)
+  if (next <= lastDay.value) listDay.value = next
+}
 const dow = (s) => '일월화수목금토'[new Date(s + 'T00:00:00').getDay()]
 
 // 유입 사이트 이름 (주소 -> 알아보기 쉬운 이름)
@@ -106,7 +113,12 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
       </section>
 
       <section class="st-panel">
-        <div class="st-title">방문자 목록 <small>{{ listDay }} · 위 막대를 누르면 그날로 · 봇은 흐리게</small></div>
+        <div class="st-title st-pick">방문자 목록
+          <button type="button" @click="shiftDay(-1)">◀</button>
+          <input type="date" v-model="listDay" :max="lastDay" />
+          <button type="button" @click="shiftDay(1)" :disabled="listDay >= lastDay">▶</button>
+          <small>봇은 흐리게</small>
+        </div>
         <VisitRows :rows="visits" />
       </section>
 
@@ -145,6 +157,9 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
 .st-panel{background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:18px 20px; display:flex; flex-direction:column; gap:12px;}
 .st-title{font-family:'Noto Serif KR', serif; font-size:16px; font-weight:700;}
 .st-title small{font-family:'Noto Sans KR', sans-serif; font-size:12px; font-weight:400; color:var(--text-dim); margin-left:6px;}
+.st-pick{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+.st-pick button,.st-pick input{background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font:inherit; font-size:12.5px;}
+.st-pick button:disabled{opacity:.4;}
 .st-title-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
 .st-title-row .cat-tabs button{border-radius:999px;}
 .st-chart{display:grid; grid-template-columns:repeat(30, minmax(0, 1fr)); gap:4px; height:200px; align-items:end;}
