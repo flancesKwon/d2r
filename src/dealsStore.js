@@ -104,7 +104,7 @@ export async function loadDealMessages(deal, { markRead = true } = {}) {
   if (error) throw error
   const uid = authState.user?.id
   const top = Math.max(0, ...data.filter((m) => m.sender_id !== uid).map((m) => m.id))
-  if (dealSeen.has(deal.id) && top > dealSeen.get(deal.id)) playChime()
+  if (dealSeen.has(deal.id) && top > dealSeen.get(deal.id)) playChime('deal')
   if (!dealSeen.has(deal.id) || top > dealSeen.get(deal.id)) dealSeen.set(deal.id, top)
   deal.messages = data.map((m) => ({ id: m.id, from: m.sender_id === uid ? 'me' : 'them', text: m.text, date: fmtTime(m.created_at), readAt: m.read_at || null }))
   // 상대가 보낸 안 읽은 메시지를 읽음으로 (DB 함수가 아직 없으면 조용히 넘어감)
