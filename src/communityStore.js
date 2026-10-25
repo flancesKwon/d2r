@@ -97,7 +97,8 @@ export async function fetchPinnedPosts() {
 const NOTICE_DAYS = 7
 export async function fetchMainNotices() {
   const [pinned, recent] = await Promise.all([fetchPinnedPosts(), fetchRecentNotice()])
-  return recent && !pinned.some((p) => p.id === recent.id) ? [...pinned, recent] : pinned
+  const list = recent && !pinned.some((p) => p.id === recent.id) ? [...pinned, recent] : pinned
+  return list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 }
 async function fetchRecentNotice() {
   if (!supabase) return null
