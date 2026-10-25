@@ -57,7 +57,7 @@ import { buildTooltip } from '../itemTooltip.js'
 import { itemDamage, formatDamage } from '../itemDamage.js'
 import AffixPicker from '../components/AffixPicker.vue'
 import SocketEditor from '../components/SocketEditor.vue'
-import { emptySocket, socketError, socketLine, mergeSameStatLines } from '../sockets.js'
+import { emptySocket, socketError, socketLine, mergeSameStatLines, isJewelKind } from '../sockets.js'
 import RangeInput from '../components/RangeInput.vue'
 import magicAffixData from '../data/magicAffixes.json'
 import {
@@ -1053,7 +1053,7 @@ watch(socketCount, (n) => {
 })
 const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value).flatMap((e, i) => {
   const why = socketError(e)
-  return why ? [`${t('소켓')} ${i + 1} - ${t(why === 'jewel' ? '주얼 옵션 선택' : why === 'unique' ? '유니크 주얼 선택·수치 입력' : why === 'rune' ? '룬 선택' : '보석 선택')}`] : []
+  return why ? [`${t('소켓')} ${i + 1} - ${t(isJewelKind(why) ? '주얼 옵션 선택' : why === 'unique' ? '유니크 주얼 선택·수치 입력' : why === 'rune' ? '룬 선택' : '보석 선택')}`] : []
 }))
 
 </script>
@@ -1074,12 +1074,28 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
   </div>
   <div class="grid-wrap trade-new-wrap" v-else>
     <div class="write-form trade-write-form">
+      <div class="trade-form-row">
+        <select v-model="form.gameVersion" class="write-select trade-meta-select" :aria-label="$t('게임 모드')">
+          <option v-for="g in GAME_VERSIONS" :key="g" :value="g">{{ $t(g) }}</option>
+        </select>
+        <select v-model="form.realm" class="write-select trade-meta-select" :aria-label="$t('서버')">
+          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
+        </select>
+        <select v-model="form.ladder" class="write-select trade-meta-select" :aria-label="$t('레더')">
+          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
+        </select>
+        <select v-model="form.hardcore" class="write-select trade-meta-select" :aria-label="$t('하드코어')">
+          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
+        </select>
+      </div>
+
       <div class="form-mode-toggle">
         <button type="button" :class="{ active: !bundleMode }" @click="setBundleMode(false)">{{ $t('단일 아이템 등록') }}</button>
         <button type="button" :class="{ active: bundleMode }" @click="setBundleMode(true)">{{ $t('룬·보석·재료 묶음 판매') }}</button>
       </div>
 
       <template v-if="!bundleMode">
+      <div class="option-editor-title">{{ $t('아이템명') }}<span class="required-mark">*</span></div>
       <div class="item-picker trade-item-input">
         <div v-if="selectedItem" class="item-picker-selected">
           <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
@@ -1095,7 +1111,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <button type="button" class="item-picker-clear" @click="clearPickedItem">✕</button>
         </div>
         <button v-else type="button" class="item-picker-trigger" @click="showItemModal = true">
-          {{ $t('아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)') }}
+          {{ $t('아이템명 검색') }}
         </button>
       </div>
 
@@ -1104,7 +1120,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <button type="button" class="modal-close" @click="showItemModal = false">✕</button>
           <div class="d-section-title">{{ $t('아이템 선택') }}<span class="required-mark">*</span></div>
           <input
-            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" :placeholder="$t('아이템명 검색 (예: 이스트 룬, 무한, 할리퀸 관모, 골드)')"
+            type="text" :value="form.itemName" @input="form.itemName = $event.target.value" :placeholder="$t('아이템명 검색')"
             class="write-input" v-focus
           />
           <div class="item-modal-list">
@@ -1163,11 +1179,10 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">{{ $t('공격 속도') }} {{ baseStatsRef.speed }}</span>
           <span>{{ $t('내구도') }} {{ baseStatsRef.durability }}</span>
         </div>
-        <div class="unit-hint" v-if="isUniqueOrSet && baseStatFixed">{{ $t(baseStatsRef.category === 'armor' ? '방어력 증가 옵션으로 방어력이 정해져서 따로 입력하지 않아요' : '피해 증가 옵션으로 데미지가 정해져서 따로 입력하지 않아요') }}</div>
-        <template v-else-if="isUniqueOrSet">
+        <template v-if="isUniqueOrSet && !baseStatFixed">
           <div class="base-stats-input-row" v-if="baseStatsRef.category === 'armor'">
             <label>
-              {{ $t('방어력 (게임에 보이는 값 · 선택)') }}
+              {{ $t('방어력') }}
               <input
                 type="number" v-model="armorStats.baseDefense" class="write-input"
                 :class="{ invalid: uniqueDefenseRange && outOfRange(armorStats.baseDefense, uniqueDefenseRange) }"
@@ -1178,7 +1193,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           </div>
           <div class="base-stats-input-row" v-else-if="baseStatsRef.category === 'weapon'">
             <label>
-              {{ $t('최소 데미지 (게임에 보이는 값 · 선택)') }}
+              {{ $t('최소 데미지') }}
               <input type="number" v-model="armorStats.dmgMin" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="$t('최소')" />
             </label>
             <label>
@@ -1207,7 +1222,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
       </div>
 
       <div class="manual-kind-row" v-if="uniqueShapeVariants">
-        <div class="option-editor-title shape-title">{{ $t('모양') }} <span class="craft-sub-note">{{ $t('게임에서 무작위 - 실제 아이템 모양 선택') }}</span></div>
+        <div class="option-editor-title shape-title">{{ $t('모양') }}</div>
         <div class="shape-row">
           <button
             type="button" v-for="k in uniqueShapeVariants" :key="k" class="shape-btn"
@@ -1240,7 +1255,6 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <small class="base-sub">{{ $t(selectedBaseItem.tier) }} · {{ $t(selectedBaseItem.type_sub) }}</small>
           <button type="button" class="base-change-btn" @click="changeEquipBase">{{ $t('다른 베이스') }}</button>
         </div>
-        <div class="unit-hint" v-if="!itemQuality">{{ $t('품질(일반·매직·레어·크래프트) 먼저 선택') }}</div>
       </div>
 
       <div class="option-editor" v-if="qualityChoices.length">
@@ -1260,7 +1274,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
             >{{ r.name }}</button>
           </div>
           <template v-if="pickedCraft">
-            <div class="option-editor-title craft-fixed-title">{{ $t('고정 옵션') }} <span class="craft-sub-note">{{ $t('항상 붙음') }}</span></div>
+            <div class="option-editor-title craft-fixed-title">{{ $t('고정 옵션') }}</div>
             <div class="craft-fixed-list">
               <div class="option-row craft-fixed-row" v-for="(line, li) in familyLineSlots(pickedCraft.fam, craftPick.values)" :key="li">
                 <span class="option-text fixed">{{ affixText(line.text) }}</span>
@@ -1271,14 +1285,14 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
             </div>
           </template>
           <div class="unit-hint affix-error" v-for="e in craftErrors" :key="e">{{ $t(e) }}</div>
-          <div class="option-editor-title">{{ $t('무작위 옵션') }} <span class="craft-sub-note">{{ $t('레어 옵션 중 1~4개 · 접두사·접미사 한 목록') }}</span></div>
+          <div class="option-editor-title">{{ $t('무작위 옵션') }}</div>
         </template>
         <template v-if="isAffixQuality">
           <AffixPicker :families="affixFamilies" :limits="pickerLimits" v-model="affixPicks" />
           <div class="unit-hint affix-error" v-for="e in affixErrors" :key="e">{{ $t(e) }}</div>
           <div class="level-req-row">
             <label>
-              {{ $t('요구 레벨') }} <span class="craft-sub-note">{{ $t('선택 · 게임 툴팁의 값') }}</span>
+              {{ $t('요구 레벨') }}
               <input
                 type="number" v-model="levelReq" class="write-input" min="1" max="99" :placeholder="$t('예: 42')"
                 :class="{ invalid: filled(levelReq) && !levelReqValid }"
@@ -1380,42 +1394,6 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           </div>
         </div>
 
-        <div class="base-mods" v-if="lockedEquipBase && uniqueMaxSockets">
-          <div class="option-editor-title">{{ $t('소켓') }}</div>
-          <div class="option-row">
-            <select v-model="hasSockets" class="write-select random-group-select" :aria-label="$t('소켓 여부')">
-              <option :value="false">{{ $t('소켓 없음') }}</option>
-              <option :value="true">{{ $t('소켓 있음 (이 베이스 최대 {n}개)', { n: uniqueMaxSockets }) }}</option>
-            </select>
-          </div>
-          <div class="option-row" v-if="hasSockets">
-            <span class="option-text">{{ $t('소켓 개수') }} (1~{{ uniqueMaxSockets }})</span>
-            <RangeInput v-model="uniqueSockets" :min="1" :max="uniqueMaxSockets" :label="$t('소켓 개수')" />
-          </div>
-        </div>
-
-        <div class="base-mods" v-if="lockedEquipBase && isAffixQuality && (socketAffixFam || larzukMax)">
-          <div class="option-editor-title">{{ $t('소켓') }}</div>
-          <div class="option-row">
-            <select v-model="socketSource" class="write-select random-group-select" :aria-label="$t('소켓 여부')" @change="onSocketSource">
-              <option value="">{{ $t('소켓 없음') }}</option>
-              <option value="affix" v-if="socketAffixFam">
-                {{ $t('소켓 있음 · 옵션(접두사)으로 붙음 ({r}개)', { r: `${socketAffixRange[0]}~${socketAffixRange[1]}` }) }}
-              </option>
-              <option value="larzuk" v-if="larzukMax">{{ $t('소켓 있음 · 라르주크 퀘스트로 뚫음 ({r}개)', { r: larzukMax > 1 ? `1~${larzukMax}` : '1' }) }}</option>
-            </select>
-          </div>
-          <div class="option-editor-hint" v-if="socketSource === 'affix'">{{ $t('소켓 옵션이 접두사 한 칸 차지') }}</div>
-          <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
-            <span class="option-text">{{ $t('소켓 개수') }} ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
-            <RangeInput v-model="socketAffixCount" :min="socketAffixRange[0]" :max="socketAffixRange[1]" :label="$t('소켓 개수')" />
-          </div>
-          <div class="option-row" v-if="socketSource === 'larzuk'">
-            <span class="option-text">{{ $t('소켓 개수') }} (1~{{ larzukMax }})</span>
-            <RangeInput v-model="uniqueSockets" :min="1" :max="larzukMax" :label="$t('소켓 개수')" />
-          </div>
-        </div>
-
         <div class="base-mods" v-if="baseClassSkills || baseAutoMods.length">
           <div class="option-editor-title">{{ $t('베이스 자체 옵션') }}</div>
           <div class="option-row" v-if="baseAutoMods.length">
@@ -1454,9 +1432,59 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
         </div>
       </div>
 
+      <div class="base-mods" v-if="lockedEquipBase && uniqueMaxSockets">
+        <div class="option-editor-title">{{ $t('소켓') }}</div>
+        <div class="option-row">
+          <select v-model="hasSockets" class="write-select random-group-select" :aria-label="$t('소켓 여부')">
+            <option :value="false">{{ $t('소켓 없음') }}</option>
+            <option :value="true">{{ $t('소켓 있음 (이 베이스 최대 {n}개)', { n: uniqueMaxSockets }) }}</option>
+          </select>
+        </div>
+        <div class="option-row" v-if="hasSockets">
+          <span class="option-text">{{ $t('소켓 개수') }} (1~{{ uniqueMaxSockets }})</span>
+          <RangeInput v-model="uniqueSockets" :min="1" :max="uniqueMaxSockets" :label="$t('소켓 개수')" />
+        </div>
+      </div>
+
+      <div class="base-mods" v-if="lockedEquipBase && isAffixQuality && (socketAffixFam || larzukMax)">
+        <div class="option-editor-title">{{ $t('소켓') }}</div>
+        <div class="option-row">
+          <select v-model="socketSource" class="write-select random-group-select" :aria-label="$t('소켓 여부')" @change="onSocketSource">
+            <option value="">{{ $t('소켓 없음') }}</option>
+            <option value="affix" v-if="socketAffixFam">
+              {{ $t('소켓 있음 · 옵션(접두사)으로 붙음 ({r}개)', { r: `${socketAffixRange[0]}~${socketAffixRange[1]}` }) }}
+            </option>
+            <option value="larzuk" v-if="larzukMax">{{ $t('소켓 있음 · 라르주크 퀘스트로 뚫음 ({r}개)', { r: larzukMax > 1 ? `1~${larzukMax}` : '1' }) }}</option>
+          </select>
+        </div>
+        <div class="option-row" v-if="socketSource === 'affix' && socketAffixRange">
+          <span class="option-text">{{ $t('소켓 개수') }} ({{ socketAffixRange[0] }}~{{ socketAffixRange[1] }})</span>
+          <RangeInput v-model="socketAffixCount" :min="socketAffixRange[0]" :max="socketAffixRange[1]" :label="$t('소켓 개수')" />
+        </div>
+        <div class="option-row" v-if="socketSource === 'larzuk'">
+          <span class="option-text">{{ $t('소켓 개수') }} (1~{{ larzukMax }})</span>
+          <RangeInput v-model="uniqueSockets" :min="1" :max="larzukMax" :label="$t('소켓 개수')" />
+        </div>
+      </div>
+
+      <div class="option-editor" v-if="uniqueMaxSockets && !lockedEquipBase">
+        <div class="option-editor-title">{{ $t('소켓') }}</div>
+        <div class="option-row">
+          <select v-model="uniqueSockets" class="write-select random-group-select" :aria-label="$t('소켓 개수')">
+            <option value="">{{ $t('소켓 없음') }}</option>
+            <option :value="1">{{ $t('소켓 있음 (1개)') }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="base-mods" v-if="socketCount">
+        <div class="option-editor-title">{{ $t('보석/룬/주얼') }}</div>
+        <SocketEditor v-model="socketPicks" />
+      </div>
+
       <label class="unid-check" v-if="isUniqueOrSet">
         <input type="checkbox" v-model="form.unidentified" />
-        {{ $t('미확인 아이템') }} <small>{{ $t('옵션 확인 전 - 수치 입력 없이 사전 범위로 표시') }}</small>
+        {{ $t('미확인 아이템') }}
       </label>
 
       <label class="ethereal-check" v-if="hasEthereal">
@@ -1466,12 +1494,12 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
 
       <template v-if="selectedItem || form.category">
         <template v-if="hasQuantity">
+          <div class="option-editor-title">{{ $t(isGold ? '골드 액수' : '개수') }}<span class="required-mark">*</span></div>
           <input
-            type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="$t(isGold ? '골드 액수 (예: 2500000, 최대 1500만)' : '개수 (예: 5)')"
+            type="number" min="1" :max="isGold ? GOLD_MAX : null" v-model="form.quantity" :placeholder="$t(isGold ? '골드 액수' : '개수')"
             class="write-input trade-quantity-input" :class="{ invalid: isGold && Number(form.quantity) > GOLD_MAX }"
           />
-          <div class="unit-hint" v-if="!isGold">{{ $t('여러 개는 한 번에 통째로 판매 - 나눠 팔려면 글을 따로 올리기') }}</div>
-          <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0" :class="{ 'affix-error': Number(form.quantity) > GOLD_MAX }">
+            <div class="unit-hint" v-if="isGold && Number(form.quantity) > 0" :class="{ 'affix-error': Number(form.quantity) > GOLD_MAX }">
             {{ goldReadable(form.quantity) }}{{ Number(form.quantity) > GOLD_MAX ? ' - ' + $t('최대 1500만 골드까지') : '' }}
           </div>
         </template>
@@ -1521,17 +1549,6 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
         </div>
       </div>
 
-      <div class="option-editor" v-if="uniqueMaxSockets && !lockedEquipBase">
-        <div class="option-editor-title">{{ $t('소켓') }}</div>
-        <div class="option-editor-hint">{{ $t('유니크·세트: 라르주크 퀘스트로 소켓 1개만') }}</div>
-        <div class="option-row">
-          <select v-model="uniqueSockets" class="write-select random-group-select" :aria-label="$t('소켓 개수')">
-            <option value="">{{ $t('소켓 없음') }}</option>
-            <option :value="1">{{ $t('소켓 있음 · 라르주크 퀘스트로 뚫음 (1개)') }}</option>
-          </select>
-        </div>
-      </div>
-
       <div class="option-editor" v-if="allowsCustomOptions">
         <div class="option-editor-title">{{ $t('기타 옵션 직접 추가') }}</div>
         <div class="custom-option-chip" v-for="(o, i) in customOptions" :key="i">
@@ -1570,7 +1587,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
         <div class="item-picker">
           <div class="item-picker-search-wrap">
             <input
-              type="text" :value="bundleQuery" :placeholder="$t('이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)')"
+              type="text" :value="bundleQuery" :placeholder="$t('이름 검색')"
               class="write-input" @focus="showBundleDropdown = true"
               @input="bundleQuery = $event.target.value; showBundleDropdown = true"
               @blur="hideBundleDropdownSoon"
@@ -1592,7 +1609,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
 
       <label class="negotiable-check offer-only-check">
         <input type="checkbox" v-model="form.offerOnly" />
-        {{ $t('제안만 받기') }} <small>{{ $t('희망 가격 없이 구매자들의 가격 제안을 받음') }}</small>
+        {{ $t('제안만 받기') }}
       </label>
       <label class="negotiable-check" v-if="!form.offerOnly">
         <input type="checkbox" v-model="form.negotiable" />
@@ -1611,7 +1628,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           </div>
         </div>
         <button type="button" class="item-picker-trigger" @click="openPriceModal">
-          {{ $t(priceItems.length ? '+ 더 추가하기' : '받을 룬·보석·재료 검색 (예: 이스트 룬, 파괴의 열쇠)') }}
+          {{ $t(priceItems.length ? '+ 더 추가하기' : '룬·보석·재료 검색') }}
         </button>
       </div>
 
@@ -1620,7 +1637,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <button type="button" class="modal-close" @click="showPriceModal = false">✕</button>
           <div class="d-section-title">{{ $t('희망 가격 선택') }}</div>
           <input
-            type="text" :value="priceQuery" @input="priceQuery = $event.target.value" :placeholder="$t('이름 검색 (예: 이스트 룬, 최상급 자수정, 파괴의 열쇠)')"
+            type="text" :value="priceQuery" @input="priceQuery = $event.target.value" :placeholder="$t('이름 검색')"
             class="write-input" v-focus :aria-label="$t('룬·보석·재료 검색')"
           />
           <div class="item-modal-list">
@@ -1637,27 +1654,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
         </div>
       </div>
 
-      <div class="trade-form-row">
-        <select v-model="form.gameVersion" class="write-select trade-meta-select" :aria-label="$t('게임 모드')">
-          <option v-for="g in GAME_VERSIONS" :key="g" :value="g">{{ $t(g) }}</option>
-        </select>
-        <select v-model="form.realm" class="write-select trade-meta-select" :aria-label="$t('서버')">
-          <option v-for="r in TRADE_REALMS" :key="r" :value="r">{{ $t(r) }}</option>
-        </select>
-        <select v-model="form.ladder" class="write-select trade-meta-select" :aria-label="$t('레더')">
-          <option v-for="l in TRADE_LADDERS" :key="l" :value="l">{{ $t(l) }}</option>
-        </select>
-        <select v-model="form.hardcore" class="write-select trade-meta-select" :aria-label="$t('하드코어')">
-          <option v-for="h in TRADE_HARDCORE" :key="h" :value="h">{{ modeText(h) }}</option>
-        </select>
-      </div>
-
-      <div class="base-mods" v-if="socketCount">
-        <div class="option-editor-title">{{ $t('소켓에 박힌 것') }}</div>
-        <SocketEditor v-model="socketPicks" />
-      </div>
-
-      <RichEditor v-model="form.content" :placeholder="$t('추가 설명 (옵션 정보, 거래 방식 등)')" min-height="220px" />
+      <RichEditor v-model="form.content" :placeholder="$t('추가 설명')" min-height="220px" />
 
       <div class="tooltip-preview" v-if="previewTooltip">
         <div class="option-editor-title">{{ $t('미리보기') }}</div>

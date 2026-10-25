@@ -1,7 +1,8 @@
 <script setup>
-// 판매글 등록 - 소켓 칸마다 박힌 것 고르기 (룬·보석은 이름만, 유니크 주얼은 굴린 수치, 매직·레어 주얼은 옵션과 수치)
+// 판매글 등록 - 소켓 칸마다 박힌 것 고르기 (룬·보석은 이름만, 유니크 주얼은 굴린 수치, 매직·레어 주얼은 옵션·수치·모양)
 // modelValue: 칸 입력 목록 (src/sockets.js 의 emptySocket 모양), 칸 수만큼 부모가 맞춰 줌
-import { SOCKET_KINDS, SOCKET_RUNES, SOCKET_GEMS, SOCKET_UNIQUE_JEWELS, JEWEL_FAMILIES, JEWEL_LIMITS, socketItem, uniqueJewelRolls, emptySocket } from '../sockets.js'
+import { SOCKET_KINDS, SOCKET_RUNES, SOCKET_GEMS, SOCKET_UNIQUE_JEWELS, JEWELS, JEWEL_SHAPES, isJewelKind, socketItem, uniqueJewelRolls, emptySocket } from '../sockets.js'
+import { ITEM_ICONS } from '../itemIcons.js'
 import AffixPicker from './AffixPicker.vue'
 import RangeInput from './RangeInput.vue'
 import { itemName, affixText } from '../i18n.js'
@@ -18,6 +19,7 @@ const setRoll = (i, n, v) => {
   patch(i, { ...props.modelValue[i], rolls })
 }
 const setPicks = (i, picks) => patch(i, { ...props.modelValue[i], picks })
+const setShape = (i, n) => patch(i, { ...props.modelValue[i], shape: props.modelValue[i].shape === n ? 0 : n })
 const optionsOf = (kind) => (kind === 'rune' ? SOCKET_RUNES : kind === 'gem' ? SOCKET_GEMS : SOCKET_UNIQUE_JEWELS)
 const rollsOf = (e) => uniqueJewelRolls(socketItem(e.name))
 </script>
@@ -46,10 +48,19 @@ const rollsOf = (e) => uniqueJewelRolls(socketItem(e.name))
             <RangeInput :model-value="e.rolls[n] ?? ''" :min="r.lo" :max="r.hi" :label="$t('수치')" @update:modelValue="setRoll(i, n, $event)" />
           </div>
         </template>
-        <AffixPicker
-          v-if="e.kind === 'jewel'" :families="JEWEL_FAMILIES" :limits="JEWEL_LIMITS"
-          :model-value="e.picks" @update:modelValue="setPicks(i, $event)"
-        />
+        <template v-if="isJewelKind(e.kind)">
+          <AffixPicker
+            :families="JEWELS[e.kind].families" :limits="JEWELS[e.kind].limits"
+            :model-value="e.picks" @update:modelValue="setPicks(i, $event)"
+          />
+          <div class="shape-row">
+            <span class="option-text">{{ $t('모양') }}</span>
+            <button
+              type="button" v-for="s in JEWEL_SHAPES" :key="s.n" class="shape-btn" :class="{ on: e.shape === s.n }"
+              :aria-pressed="e.shape === s.n" :aria-label="`${$t('모양')} ${s.n}`" @click="setShape(i, s.n)"
+            ><img :src="ITEM_ICONS[s.icon]" alt="" /></button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -63,6 +74,11 @@ const rollsOf = (e) => uniqueJewelRolls(socketItem(e.name))
 .socket-row{display:flex; gap:10px; align-items:flex-start; border:1px solid var(--border-soft); border-radius:12px; padding:10px; background:var(--panel);}
 .socket-no{flex:none; width:26px; height:26px; border-radius:50%; border:1px solid var(--gold-dim, #8f773d); color:var(--gold, #c9a64e); display:grid; place-items:center; font-size:12px; margin-top:2px;}
 .socket-body{display:flex; flex-direction:column; gap:8px; min-width:0; flex:1;}
+.shape-row{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+.shape-row .option-text{flex:none;}
+.shape-btn{width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--border-soft); background:var(--panel-2); border-radius:8px; padding:0; cursor:pointer;}
+.shape-btn img{max-width:24px; max-height:28px; image-rendering:pixelated;}
+.shape-btn.on{border-color:var(--gold, #c9a64e); background:rgba(201,166,78,0.12);}
 .socket-kinds{display:flex; flex-wrap:wrap; gap:6px;}
 .socket-kind{border:1px solid var(--border-soft); background:transparent; color:var(--text-dim, #9a9283); border-radius:999px; padding:5px 12px; font:inherit; font-size:13px; cursor:pointer;}
 .socket-kind.on{border-color:var(--gold, #c9a64e); background:rgba(201,166,78,0.12); color:var(--text, #e8e1d3);}

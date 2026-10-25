@@ -1,7 +1,7 @@
 <script setup>
 // 모든 페이지 공통 상단 메뉴
 // - 사이트를 [거래 | DB] 두 모드로 나눔: 로고 옆 스위치로 전환, 메뉴는 지금 모드 것만
-//   거래: 매물(첫 화면) / 시세 / 거래내역 / 내 거래 / 커뮤니티
+//   거래: 매물(첫 화면) / 시세 / 판매글 등록 / 내 거래 / 커뮤니티
 //   DB: 빌드 가이드 / 아이템 사전 / 도구 / 정보 / 커뮤니티
 //   커뮤니티·쪽지·마이페이지처럼 양쪽 공용 화면은 마지막으로 있던 모드를 유지
 // - 통합 검색: 아이템 사전 + 사이트 페이지(도구 등)를 한 번에
@@ -28,12 +28,11 @@ const TRADE_MENUS = [
     key: 'listings', label: '매물', to: '/', match: ['/', '/trade'],
     links: [
       { label: '매물 보기', to: '/trade/search' },
-      { label: '판매글 등록', to: '/trade/new' },
       { label: '이용 안내', action: openTradeGuide },
     ],
   },
   { key: 'market', label: '시세', to: '/market', match: ['/market'], links: [] },
-  { key: 'history', label: '거래내역', to: '/trade/history', match: ['/trade/history'], links: [] },
+  { key: 'sell', label: '판매글 등록', to: '/trade/new', match: ['/trade/new'], links: [] },
   { key: 'deals', label: '내 거래', to: '/deals', match: ['/deals'], links: [] },
 ]
 const DB_MENUS = [
@@ -88,7 +87,7 @@ const communityMenu = (mode) => ({
 const mode = useSiteMode()
 const MENUS = computed(() => [...(mode.value === 'trade' ? TRADE_MENUS : DB_MENUS), communityMenu(mode.value)])
 const ALL_MENUS = [...TRADE_MENUS, ...DB_MENUS, communityMenu('db')]
-// 주소가 가장 길게 맞는 메뉴 ('/' 는 정확히 같을 때만 - /trade/history 는 거래내역)
+// 주소가 가장 길게 맞는 메뉴 ('/' 는 정확히 같을 때만)
 const activeKey = computed(() => {
   const p = stripLocale(route.path)
   let best = ''
