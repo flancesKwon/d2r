@@ -920,7 +920,7 @@ export default {
   '수리': 'Repair',
   '업그레이드': 'Upgrade',
   '블러드 크래프트 (Blood Craft)': 'Blood Craft',
-  '마법(파란색) 아이템 1개': '1 magic (blue) item',
+  '매직 아이템 1개': '1 magic item',
   '최상급 루비 1개': '1 Perfect Ruby',
   '주얼 1개': '1 Jewel',
   '적중당 생명력 훔침·생명력 고정 옵션 + 무작위 옵션 1~4개': 'Fixed life steal and life + 1-4 random stats',
