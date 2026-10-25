@@ -5,11 +5,12 @@ import { useAutoRefresh } from '../useAutoRefresh.js'
 import { askConfirm } from '../dialog.js'
 import { t } from '../i18n.js'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned } from '../communityStore.js'
+import { fetchPost, countView, addComment, deleteComment, votePost, voteComment, deletePost, canEdit, canDelete, setPinned, fetchPostViewers } from '../communityStore.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
 import { renderContent } from '../richText.js'
 import ReportButton from '../components/ReportButton.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import VisitRows from '../components/VisitRows.vue'
 const RichEditor = defineAsyncComponent(() => import('../components/RichEditor.vue')) // 댓글 에디터는 나중에 받아도 됨
 
 const route = useRoute()
@@ -25,7 +26,22 @@ async function togglePin() {
   try { await setPinned(post.value, !post.value.pinned) } catch (e) { actionError.value = t(e.message || '처리 실패') }
 }
 
+// 운영진: 이 글을 본 사람 (회원은 닉네임, 비회원은 브라우저 번호·IP 해시)
+const viewers = ref(null)
+async function toggleViewers() {
+  if (viewers.value) { viewers.value = null; return }
+  actionError.value = ''
+  try {
+    const rows = await fetchPostViewers(post.value.id)
+    viewers.value = rows.map((v, i) => ({
+      key: i, member: !!v.user_id, who: v.nickname || (v.user_id ? '회원' : '비회원 ' + v.visitor), bot: v.bot, ua: v.ua, ip: v.ip_hash,
+      note: v.views + '회 열람', when: new Date(v.last_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    }))
+  } catch (e) { actionError.value = e.message || '처리 실패' }
+}
+
 async function load() {
+  viewers.value = null
   loading.value = true
   actionError.value = ''
   try {
@@ -121,9 +137,11 @@ async function onDeletePost() {
         <router-link class="owner-btn" v-if="canEdit(post)" :to="{ path: '/community/write', query: { edit: post.id } }">{{ $t('수정') }}</router-link>
         <button type="button" class="owner-btn danger" v-if="canDelete(post)" @click="onDeletePost">{{ $t('삭제') }}</button>
         <button type="button" class="owner-btn" v-if="isStaff()" @click="togglePin">{{ $t(post.pinned ? '고정 해제' : '맨 위 고정') }}</button>
+        <button type="button" class="owner-btn" v-if="isStaff()" @click="toggleViewers">열람 기록</button>
         <ReportButton class="post-report" target-type="community_post" :target-id="post.id" :owner-id="post.authorId" :label="$t('글 신고')" />
       </div>
       <div class="action-error" v-if="actionError">{{ actionError }}</div>
+      <VisitRows v-if="viewers" :rows="viewers" class="post-viewers" />
     </div>
 
     <!-- 댓글 목록과 쓰기를 카드 하나에 (댓글마다 카드를 나누지 않고 구분선으로) -->
@@ -222,6 +240,7 @@ async function onDeletePost() {
 }
 .write-submit{align-self:flex-start; padding:11px 22px; font-size:13px; border-radius:10px;}
 .post-owner-row{display:flex; gap:8px; margin-top:18px;}
+.post-viewers{margin-top:12px;}
 .owner-btn{font-size:12px; color:var(--text-dim); border:1px solid var(--border-soft); padding:5px 12px; border-radius:999px;}
 .owner-btn:hover{color:var(--text); border-color:var(--border);}
 .owner-btn.danger:hover{color:#e0775f; border-color:#e0775f;}

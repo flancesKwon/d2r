@@ -1,10 +1,10 @@
 // 방문 통계 기록 (013 SQL d2r_track) - 화면을 옮길 때마다 한 번
-// 브라우저마다 임의 번호 하나(IP·개인정보 아님), 처음 들어온 곳은 다른 사이트 주소(호스트)만
+// 브라우저마다 임의 번호 하나, 처음 들어온 곳은 다른 사이트 주소(호스트)만. IP 는 서버가 해시로만 남김 (035 SQL)
 // 자동 점검 브라우저(navigator.webdriver)는 안 셈
 import { supabase } from './supabase.js'
 
 const KEY = 'd2r-vid'
-function visitorId() {
+export function visitorId() {
   try {
     let v = localStorage.getItem(KEY)
     if (!v) {

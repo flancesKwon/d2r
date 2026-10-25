@@ -3,6 +3,7 @@
 // - 추천/비추천 수는 직접 안 올림: 표(행)를 넣고 빼면 DB 트리거가 like_count 를 맞춤
 // - 조회수는 increment_post_view RPC 로만 (views 직접 수정은 RLS가 막음)
 import { supabase, mustReturnRows } from './supabase.js'
+import { visitorId } from './visitTracker.js'
 import { authState, isStaff } from './profileStore.js'
 
 export const CATEGORIES = ['공지', '질문', '거래', '잡담', '공략', '건의', '버그제보']
@@ -138,7 +139,17 @@ export async function countView(id) {
     sessionStorage.setItem(key, '1')
   } catch (e) {}
   const { error } = await supabase.rpc('increment_post_view', { p_post_id: Number(id) })
+  const v = visitorId()
+  if (!error && v) supabase.rpc('d2r_track_post_view', { p_post_id: Number(id), p_visitor: v }).then(() => {}, () => {})
   return !error
+}
+
+// 글 하나의 열람 목록 (운영진, 035 SQL)
+export async function fetchPostViewers(id) {
+  needDb()
+  const { data, error } = await supabase.rpc('d2r_post_viewers', { p_post_id: Number(id) })
+  if (error) throw new Error(/function|schema cache/i.test(error.message) ? '준비 중 (035 SQL 실행 필요)' : error.message)
+  return data
 }
 
 export async function createPost({ category, title, content, tags = [] }) {
