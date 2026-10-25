@@ -194,7 +194,6 @@ export default {
   '조건 하나를 빼면': 'Drop one filter',
   '결과 {n}개': '{n} results',
   '조건 {n}개로 검색': 'Search with {n} filters',
-  '전체 보기': 'View all',
   '현재 매물 {n}개': '{n} listings now',
   '조건 펴기': 'Show filters',
   '조건 접기': 'Hide filters',

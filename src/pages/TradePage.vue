@@ -1930,7 +1930,7 @@ function variantLines(p) {
       </div>
     </div>
     <section class="tr-recent" v-if="recentDone.length">
-      <div class="tr-recent-head"><h3>{{ $t('최근 거래내역') }}</h3><router-link to="/trade/history">{{ $t('전체 보기') }}</router-link></div>
+      <div class="tr-recent-head"><h3>{{ $t('최근 거래내역') }}</h3></div>
       <router-link class="tr-recent-row" v-for="p in recentDone" :key="p.id" :to="`/trade/${p.id}`">
         <span class="tr-recent-name">{{ postName(p) }}</span>
         <span class="tr-recent-opts">{{ variantLines(p).slice(0, 3).map((l) => $affix(l)).join(' · ') }}</span>
