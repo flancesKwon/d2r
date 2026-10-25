@@ -1283,9 +1283,9 @@ const unifiedSuggestions = computed(() => {
   stats.sort((a, b) =>
     (b.hit.startsWith(ql) - a.hit.startsWith(ql)) || (form(a.st) - form(b.st)) ||
     a.hit.length - b.hit.length || (!!a.st.cls - !!b.st.cls))
-  for (const { st } of stats.slice(0, 12)) out.push({ type: 'stat', key: 's' + st.key, st })
+  for (const { st } of stats.slice(0, 30)) out.push({ type: 'stat', key: 's' + st.key, st })
   out.push({ type: 'text', key: 'text', raw })
-  return out.slice(0, 20)
+  return out.slice(0, 45)
 })
 const suggestGroups = computed(() => {
   const list = unifiedSuggestions.value
