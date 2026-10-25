@@ -3,7 +3,7 @@
 //         / "박힌 것 4: 주얼 | 모양 3 | 공격 속도 +15% | 최대 피해 +30" (모양은 고른 때만, 나머지는 옵션 줄 그대로)
 import itemsData from './data/items.json'
 import magicAffixData from './data/magicAffixes.json'
-import { affixFamiliesFor, familyLines, filledValues } from './magicAffixes.js'
+import { affixFamiliesFor, affixLimits, familyLines, filledValues } from './magicAffixes.js'
 
 export const SOCKET_LINE = /^박힌 것 (\d+): (.+)$/
 export const SOCKET_EMPTY = '비어있음'
@@ -31,8 +31,8 @@ export const socketItem = (name) => byName.get(name) || null
 // 매직 주얼은 레어에 안 붙는 옵션도 나옴 (예: 모든 저항 11~15) -> 품질마다 따로
 const JEWEL_BASE = { ...magicAffixData.miscBases.find((b) => b.code === 'jew'), sockets: 0 }
 export const JEWELS = {
-  magicjewel: { families: affixFamiliesFor(magicAffixData, JEWEL_BASE, 'magic'), limits: { p: 1, s: 1, total: 2 } },
-  jewel: { families: affixFamiliesFor(magicAffixData, JEWEL_BASE, 'rare'), limits: { p: 3, s: 3, total: 4 } },
+  magicjewel: { families: affixFamiliesFor(magicAffixData, JEWEL_BASE, 'magic'), limits: affixLimits(JEWEL_BASE, 'magic') },
+  jewel: { families: affixFamiliesFor(magicAffixData, JEWEL_BASE, 'rare'), limits: affixLimits(JEWEL_BASE, 'rare') },
 }
 export const isJewelKind = (kind) => kind in JEWELS
 export const JEWEL_ICON = 'invjw1__jewel'
