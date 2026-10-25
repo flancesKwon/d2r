@@ -4,7 +4,9 @@ import recipesData from '../data/cubeRecipes.json'
 import runeChain from '../data/runeUpgradeChain.json'
 import itemsData from '../data/items.json'
 import { ITEM_ICONS } from '../itemIcons.js'
-import { t, itemName } from '../i18n.js'
+import magicAffixData from '../data/magicAffixes.json'
+import { craftRecipesFor, familyLineSlots } from '../magicAffixes.js'
+import { t, itemName, affixText } from '../i18n.js'
 
 const CATEGORIES = ['크래프트', '수리', '업그레이드', '기타']
 const activeCat = ref(null)
@@ -28,14 +30,37 @@ function iconUrlFor(iconKey) {
 // 룬 이름 (룬 업그레이드 표) - 사전의 영어 이름
 const RUNE_BY_KO = new Map(itemsData.filter((it) => it.type_sub === '룬').map((it) => [it.name_ko, it]))
 const runeText = (ko) => (RUNE_BY_KO.has(ko) ? itemName(RUNE_BY_KO.get(ko), ko) : t(ko))
+// 크래프트는 부위마다 룬·고정 옵션이 달라서 부위별 한 줄씩 풀어 보여줌 (크래프트 시뮬레이터와 같은 자료)
+const CRAFT_SLOTS = ['투구', '갑옷', '방패', '장갑', '신발', '벨트', '목걸이', '반지', '무기']
+const CRAFT_KIND = { 'craft-blood': '블러드', 'craft-caster': '캐스터', 'craft-hitpower': '히트 파워', 'craft-safety': '세이프티' }
+const ITEM_BY_EN = new Map(itemsData.filter((it) => it.name_en).map((it) => [it.name_en, it]))
+const chip = (it) => ({ text: it.name_ko, label: itemName(it, it.name_ko), item: it })
+function craftRows(kind) {
+  return CRAFT_SLOTS.map((slot) => {
+    const c = magicAffixData.crafts.find((x) => x.name === `${kind} ${slot}`)
+    const code = c.codes ? c.codes[0] : Object.keys(magicAffixData.bases).find((k) => magicAffixData.bases[k].types.includes(c.type))
+    const fam = craftRecipesFor(magicAffixData, { code, sockets: 0 }).find((r) => r.id === c.id).fam
+    const out = familyLineSlots(fam).map((l) => l.text).join(', ')
+    return {
+      in: [{ text: `매직 ${slot}`, label: t('매직 {name}', { name: t(slot) }) }, chip(ITEM_BY_EN.get(c.gem)), '주얼', chip(ITEM_BY_EN.get(c.rune))],
+      out: { text: out, label: affixText(out) },
+    }
+  })
+}
+const RECIPES = recipesData.map((r) => (CRAFT_KIND[r.id] ? { ...r, formula: craftRows(CRAFT_KIND[r.id]) } : r))
+// 재료·결과는 글자이거나 (글자·번역·아이템) 묶음
+const plain = (m) => (typeof m === 'string' ? m : m.text)
+const chipLabel = (m) => (typeof m === 'string' ? t(m) : m.label)
+const chipItem = (m) => (typeof m === 'string' ? findIconItem(m) : m.item)
+
 const filteredRecipes = computed(() => {
-  let list = recipesData
+  let list = RECIPES
   if (activeCat.value) list = list.filter((r) => r.category === activeCat.value)
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
       (r) =>
-        [r.title, ...r.formula.flatMap((f) => [...f.in, f.out])].some((x) => x.toLowerCase().includes(q) || t(x).toLowerCase().includes(q))
+        [r.title, ...r.formula.flatMap((f) => [...f.in, f.out].map(plain))].some((x) => x.toLowerCase().includes(q) || t(x).toLowerCase().includes(q))
     )
   }
   return list
@@ -91,14 +116,14 @@ const filteredRuneChain = computed(() => {
         <div class="cube-formula-row" v-for="(f, i) in r.formula" :key="i">
           <div class="cube-chip-group">
             <span class="cube-chip" v-for="(m, j) in f.in" :key="j">
-              <span class="cube-chip-icon" v-if="findIconItem(m)"><img :src="iconUrlFor(findIconItem(m).icon_key)" alt="" /></span>
-              {{ $t(m) }}
+              <span class="cube-chip-icon" v-if="chipItem(m)"><img :src="iconUrlFor(chipItem(m).icon_key)" alt="" /></span>
+              {{ chipLabel(m) }}
             </span>
           </div>
           <span class="cube-arrow">→</span>
           <div class="cube-result-chip">
-            <span class="cube-chip-icon" v-if="findIconItem(f.out)"><img :src="iconUrlFor(findIconItem(f.out).icon_key)" alt="" /></span>
-            {{ $t(f.out) }}
+            <span class="cube-chip-icon" v-if="chipItem(f.out)"><img :src="iconUrlFor(chipItem(f.out).icon_key)" alt="" /></span>
+            {{ chipLabel(f.out) }}
           </div>
         </div>
         <div class="cube-note" v-if="r.note">{{ $t(r.note) }}</div>
