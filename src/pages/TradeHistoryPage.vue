@@ -6,6 +6,7 @@ import { ref, computed, watch, reactive } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  tradeState,
   getTradeItem,
   statusLabel,
   tradePriceOf,
@@ -69,6 +70,7 @@ const STATUS_TABS = ['판매중', '예약중', '거래완료', '기간 만료']
 // 사전 아이템은 범위 옵션(모든 저항 +10~20% 등)마다, 사전에 없는 아이템(매직·레어)은 주요 옵션 수치마다
 const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const CLASS_RE = new RegExp(`^(${Object.values(CLASS_SKILL_NAMES).join('|')}) 기술 레벨 \\+(\\d+)`)
+const SKILL_LINE = /^.+ \+\d+ \([^)]+ 전용\)$/
 const valueIn = (re) => (p) => { for (const l of p.options) { const m = re.exec(l); if (m) return Number(m[1]) } return null }
 const varDefs = computed(() => {
   const defs = []
@@ -83,6 +85,8 @@ const varDefs = computed(() => {
       }
     }
   } else {
+    // 직업 전용 기술 옵션 ("번개 기술 +1 (소서리스 전용)") - 스킬 트리·기술마다 값이 달라서 줄 그대로 비교
+    defs.push({ key: 'skill', label: '직업 기술', get: (p) => p.options.find((l) => SKILL_LINE.test(l)) || null, show: (v) => v })
     for (const st of TRADE_STAT_FILTERS) {
       const pct = /\(%\)$/.test(st.label)
       defs.push({ key: 's:' + st.key, label: st.label, num: true, get: (p) => postStatValue(p, st.key), show: (v) => `${st.label.replace(/\s*\(.*\)$/, '')} ${v}${pct ? '%' : ''}` })
@@ -98,11 +102,24 @@ const varDefs = computed(() => {
     for (const p of allPosts.value) { const v = d.get(p); if (v !== null && v !== undefined) counts.set(v, (counts.get(v) || 0) + 1) }
     const values = [...counts.entries()].sort((x, y) => (d.num ? y[0] - x[0] : y[1] - x[1])).map(([v, n]) => ({ v, n }))
     return { ...d, values }
-  }).filter((d) => d.values.length >= (d.key.startsWith('a:') || d.key === 'class' ? 1 : 2))
+  }).filter((d) => d.values.length >= (d.key.startsWith('a:') || d.key === 'class' || d.key === 'skill' ? 1 : 2))
 })
 function togglePick(d, v) { if (picks[d.key] === v) delete picks[d.key]; else picks[d.key] = v }
 const pickedCount = computed(() => Object.keys(picks).length)
 const matchPicks = (p) => varDefs.value.every((d) => !(d.key in picks) || d.get(p) === picks[d.key])
+
+// 판매글 상세에서 들어오면(?like=글번호) 그 글과 같은 변동 옵션 값으로 미리 걸러 줌
+const likePost = computed(() => (typeof route.query.like === 'string' ? tradeState.posts.find((p) => String(p.id) === route.query.like) || null : null))
+let likeApplied = ''
+watch([likePost, () => varDefs.value.length], () => {
+  const p = likePost.value
+  if (!p || !varDefs.value.length || likeApplied === route.fullPath) return
+  likeApplied = route.fullPath
+  for (const d of varDefs.value) {
+    const v = d.get(p)
+    if (v !== null && v !== undefined) picks[d.key] = v
+  }
+}, { immediate: true })
 
 const posts = computed(() =>
   allPosts.value.filter((p) => (!region.value || p.realm === region.value) && (!ladder.value || p.ladder === ladder.value) && (!hardcore.value || p.hardcore === hardcore.value) && matchPicks(p))

@@ -11,6 +11,7 @@ import {
   TRADE_HARDCORE,
   getTradeItem,
   parsePriceTokens,
+  tradePriceOf,
   STAT_PICKS,
   ALL_STAT_FILTERS,
   statFilterByKey,
@@ -1152,10 +1153,10 @@ const PAGE = 12
 const shown = ref(PAGE)
 // 조건으로 거르기. skip 에 조건 키를 주면 그 조건 하나만 빼고 셈
 // (결과가 0개일 때 "무엇 때문에 0개인지" 를 알려주려고 - AND 자체는 그대로)
-function filterPosts(skip) {
+function filterPosts(skip, status = '판매중') {
   const no = (k) => skip === k
-  // 거래 대기(판매중)인 글만 - 예약중(거래방 진행 중)·거래완료는 아이템별 거래내역에서
-  let list = tradeState.posts.filter((p) => p.status === '판매중')
+  // 기본은 거래 대기(판매중)인 글만 - 거래완료는 아래 최근 거래내역에서 같은 조건으로 따로 봄
+  let list = tradeState.posts.filter((p) => p.status === status)
   if (activeCats.value.length && !no('cat')) list = list.filter((p) => activeCats.value.includes(p.category))
   if (activeRegion.value && !no('realm')) list = list.filter((p) => p.realm === activeRegion.value)
   if (gameVersion.value && !no('game')) list = list.filter((p) => p.gameVersion === gameVersion.value)
@@ -1196,9 +1197,14 @@ function filterPosts(skip) {
   }
   applied.value.statConditions.forEach((c, i) => { if (!no('opt:' + i)) list = list.filter((p) => condMatches(p, c)) })
   // 기간 지난 글은 목록에서 뺌 (판매자는 내 거래에서 재등록) - 최신순
-  return list.filter((p) => !isExpired(p)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  return (status === '판매중' ? list.filter((p) => !isExpired(p)) : list).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 }
 const filteredPosts = computed(() => filterPosts(null))
+// 지금 검색 조건에 맞는 최근 거래완료 글 (이 옵션이 얼마에 팔렸나 보는 용도)
+const RECENT_DONE = 5
+const recentDone = computed(() =>
+  filterPosts(null, '거래완료').sort((a, b) => (b.completedAt || b.date || '').localeCompare(a.completedAt || a.date || '')).slice(0, RECENT_DONE)
+)
 
 // 결과가 0개일 때, 조건을 하나씩 빼보고 몇 개가 되는지 (많이 나오는 순서로 최대 4개)
 // 어느 조건이 0개로 만들었는지 바로 보이고, 눌러서 그 조건만 뺄 수 있음
@@ -1830,7 +1836,6 @@ function variantLines(p) {
     </div>
     <div class="tr-results-head">
       <h2>{{ appliedCount ? $t('검색 결과') : $t('전체 매물') }} <span>{{ filteredPosts.length }}</span>{{ $t('개') }}</h2>
-      <span class="tr-results-note">{{ $t('판매중만 · 끝난 거래는') }} <router-link to="/trade/history">{{ $t('거래내역') }}</router-link></span>
       <span class="tr-gap"></span>
       <div class="view-mode-toggle">
         <button type="button" :class="{ active: viewMode === 'list' }" :title="$t('목록형')" :aria-label="$t('목록형')" @click="setViewMode('list')">☰</button>
@@ -1924,6 +1929,19 @@ function variantLines(p) {
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
       </div>
     </div>
+    <section class="tr-recent" v-if="recentDone.length">
+      <div class="tr-recent-head"><h3>{{ $t('최근 거래내역') }}</h3><router-link to="/trade/history">{{ $t('전체 보기') }}</router-link></div>
+      <router-link class="tr-recent-row" v-for="p in recentDone" :key="p.id" :to="`/trade/${p.id}`">
+        <span class="tr-recent-name">{{ postName(p) }}</span>
+        <span class="tr-recent-opts">{{ variantLines(p).slice(0, 3).map((l) => $affix(l)).join(' · ') }}</span>
+        <span class="tr-recent-price">
+          <template v-for="(t, i) in parsePriceTokens(tradePriceOf(p) || $t('거래가 미기록'))" :key="i">
+            <span class="price-icon" v-if="t.item"><img v-if="iconUrlFor(t.item.icon_key)" :src="iconUrlFor(t.item.icon_key)" alt="" /></span>{{ priceTok(t) }}
+          </template>
+        </span>
+        <span class="tr-recent-date">{{ p.completedAt || p.date }}</span>
+      </router-link>
+    </section>
     <div class="tr-more" ref="moreEl" v-if="hasMore && viewMode !== 'list'">{{ $t('더 불러오는 중…') }}</div>
     </template>
   </div>
@@ -2381,8 +2399,16 @@ function variantLines(p) {
 .tr-results-head{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
 .tr-results-head h2{font-size:18px; margin:0; font-family:'Noto Sans KR', sans-serif; font-weight:800;}
 .tr-results-head h2 span{color:var(--gold);}
-.tr-results-note{font-size:12px; color:var(--text-dim);}
-.tr-results-note a{color:var(--gold-dim); text-decoration:underline;}
+.tr-recent{margin-top:28px; display:flex; flex-direction:column; gap:6px;}
+.tr-recent-head{display:flex; align-items:baseline; justify-content:space-between;}
+.tr-recent-head h3{margin:0; font-size:15px;}
+.tr-recent-head a{font-size:12px; color:var(--text-dim);}
+.tr-recent-row{display:grid; grid-template-columns:minmax(120px, 1.2fr) minmax(0, 2fr) auto auto; gap:12px; align-items:center; padding:9px 12px; background:var(--panel); border:1px solid var(--border-soft); border-radius:8px; color:var(--text); text-decoration:none; font-size:13px;}
+.tr-recent-row:hover{border-color:var(--gold-dim);}
+.tr-recent-opts{color:var(--text-muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.tr-recent-price{color:var(--gold); white-space:nowrap;}
+.tr-recent-date{color:var(--text-dim); font-size:12px; white-space:nowrap;}
+@media (max-width:640px){.tr-recent-row{grid-template-columns:1fr auto;} .tr-recent-opts{grid-column:1 / -1; order:3;}}
 .tr-gap{flex:1;}
 .tr-results-head .quality-toggle{background:var(--gold); border-color:var(--gold); color:#1a1408; font-weight:800;}
 .tr-results-head .quality-toggle:hover{background:#e3cd92;}
@@ -2423,6 +2449,5 @@ function variantLines(p) {
   .tr-body{padding:16px 14px 48px;}
   /* 검색 화면도 같은 여백으로 - 그만큼 카드·매물 줄이 넓어짐 */
   .trade-page.searching .tr-body{padding:16px 14px 48px;}
-  .tr-results-note{display:none;}
 }
 </style>

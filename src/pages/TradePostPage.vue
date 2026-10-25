@@ -305,7 +305,7 @@ async function confirmBuy() {
       </div>
       <div class="trade-post-meta">
         {{ post.author }} · {{ $t('{date} 등록', { date: post.date }) }}<template v-if="post.editedAt"> {{ $t('· 수정됨') }}</template> · {{ $t('조회 {n}', { n: post.views }) }} ·
-        <router-link class="history-link" :to="{ path: '/trade/history', query: post.itemId ? { item: post.itemId } : { name: post.itemName } }">{{ $t('이 아이템 거래내역') }}</router-link>
+        <router-link class="history-link" :to="{ path: '/trade/history', query: { ...(post.itemId ? { item: post.itemId } : { name: post.itemName }), like: post.id } }">{{ $t('이 아이템 거래내역') }}</router-link>
       </div>
     </div>
 
