@@ -4,7 +4,15 @@
   "seasonName": "래더 시즌 15",
   "status": "진행 중",
   "startDate": "2026-08-22 오전 9시 (한국)",
-  "endDateEstimate": "미발표",
+  "endDateEstimate": "11월 23일(월) 예상, 미발표",
+  "schedule": {
+    "estimate": true,
+    "nextSeason": 16,
+    "nextPatch": "3.4",
+    "endAt": "2026-11-23T00:00:00+09:00",
+    "patchAt": "2026-11-24T00:00:00+09:00",
+    "openAt": "2026-11-28T09:00:00+09:00"
+  },
   "patchVersion": "3.3",
   "highlights": [
     "이전 레더 전용 룬워드 8종 논레더에도 풀림: 탈태, 접지, 담금질, 화로, 치료, 방벽, 광기, 발작",
