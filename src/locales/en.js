@@ -238,6 +238,7 @@ export default {
   '룬': 'Runes',
   '퍼펙트 보석': 'Perfect gems',
   '우버보스 재료': 'Uber materials',
+  '우버 재료': 'Uber Materials',
   '정수·징표': 'Essences & Token',
   '골드': 'Gold',
   '유니크/세트': 'Unique/Set',
