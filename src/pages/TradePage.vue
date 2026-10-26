@@ -1199,10 +1199,10 @@ function filterPosts(skip, status = '판매중') {
   return (status === '판매중' ? list.filter((p) => !isExpired(p)) : list).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 }
 const filteredPosts = computed(() => filterPosts(null))
-// 지금 검색 조건에 맞는 최근 거래완료 글 (이 옵션이 얼마에 팔렸나 보는 용도)
+// 고른 아이템의 최근 거래완료 글 - 옵션 조건까지 걸려 있으면 그 조건만 (아이템 없이 옵션만으론 안 보여줌)
 const RECENT_DONE = 5
 const recentDone = computed(() =>
-  filterPosts(null, '거래완료').sort((a, b) => (b.completedAt || b.date || '').localeCompare(a.completedAt || a.date || '')).slice(0, RECENT_DONE)
+  !pickedItem.value ? [] : filterPosts(null, '거래완료').sort((a, b) => (b.completedAt || b.date || '').localeCompare(a.completedAt || a.date || '')).slice(0, RECENT_DONE)
 )
 
 // 결과가 0개일 때, 조건을 하나씩 빼보고 몇 개가 되는지 (많이 나오는 순서로 최대 4개)
@@ -1927,7 +1927,7 @@ function variantLines(p) {
         <button type="button" class="empty-clear" v-if="appliedCount" @click="resetFilters()">{{ $t('모두 지우기') }}</button>
       </div>
     </div>
-    <section class="tr-recent" v-if="recentDone.length || appliedCount">
+    <section class="tr-recent" v-if="pickedItem">
       <div class="tr-recent-head"><h3>{{ $t('최근 거래내역') }}</h3></div>
       <p class="tr-recent-empty" v-if="!recentDone.length">{{ $t('해당 조건 거래 없음') }}</p>
       <router-link class="tr-recent-row" v-for="p in recentDone" :key="p.id" :to="`/trade/${p.id}`">
