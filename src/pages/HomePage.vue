@@ -197,7 +197,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
         <section class="hm-panel">
           <div class="hm-head small"><h3>{{ $t('패치노트') }}</h3><router-link to="/patch">{{ $t('더보기') }}</router-link></div>
           <router-link v-for="n in latestPatches" :key="n.id" to="/patch" class="hm-line">
-            <span class="hm-line-title">{{ n.title }}</span><span class="hm-date">{{ shortDate(n.date) }}</span>
+            <span class="hm-line-title">{{ $t(n.title) }}</span><span class="hm-date">{{ shortDate(n.date) }}</span>
           </router-link>
         </section>
       </aside>

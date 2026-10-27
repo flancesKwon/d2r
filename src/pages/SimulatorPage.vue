@@ -860,7 +860,7 @@ const tabSpent = computed(() => classTabs.value.map((tab, tabIdx) => tab.skills.
                   @focus="showSkillTooltip(tabIdx, n.skillIdx, $event)"
                   @blur="hideSkillTooltip"
                 >
-                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art hd-frame" :src="realIconUrl(selectedClass, n.skill.name)" :alt="n.skill.name" draggable="false" />
+                  <img v-if="realIconUrl(selectedClass, n.skill.name)" class="sim-node-art hd-frame" :src="realIconUrl(selectedClass, n.skill.name)" :alt="skillDisplayName(n.skill.name)" draggable="false" />
                   <svg v-else class="sim-node-art-fallback" viewBox="0 0 24 24" v-html="SKILL_ICONS[n.icon]"></svg>
                 </button>
                 <span class="sim-node-badge" v-if="skillPoint(tabIdx, n.skillIdx) > 0">{{ skillPoint(tabIdx, n.skillIdx) }}</span>
