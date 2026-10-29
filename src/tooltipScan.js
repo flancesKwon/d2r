@@ -109,11 +109,15 @@ export function matchTooltip(scan) {
     base = searchBaseItems(scan.base_name, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
   }
 
+  // 룬워드 방어구는 툴팁 방어력에 "방어력 +N" 옵션이 합쳐져 있음 - 폼의 기본 방어력은 그걸 뺀 베이스 값
+  const acIdx = affixes.findIndex((a) => a.prop === 'ac')
+  const defense = item.category === 'runeword' && scan.defense && acIdx >= 0 ? (rolled[acIdx] ? scan.defense - Number(rolled[acIdx]) : null) : scan.defense
+
   return {
     item,
     base,
     ethereal: scan.ethereal,
-    defense: scan.defense,
+    defense,
     dmgMin: scan.damage_min,
     dmgMax: scan.damage_max,
     rolled,
