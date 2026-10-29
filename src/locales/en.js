@@ -1991,4 +1991,16 @@ export default {
   '주얼 옵션 선택': 'pick jewel affixes',
   '유니크 주얼 선택·수치 입력': 'pick unique jewel and enter values',
   '보석 선택': 'pick a gem',
+  // ── 툴팁 캡쳐로 판매글 채우기
+  '툴팁 캡쳐로 채우기': 'Fill from tooltip screenshot',
+  '읽는 중…': 'Reading…',
+  '또는 캡쳐를 Ctrl+V': 'or paste a screenshot with Ctrl+V',
+  '툴팁을 찾지 못함': 'No tooltip found in the image',
+  '사전에 없는 아이템 - 직접 입력 ({n})': 'Item not in the database - enter it manually ({n})',
+  '읽은 내용을 확인해 주세요': 'Please check what was read',
+  '읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}': 'Please check what was read. Lines not matched: {n}',
+  '이미지 형식 오류': 'Unsupported image',
+  '이미지가 너무 큼': 'Image is too large',
+  '하루 사용 횟수를 넘음': 'Daily limit reached',
+  '툴팁 읽기 실패': 'Could not read the tooltip',
 }

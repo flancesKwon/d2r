@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { askConfirm } from '../dialog.js'
 import { tradePrefs } from '../tradePrefs.js'
@@ -67,6 +67,7 @@ import { authState, signIn } from '../profileStore.js'
 import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
 import { modeText } from '../tradeI18n.js'
+import { readTooltipImage, matchTooltip } from '../tooltipScan.js'
 // 베이스 이름 - 영어면 영어 이름만
 const baseLabel = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle || baseItemLabel(b))
 const baseNameOf = (b) => (locale.value === 'ko' ? b.name_ko || b.subtitle : b.subtitle || b.name_ko)
@@ -802,6 +803,50 @@ onMounted(() => {
   const it = typeof route.query.item === 'string' ? getTradeItem(route.query.item) : null
   if (it && !form.value.itemId) pickItem(it)
 })
+// 툴팁 캡쳐(올리기·붙여넣기)를 읽어 아이템과 옵션 수치를 채움 - 사전 아이템(유니크·세트·룬워드 등)만, 채운 뒤 판매자가 확인
+const scanning = ref(false)
+const scanNote = ref('')
+async function fillFromTooltip(file) {
+  if (scanning.value) return
+  scanning.value = true
+  scanNote.value = ''
+  try {
+    const scan = await readTooltipImage(file)
+    if (!scan.found) { scanNote.value = t('툴팁을 찾지 못함'); return }
+    const r = matchTooltip(scan)
+    if (!r.item) { scanNote.value = t('사전에 없는 아이템 - 직접 입력 ({n})', { n: scan.name }); return }
+    pickItem(r.item)
+    if (r.base) pickBaseItem(r.base)
+    form.value.ethereal = r.ethereal
+    await nextTick()
+    rolledValues.value = r.rolled
+    randClassChoice.value = r.randClass
+    if (effectiveBaseKind.value === 'armor' && r.defense) armorStats.value.baseDefense = String(r.defense)
+    if (effectiveBaseKind.value === 'weapon' && r.dmgMin && r.dmgMax) Object.assign(armorStats.value, { dmgMin: String(r.dmgMin), dmgMax: String(r.dmgMax) })
+    scanNote.value = r.unmatched.length
+      ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: r.unmatched.join(' / ') })
+      : t('읽은 내용을 확인해 주세요')
+  } catch (e) {
+    scanNote.value = t(e.message)
+  } finally {
+    scanning.value = false
+  }
+}
+function onScanFile(e) {
+  const file = e.target.files[0]
+  e.target.value = ''
+  if (file) fillFromTooltip(file)
+}
+// 어디서든 Ctrl+V 로 이미지를 붙이면 읽음 (글 본문 편집기에 붙이는 건 그쪽이 받음)
+function onPasteImage(e) {
+  const file = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'))
+  if (!file || e.target.closest?.('.ProseMirror') || bundleMode.value) return
+  e.preventDefault()
+  fillFromTooltip(file)
+}
+onMounted(() => window.addEventListener('paste', onPasteImage))
+onBeforeUnmount(() => window.removeEventListener('paste', onPasteImage))
+
 function clearPickedItem() {
   form.value.itemId = null
   form.value.itemName = ''
@@ -1096,6 +1141,14 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
 
       <template v-if="!bundleMode">
       <div class="option-editor-title">{{ $t('아이템명') }}<span class="required-mark">*</span></div>
+      <div class="tooltip-scan">
+        <label class="tooltip-scan-btn" :class="{ disabled: scanning }">
+          {{ scanning ? $t('읽는 중…') : $t('툴팁 캡쳐로 채우기') }}
+          <input type="file" accept="image/*" hidden :disabled="scanning" @change="onScanFile" />
+        </label>
+        <small>{{ $t('또는 캡쳐를 Ctrl+V') }}</small>
+        <p v-if="scanNote" class="tooltip-scan-note">{{ scanNote }}</p>
+      </div>
       <div class="item-picker trade-item-input">
         <div v-if="selectedItem" class="item-picker-selected">
           <span class="item-picker-icon" :class="rarityClass(selectedItem)"><img v-if="iconUrlFor(selectedItem.icon_key)" :src="iconUrlFor(selectedItem.icon_key)" alt="" /></span>
@@ -1700,6 +1753,12 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
 .item-picker-change:hover{border-color:var(--gold-dim); color:var(--gold);}
 .item-picker-clear{color:var(--text-dim); font-size:12px; flex:none;}
 .item-picker-clear:hover{color:var(--blood);}
+.tooltip-scan{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin-bottom:8px;}
+.tooltip-scan-btn{cursor:pointer; color:var(--text-dim); font-size:12px; border:1px solid var(--border); padding:5px 14px; border-radius:999px;}
+.tooltip-scan-btn:hover{border-color:var(--gold-dim); color:var(--gold);}
+.tooltip-scan-btn.disabled{opacity:.6; cursor:default;}
+.tooltip-scan small{color:var(--text-dim); font-size:11px;}
+.tooltip-scan-note{flex-basis:100%; margin:0; font-size:12px; color:var(--gold-dim);}
 .item-picker-trigger{
   width:100%; text-align:left; font-size:13px; color:var(--text-dim); background:var(--panel);
   border:1px dashed var(--border); padding:13px 16px; border-radius:10px; font-family:'Noto Sans KR', sans-serif;
