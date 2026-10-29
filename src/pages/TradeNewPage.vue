@@ -68,7 +68,7 @@ import { authState, signIn } from '../profileStore.js'
 import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
 import { modeText } from '../tradeI18n.js'
-import { readTooltipImage, matchTooltip } from '../tooltipScan.js'
+import { readTooltipImage, matchTooltip, matchEquipTooltip } from '../tooltipScan.js'
 // 베이스 이름 - 영어면 영어 이름만
 const baseLabel = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle || baseItemLabel(b))
 const baseNameOf = (b) => (locale.value === 'ko' ? b.name_ko || b.subtitle : b.subtitle || b.name_ko)
@@ -815,7 +815,12 @@ async function fillFromTooltip(file) {
     const scan = await readTooltipImage(file)
     if (!scan.found) { scanNote.value = t('툴팁을 찾지 못함'); return }
     const r = matchTooltip(scan)
-    if (!r.item) { scanNote.value = t('사전에 없는 아이템 - 직접 입력 ({n})', { n: scan.name }); return }
+    if (!r.item) {
+      const eq = matchEquipTooltip(scan)
+      if (!eq) { scanNote.value = t('사전에 없는 아이템 - 직접 입력 ({n})', { n: scan.name }); return }
+      await fillEquipFromTooltip(eq)
+      return
+    }
     pickItem(r.item)
     if (r.base) pickBaseItem(r.base)
     form.value.ethereal = r.ethereal
@@ -839,6 +844,34 @@ async function fillFromTooltip(file) {
   } finally {
     scanning.value = false
   }
+}
+// 일반·매직·레어 장비: 베이스·품질·에테리얼·소켓 여부만 채움 (매직·레어 옵션과 박힌 보석·주얼은 안 읽음)
+async function fillEquipFromTooltip(eq) {
+  const base = eq.base || MISC_BASES.find((b) => b.name_ko === eq.misc)
+  pickEquipBase(base, eq.quality)
+  form.value.ethereal = eq.ethereal
+  await nextTick()
+  const notes = [...eq.unmatched]
+  if (eq.quality === 'normal') {
+    const combo = superiorCombos.value.findIndex((c) => superiorComboKey(c) === superiorComboKey(eq.superior.mods))
+    if (eq.superior.mods.length && combo >= 0) superiorPick.value = { combo, values: eq.superior.values }
+    if (effectiveBaseKind.value === 'armor' && eq.defense) armorStats.value.baseDefense = String(eq.defense)
+    if (effectiveBaseKind.value === 'weapon' && eq.dmgMin && eq.dmgMax) Object.assign(armorStats.value, { dmgMin: String(eq.dmgMin), dmgMax: String(eq.dmgMax) })
+  }
+  if (eq.sockets > 0) {
+    if (eq.quality === 'normal' && eq.sockets <= uniqueMaxSockets.value) uniqueSockets.value = String(eq.sockets)
+    else if (eq.quality !== 'normal' && socketAffixFam.value && eq.sockets >= socketAffixRange.value[0] && eq.sockets <= socketAffixRange.value[1]) {
+      socketSource.value = 'affix'
+      socketAffixCount.value = String(eq.sockets)
+    } else if (eq.quality !== 'normal' && eq.sockets <= larzukMax.value) {
+      socketSource.value = 'larzuk'
+      uniqueSockets.value = String(eq.sockets)
+    } else notes.push(t('소켓 {n}개', { n: eq.sockets }))
+  }
+  const quality = t(eq.quality === 'normal' ? '일반' : eq.quality === 'magic' ? '매직' : '레어')
+  scanNote.value = eq.quality === 'normal'
+    ? (notes.length ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: notes.join(' / ') }) : t('읽은 내용을 확인해 주세요'))
+    : t('{q} 장비 - 베이스와 소켓 여부만 읽었어요. 옵션은 직접 골라 주세요', { q: quality }) + (notes.length ? ` (${notes.join(' / ')})` : '')
 }
 function onScanFile(e) {
   const file = e.target.files[0]

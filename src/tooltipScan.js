@@ -1,7 +1,8 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
+import magicAffixData from './data/magicAffixes.json'
 import {
-  findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, CLASS_SKILL_NAMES,
+  findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, BASE_ITEMS, CLASS_SKILL_NAMES,
   SUPERIOR_MODS, superiorCombosFor,
 } from './tradeStore.js'
 
@@ -76,6 +77,19 @@ const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('
 // 이름 줄 끝의 * 같은 표시와 따옴표·괄호 기호는 이름이 아님
 const cleanName = (s) => s.replace(/[*'"\[\]【】]/g, '').trim()
 
+// 상급(방어력 증가·피해 증가·명중률 줄이 보이는 것)은 남은 줄에서 읽음. 최대 내구도는 줄로 안 나와서 못 읽음
+function readSuperior(base, lines, used, rejected) {
+  const superior = { mods: [], values: {} }
+  for (const k of new Set(superiorCombosFor(base).flat())) {
+    const mod = SUPERIOR_MODS[k]
+    const hit = findRoll({ ...mod, text: mod.text.replace('{v}', `${mod.min}~${mod.max}`) }, lines, used)
+    if (!hit) continue
+    used.add(hit.idx)
+    if (isAllowedValue(hit.v, mod)) { superior.mods.push(k); superior.values[k] = hit.v } else rejected.push(lines[hit.idx])
+  }
+  return superior
+}
+
 // 이름이 같은 아이템이 여럿이면 못 맞춘 줄이 가장 적은 쪽
 export function matchTooltip(scan) {
   const results = findItemsByReadName(cleanName(scan.name)).map((item) => matchItem(item, scan))
@@ -123,17 +137,7 @@ function matchItem(item, scan) {
     base = searchBaseItems(baseName, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
   }
 
-  // 상급(방어력 증가·피해 증가·명중률 줄이 보이는 것)은 남은 줄에서 읽음. 최대 내구도는 줄로 안 나와서 못 읽음
-  const superior = { mods: [], values: {} }
-  if (base) {
-    for (const k of new Set(superiorCombosFor(base).flat())) {
-      const mod = SUPERIOR_MODS[k]
-      const hit = findRoll({ ...mod, text: mod.text.replace('{v}', `${mod.min}~${mod.max}`) }, lines, used)
-      if (!hit) continue
-      used.add(hit.idx)
-      if (isAllowedValue(hit.v, mod)) { superior.mods.push(k); superior.values[k] = hit.v } else rejected.push(lines[hit.idx])
-    }
-  }
+  const superior = base ? readSuperior(base, lines, used, rejected) : { mods: [], values: {} }
 
   // 최대 내구도가 베이스보다 크면 상급 내구도 증가가 붙은 것 - 줄로 안 나와서 %는 못 정함 (조합만 고름, 에테리얼·내구도 옵션이 있으면 비교가 안 맞아 건너뜀)
   const hasDurAffix = affixes.some((a) => /dur/.test(a.prop))
@@ -157,4 +161,65 @@ function matchItem(item, scan) {
     randClass,
     unmatched: [...rejected, ...lines.filter((_, j) => !used.has(j))],
   }
+}
+
+// 일반·매직·레어 장비는 사전 아이템이 아님 - 베이스와 품질만 찾음
+// 일반: 첫 줄이 베이스 이름 / 레어: 둘째 줄이 베이스 이름 / 매직: 첫 줄 "접두 베이스 접미" 안에 베이스 이름이 들어 있음
+// -> { base, misc(반지·목걸이 등 베이스 이름), quality, ethereal, defense, dmgMin, dmgMax, superior, sockets, unmatched } | null
+// 매직·레어는 옵션을 안 읽음 (소켓 여부만)
+function editDistance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = cur
+  }
+  return prev[b.length]
+}
+// fuzzy: 모델이 글자를 한두 개 틀리게 읽거나 사전 한글 이름이 게임과 조금 달라도, 가장 가까운 베이스가 하나일 때 그걸로 봄
+function findBaseByName(text, fuzzy = false) {
+  const k = squashText(text.replace(/^(상급|superior)\s*/i, ''))
+  if (!k) return null
+  const base = BASE_ITEMS.find((b) => [b.name_ko, b.alt_ko, b.subtitle].some((n) => n && squashText(n) === k))
+  if (base) return { base }
+  if (fuzzy && k.length >= 5) {
+    const scored = BASE_ITEMS.map((b) => ({ b, d: Math.min(...[b.name_ko, b.alt_ko].filter(Boolean).map((n) => editDistance(squashText(n), k))) })).sort((x, y) => x.d - y.d)
+    if (scored[0].d <= 2 && scored[1].d > scored[0].d) return { base: scored[0].b }
+  }
+  const misc = magicAffixData.miscBases.find((b) => squashText(b.name_ko) === k)
+  return misc ? { misc: misc.name_ko } : null
+}
+function findBaseInMagicName(name) {
+  const words = name.split(/\s+/).filter(Boolean)
+  for (let len = words.length; len >= 1; len--) {
+    for (let i = 0; i + len <= words.length; i++) {
+      const hit = findBaseByName(words.slice(i, i + len).join(' '))
+      if (hit) return hit
+    }
+  }
+  return null
+}
+
+export function matchEquipTooltip(scan) {
+  const name = cleanName(scan.name)
+  const baseLine = scan.base_name ? cleanName(scan.base_name) : ''
+  let quality = 'normal'
+  let hit = findBaseByName(name)
+  if (!hit && baseLine) { hit = findBaseByName(baseLine, true); quality = 'rare' }
+  if (!hit) { hit = findBaseInMagicName(name); quality = 'magic' }
+  if (!hit && !baseLine) { hit = findBaseByName(name, true); quality = 'normal' }
+  if (!hit) return null
+
+  const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
+  const used = new Set()
+  const rejected = []
+  const out = { ...hit, quality, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
+  if (quality === 'normal' && hit.base) {
+    out.superior = readSuperior(hit.base, lines, used, rejected)
+    out.defense = scan.defense
+    out.dmgMin = scan.damage_min
+    out.dmgMax = scan.damage_max
+    out.unmatched = [...rejected, ...lines.filter((_, j) => !used.has(j))]
+  }
+  return out
 }
