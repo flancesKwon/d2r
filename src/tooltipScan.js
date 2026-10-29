@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import {
-  searchAllItems, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, CLASS_SKILL_NAMES,
+  findItemByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, CLASS_SKILL_NAMES,
   SUPERIOR_MODS, superiorCombosFor,
 } from './tradeStore.js'
 
@@ -77,8 +77,7 @@ const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('
 const cleanName = (s) => s.replace(/[*'"\[\]【】]/g, '').trim()
 
 export function matchTooltip(scan) {
-  const key = squashText(cleanName(scan.name))
-  const item = searchAllItems(cleanName(scan.name)).find((it) => squashText(it.name_ko) === key) || null
+  const item = findItemByReadName(cleanName(scan.name))
   if (!item) return { item: null, unmatched: [] }
 
   const lines = scan.lines.map((l) => l.trim()).filter(Boolean)

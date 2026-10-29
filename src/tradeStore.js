@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { itemMatchesQuery, shortEnglishMatch, HANGUL } from './itemSearch.js'
+import { itemMatchesQuery, squashText, shortEnglishMatch, HANGUL } from './itemSearch.js'
 import itemsData from './data/items.json'
 import statFilterData from './data/statFilters.json'
 import { buildRuneLookup, runewordRuneAffixes, runewordSlots, runePips } from './itemStats.js'
@@ -184,6 +184,18 @@ export const DEFAULT_GAME_VERSION = GAME_VERSIONS[0]
 export function searchAllItems(query) {
   if (!query.trim()) return []
   return ALL_TRADE_ITEMS.filter((it) => itemMatchesQuery(it, query)).slice(0, 40)
+}
+
+// 캡쳐를 읽다 한 글자 틀린 이름("흿빛" / "핏빛")도 찾음 - 같은 길이에 한 글자만 다른 아이템이 딱 하나일 때만
+export function findItemByReadName(name) {
+  const key = squashText(name)
+  const exact = searchAllItems(name).find((it) => squashText(it.name_ko) === key)
+  if (exact) return exact
+  const near = ALL_TRADE_ITEMS.filter((it) => {
+    const k = squashText(it.name_ko)
+    return k.length === key.length && [...k].filter((c, i) => c !== key[i]).length === 1
+  })
+  return near.length === 1 ? near[0] : null
 }
 
 export function tradeCategoryForItem(item) {
