@@ -38,11 +38,29 @@ function affixPattern(a) {
   return new RegExp(`^${escapeRe(text.slice(0, at))}(\\d+)${escapeRe(text.slice(at + range.length))}$`)
 }
 
+// 게임 툴팁은 사전과 어순이 다를 수 있음 ("피해 +280% 증가" / "피해 증가 +230~280%") -> 숫자·기호를 뺀 낱말 묶음이 같은지로도 봄
+// 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침"
+const wordKey = (s) => s
+  .replace(/\([^)]*전용\)/g, ' ')
+  .replace(/\s기술(?=\s*\+\d)/g, ' ')
+  .replace('흡혈', '훔침')
+  .replace(/[\d+\-~%().]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ')
+const numbersIn = (s) => s.match(/\d+/g) || []
+
+// 어순이 다른 줄에서 수치 읽기: 범위 밖의 고정 숫자(예: "15 레벨")를 빼고 하나 남을 때만
+function looseValue(a, line) {
+  if (wordKey(a.text) !== wordKey(line)) return null
+  const fixed = numbersIn(a.text.replace(`${a.min}~${a.max}`, ''))
+  const rest = numbersIn(line).filter((n) => { const i = fixed.indexOf(n); return i < 0 || !fixed.splice(i, 1) })
+  return rest.length === 1 ? rest[0] : null
+}
+
 const CLASS_CODE_BY_NAME = Object.fromEntries(Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => [name, code]))
 const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('|')}) 기술 레벨 \\+(\\d+)$`)
 
 // 읽은 결과를 사전 아이템에 맞춰 폼에 넣을 값으로 바꿈. 사전에서 못 찾은 것은 unmatched 로 돌려줌
 // -> { item, base, ethereal, defense, dmgMin, dmgMax, rolled: {옵션 번호: 수치}, randClass: {옵션 번호: 직업 코드}, unmatched: [줄] }
+// unmatched = 사전에 없는 줄 + 읽은 수치가 사전 범위를 벗어난 줄 (판매자가 확인)
 export function matchTooltip(scan) {
   const key = squashText(scan.name)
   const item = searchAllItems(scan.name).find((it) => squashText(it.name_ko) === key) || null
@@ -51,6 +69,7 @@ export function matchTooltip(scan) {
   const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
   const used = new Set()
   const rolled = {}
+  const rejected = []
   const randClass = {}
   const affixes = getItemAffixes(item)
   affixes.forEach((a, i) => {
@@ -61,20 +80,27 @@ export function matchTooltip(scan) {
       used.add(idx)
       randClass[i] = CLASS_CODE_BY_NAME[className]
       if (isAllowedValue(level, a)) rolled[i] = level
+      else rejected.push(lines[idx])
       return
     }
     if (!isRollRangeAffix(a)) return
     const re = affixPattern(a)
-    const idx = lines.findIndex((l, j) => !used.has(j) && re.test(squashText(l)))
+    let v = null
+    let idx = lines.findIndex((l, j) => !used.has(j) && re.test(squashText(l)))
+    if (idx >= 0) v = re.exec(squashText(lines[idx]))[1]
+    else {
+      idx = lines.findIndex((l, j) => !used.has(j) && looseValue(a, l) !== null)
+      if (idx >= 0) v = looseValue(a, lines[idx])
+    }
     if (idx < 0) return
     used.add(idx)
-    const v = re.exec(squashText(lines[idx]))[1]
     if (isAllowedValue(v, a)) rolled[i] = v
+    else rejected.push(lines[idx])
   })
 
   // 수치가 고정인 줄은 사전 문구와 같으면 읽힌 것으로 침
-  const fixed = new Set(affixes.filter((a) => !isRollRangeAffix(a)).map((a) => squashText(a.text)))
-  lines.forEach((l, j) => fixed.has(squashText(l)) && used.add(j))
+  const fixed = new Set(affixes.filter((a) => !isRollRangeAffix(a)).map((a) => wordKey(a.text)))
+  lines.forEach((l, j) => fixed.has(wordKey(l)) && used.add(j))
 
   // 룬워드는 베이스를 골라야 함 - 허용되는 베이스 중 이름이 같은 것
   let base = null
@@ -92,6 +118,6 @@ export function matchTooltip(scan) {
     dmgMax: scan.damage_max,
     rolled,
     randClass,
-    unmatched: lines.filter((_, j) => !used.has(j)),
+    unmatched: [...rejected, ...lines.filter((_, j) => !used.has(j))],
   }
 }
