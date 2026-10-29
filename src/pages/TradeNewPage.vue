@@ -826,6 +826,11 @@ async function fillFromTooltip(file) {
     randClassChoice.value = r.randClass
     if (effectiveBaseKind.value === 'armor' && r.defense) armorStats.value.baseDefense = String(r.defense)
     if (effectiveBaseKind.value === 'weapon' && r.dmgMin && r.dmgMax) Object.assign(armorStats.value, { dmgMin: String(r.dmgMin), dmgMax: String(r.dmgMax) })
+    const sockets = scan.sockets || 0
+    if (sockets > 0 && !isRuneword.value) {
+      if (sockets <= uniqueMaxSockets.value) uniqueSockets.value = String(sockets)
+      else r.unmatched.push(t('소켓 {n}개', { n: sockets }))
+    }
     scanNote.value = r.unmatched.length
       ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: r.unmatched.join(' / ') })
       : t('읽은 내용을 확인해 주세요')
