@@ -90,6 +90,14 @@ function readSuperior(base, lines, used, rejected) {
   return superior
 }
 
+// 최대 내구도가 베이스보다 크면 상급 내구도 증가가 붙은 것 - 줄로 안 나와서 %는 못 정함 (조합만 고름, 에테리얼·내구도 옵션이 있으면 비교가 안 맞아 건너뜀)
+function addSuperiorDurability(superior, base, scan, affixes) {
+  const hasDurAffix = affixes.some((a) => /dur/.test(a.prop))
+  if (base && !scan.ethereal && !hasDurAffix && scan.durability_max > base.base_stats.durability && superiorCombosFor(base).flat().includes('dur%')) {
+    superior.mods.push('dur%')
+  }
+}
+
 // 이름이 같은 아이템이 여럿이면 못 맞춘 줄이 가장 적은 쪽
 export function matchTooltip(scan) {
   const results = findItemsByReadName(cleanName(scan.name)).map((item) => matchItem(item, scan))
@@ -139,11 +147,7 @@ function matchItem(item, scan) {
 
   const superior = base ? readSuperior(base, lines, used, rejected) : { mods: [], values: {} }
 
-  // 최대 내구도가 베이스보다 크면 상급 내구도 증가가 붙은 것 - 줄로 안 나와서 %는 못 정함 (조합만 고름, 에테리얼·내구도 옵션이 있으면 비교가 안 맞아 건너뜀)
-  const hasDurAffix = affixes.some((a) => /dur/.test(a.prop))
-  if (base && !scan.ethereal && !hasDurAffix && scan.durability_max > base.base_stats.durability && superiorCombosFor(base).flat().includes('dur%')) {
-    superior.mods.push('dur%')
-  }
+  addSuperiorDurability(superior, base, scan, affixes)
 
   // 룬워드 방어구는 툴팁 방어력에 "방어력 +N" 옵션이 합쳐져 있음 - 폼의 기본 방어력은 그걸 뺀 베이스 값
   const acIdx = affixes.findIndex((a) => a.prop === 'ac')
@@ -216,6 +220,7 @@ export function matchEquipTooltip(scan) {
   const out = { ...hit, quality, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
   if (quality === 'normal' && hit.base) {
     out.superior = readSuperior(hit.base, lines, used, rejected)
+    addSuperiorDurability(out.superior, hit.base, scan, [])
     out.defense = scan.defense
     out.dmgMin = scan.damage_min
     out.dmgMax = scan.damage_max
