@@ -39,7 +39,12 @@ function affixPattern(a) {
 }
 
 // 게임 툴팁은 사전과 어순이 다를 수 있음 ("피해 +280% 증가" / "피해 증가 +230~280%") -> 숫자·기호를 뺀 낱말 묶음이 같은지로도 봄
-const wordKey = (s) => s.replace(/[\d+\-~%().]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ')
+// 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침"
+const wordKey = (s) => s
+  .replace(/\([^)]*전용\)/g, ' ')
+  .replace(/\s기술(?=\s*\+\d)/g, ' ')
+  .replace('흡혈', '훔침')
+  .replace(/[\d+\-~%().]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ')
 const numbersIn = (s) => s.match(/\d+/g) || []
 
 // 어순이 다른 줄에서 수치 읽기: 범위 밖의 고정 숫자(예: "15 레벨")를 빼고 하나 남을 때만
