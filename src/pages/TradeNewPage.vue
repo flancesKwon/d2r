@@ -42,6 +42,7 @@ import {
   hasFixedBaseStat,
   superiorCombosFor,
   superiorComboLabel,
+  superiorComboKey,
   SUPERIOR_MODS,
   isAllowedValue,
   isCurrencyItem,
@@ -819,6 +820,8 @@ async function fillFromTooltip(file) {
     if (r.base) pickBaseItem(r.base)
     form.value.ethereal = r.ethereal
     await nextTick()
+    const combo = superiorCombos.value.findIndex((c) => superiorComboKey(c) === superiorComboKey(r.superior.mods))
+    if (r.superior.mods.length && combo >= 0) superiorPick.value = { combo, values: r.superior.values }
     rolledValues.value = r.rolled
     randClassChoice.value = r.randClass
     if (effectiveBaseKind.value === 'armor' && r.defense) armorStats.value.baseDefense = String(r.defense)

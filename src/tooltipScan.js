@@ -2,6 +2,7 @@ import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import {
   searchAllItems, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, CLASS_SKILL_NAMES,
+  SUPERIOR_MODS, superiorCombosFor,
 } from './tradeStore.js'
 
 const MAX_SIDE = 1600
@@ -55,11 +56,20 @@ function looseValue(a, line) {
   return rest.length === 1 ? rest[0] : null
 }
 
+// 아직 안 쓴 줄 중에서 이 옵션의 수치가 든 줄 찾기 -> { idx, v } (사전 어순 그대로 먼저, 안 되면 낱말로)
+function findRoll(a, lines, used) {
+  const re = affixPattern(a)
+  const strict = lines.findIndex((l, j) => !used.has(j) && re.test(squashText(l)))
+  if (strict >= 0) return { idx: strict, v: re.exec(squashText(lines[strict]))[1] }
+  const loose = lines.findIndex((l, j) => !used.has(j) && looseValue(a, l) !== null)
+  return loose >= 0 ? { idx: loose, v: looseValue(a, lines[loose]) } : null
+}
+
 const CLASS_CODE_BY_NAME = Object.fromEntries(Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => [name, code]))
 const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('|')}) 기술 레벨 \\+(\\d+)$`)
 
 // 읽은 결과를 사전 아이템에 맞춰 폼에 넣을 값으로 바꿈. 사전에서 못 찾은 것은 unmatched 로 돌려줌
-// -> { item, base, ethereal, defense, dmgMin, dmgMax, rolled: {옵션 번호: 수치}, randClass: {옵션 번호: 직업 코드}, unmatched: [줄] }
+// -> { item, base, ethereal, defense, dmgMin, dmgMax, superior: {mods, values}, rolled: {옵션 번호: 수치}, randClass: {옵션 번호: 직업 코드}, unmatched: [줄] }
 // unmatched = 사전에 없는 줄 + 읽은 수치가 사전 범위를 벗어난 줄 (판매자가 확인)
 export function matchTooltip(scan) {
   const key = squashText(scan.name)
@@ -84,18 +94,11 @@ export function matchTooltip(scan) {
       return
     }
     if (!isRollRangeAffix(a)) return
-    const re = affixPattern(a)
-    let v = null
-    let idx = lines.findIndex((l, j) => !used.has(j) && re.test(squashText(l)))
-    if (idx >= 0) v = re.exec(squashText(lines[idx]))[1]
-    else {
-      idx = lines.findIndex((l, j) => !used.has(j) && looseValue(a, l) !== null)
-      if (idx >= 0) v = looseValue(a, lines[idx])
-    }
-    if (idx < 0) return
-    used.add(idx)
-    if (isAllowedValue(v, a)) rolled[i] = v
-    else rejected.push(lines[idx])
+    const hit = findRoll(a, lines, used)
+    if (!hit) return
+    used.add(hit.idx)
+    if (isAllowedValue(hit.v, a)) rolled[i] = hit.v
+    else rejected.push(lines[hit.idx])
   })
 
   // 수치가 고정인 줄은 사전 문구와 같으면 읽힌 것으로 침
@@ -105,8 +108,22 @@ export function matchTooltip(scan) {
   // 룬워드는 베이스를 골라야 함 - 허용되는 베이스 중 이름이 같은 것
   let base = null
   if (item.category === 'runeword' && scan.base_name) {
-    const bk = squashText(scan.base_name)
-    base = searchBaseItems(scan.base_name, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+    // 상급 베이스는 이름 앞에 "상급"이 붙음
+    const baseName = scan.base_name.replace(/^(상급|superior)\s*/i, '')
+    const bk = squashText(baseName)
+    base = searchBaseItems(baseName, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+  }
+
+  // 상급(방어력 증가·피해 증가·명중률 줄이 보이는 것)은 남은 줄에서 읽음. 최대 내구도는 줄로 안 나와서 못 읽음
+  const superior = { mods: [], values: {} }
+  if (base) {
+    for (const k of new Set(superiorCombosFor(base).flat())) {
+      const mod = SUPERIOR_MODS[k]
+      const hit = findRoll({ ...mod, text: mod.text.replace('{v}', `${mod.min}~${mod.max}`) }, lines, used)
+      if (!hit) continue
+      used.add(hit.idx)
+      if (isAllowedValue(hit.v, mod)) { superior.mods.push(k); superior.values[k] = hit.v } else rejected.push(lines[hit.idx])
+    }
   }
 
   // 룬워드 방어구는 툴팁 방어력에 "방어력 +N" 옵션이 합쳐져 있음 - 폼의 기본 방어력은 그걸 뺀 베이스 값
@@ -120,6 +137,7 @@ export function matchTooltip(scan) {
     defense,
     dmgMin: scan.damage_min,
     dmgMax: scan.damage_max,
+    superior,
     rolled,
     randClass,
     unmatched: [...rejected, ...lines.filter((_, j) => !used.has(j))],
