@@ -43,6 +43,7 @@ function affixPattern(a) {
 // 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침"
 const wordKey = (s) => s
   .replace(/\([^)]*전용\)/g, ' ')
+  .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
   .replace('흡혈', '훔침')
   .replace(/[\d+\-~%().]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ')
@@ -71,9 +72,12 @@ const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('
 // 읽은 결과를 사전 아이템에 맞춰 폼에 넣을 값으로 바꿈. 사전에서 못 찾은 것은 unmatched 로 돌려줌
 // -> { item, base, ethereal, defense, dmgMin, dmgMax, superior: {mods, values}, rolled: {옵션 번호: 수치}, randClass: {옵션 번호: 직업 코드}, unmatched: [줄] }
 // unmatched = 사전에 없는 줄 + 읽은 수치가 사전 범위를 벗어난 줄 (판매자가 확인)
+// 이름 줄 끝의 * 같은 표시와 따옴표·괄호 기호는 이름이 아님
+const cleanName = (s) => s.replace(/[*'"\[\]【】]/g, '').trim()
+
 export function matchTooltip(scan) {
-  const key = squashText(scan.name)
-  const item = searchAllItems(scan.name).find((it) => squashText(it.name_ko) === key) || null
+  const key = squashText(cleanName(scan.name))
+  const item = searchAllItems(cleanName(scan.name)).find((it) => squashText(it.name_ko) === key) || null
   if (!item) return { item: null, unmatched: [] }
 
   const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
@@ -109,7 +113,7 @@ export function matchTooltip(scan) {
   let base = null
   if (item.category === 'runeword' && scan.base_name) {
     // 상급 베이스는 이름 앞에 "상급"이 붙음
-    const baseName = scan.base_name.replace(/^(상급|superior)\s*/i, '')
+    const baseName = cleanName(scan.base_name).replace(/^(상급|superior)\s*/i, '')
     const bk = squashText(baseName)
     base = searchBaseItems(baseName, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
   }
