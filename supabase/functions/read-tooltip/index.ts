@@ -20,8 +20,9 @@ const PROMPT = `디아블로 2 레저렉션 아이템 툴팁 캡쳐다. 툴팁�
 - ethereal: "무형 (수리 불가)"·"에테리얼"·"Ethereal" 줄이 있으면 true
 - defense: "방어력: N" 의 N (없으면 null)
 - damage_min, damage_max: "한손 피해"/"양손 피해"/"피해" 줄의 최소·최대 (없으면 null)
+- durability_max: "내구도: 현재 / 최대" 의 최대 숫자 (없으면 null)
 - sockets: "홈 있음 (N)"·"소켓 (N)"·"Socketed (N)" 의 N (없으면 null)
-- lines: 위에 쓴 줄과 요구 능력치(필요/요구 힘·민첩·레벨)·룬 글자 줄·내구도·무기 종류 줄("철퇴 계열 - 매우 빠른 공격 속도" 같은 것)·"무형 (수리 불가)"·"미확인"·"(암살자 전용)"만 있는 줄·맨 아래 "Ctrl + ..." 안내를 뺀 나머지 옵션 줄을 위에서 아래 순서로, 보이는 글자 그대로. 숫자와 부호(+, %, ~)를 바꾸지 마라.
+- lines: 위에 쓴 줄과 요구 능력치(필요/요구 힘·민첩·레벨)·룬 글자 줄·내구도 줄·무기 종류 줄("철퇴 계열 - 매우 빠른 공격 속도" 같은 것)·"무형 (수리 불가)"·"미확인"·"(암살자 전용)"만 있는 줄·맨 아래 "Ctrl + ..." 안내를 뺀 나머지 옵션 줄을 위에서 아래 순서로, 보이는 글자 그대로. 숫자와 부호(+, %, ~)를 바꾸지 마라.
 툴팁이 없는 이미지면 found 를 false 로 하고 나머지는 비워라. 보이지 않는 글자를 추측해서 채우지 마라.`
 
 const TOOL = {
@@ -37,10 +38,11 @@ const TOOL = {
       defense: { type: ['integer', 'null'] },
       damage_min: { type: ['integer', 'null'] },
       damage_max: { type: ['integer', 'null'] },
+      durability_max: { type: ['integer', 'null'] },
       sockets: { type: ['integer', 'null'] },
       lines: { type: 'array', items: { type: 'string' } },
     },
-    required: ['found', 'name', 'base_name', 'ethereal', 'defense', 'damage_min', 'damage_max', 'sockets', 'lines'],
+    required: ['found', 'name', 'base_name', 'ethereal', 'defense', 'damage_min', 'damage_max', 'durability_max', 'sockets', 'lines'],
   },
 }
 

@@ -130,6 +130,12 @@ export function matchTooltip(scan) {
     }
   }
 
+  // 최대 내구도가 베이스보다 크면 상급 내구도 증가가 붙은 것 - 줄로 안 나와서 %는 못 정함 (조합만 고름, 에테리얼·내구도 옵션이 있으면 비교가 안 맞아 건너뜀)
+  const hasDurAffix = affixes.some((a) => /dur/.test(a.prop))
+  if (base && !scan.ethereal && !hasDurAffix && scan.durability_max > base.base_stats.durability && superiorCombosFor(base).flat().includes('dur%')) {
+    superior.mods.push('dur%')
+  }
+
   // 룬워드 방어구는 툴팁 방어력에 "방어력 +N" 옵션이 합쳐져 있음 - 폼의 기본 방어력은 그걸 뺀 베이스 값
   const acIdx = affixes.findIndex((a) => a.prop === 'ac')
   const defense = item.category === 'runeword' && scan.defense && acIdx >= 0 ? (rolled[acIdx] ? scan.defense - Number(rolled[acIdx]) : null) : scan.defense
