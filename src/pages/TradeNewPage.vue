@@ -68,7 +68,7 @@ import { authState, signIn } from '../profileStore.js'
 import { openTradeGuide, openTradeGuideOnce } from '../tradeGuide.js'
 import { t, locale, itemName, affixText } from '../i18n.js'
 import { modeText } from '../tradeI18n.js'
-import { readTooltipImage, matchTooltip, matchEquipTooltip } from '../tooltipScan.js'
+import { readTooltipImage, matchTooltip, matchEquipTooltip, matchAffixLines } from '../tooltipScan.js'
 // 베이스 이름 - 영어면 영어 이름만
 const baseLabel = (b) => (locale.value === 'ko' ? baseItemLabel(b) : b.subtitle || baseItemLabel(b))
 const baseNameOf = (b) => (locale.value === 'ko' ? b.name_ko || b.subtitle : b.subtitle || b.name_ko)
@@ -845,7 +845,7 @@ async function fillFromTooltip(file) {
     scanning.value = false
   }
 }
-// 일반·매직·레어 장비: 베이스·품질·에테리얼·소켓 여부만 채움 (매직·레어 옵션과 박힌 보석·주얼은 안 읽음)
+// 일반·매직·레어 장비: 베이스·품질·에테리얼·소켓 여부·옵션을 채움 (박힌 보석·주얼은 안 읽음)
 async function fillEquipFromTooltip(eq) {
   const base = eq.base || MISC_BASES.find((b) => b.name_ko === eq.misc)
   pickEquipBase(base, eq.quality)
@@ -868,10 +868,12 @@ async function fillEquipFromTooltip(eq) {
       uniqueSockets.value = String(eq.sockets)
     } else notes.push(t('소켓 {n}개', { n: eq.sockets }))
   }
-  const quality = t(eq.quality === 'normal' ? '일반' : eq.quality === 'magic' ? '매직' : '레어')
-  scanNote.value = eq.quality === 'normal'
-    ? (notes.length ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: notes.join(' / ') }) : t('읽은 내용을 확인해 주세요'))
-    : t('{q} 장비 - 베이스와 소켓 여부만 읽었어요. 옵션은 직접 골라 주세요', { q: quality }) + (notes.length ? ` (${notes.join(' / ')})` : '')
+  if (eq.quality !== 'normal') {
+    const r = matchAffixLines(affixFamilies.value, eq.lines, pickerLimits.value)
+    affixPicks.value = r.picks
+    notes.push(...r.unmatched)
+  }
+  scanNote.value = notes.length ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: notes.join(' / ') }) : t('읽은 내용을 확인해 주세요')
 }
 function onScanFile(e) {
   const file = e.target.files[0]

@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import magicAffixData from './data/magicAffixes.json'
+import { familyLineSlots } from './magicAffixes.js'
 import {
   findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, BASE_ITEMS, CLASS_SKILL_NAMES,
   SUPERIOR_MODS, superiorCombosFor,
@@ -167,6 +168,41 @@ function matchItem(item, scan) {
   }
 }
 
+// 매직·레어 옵션 줄을 이 베이스에 붙을 수 있는 옵션 종류(families)에 맞춰 고름 - 수치가 범위 안인 것만
+// 수치 칸이 둘 이상인 옵션(발동 스킬 등)은 건너뜀. 소켓 옵션은 families 에 없음
+// -> { picks: { p: [{ key, values }], s: [...] }, unmatched: [줄] }
+export function matchAffixLines(families, lines, limits) {
+  const used = new Set()
+  const picks = { p: [], s: [] }
+  for (const f of families) {
+    if (picks[f.slot].length >= limits[f.slot] || picks.p.length + picks.s.length >= limits.total) continue
+    const taken = new Set()
+    const values = []
+    let ok = true
+    for (const ml of familyLineSlots(f)) {
+      const ranged = ml.slots.filter((i) => f.slotRanges[i][0] !== f.slotRanges[i][1])
+      if (ranged.length > 1) { ok = false; break }
+      let hit
+      if (!ranged.length) {
+        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && wordKey(l) === wordKey(ml.text) && numbersIn(l).join() === numbersIn(ml.text).join())
+        hit = idx >= 0 ? { idx } : null
+      } else {
+        const [lo, hi] = f.slotRanges[ranged[0]]
+        hit = findRoll({ text: ml.text, min: lo, max: hi }, lines, new Set([...used, ...taken]))
+        if (hit && !(Number(hit.v) >= lo && Number(hit.v) <= hi)) hit = null
+        if (hit) values[ranged[0]] = hit.v
+      }
+      if (!hit) { ok = false; break }
+      taken.add(hit.idx)
+    }
+    if (!ok) continue
+    f.slotRanges.forEach(([lo, hi], i) => { if (lo === hi) values[i] = lo })
+    taken.forEach((j) => used.add(j))
+    picks[f.slot].push({ key: f.key, values })
+  }
+  return { picks, unmatched: lines.filter((_, j) => !used.has(j)) }
+}
+
 // 일반·매직·레어 장비는 사전 아이템이 아님 - 베이스와 품질만 찾음
 // 일반: 첫 줄이 베이스 이름 / 레어: 둘째 줄이 베이스 이름 / 매직: 첫 줄 "접두 베이스 접미" 안에 베이스 이름이 들어 있음
 // -> { base, misc(반지·목걸이 등 베이스 이름), quality, ethereal, defense, dmgMin, dmgMax, superior, sockets, unmatched } | null
@@ -217,7 +253,7 @@ export function matchEquipTooltip(scan) {
   const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
   const used = new Set()
   const rejected = []
-  const out = { ...hit, quality, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
+  const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
   if (quality === 'normal' && hit.base) {
     out.superior = readSuperior(hit.base, lines, used, rejected)
     addSuperiorDurability(out.superior, hit.base, scan, [])
