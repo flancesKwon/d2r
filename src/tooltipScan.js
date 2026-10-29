@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import {
-  findItemByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, CLASS_SKILL_NAMES,
+  findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, CLASS_SKILL_NAMES,
   SUPERIOR_MODS, superiorCombosFor,
 } from './tradeStore.js'
 
@@ -76,9 +76,14 @@ const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('
 // 이름 줄 끝의 * 같은 표시와 따옴표·괄호 기호는 이름이 아님
 const cleanName = (s) => s.replace(/[*'"\[\]【】]/g, '').trim()
 
+// 이름이 같은 아이템이 여럿이면 못 맞춘 줄이 가장 적은 쪽
 export function matchTooltip(scan) {
-  const item = findItemByReadName(cleanName(scan.name))
-  if (!item) return { item: null, unmatched: [] }
+  const results = findItemsByReadName(cleanName(scan.name)).map((item) => matchItem(item, scan))
+  if (!results.length) return { item: null, unmatched: [] }
+  return results.reduce((best, r) => (r.unmatched.length < best.unmatched.length ? r : best))
+}
+
+function matchItem(item, scan) {
 
   const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
   const used = new Set()

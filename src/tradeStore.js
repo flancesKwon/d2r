@@ -187,15 +187,16 @@ export function searchAllItems(query) {
 }
 
 // 캡쳐를 읽다 한 글자 틀린 이름("흿빛" / "핏빛")도 찾음 - 같은 길이에 한 글자만 다른 아이템이 딱 하나일 때만
-export function findItemByReadName(name) {
+// 이름이 같은 아이템(초승달 유니크·룬워드 등)은 모두 돌려줌
+export function findItemsByReadName(name) {
   const key = squashText(name)
-  const exact = searchAllItems(name).find((it) => squashText(it.name_ko) === key)
-  if (exact) return exact
+  const exact = searchAllItems(name).filter((it) => squashText(it.name_ko) === key)
+  if (exact.length) return exact
   const near = ALL_TRADE_ITEMS.filter((it) => {
     const k = squashText(it.name_ko)
     return k.length === key.length && [...k].filter((c, i) => c !== key[i]).length === 1
   })
-  return near.length === 1 ? near[0] : null
+  return near.length === 1 ? near : []
 }
 
 export function tradeCategoryForItem(item) {
