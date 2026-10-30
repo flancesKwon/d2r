@@ -72,7 +72,10 @@ function findRoll(a, lines, used) {
   const strict = lines.findIndex((l, j) => !used.has(j) && re.test(squashText(l)))
   if (strict >= 0) return { idx: strict, v: re.exec(squashText(lines[strict]))[1] }
   const loose = lines.findIndex((l, j) => !used.has(j) && looseValue(a, l) !== null)
-  return loose >= 0 ? { idx: loose, v: looseValue(a, lines[loose]) } : null
+  if (loose < 0) return null
+  // 범위가 음수인 옵션("독 저항 -90~-70%")은 줄에 마이너스가 있어야 음수 수치로 읽음
+  const negative = Number(a.max) <= 0 && /-\s*\d/.test(lines[loose])
+  return { idx: loose, v: (negative ? '-' : '') + looseValue(a, lines[loose]) }
 }
 
 const CLASS_CODE_BY_NAME = Object.fromEntries(Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => [name, code]))
