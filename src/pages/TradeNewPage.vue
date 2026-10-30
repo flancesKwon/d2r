@@ -883,6 +883,7 @@ async function fillEquipFromTooltip(eq) {
   pickEquipBase(base, eq.quality)
   form.value.ethereal = eq.ethereal
   await nextTick()
+  if (eq.craft) craftPick.value = { id: eq.craft.id, values: eq.craft.values }
   const baseModLines = fillBaseMods(eq.lines)
   const notes = eq.unmatched.filter((l) => !baseModLines.has(l))
   if (eq.quality === 'normal') {

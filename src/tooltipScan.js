@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import magicAffixData from './data/magicAffixes.json'
-import { familyLineSlots } from './magicAffixes.js'
+import { familyLineSlots, craftRecipesFor } from './magicAffixes.js'
 import {
   findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, BASE_ITEMS, CLASS_SKILL_NAMES,
   SUPERIOR_MODS, superiorCombosFor,
@@ -355,6 +355,17 @@ export function matchEquipTooltip(scan) {
   const used = new Set()
   const rejected = []
   const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
+  // 레어처럼 이름 줄이 둘인 아이템 중 제작법 고정 옵션이 전부 읽히면 크래프트 (예: 블러드 장갑 = 생명력 훔침·생명력·강타)
+  if (quality === 'rare' && hit.base) {
+    for (const r of craftRecipesFor(magicAffixData, hit.base)) {
+      const read = matchAffixLines([{ ...r.fam, slot: 'p' }], lines, { p: 1, s: 0, total: 1 })
+      if (!read.picks.p.length) continue
+      out.quality = 'crafted'
+      out.craft = { id: r.id, values: read.picks.p[0].values }
+      out.lines = read.unmatched
+      break
+    }
+  }
   if (quality === 'normal' && hit.base) {
     out.superior = readSuperior(hit.base, lines, used, rejected)
     addSuperiorDurability(out.superior, hit.base, scan, [])
