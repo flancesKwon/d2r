@@ -295,6 +295,18 @@ export function matchAffixLines(families, lines, limits) {
 // 일반: 첫 줄이 베이스 이름 / 레어: 둘째 줄이 베이스 이름 / 매직: 첫 줄 "접두 베이스 접미" 안에 베이스 이름이 들어 있음
 // -> { base, misc(반지·목걸이 등 베이스 이름), quality, ethereal, defense, dmgMin, dmgMax, superior, sockets, unmatched } | null
 // 매직·레어는 옵션을 안 읽음 (소켓 여부만)
+// 게임은 같은 종류의 저항을 합쳐 보여줌 - "모든 저항 +20%" 에 화염 저항 +22% 가 더 붙으면 화염 42 / 나머지 셋 20
+// 네 원소 줄이 다 있고 셋이 같은 최솟값이면 모든 저항 + 나머지 한 원소로 나눔
+function splitAllResist(lines) {
+  const re = /^(화염|냉기|번개|독) 저항 \+(\d+)%$/
+  const hits = lines.map((l) => re.exec(l)).filter(Boolean)
+  if (hits.length !== 4 || new Set(hits.map((m) => m[1])).size !== 4) return lines
+  const min = Math.min(...hits.map((m) => Number(m[2])))
+  if (hits.filter((m) => Number(m[2]) === min).length < 3) return lines
+  const rest = lines.filter((l) => !re.test(l))
+  hits.filter((m) => Number(m[2]) > min).forEach((m) => rest.push(`${m[1]} 저항 +${Number(m[2]) - min}%`))
+  return [...rest, `모든 저항 +${min}%`]
+}
 function editDistance(a, b) {
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
   for (let i = 1; i <= a.length; i++) {
@@ -352,7 +364,7 @@ export function matchEquipTooltip(scan) {
   if (!hit && !baseLine) { hit = findBaseByName(name, true); quality = 'normal' }
   if (!hit) return null
 
-  const lines = scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l))
+  const lines = splitAllResist(scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l)))
   const used = new Set()
   const rejected = []
   const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
