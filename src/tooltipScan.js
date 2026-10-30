@@ -227,7 +227,26 @@ export function matchAffixLines(families, lines, limits) {
     const taken = new Set()
     const values = []
     let ok = true
-    for (const ml of familyLineSlots(f)) {
+    const mlines = familyLineSlots(f)
+    for (let k = 0; k < mlines.length; k++) {
+      const ml = mlines[k]
+      // 원소 최소·최대 피해는 게임에서 한 줄 "화염 피해 4-8 추가"로 나옴 - 두 칸을 한 번에 읽음
+      const elem = /^최소 (화염|냉기|번개) 피해/.exec(ml.text)?.[1]
+      if (elem && mlines[k + 1]?.text.startsWith(`최대 ${elem} 피해`)) {
+        const [i0] = ml.slots
+        const [i1] = mlines[k + 1].slots
+        const re = new RegExp(`^${elem}피해(\\d+)-(\\d+)추가$`)
+        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && re.test(squashText(l)))
+        const m = idx >= 0 ? re.exec(squashText(lines[idx])) : null
+        const [lo0, hi0] = f.slotRanges[i0]
+        const [lo1, hi1] = f.slotRanges[i1]
+        if (!m || Number(m[1]) < lo0 || Number(m[1]) > hi0 || Number(m[2]) < lo1 || Number(m[2]) > hi1) { ok = false; break }
+        values[i0] = m[1]
+        values[i1] = m[2]
+        taken.add(idx)
+        k++
+        continue
+      }
       const ranged = ml.slots.filter((i) => f.slotRanges[i][0] !== f.slotRanges[i][1])
       let hit
       if (!ranged.length) {
