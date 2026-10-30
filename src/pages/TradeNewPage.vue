@@ -849,12 +849,42 @@ async function fillFromTooltip(file) {
   }
 }
 // 일반·매직·레어 장비: 베이스·품질·에테리얼·소켓 여부·옵션을 채움 (박힌 내용은 안 읽음)
+// 베이스 고유 옵션(직업 스킬·자동 옵션) 줄을 폼 칸에 넣고, 넣은 줄 목록을 돌려줌 - 베이스를 고른 뒤에 불러야 함
+const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const CLASS_SKILL_LINE = /^\+(\d+) (.+?) \(.+ 전용\)$/
+function fillBaseMods(lines) {
+  const taken = new Set()
+  const cls = baseClassSkills.value
+  if (cls) {
+    const picks = []
+    for (const l of lines) {
+      const m = CLASS_SKILL_LINE.exec(l)
+      if (!m || picks.length >= MAX_CLASS_SKILLS || Number(m[1]) < 1 || Number(m[1]) > 3) continue
+      const sk = cls.skills.find((x) => squashText(x.ko) === squashText(m[2]))
+      if (!sk || picks.some((p) => p.skill === sk.en)) continue
+      picks.push({ skill: sk.en, level: m[1] })
+      taken.add(l)
+    }
+    if (picks.length) classSkillPicks.value = picks
+  }
+  for (const a of baseAutoMods.value) {
+    const [head, tail] = a.text.split('{v}').map(squashText)
+    for (const l of lines) {
+      const m = new RegExp(`^${escapeRe(head)}(\\d+)${escapeRe(tail)}$`).exec(squashText(l))
+      if (!m || !isAllowedValue(m[1], a)) continue
+      autoModPick.value = { key: a.key, value: m[1] }
+      taken.add(l)
+    }
+  }
+  return taken
+}
 async function fillEquipFromTooltip(eq) {
   const base = eq.base || MISC_BASES.find((b) => b.name_ko === eq.misc)
   pickEquipBase(base, eq.quality)
   form.value.ethereal = eq.ethereal
   await nextTick()
-  const notes = [...eq.unmatched]
+  const baseModLines = fillBaseMods(eq.lines)
+  const notes = eq.unmatched.filter((l) => !baseModLines.has(l))
   if (eq.quality === 'normal') {
     const combo = superiorCombos.value.findIndex((c) => superiorComboKey(c) === superiorComboKey(eq.superior.mods))
     if (eq.superior.mods.length && combo >= 0) superiorPick.value = { combo, values: eq.superior.values }
@@ -872,7 +902,7 @@ async function fillEquipFromTooltip(eq) {
     } else notes.push(t('소켓 {n}개', { n: eq.sockets }))
   }
   if (eq.quality !== 'normal') {
-    const r = matchAffixLines(affixFamilies.value, eq.lines, pickerLimits.value)
+    const r = matchAffixLines(affixFamilies.value, eq.lines.filter((l) => !baseModLines.has(l)), pickerLimits.value)
     affixPicks.value = r.picks
     notes.push(...r.unmatched)
   }
