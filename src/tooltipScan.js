@@ -48,6 +48,7 @@ export const wordKey = (s) => s
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
+  .replace(/^(적의?\s.*저항)\s*-\s*(\d+%?)$/, '$1 $2 감소')
   .replace(/^적의?\s(.*저항.*?)\s*감소$/, '적 $1')
   .replace('어쌔신', '암살자')
   .replace('팔라딘', '성기사')
@@ -168,7 +169,13 @@ function matchItem(item, scan) {
     // 상급 베이스는 이름 앞에 "상급"이 붙음
     const baseName = cleanName(scan.base_name).replace(/^(상급|superior)\s*/i, '')
     const bk = squashText(baseName)
-    base = searchBaseItems(baseName, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+    const allowed = searchBaseItems('', null, item)
+    base = allowed.find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+    // 모델이 글자를 한두 개 틀리게 읽거나(스바이핸더) 사전 이름이 게임과 다르면, 허용 베이스 중 가장 가까운 하나
+    if (!base) {
+      const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
+      if (scored[0] && scored[0].d <= 2 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
+    }
   }
 
   const superior = base ? readSuperior(base, lines, used, rejected) : { mods: [], values: {} }
