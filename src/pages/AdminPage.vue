@@ -13,6 +13,7 @@ import {
   REPORT_REASON_LABEL, REPORT_TARGET_LABEL, REPORT_STATUS_LABEL, isMissingSchema,
   fetchReports, countOpenReports, setReportStatus, deleteReport, reportTargetLink, canDeleteTarget, deleteReportTarget,
 } from '../reportStore.js'
+import { matchTooltip, matchEquipTooltip } from '../tooltipScan.js'
 import { FEEDBACK_KIND_LABEL, FEEDBACK_STATUS_LABEL, fetchFeedback, setFeedbackStatus, deleteFeedback } from '../feedbackStore.js'
 
 const staff = computed(() => isStaff())
@@ -72,8 +73,12 @@ async function loadMembers() {
   // 정지 사유는 운영진만 받는 함수로 (정지된 사람만)
   const suspendedIds = (data || []).filter((m) => suspendedUntil(m)).map((m) => m.id)
   const reasons = await fetchSuspensionReasons(suspendedIds)
-  members.value = (data || []).map((m) => ({ ...m, suspended_reason: reasons[m.id] || null }))
+  // 활동 요약 (040 SQL 이후 - 없으면 빈 칸)
+  const { data: act } = await supabase.rpc('d2r_member_activity', { p_ids: (data || []).map((m) => m.id) })
+  const actById = Object.fromEntries((act || []).map((a) => [a.user_id, a]))
+  members.value = (data || []).map((m) => ({ ...m, suspended_reason: reasons[m.id] || null, activity: actById[m.id] || null }))
 }
+const when = (t) => (t ? formatDate(t) + ' ' + new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '-')
 async function loadReports() {
   try {
     reports.value = await fetchReports(reportFilter.value || null)
@@ -100,6 +105,25 @@ async function removeFeedback(f) {
     await deleteFeedback(f.id)
     await loadFeedback()
   })
+}
+// 툴팁 캡쳐 읽기 기록 (039 SQL 이후 - 없으면 빈 목록): 읽은 결과를 지금 사전으로 다시 맞춰 봄
+const scanRows = ref([])
+const scanOnlyFailed = ref(true)
+function judgeScan(result) {
+  const r = matchTooltip(result)
+  if (r.item) return { what: r.item.name_ko, unmatched: r.unmatched }
+  const eq = matchEquipTooltip(result)
+  if (eq) return { what: `${eq.base?.name_ko || eq.misc} (${{ normal: '일반', magic: '매직', rare: '레어' }[eq.quality]})`, unmatched: eq.unmatched }
+  return { what: '', unmatched: [] }
+}
+async function loadScans() {
+  const { data, error } = await supabase.from('tb_tooltip_scan').select('id, created_at, result').not('result', 'is', null).order('id', { ascending: false }).limit(100)
+  scanRows.value = error ? [] : data.map((d) => ({ ...d, ...judgeScan(d.result) }))
+}
+const shownScans = computed(() => scanRows.value.filter((r) => !scanOnlyFailed.value || !r.what || r.unmatched.length))
+async function copyScans() {
+  await navigator.clipboard.writeText(JSON.stringify(shownScans.value.map((r) => r.result), null, 1))
+  showAlert('복사함')
 }
 const feedbackFilters = [
   { value: 'open', label: '확인 전' },
@@ -158,6 +182,7 @@ function loadAll() {
   loadMembers().catch(() => {})
   loadReports()
   loadFeedback()
+  loadScans().catch(() => {})
   loadRecent().catch(() => {})
 }
 watch(staff, loadAll, { immediate: true })
@@ -409,6 +434,22 @@ async function removeTradePost(p) {
       <div class="empty-state" v-if="!feedback.length">{{ feedbackFilter === 'open' ? '확인할 피드백 없음' : '피드백 없음' }}</div>
     </div>
 
+    <div class="d-section-title">툴팁 읽기 기록</div>
+    <div class="admin-filter-row">
+      <label><input type="checkbox" v-model="scanOnlyFailed" /> 못 맞춘 것만</label>
+      <button class="admin-action-btn" @click="copyScans" :disabled="!shownScans.length">목록 복사</button>
+    </div>
+    <div class="affix-list admin-report-list">
+      <div class="affix-line admin-report-line" v-for="r in shownScans" :key="'s' + r.id">
+        <div class="admin-report-info">
+          <div class="admin-report-head"><b>{{ r.result.name }}</b>{{ r.result.base_name ? ' · ' + r.result.base_name : '' }} → {{ r.what || '사전·베이스에 없음' }}</div>
+          <div class="admin-report-detail" v-if="r.unmatched.length">못 맞춘 줄: {{ r.unmatched.join(' / ') }}</div>
+          <span class="admin-report-meta">{{ formatDate(r.created_at) }}</span>
+        </div>
+      </div>
+      <div class="empty-state" v-if="!shownScans.length">기록 없음</div>
+    </div>
+
     <div class="d-section-title">회원 관리</div>
     <input type="search" v-model="memberQuery" class="admin-search" placeholder="닉네임 검색" aria-label="회원 닉네임 검색" />
     <div class="admin-table-wrap">
@@ -418,6 +459,9 @@ async function removeTradePost(p) {
             <th>닉네임</th>
             <th>연락처</th>
             <th>가입일</th>
+            <th>마지막 로그인</th>
+            <th>마지막 접속</th>
+            <th>접속일수·쪽수</th>
             <th>등급</th>
             <th>상태</th>
             <th>작업</th>
@@ -428,6 +472,12 @@ async function removeTradePost(p) {
             <td class="admin-nick">{{ m.nickname }}</td>
             <td class="admin-dim">{{ m.contact || '-' }}</td>
             <td class="admin-dim">{{ formatDate(m.created_at) }}</td>
+            <td class="admin-dim">{{ when(m.activity?.last_login) }}</td>
+            <td class="admin-dim">{{ when(m.activity?.last_seen) }}</td>
+            <td class="admin-dim">
+              <router-link v-if="m.activity" class="a-text" :to="{ path: '/admin/stats', query: { user: m.id, who: m.nickname } }">{{ m.activity.visit_days }}일 · {{ m.activity.total_views }}쪽</router-link>
+              <span v-else>-</span>
+            </td>
             <td>
               <select v-if="admin" class="admin-action-select" :value="m.role" :aria-label="`${m.nickname} 등급`" @change="setRole(m, $event.target.value, $event)">
                 <option v-for="r in ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
@@ -449,7 +499,7 @@ async function removeTradePost(p) {
               <span class="admin-dim" v-else>-</span>
             </td>
           </tr>
-          <tr v-if="!members.length"><td colspan="6" class="admin-dim">회원 없음</td></tr>
+          <tr v-if="!members.length"><td colspan="9" class="admin-dim">회원 없음</td></tr>
         </tbody>
       </table>
     </div>

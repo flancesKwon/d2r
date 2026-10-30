@@ -1,4 +1,4 @@
-// 툴팁 캡쳐 읽기 - 판매글 폼에서 올린 아이템 툴팁 이미지를 비전 모델로 읽어 JSON 으로 돌려줌 (038 SQL)
+// 툴팁 캡쳐 읽기 - 판매글 폼에서 올린 아이템 툴팁 이미지를 비전 모델로 읽어 JSON 으로 돌려줌 (038·039 SQL)
 // 배포: Supabase 대시보드 Edge Functions 에 이 파일을 붙여넣고 배포 (JWT 검증 켜둔 채로)
 // 필요한 Secrets: ANTHROPIC_API_KEY. SUPABASE_URL·SUPABASE_ANON_KEY·SUPABASE_SERVICE_ROLE_KEY 는 Supabase 가 자동으로 넣어줌
 // 키는 서버(Edge Function) 안에서만 씀 - 프론트에 넣지 않음
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   const { count, error: e1 } = await db.from('tb_tooltip_scan').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', since)
   if (e1) throw e1
   if ((count ?? 0) >= DAILY_LIMIT) return json({ error: '하루 사용 횟수를 넘음' }, 429)
-  const { error: e2 } = await db.from('tb_tooltip_scan').insert({ user_id: user.id })
+  const { data: row, error: e2 } = await db.from('tb_tooltip_scan').insert({ user_id: user.id }).select('id').single()
   if (e2) throw e2
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -95,5 +95,7 @@ Deno.serve(async (req) => {
   const out = await res.json()
   const result = out.content?.find((c: { type: string }) => c.type === 'tool_use')?.input
   if (!result) throw new Error('응답에 결과 없음: ' + JSON.stringify(out))
+  const { error: e3 } = await db.from('tb_tooltip_scan').update({ result }).eq('id', row.id)
+  if (e3) throw e3
   return json(result)
 })
