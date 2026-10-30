@@ -59,6 +59,7 @@ export const wordKey = (s) => s
   .replace(/(최대|최소) 공격력/, '$1 피해')
   .replace(/초 동안|초에 걸쳐|초간/g, '초')
   .replace(/(독 피해.*초.*) 추가$/, '$1')
+  .replace(/\(매\s*([\d~]+)\s*초\)/, '($1초마다)')
   .replace(/\s효과(?=\s*적용)/g, '')
   .replace('받는 물리 ', ' ')
   .replace('흡혈', '훔침')
@@ -124,7 +125,7 @@ export function matchTooltip(scan) {
 }
 
 // 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
-const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|언데드에게 주는 피해 \+50%)$/
+const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
 // 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
 const ALL_STATS_LINE = /^모든 (?:능력치|속성) \+(\d+)$/
 const expandAllStats = (lines) => lines.flatMap((l) => {
@@ -264,7 +265,7 @@ export function matchAffixLines(families, lines, limits) {
       const ranged = ml.slots.filter((i) => f.slotRanges[i][0] !== f.slotRanges[i][1])
       let hit
       if (!ranged.length) {
-        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && wordKey(l) === wordKey(ml.text) && numbersIn(l).join() === numbersIn(ml.text).join())
+        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && wordKey(l) === wordKey(ml.text) && (ml.text.includes('캐릭터 레벨당') || numbersIn(l).join() === numbersIn(ml.text).join()))
         hit = idx >= 0 ? { idx } : null
       } else {
         if (ranged.length === 1) {
