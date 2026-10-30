@@ -3,10 +3,12 @@
 // 방문자 = 브라우저 기준 하루 1명 (다른 기기·시크릿 창은 따로 셈, 봇 제외), 페이지뷰 = 화면 이동 수
 // 같은 IP(해시)면 같은 사람일 수 있음 - 목록에서 IP 값이 같은 줄을 찾으면 됨
 import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { supabase } from '../supabase.js'
 import { authState, signIn, isStaff } from '../profileStore.js'
 import VisitRows from '../components/VisitRows.vue'
 
+const route = useRoute()
 const staff = computed(() => isStaff())
 const days = ref([])
 const refs = ref([])
@@ -40,9 +42,25 @@ async function loadList() {
   if (e) { error.value = /could not find the function|schema cache/i.test(e.message) ? '준비 중 (035·036 SQL 실행 필요)' : e.message; return }
   visits.value = data.map((v, i) => ({
     key: i, member: !!v.user_id, who: v.nickname || (v.user_id ? '회원' : '비회원 ' + v.visitor), bot: v.bot, ua: v.ua, ip: v.ip_hash,
-    note: [v.first_path, v.ref && '← ' + v.ref, v.views + '쪽'].filter(Boolean).join(' · '), when: new Date(v.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    note: [v.paths?.length ? v.paths.join(' → ') : v.first_path, v.ref && '← ' + v.ref, v.views + '쪽'].filter(Boolean).join(' · '),
+    when: new Date(v.last_at || v.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    pick: v.user_id ? { user: v.user_id, who: v.nickname || '회원' } : { visitor: v.visitor, who: '비회원 ' + v.visitor },
   }))
 }
+// 한 회원·한 비회원 브라우저의 날짜별 방문 기록 (방문자 목록에서 줄을 누르거나, 관리자 회원 목록에서 ?user=)
+const history = ref([])
+const historyWho = ref('')
+async function openHistory(p) {
+  const { data, error: e } = await supabase.rpc('d2r_visitor_history', { p_user: p.user || null, p_visitor: p.visitor || null })
+  if (e) { error.value = /could not find the function|schema cache/i.test(e.message) ? '준비 중 (040 SQL 실행 필요)' : e.message; return }
+  historyWho.value = p.who
+  history.value = data
+}
+const timeOf = (t) => new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+watch([staff, () => route.query.user], () => {
+  const u = route.query.user
+  if (staff.value && u) openHistory({ user: String(u), who: String(route.query.who || '회원') })
+}, { immediate: true })
 watch(staff, load, { immediate: true })
 watch(refDays, load)
 watch(listDay, loadList)
@@ -119,7 +137,17 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
           <button type="button" @click="shiftDay(1)" :disabled="listDay >= lastDay">▶</button>
           <small>봇은 흐리게</small>
         </div>
-        <VisitRows :rows="visits" />
+        <VisitRows :rows="visits" @pick="openHistory" />
+      </section>
+
+      <section class="st-panel" v-if="historyWho">
+        <div class="st-title">{{ historyWho }} <small>방문 기록 (본 페이지는 040 SQL 실행 후부터)</small></div>
+        <div class="vr-hist" v-for="h in history" :key="h.day + h.created_at">
+          <b>{{ h.day }} ({{ dow(h.day) }}) {{ timeOf(h.created_at) }}~{{ h.last_at ? timeOf(h.last_at) : '' }}</b>
+          <span> · {{ h.views }}쪽{{ h.ref ? ' · ← ' + h.ref : '' }}</span>
+          <div class="vr-paths">{{ h.paths?.length ? h.paths.join(' → ') : h.first_path }}</div>
+        </div>
+        <div class="st-none" v-if="!history.length">기록 없음</div>
       </section>
 
       <section class="st-panel">
@@ -181,6 +209,8 @@ const refTotal = computed(() => refs.value.reduce((a, r) => a + r.visitors, 0) |
 .st-ref-bar span{display:block; height:100%; background:var(--gold-dim); border-radius:999px;}
 .st-ref-num{text-align:right; color:var(--gold); font-weight:600;}
 .st-none{font-size:12.5px; color:var(--text-dim);}
+.vr-hist{padding:8px 10px; margin-bottom:4px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px; font-size:12.5px;}
+.vr-paths{margin-top:3px; color:var(--text-dim); word-break:break-all;}
 .st-note{font-size:11.5px; color:var(--text-dim);}
 @media (max-width:760px){
   .st-cards{grid-template-columns:1fr 1fr;}

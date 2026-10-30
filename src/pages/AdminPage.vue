@@ -73,8 +73,12 @@ async function loadMembers() {
   // 정지 사유는 운영진만 받는 함수로 (정지된 사람만)
   const suspendedIds = (data || []).filter((m) => suspendedUntil(m)).map((m) => m.id)
   const reasons = await fetchSuspensionReasons(suspendedIds)
-  members.value = (data || []).map((m) => ({ ...m, suspended_reason: reasons[m.id] || null }))
+  // 활동 요약 (040 SQL 이후 - 없으면 빈 칸)
+  const { data: act } = await supabase.rpc('d2r_member_activity', { p_ids: (data || []).map((m) => m.id) })
+  const actById = Object.fromEntries((act || []).map((a) => [a.user_id, a]))
+  members.value = (data || []).map((m) => ({ ...m, suspended_reason: reasons[m.id] || null, activity: actById[m.id] || null }))
 }
+const when = (t) => (t ? formatDate(t) + ' ' + new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '-')
 async function loadReports() {
   try {
     reports.value = await fetchReports(reportFilter.value || null)
@@ -455,6 +459,9 @@ async function removeTradePost(p) {
             <th>닉네임</th>
             <th>연락처</th>
             <th>가입일</th>
+            <th>마지막 로그인</th>
+            <th>마지막 접속</th>
+            <th>접속일수·쪽수</th>
             <th>등급</th>
             <th>상태</th>
             <th>작업</th>
@@ -465,6 +472,12 @@ async function removeTradePost(p) {
             <td class="admin-nick">{{ m.nickname }}</td>
             <td class="admin-dim">{{ m.contact || '-' }}</td>
             <td class="admin-dim">{{ formatDate(m.created_at) }}</td>
+            <td class="admin-dim">{{ when(m.activity?.last_login) }}</td>
+            <td class="admin-dim">{{ when(m.activity?.last_seen) }}</td>
+            <td class="admin-dim">
+              <router-link v-if="m.activity" class="a-text" :to="{ path: '/admin/stats', query: { user: m.id, who: m.nickname } }">{{ m.activity.visit_days }}일 · {{ m.activity.total_views }}쪽</router-link>
+              <span v-else>-</span>
+            </td>
             <td>
               <select v-if="admin" class="admin-action-select" :value="m.role" :aria-label="`${m.nickname} 등급`" @change="setRole(m, $event.target.value, $event)">
                 <option v-for="r in ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
@@ -486,7 +499,7 @@ async function removeTradePost(p) {
               <span class="admin-dim" v-else>-</span>
             </td>
           </tr>
-          <tr v-if="!members.length"><td colspan="6" class="admin-dim">회원 없음</td></tr>
+          <tr v-if="!members.length"><td colspan="9" class="admin-dim">회원 없음</td></tr>
         </tbody>
       </table>
     </div>

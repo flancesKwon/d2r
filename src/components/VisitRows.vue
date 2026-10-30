@@ -2,6 +2,7 @@
 // 방문자·열람자 목록 한 줄씩 (운영진 화면 공통) - 회원은 닉네임, 비회원은 브라우저 번호 앞 8자리
 // 같은 IP(해시 앞 6자리)면 같은 사람일 가능성이 높음
 defineProps({ rows: { type: Array, required: true } })
+defineEmits(['pick'])
 const browser = (ua) => {
   if (!ua) return '알 수 없음'
   const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : ''
@@ -12,7 +13,7 @@ const browser = (ua) => {
 
 <template>
   <div class="vr-list">
-    <div class="vr-row" v-for="r in rows" :key="r.key" :class="{ bot: r.bot }">
+    <div class="vr-row" v-for="r in rows" :key="r.key" :class="{ bot: r.bot, pickable: r.pick }" @click="r.pick && $emit('pick', r.pick)">
       <span class="vr-who" :class="{ member: r.member }">{{ r.who }}</span>
       <span class="vr-tag bot" v-if="r.bot" :title="r.ua || ''">봇</span>
       <span class="vr-tag" :title="r.ua || ''">{{ browser(r.ua) }}</span>
@@ -28,6 +29,8 @@ const browser = (ua) => {
 .vr-list{display:flex; flex-direction:column; gap:4px;}
 .vr-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:7px 10px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px; font-size:12.5px;}
 .vr-row.bot{opacity:.6;}
+.vr-row.pickable{cursor:pointer;}
+.vr-row.pickable:hover{border-color:var(--gold);}
 .vr-who{font-weight:600; color:var(--text-muted); min-width:84px;}
 .vr-who.member{color:var(--gold);}
 .vr-tag{font-size:11px; color:var(--text-dim); border:1px solid var(--border); border-radius:4px; padding:0 6px;}
