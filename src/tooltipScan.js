@@ -43,14 +43,21 @@ function affixPattern(a) {
 
 // 게임 툴팁은 사전과 어순이 다를 수 있음 ("피해 +280% 증가" / "피해 증가 +230~280%") -> 숫자·기호를 뺀 낱말 묶음이 같은지로도 봄
 // 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁", 적 저항 "적의 화염 저항 5~10% 감소" / "적 화염 저항 -10%"
-// 직업 이름도 사전("어쌔신", "팔라딘")과 게임("암살자", "성기사")이 다름
-const wordKey = (s) => s
+// 직업 이름도 사전("어쌔신", "팔라딘", "네크로맨서"...)과 게임("암살자", "성기사", "강령술사"...)이 다름. 독 피해 "6초 동안 독 피해 12 추가" / "독 피해 +12 (6초에 걸쳐)"도 같게
+export const wordKey = (s) => s
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
   .replace(/^적의?\s(.*저항.*?)\s*감소$/, '적 $1')
   .replace('어쌔신', '암살자')
   .replace('팔라딘', '성기사')
+  .replace('네크로맨서', '강령술사')
+  .replace('소서리스', '원소술사')
+  .replace('바바리안', '야만용사')
+  .replace('모든 속성', '모든 능력치')
+  .replace(/(최대|최소) 공격력/, '$1 피해')
+  .replace(/초 동안|초에 걸쳐|초간/g, '초')
+  .replace(/(독 피해.*초.*) 추가$/, '$1')
   .replace(/\s효과(?=\s*적용)/g, '')
   .replace('받는 물리 ', ' ')
   .replace('흡혈', '훔침')
@@ -72,7 +79,10 @@ function findRoll(a, lines, used) {
   const strict = lines.findIndex((l, j) => !used.has(j) && re.test(squashText(l)))
   if (strict >= 0) return { idx: strict, v: re.exec(squashText(lines[strict]))[1] }
   const loose = lines.findIndex((l, j) => !used.has(j) && looseValue(a, l) !== null)
-  return loose >= 0 ? { idx: loose, v: looseValue(a, lines[loose]) } : null
+  if (loose < 0) return null
+  // 범위가 음수인 옵션("독 저항 -90~-70%")은 줄에 마이너스가 있어야 음수 수치로 읽음
+  const negative = Number(a.max) <= 0 && /-\s*\d/.test(lines[loose])
+  return { idx: loose, v: (negative ? '-' : '') + looseValue(a, lines[loose]) }
 }
 
 const CLASS_CODE_BY_NAME = Object.fromEntries(Object.entries(CLASS_SKILL_NAMES).map(([code, name]) => [name, code]))
@@ -115,7 +125,7 @@ export function matchTooltip(scan) {
 // 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
 const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|언데드에게 주는 피해 \+50%)$/
 // 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
-const ALL_STATS_LINE = /^모든 능력치 \+(\d+)$/
+const ALL_STATS_LINE = /^모든 (?:능력치|속성) \+(\d+)$/
 const expandAllStats = (lines) => lines.flatMap((l) => {
   const m = ALL_STATS_LINE.exec(l)
   return m ? ['힘', '민첩', '활력', '마력'].map((n) => `${n} +${m[1]}`) : [l]
@@ -124,7 +134,7 @@ const expandAllStats = (lines) => lines.flatMap((l) => {
 function matchItem(item, scan) {
   const affixes = getItemAffixes(item)
   const cleaned = scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l))
-  const lines = affixes.some((a) => ALL_STATS_LINE.test(a.text)) ? cleaned : expandAllStats(cleaned)
+  const lines = affixes.some((a) => /^모든 (?:능력치|속성)/.test(a.text)) ? cleaned : expandAllStats(cleaned)
   const used = new Set()
   const rolled = {}
   const rejected = []
@@ -184,7 +194,7 @@ function matchItem(item, scan) {
 }
 
 // 옵션 줄 문구 비교용: 전용 꼬리·"캐릭터 레벨에 비례" 꼬리를 떼고 독 피해 "3초간"/"3초에 걸쳐"를 같게 봄
-const slotText = (s) => squashText(s.replace(/\([^)]*전용\)|\(캐릭터 레벨에 비례\)/g, ' ').replace('초에 걸쳐', '초간').replace('어쌔신', '암살자').replace('팔라딘', '성기사'))
+const slotText = (s) => squashText(s.replace(/\([^)]*전용\)|\(캐릭터 레벨에 비례\)/g, ' ').replace('초에 걸쳐', '초간').replace('어쌔신', '암살자').replace('팔라딘', '성기사').replace('네크로맨서', '강령술사').replace('소서리스', '원소술사').replace('바바리안', '야만용사'))
 
 // 이 옵션 줄의 수치 칸마다 숫자 자리를 둔 패턴으로 툴팁 줄 찾기 -> { idx, vals: {칸 번호: 수치} }
 // 범위 밖 수치는 못 읽은 것으로 침
@@ -224,7 +234,26 @@ export function matchAffixLines(families, lines, limits) {
     const taken = new Set()
     const values = []
     let ok = true
-    for (const ml of familyLineSlots(f)) {
+    const mlines = familyLineSlots(f)
+    for (let k = 0; k < mlines.length; k++) {
+      const ml = mlines[k]
+      // 원소 최소·최대 피해는 게임에서 한 줄 "화염 피해 4-8 추가"로 나옴 - 두 칸을 한 번에 읽음
+      const elem = /^최소 (화염|냉기|번개) 피해/.exec(ml.text)?.[1]
+      if (elem && mlines[k + 1]?.text.startsWith(`최대 ${elem} 피해`)) {
+        const [i0] = ml.slots
+        const [i1] = mlines[k + 1].slots
+        const re = new RegExp(`^${elem}피해(\\d+)-(\\d+)추가$`)
+        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && re.test(squashText(l)))
+        const m = idx >= 0 ? re.exec(squashText(lines[idx])) : null
+        const [lo0, hi0] = f.slotRanges[i0]
+        const [lo1, hi1] = f.slotRanges[i1]
+        if (!m || Number(m[1]) < lo0 || Number(m[1]) > hi0 || Number(m[2]) < lo1 || Number(m[2]) > hi1) { ok = false; break }
+        values[i0] = m[1]
+        values[i1] = m[2]
+        taken.add(idx)
+        k++
+        continue
+      }
       const ranged = ml.slots.filter((i) => f.slotRanges[i][0] !== f.slotRanges[i][1])
       let hit
       if (!ranged.length) {
