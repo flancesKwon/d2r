@@ -1545,7 +1545,6 @@ function variantLines(p) {
         <span class="tr-chip flag" v-if="mrActive && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
         <span class="tr-chip flag" v-if="mrActive && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
         <span class="tr-chip kind" v-if="baseGroup && !mrBase"><em>{{ $t('베이스') }}</em>{{ baseGroup }}<button type="button" :aria-label="`${baseGroup} ×`" @click="baseGroup = ''">×</button></span>
-        <button type="button" class="tr-chip back" v-if="pickedItem && backToList" @click="backToQualityList">← {{ $t('목록으로') }}</button>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="dropPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -1588,6 +1587,7 @@ function variantLines(p) {
       {{ filtersOpen ? $t('조건 접기') : $t('조건 펴기') }}
     </button>
     <div class="tr-filters-body">
+      <button type="button" class="tr-back" v-if="pickedItem && backToList" @click="backToQualityList">← {{ $t('목록으로') }}</button>
       <!-- 사전에 없는 아이템(매직/레어/크래프트/일반): 판매글 등록에서 고르는 것과 같은 칸 -->
       <div class="item-range-panel mr-panel" v-if="mrOn || groupOn">
         <div class="mr-head">
@@ -2319,8 +2319,8 @@ function variantLines(p) {
   font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--panel-2); color:var(--text);
 }
 .tr-chip{white-space:nowrap;}
-button.tr-chip.back{cursor:pointer; background:#2A2216; border-color:#8F773D; color:#F0D9A6;}
-button.tr-chip.back:hover{background:#3A2F1C;}
+button.tr-back{display:block; width:100%; margin-bottom:10px; padding:10px 12px; text-align:left; font-weight:700; font-size:13.5px; cursor:pointer; background:#2A2216; border:1px solid #8F773D; border-radius:8px; color:#F0D9A6;}
+button.tr-back:hover{background:#3A2F1C;}
 .tr-chip em{font-style:normal; font-size:10.5px; font-weight:800; opacity:.75;}
 .tr-chip > button{width:22px; height:22px; border-radius:7px; background:rgba(255,255,255,.07); color:inherit; font-size:13px; line-height:22px; display:inline-flex; align-items:center; justify-content:center;}
 .tr-chip > button:hover{background:rgba(255,255,255,.16);}
