@@ -356,14 +356,20 @@ export function matchEquipTooltip(scan) {
   const rejected = []
   const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
   // 레어처럼 이름 줄이 둘인 아이템 중 제작법 고정 옵션이 전부 읽히면 크래프트 (예: 블러드 장갑 = 생명력 훔침·생명력·강타)
-  if (quality === 'rare' && hit.base) {
-    for (const r of craftRecipesFor(magicAffixData, hit.base)) {
-      const read = matchAffixLines([{ ...r.fam, slot: 'p' }], lines, { p: 1, s: 0, total: 1 })
-      if (!read.picks.p.length) continue
-      out.quality = 'crafted'
-      out.craft = { id: r.id, values: read.picks.p[0].values }
-      out.lines = read.unmatched
-      break
+  // 이름이 같은 베이스("데몬 헤드" 네크로 머리 / "데몬헤드" 투구)는 제작법이 있는 쪽으로
+  const craftBases = hit.base ? BASE_ITEMS.filter((b) => squashText(b.name_ko) === squashText(hit.base.name_ko)) : magicAffixData.miscBases.filter((b) => b.name_ko === hit.misc)
+  if (quality === 'rare') {
+    for (const cb of craftBases) {
+      for (const r of craftRecipesFor(magicAffixData, cb)) {
+        const read = matchAffixLines([{ ...r.fam, slot: 'p' }], lines, { p: 1, s: 0, total: 1 })
+        if (!read.picks.p.length) continue
+        out.quality = 'crafted'
+        if (hit.base) out.base = cb
+        out.craft = { id: r.id, values: read.picks.p[0].values }
+        out.lines = read.unmatched
+        break
+      }
+      if (out.craft) break
     }
   }
   if (quality === 'normal' && hit.base) {
