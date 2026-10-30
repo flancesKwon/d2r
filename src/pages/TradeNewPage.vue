@@ -807,6 +807,11 @@ onMounted(() => {
 // 툴팁 캡쳐(올리기·붙여넣기)를 읽어 아이템과 옵션 수치를 채움 - 사전 아이템(유니크·세트·룬워드 등)만, 채운 뒤 판매자가 확인
 const scanning = ref(false)
 const scanNote = ref('')
+// 안내 문구 - 소켓은 뚫린 개수만 알려줌 (박힌 내용은 입력 안 함)
+function scanResultNote(unmatched, sockets) {
+  const head = sockets > 0 ? t('소켓 {n}개 뚫림 (박힌 내용은 직접 입력)', { n: sockets }) + ' · ' : ''
+  return head + (unmatched.length ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: unmatched.join(' / ') }) : t('읽은 내용을 확인해 주세요'))
+}
 async function fillFromTooltip(file) {
   if (scanning.value) return
   scanning.value = true
@@ -836,22 +841,50 @@ async function fillFromTooltip(file) {
       if (sockets <= uniqueMaxSockets.value) uniqueSockets.value = String(sockets)
       else r.unmatched.push(t('소켓 {n}개', { n: sockets }))
     }
-    scanNote.value = r.unmatched.length
-      ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: r.unmatched.join(' / ') })
-      : t('읽은 내용을 확인해 주세요')
+    scanNote.value = scanResultNote(r.unmatched, sockets)
   } catch (e) {
     scanNote.value = t(e.message)
   } finally {
     scanning.value = false
   }
 }
-// 일반·매직·레어 장비: 베이스·품질·에테리얼·소켓 여부·옵션을 채움 (박힌 보석·주얼은 안 읽음)
+// 일반·매직·레어 장비: 베이스·품질·에테리얼·소켓 여부·옵션을 채움 (박힌 내용은 안 읽음)
+// 베이스 고유 옵션(직업 스킬·자동 옵션) 줄을 폼 칸에 넣고, 넣은 줄 목록을 돌려줌 - 베이스를 고른 뒤에 불러야 함
+const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const CLASS_SKILL_LINE = /^\+(\d+) (.+?) \(.+ 전용\)$/
+function fillBaseMods(lines) {
+  const taken = new Set()
+  const cls = baseClassSkills.value
+  if (cls) {
+    const picks = []
+    for (const l of lines) {
+      const m = CLASS_SKILL_LINE.exec(l)
+      if (!m || picks.length >= MAX_CLASS_SKILLS || Number(m[1]) < 1 || Number(m[1]) > 3) continue
+      const sk = cls.skills.find((x) => squashText(x.ko) === squashText(m[2]))
+      if (!sk || picks.some((p) => p.skill === sk.en)) continue
+      picks.push({ skill: sk.en, level: m[1] })
+      taken.add(l)
+    }
+    if (picks.length) classSkillPicks.value = picks
+  }
+  for (const a of baseAutoMods.value) {
+    const [head, tail] = a.text.split('{v}').map(squashText)
+    for (const l of lines) {
+      const m = new RegExp(`^${escapeRe(head)}(\\d+)${escapeRe(tail)}$`).exec(squashText(l))
+      if (!m || !isAllowedValue(m[1], a)) continue
+      autoModPick.value = { key: a.key, value: m[1] }
+      taken.add(l)
+    }
+  }
+  return taken
+}
 async function fillEquipFromTooltip(eq) {
   const base = eq.base || MISC_BASES.find((b) => b.name_ko === eq.misc)
   pickEquipBase(base, eq.quality)
   form.value.ethereal = eq.ethereal
   await nextTick()
-  const notes = [...eq.unmatched]
+  const baseModLines = fillBaseMods(eq.lines)
+  const notes = eq.unmatched.filter((l) => !baseModLines.has(l))
   if (eq.quality === 'normal') {
     const combo = superiorCombos.value.findIndex((c) => superiorComboKey(c) === superiorComboKey(eq.superior.mods))
     if (eq.superior.mods.length && combo >= 0) superiorPick.value = { combo, values: eq.superior.values }
@@ -869,11 +902,11 @@ async function fillEquipFromTooltip(eq) {
     } else notes.push(t('소켓 {n}개', { n: eq.sockets }))
   }
   if (eq.quality !== 'normal') {
-    const r = matchAffixLines(affixFamilies.value, eq.lines, pickerLimits.value)
+    const r = matchAffixLines(affixFamilies.value, eq.lines.filter((l) => !baseModLines.has(l)), pickerLimits.value)
     affixPicks.value = r.picks
     notes.push(...r.unmatched)
   }
-  scanNote.value = notes.length ? t('읽은 내용을 확인해 주세요. 못 맞춘 줄: {n}', { n: notes.join(' / ') }) : t('읽은 내용을 확인해 주세요')
+  scanNote.value = scanResultNote(notes, eq.sockets)
 }
 function onScanFile(e) {
   const file = e.target.files[0]

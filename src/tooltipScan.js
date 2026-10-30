@@ -42,11 +42,17 @@ function affixPattern(a) {
 }
 
 // 게임 툴팁은 사전과 어순이 다를 수 있음 ("피해 +280% 증가" / "피해 증가 +230~280%") -> 숫자·기호를 뺀 낱말 묶음이 같은지로도 봄
-// 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁"
+// 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁", 적 저항 "적의 화염 저항 5~10% 감소" / "적 화염 저항 -10%"
+// 직업 이름도 사전("어쌔신", "팔라딘")과 게임("암살자", "성기사")이 다름
 const wordKey = (s) => s
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
+  .replace(/^적의?\s(.*저항.*?)\s*감소$/, '적 $1')
+  .replace('어쌔신', '암살자')
+  .replace('팔라딘', '성기사')
+  .replace(/\s효과(?=\s*적용)/g, '')
+  .replace('받는 물리 ', ' ')
   .replace('흡혈', '훔침')
   .replace('쇠뇌', '석궁')
   .replace(/[\d+\-~%().]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ')
@@ -106,14 +112,23 @@ export function matchTooltip(scan) {
   return results.reduce((best, r) => (r.unmatched.length < best.unmatched.length ? r : best))
 }
 
-function matchItem(item, scan) {
+// 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
+const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|언데드에게 주는 피해 \+50%)$/
+// 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
+const ALL_STATS_LINE = /^모든 능력치 \+(\d+)$/
+const expandAllStats = (lines) => lines.flatMap((l) => {
+  const m = ALL_STATS_LINE.exec(l)
+  return m ? ['힘', '민첩', '활력', '마력'].map((n) => `${n} +${m[1]}`) : [l]
+})
 
-  const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
+function matchItem(item, scan) {
+  const affixes = getItemAffixes(item)
+  const cleaned = scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l))
+  const lines = affixes.some((a) => ALL_STATS_LINE.test(a.text)) ? cleaned : expandAllStats(cleaned)
   const used = new Set()
   const rolled = {}
   const rejected = []
   const randClass = {}
-  const affixes = getItemAffixes(item)
   affixes.forEach((a, i) => {
     if (isRandomClassSkillAffix(a)) {
       const idx = lines.findIndex((l, j) => !used.has(j) && RANDOM_CLASS_LINE.test(l))
@@ -168,8 +183,38 @@ function matchItem(item, scan) {
   }
 }
 
+// 옵션 줄 문구 비교용: 전용 꼬리·"캐릭터 레벨에 비례" 꼬리를 떼고 독 피해 "3초간"/"3초에 걸쳐"를 같게 봄
+const slotText = (s) => squashText(s.replace(/\([^)]*전용\)|\(캐릭터 레벨에 비례\)/g, ' ').replace('초에 걸쳐', '초간').replace('어쌔신', '암살자').replace('팔라딘', '성기사'))
+
+// 이 옵션 줄의 수치 칸마다 숫자 자리를 둔 패턴으로 툴팁 줄 찾기 -> { idx, vals: {칸 번호: 수치} }
+// 범위 밖 수치는 못 읽은 것으로 침
+function findSlotPattern(fam, ml, lines, skip) {
+  const text = slotText(ml.text)
+  let re = '^'
+  let at = 0
+  const caps = []
+  for (const i of ml.slots) {
+    const [lo, hi] = fam.slotRanges[i]
+    const shown = slotText(lo === hi ? String(lo) : `${lo}~${hi}`)
+    const pos = text.indexOf(shown, at)
+    if (pos < 0) return null
+    re += escapeRe(text.slice(at, pos)) + (lo === hi ? escapeRe(shown) : '(\\d+)')
+    if (lo !== hi) caps.push(i)
+    at = pos + shown.length
+  }
+  const pattern = new RegExp((re + escapeRe(text.slice(at)) + '$').replace('\\(충전\\)', '\\(충전\\d+/\\d+회\\)'))
+  for (let j = 0; j < lines.length; j++) {
+    if (skip.has(j)) continue
+    const m = pattern.exec(slotText(lines[j]))
+    if (!m) continue
+    const vals = new Map(caps.map((i, k) => [i, m[k + 1]]))
+    if ([...vals].every(([i, v]) => Number(v) >= fam.slotRanges[i][0] && Number(v) <= fam.slotRanges[i][1])) return { idx: j, vals }
+  }
+  return null
+}
+
 // 매직·레어 옵션 줄을 이 베이스에 붙을 수 있는 옵션 종류(families)에 맞춰 고름 - 수치가 범위 안인 것만
-// 수치 칸이 둘 이상인 옵션(발동 스킬 등)은 건너뜀. 소켓 옵션은 families 에 없음
+// 소켓 옵션은 families 에 없음
 // -> { picks: { p: [{ key, values }], s: [...] }, unmatched: [줄] }
 export function matchAffixLines(families, lines, limits) {
   const used = new Set()
@@ -181,16 +226,22 @@ export function matchAffixLines(families, lines, limits) {
     let ok = true
     for (const ml of familyLineSlots(f)) {
       const ranged = ml.slots.filter((i) => f.slotRanges[i][0] !== f.slotRanges[i][1])
-      if (ranged.length > 1) { ok = false; break }
       let hit
       if (!ranged.length) {
         const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && wordKey(l) === wordKey(ml.text) && numbersIn(l).join() === numbersIn(ml.text).join())
         hit = idx >= 0 ? { idx } : null
       } else {
-        const [lo, hi] = f.slotRanges[ranged[0]]
-        hit = findRoll({ text: ml.text, min: lo, max: hi }, lines, new Set([...used, ...taken]))
-        if (hit && !(Number(hit.v) >= lo && Number(hit.v) <= hi)) hit = null
-        if (hit) values[ranged[0]] = hit.v
+        if (ranged.length === 1) {
+          const [lo, hi] = f.slotRanges[ranged[0]]
+          hit = findRoll({ text: ml.text, min: lo, max: hi }, lines, new Set([...used, ...taken]))
+          if (hit && !(Number(hit.v) >= lo && Number(hit.v) <= hi)) hit = null
+          if (hit) values[ranged[0]] = hit.v
+        }
+        if (!hit) {
+          // 수치 칸이 둘 이상이거나 충전처럼 줄 끝이 다른 옵션: 칸 자리를 숫자로 바꾼 패턴으로 읽음
+          hit = findSlotPattern(f, ml, lines, new Set([...used, ...taken]))
+          if (hit) hit.vals.forEach((v, i) => { values[i] = v })
+        }
       }
       if (!hit) { ok = false; break }
       taken.add(hit.idx)
@@ -217,24 +268,34 @@ function editDistance(a, b) {
   return prev[b.length]
 }
 // fuzzy: 모델이 글자를 한두 개 틀리게 읽거나 사전 한글 이름이 게임과 조금 달라도, 가장 가까운 베이스가 하나일 때 그걸로 봄
-function findBaseByName(text, fuzzy = false) {
+function findBaseByName(text, fuzzy = false, kind = null) {
   const k = squashText(text.replace(/^(상급|superior)\s*/i, ''))
   if (!k) return null
   const base = BASE_ITEMS.find((b) => [b.name_ko, b.alt_ko, b.subtitle].some((n) => n && squashText(n) === k))
   if (base) return { base }
-  if (fuzzy && k.length >= 5) {
-    const scored = BASE_ITEMS.map((b) => ({ b, d: Math.min(...[b.name_ko, b.alt_ko].filter(Boolean).map((n) => editDistance(squashText(n), k))) })).sort((x, y) => x.d - y.d)
-    if (scored[0].d <= 2 && scored[1].d > scored[0].d) return { base: scored[0].b }
+  // 짧은 이름은 낱말이 둘 이상일 때만 한 글자 차이를 봄 (낱말 하나는 접두사·접미사와 헷갈림)
+  const maxDist = k.length >= 4 && /\s/.test(text.trim()) ? 2 : k.length >= 5 ? 2 : k.length >= 3 && /\s/.test(text.trim()) ? 1 : 0
+  if (fuzzy && maxDist) {
+    // 거리가 같으면 사전 이름(name_ko)에 더 가까운 쪽 - 대체 이름("완드")만 가까운 짧은 베이스에 끌려가지 않게
+    const dist = (b, names) => Math.min(...names.filter(Boolean).map((n) => editDistance(squashText(n), k)))
+    // 그래도 같으면 이름 길이가 읽은 글자 수에 가까운 쪽 ("페럴 클러"는 "클러"보다 "피어럴 클러")
+    const lenGap = (b) => Math.abs(squashText(b.name_ko).length - k.length)
+    const scored = BASE_ITEMS.filter((b) => !kind || b.base_stats?.category === kind).map((b) => ({ b, d: dist(b, [b.name_ko, b.alt_ko]), dName: dist(b, [b.name_ko]), gap: lenGap(b) })).sort((x, y) => x.d - y.d || x.dName - y.dName || x.gap - y.gap)
+    const tied = scored[1] && scored[1].d === scored[0].d && scored[1].dName === scored[0].dName && scored[1].gap === scored[0].gap
+    if (scored[0] && scored[0].d <= maxDist && !tied) return { base: scored[0].b }
   }
   const misc = magicAffixData.miscBases.find((b) => squashText(b.name_ko) === k)
   return misc ? { misc: misc.name_ko } : null
 }
-function findBaseInMagicName(name) {
+function findBaseInMagicName(name, kind) {
   const words = name.split(/\s+/).filter(Boolean)
+  // 긴 낱말 묶음부터 - 게임 표기와 사전 표기가 한두 글자 다른 베이스("페이즈 블레이드" / "패이즈 블레이드")는 같은 길이에서 정확히 맞는 게 없을 때 비슷한 이름으로
   for (let len = words.length; len >= 1; len--) {
-    for (let i = 0; i + len <= words.length; i++) {
-      const hit = findBaseByName(words.slice(i, i + len).join(' '))
-      if (hit) return hit
+    for (const fuzzy of [false, true]) {
+      for (let i = 0; i + len <= words.length; i++) {
+        const hit = findBaseByName(words.slice(i, i + len).join(' '), fuzzy, kind)
+        if (hit) return hit
+      }
     }
   }
   return null
@@ -246,11 +307,15 @@ export function matchEquipTooltip(scan) {
   let quality = 'normal'
   let hit = findBaseByName(name)
   if (!hit && baseLine) { hit = findBaseByName(baseLine, true); quality = 'rare' }
-  if (!hit) { hit = findBaseInMagicName(name); quality = 'magic' }
+  // 툴팁에 피해가 보이면 무기, 방어력이 보이면 방어구 - 이름이 비슷한 베이스가 여럿일 때 가르는 데 씀
+  const kind = scan.damage_min != null ? 'weapon' : scan.defense != null ? 'armor' : null
+  // 이름이 흰색(일반·소켓 아이템)이면 베이스 이름 하나 - 사전 표기와 한두 글자 달라도 가까운 베이스로 ("페럴 클러" / "피어럴 클러")
+  if (!hit && !baseLine && scan.name_color === 'white') { hit = findBaseByName(name, true, kind); quality = 'normal' }
+  if (!hit) { hit = findBaseInMagicName(name, kind); quality = 'magic' }
   if (!hit && !baseLine) { hit = findBaseByName(name, true); quality = 'normal' }
   if (!hit) return null
 
-  const lines = scan.lines.map((l) => l.trim()).filter(Boolean)
+  const lines = scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l))
   const used = new Set()
   const rejected = []
   const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
@@ -261,6 +326,6 @@ export function matchEquipTooltip(scan) {
     out.dmgMin = scan.damage_min
     out.dmgMax = scan.damage_max
     out.unmatched = [...rejected, ...lines.filter((_, j) => !used.has(j))]
-  }
+  } else if (quality === 'normal') out.unmatched = lines
   return out
 }
