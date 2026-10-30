@@ -17,6 +17,7 @@ const PROMPT = `디아블로 2 레저렉션 아이템 툴팁 캡쳐다. 툴팁�
 - base_name: 둘째 줄(베이스 종류) 한 줄만. 없으면 null
 - 룬워드는 셋째 줄에 룬 글자가 따옴표로 나온다(예: '자아이드베르'). name·base_name·lines 어디에도 넣지 마라
   예) 첫 줄 수수께끼, 둘째 줄 더스크 슈라우드, 셋째 줄 '자아이드베르' -> name 은 수수께끼, base_name 은 더스크 슈라우드
+- name_color: 맨 윗줄 이름 글자 색. 흰색 white(일반·소켓 아이템), 파랑 blue(매직), 노랑 yellow(레어), 황금·갈색 gold(유니크), 초록 green(세트), 주황 orange(크래프트), 회색 gray
 - ethereal: "무형 (수리 불가)"·"에테리얼"·"Ethereal" 줄이 있으면 true
 - defense: "방어력: N" 의 N (없으면 null)
 - damage_min, damage_max: "한손 피해"/"양손 피해"/"피해" 줄의 최소·최대 (없으면 null)
@@ -35,6 +36,7 @@ const TOOL = {
       found: { type: 'boolean' },
       name: { type: 'string' },
       base_name: { type: ['string', 'null'] },
+      name_color: { type: 'string', enum: ['white', 'blue', 'yellow', 'gold', 'green', 'orange', 'gray', 'red'] },
       ethereal: { type: 'boolean' },
       defense: { type: ['integer', 'null'] },
       damage_min: { type: ['integer', 'null'] },
