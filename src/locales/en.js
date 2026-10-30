@@ -348,6 +348,7 @@ export default {
   '세트 부분 착용 보너스': 'Partial set bonus',
   '세트 전체 착용 보너스': 'Full set bonus',
   '소켓 {n}개': '{n} sockets',
+  '소켓 {n}개 뚫림 (박힌 내용은 직접 입력)': '{n} sockets (enter socketed items yourself)',
   '장착 가능 베이스': 'Bases',
   '소켓 {n}개 필요': 'needs {n} sockets',
   '장착 부위별 효과': 'Effect by slot',
