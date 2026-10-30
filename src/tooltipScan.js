@@ -42,11 +42,12 @@ function affixPattern(a) {
 }
 
 // 게임 툴팁은 사전과 어순이 다를 수 있음 ("피해 +280% 증가" / "피해 증가 +230~280%") -> 숫자·기호를 뺀 낱말 묶음이 같은지로도 봄
-// 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁"
+// 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁", 적 저항 "적의 화염 저항 5~10% 감소" / "적 화염 저항 -10%"
 const wordKey = (s) => s
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
+  .replace(/^적의?\s(.*저항.*?)\s*감소$/, '적 $1')
   .replace('흡혈', '훔침')
   .replace('쇠뇌', '석궁')
   .replace(/[\d+\-~%().]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ')
@@ -261,6 +262,6 @@ export function matchEquipTooltip(scan) {
     out.dmgMin = scan.damage_min
     out.dmgMax = scan.damage_max
     out.unmatched = [...rejected, ...lines.filter((_, j) => !used.has(j))]
-  }
+  } else if (quality === 'normal') out.unmatched = lines
   return out
 }
