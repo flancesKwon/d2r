@@ -59,6 +59,7 @@ export const wordKey = (s) => s
   .replace(/(최대|최소) 공격력/, '$1 피해')
   .replace(/초 동안|초에 걸쳐|초간/g, '초')
   .replace(/(독 피해.*초.*) 추가$/, '$1')
+  .replace(/\(매\s*([\d~]+)\s*초\)/, '($1초마다)')
   .replace(/\s효과(?=\s*적용)/g, '')
   .replace('받는 물리 ', ' ')
   .replace('흡혈', '훔침')
@@ -124,7 +125,7 @@ export function matchTooltip(scan) {
 }
 
 // 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
-const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|언데드에게 주는 피해 \+50%)$/
+const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
 // 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
 const ALL_STATS_LINE = /^모든 (?:능력치|속성) \+(\d+)$/
 const expandAllStats = (lines) => lines.flatMap((l) => {
@@ -264,7 +265,7 @@ export function matchAffixLines(families, lines, limits) {
       const ranged = ml.slots.filter((i) => f.slotRanges[i][0] !== f.slotRanges[i][1])
       let hit
       if (!ranged.length) {
-        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && wordKey(l) === wordKey(ml.text) && numbersIn(l).join() === numbersIn(ml.text).join())
+        const idx = lines.findIndex((l, j) => !used.has(j) && !taken.has(j) && wordKey(l) === wordKey(ml.text) && (ml.text.includes('캐릭터 레벨당') || numbersIn(l).join() === numbersIn(ml.text).join()))
         hit = idx >= 0 ? { idx } : null
       } else {
         if (ranged.length === 1) {
@@ -294,6 +295,18 @@ export function matchAffixLines(families, lines, limits) {
 // 일반: 첫 줄이 베이스 이름 / 레어: 둘째 줄이 베이스 이름 / 매직: 첫 줄 "접두 베이스 접미" 안에 베이스 이름이 들어 있음
 // -> { base, misc(반지·목걸이 등 베이스 이름), quality, ethereal, defense, dmgMin, dmgMax, superior, sockets, unmatched } | null
 // 매직·레어는 옵션을 안 읽음 (소켓 여부만)
+// 게임은 같은 종류의 저항을 합쳐 보여줌 - "모든 저항 +20%" 에 화염 저항 +22% 가 더 붙으면 화염 42 / 나머지 셋 20
+// 네 원소 줄이 다 있고 셋이 같은 최솟값이면 모든 저항 + 나머지 한 원소로 나눔
+function splitAllResist(lines) {
+  const re = /^(화염|냉기|번개|독) 저항 \+(\d+)%$/
+  const hits = lines.map((l) => re.exec(l)).filter(Boolean)
+  if (hits.length !== 4 || new Set(hits.map((m) => m[1])).size !== 4) return lines
+  const min = Math.min(...hits.map((m) => Number(m[2])))
+  if (hits.filter((m) => Number(m[2]) === min).length < 3) return lines
+  const rest = lines.filter((l) => !re.test(l))
+  hits.filter((m) => Number(m[2]) > min).forEach((m) => rest.push(`${m[1]} 저항 +${Number(m[2]) - min}%`))
+  return [...rest, `모든 저항 +${min}%`]
+}
 function editDistance(a, b) {
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
   for (let i = 1; i <= a.length; i++) {
@@ -351,7 +364,7 @@ export function matchEquipTooltip(scan) {
   if (!hit && !baseLine) { hit = findBaseByName(name, true); quality = 'normal' }
   if (!hit) return null
 
-  const lines = scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l))
+  const lines = splitAllResist(scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l)))
   const used = new Set()
   const rejected = []
   const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
