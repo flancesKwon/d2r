@@ -58,6 +58,7 @@ export default {
   'Traderie에서도 찾기': 'Also search on Traderie',
   '유니크': 'Unique',
   '세트': 'Set',
+  '목록으로': 'Back to list',
   '룬워드': 'Runewords',
   '보석·룬': 'Gems & Runes',
   '도구': 'Tools',
