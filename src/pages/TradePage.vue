@@ -417,7 +417,10 @@ const mrUniqueItems = computed(() => {
   const codes = new Set(mrBases.value.map((b) => b.code))
   return itemsData.filter((it) => it.category === mrQuality.value && codes.has(baseForItem(it)?.code))
 })
+// 유니크·세트 목록에서 아이템을 골랐을 때 목록(베이스·품질)으로 되돌아갈 자리 - 유니크 ↔ 세트를 오가며 보려고
+const backToList = ref(null)
 function pickUniqueItem(it) {
+  const from = { group: baseGroup.value, base: mrBase.value, obj: mrBaseObj.value, quality: mrQuality.value }
   baseGroup.value = ''
   mrBase.value = ''
   mrBaseObj.value = null
@@ -425,8 +428,19 @@ function pickUniqueItem(it) {
   mrShape.value = ''
   mrCraft.value = ''
   pickItem(it)
+  backToList.value = from
   goSearch()
 }
+function backToQualityList() {
+  const b = backToList.value
+  pickedItem.value = null
+  baseGroup.value = b.group
+  mrBase.value = b.base
+  mrBaseObj.value = b.obj
+  mrQuality.value = b.quality
+  commit()
+}
+watch(pickedItem, (it) => { if (!it) backToList.value = null })
 function pickQuality(v) {
   if (mrQuality.value === v) { mrQuality.value = ''; return }
   mrQuality.value = v
@@ -1531,6 +1545,7 @@ function variantLines(p) {
         <span class="tr-chip flag" v-if="mrActive && mrSockOn"><em>{{ $t('소켓 수') }}</em>{{ rangeChip(mrSock) }}<button type="button" aria-label="×" @click="mrSock = { min: '', max: '' }">×</button></span>
         <span class="tr-chip flag" v-if="mrActive && mrLvlOn"><em>{{ $t('요구 레벨') }}</em>{{ rangeChip(mrLvl) }}<button type="button" aria-label="×" @click="mrLvl = { min: '', max: '' }">×</button></span>
         <span class="tr-chip kind" v-if="baseGroup && !mrBase"><em>{{ $t('베이스') }}</em>{{ baseGroup }}<button type="button" :aria-label="`${baseGroup} ×`" @click="baseGroup = ''">×</button></span>
+        <button type="button" class="tr-chip back" v-if="pickedItem && backToList" @click="backToQualityList">← {{ $t('목록으로') }}</button>
         <span class="tr-chip item" v-if="pickedItem" :class="pickedItem.category"><em>{{ locale === 'ko' ? '아이템' : $t('아이템 지정') }}</em>{{ $itemName(pickedItem) }}<button type="button" :aria-label="`${$itemName(pickedItem)} ×`" @click="dropPickedItem">×</button></span>
         <span class="tr-chip text" v-if="searchQuery.trim() && !suggestOpen"><em>{{ $t('검색어') }}</em>{{ searchQuery.trim() }}<button type="button" :aria-label="$t('검색어 지우기')" @click="searchQuery = ''">×</button></span>
         <span class="tr-chip opt" v-for="(c, i) in statConditions" :key="'s' + condId(c)">
@@ -2304,6 +2319,8 @@ function variantLines(p) {
   font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--panel-2); color:var(--text);
 }
 .tr-chip{white-space:nowrap;}
+button.tr-chip.back{cursor:pointer; background:#2A2216; border-color:#8F773D; color:#F0D9A6;}
+button.tr-chip.back:hover{background:#3A2F1C;}
 .tr-chip em{font-style:normal; font-size:10.5px; font-weight:800; opacity:.75;}
 .tr-chip > button{width:22px; height:22px; border-radius:7px; background:rgba(255,255,255,.07); color:inherit; font-size:13px; line-height:22px; display:inline-flex; align-items:center; justify-content:center;}
 .tr-chip > button:hover{background:rgba(255,255,255,.16);}
