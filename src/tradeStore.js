@@ -101,7 +101,8 @@ export function getItemAffixes(item) {
   if (!item) return []
   // 게임 툴팁에 안 나오는 줄(hidden - 합쳐진 독·원소 피해 등)은 뺌
   const list = item.category === 'runeword' ? [...item.affixes, ...runewordRuneAffixes(item, runeLookup)] : item.affixes || []
-  return list.filter((a) => !a.hidden)
+  // 고정 피해 범위("피해 340-400 추가")는 게임에서 "피해 +N" 한 줄로 굴러감
+  return list.filter((a) => !a.hidden).map((a) => (a.prop === 'dmg' && String(a.min) !== String(a.max) ? { ...a, text: `피해 +${a.min}~${a.max}` } : a))
 }
 
 // min~max 범위로 굴러가는 옵션인지 - 판매자가 실제 아이템에 뜬 값을 직접 입력하게

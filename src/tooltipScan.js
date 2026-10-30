@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import magicAffixData from './data/magicAffixes.json'
-import { familyLineSlots } from './magicAffixes.js'
+import { familyLineSlots, craftRecipesFor } from './magicAffixes.js'
 import {
   findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, BASE_ITEMS, CLASS_SKILL_NAMES,
   SUPERIOR_MODS, superiorCombosFor,
@@ -48,6 +48,7 @@ export const wordKey = (s) => s
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
+  .replace(/^(적의?\s.*저항)\s*-\s*(\d+%?)$/, '$1 $2 감소')
   .replace(/^적의?\s(.*저항.*?)\s*감소$/, '적 $1')
   .replace('어쌔신', '암살자')
   .replace('팔라딘', '성기사')
@@ -168,7 +169,13 @@ function matchItem(item, scan) {
     // 상급 베이스는 이름 앞에 "상급"이 붙음
     const baseName = cleanName(scan.base_name).replace(/^(상급|superior)\s*/i, '')
     const bk = squashText(baseName)
-    base = searchBaseItems(baseName, null, item).find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+    const allowed = searchBaseItems('', null, item)
+    base = allowed.find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+    // 모델이 글자를 한두 개 틀리게 읽거나(스바이핸더) 사전 이름이 게임과 다르면, 허용 베이스 중 가장 가까운 하나
+    if (!base) {
+      const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
+      if (scored[0] && scored[0].d <= 2 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
+    }
   }
 
   const superior = base ? readSuperior(base, lines, used, rejected) : { mods: [], values: {} }
@@ -348,6 +355,23 @@ export function matchEquipTooltip(scan) {
   const used = new Set()
   const rejected = []
   const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
+  // 레어처럼 이름 줄이 둘인 아이템 중 제작법 고정 옵션이 전부 읽히면 크래프트 (예: 블러드 장갑 = 생명력 훔침·생명력·강타)
+  // 이름이 같은 베이스("데몬 헤드" 네크로 머리 / "데몬헤드" 투구)는 제작법이 있는 쪽으로
+  const craftBases = hit.base ? BASE_ITEMS.filter((b) => squashText(b.name_ko) === squashText(hit.base.name_ko)) : magicAffixData.miscBases.filter((b) => b.name_ko === hit.misc)
+  if (quality === 'rare') {
+    for (const cb of craftBases) {
+      for (const r of craftRecipesFor(magicAffixData, cb)) {
+        const read = matchAffixLines([{ ...r.fam, slot: 'p' }], lines, { p: 1, s: 0, total: 1 })
+        if (!read.picks.p.length) continue
+        out.quality = 'crafted'
+        if (hit.base) out.base = cb
+        out.craft = { id: r.id, values: read.picks.p[0].values }
+        out.lines = read.unmatched
+        break
+      }
+      if (out.craft) break
+    }
+  }
   if (quality === 'normal' && hit.base) {
     out.superior = readSuperior(hit.base, lines, used, rejected)
     addSuperiorDurability(out.superior, hit.base, scan, [])
