@@ -13,6 +13,7 @@ import {
   REPORT_REASON_LABEL, REPORT_TARGET_LABEL, REPORT_STATUS_LABEL, isMissingSchema,
   fetchReports, countOpenReports, setReportStatus, deleteReport, reportTargetLink, canDeleteTarget, deleteReportTarget,
 } from '../reportStore.js'
+import { matchTooltip, matchEquipTooltip } from '../tooltipScan.js'
 import { FEEDBACK_KIND_LABEL, FEEDBACK_STATUS_LABEL, fetchFeedback, setFeedbackStatus, deleteFeedback } from '../feedbackStore.js'
 
 const staff = computed(() => isStaff())
@@ -101,6 +102,25 @@ async function removeFeedback(f) {
     await loadFeedback()
   })
 }
+// 툴팁 캡쳐 읽기 기록 (039 SQL 이후 - 없으면 빈 목록): 읽은 결과를 지금 사전으로 다시 맞춰 봄
+const scanRows = ref([])
+const scanOnlyFailed = ref(true)
+function judgeScan(result) {
+  const r = matchTooltip(result)
+  if (r.item) return { what: r.item.name_ko, unmatched: r.unmatched }
+  const eq = matchEquipTooltip(result)
+  if (eq) return { what: `${eq.base?.name_ko || eq.misc} (${{ normal: '일반', magic: '매직', rare: '레어' }[eq.quality]})`, unmatched: eq.unmatched }
+  return { what: '', unmatched: [] }
+}
+async function loadScans() {
+  const { data, error } = await supabase.from('tb_tooltip_scan').select('id, created_at, result').not('result', 'is', null).order('id', { ascending: false }).limit(100)
+  scanRows.value = error ? [] : data.map((d) => ({ ...d, ...judgeScan(d.result) }))
+}
+const shownScans = computed(() => scanRows.value.filter((r) => !scanOnlyFailed.value || !r.what || r.unmatched.length))
+async function copyScans() {
+  await navigator.clipboard.writeText(JSON.stringify(shownScans.value.map((r) => r.result), null, 1))
+  showAlert('복사함')
+}
 const feedbackFilters = [
   { value: 'open', label: '확인 전' },
   { value: 'done', label: '확인함' },
@@ -158,6 +178,7 @@ function loadAll() {
   loadMembers().catch(() => {})
   loadReports()
   loadFeedback()
+  loadScans().catch(() => {})
   loadRecent().catch(() => {})
 }
 watch(staff, loadAll, { immediate: true })
@@ -407,6 +428,22 @@ async function removeTradePost(p) {
         </div>
       </div>
       <div class="empty-state" v-if="!feedback.length">{{ feedbackFilter === 'open' ? '확인할 피드백 없음' : '피드백 없음' }}</div>
+    </div>
+
+    <div class="d-section-title">툴팁 읽기 기록</div>
+    <div class="admin-filter-row">
+      <label><input type="checkbox" v-model="scanOnlyFailed" /> 못 맞춘 것만</label>
+      <button class="admin-action-btn" @click="copyScans" :disabled="!shownScans.length">목록 복사</button>
+    </div>
+    <div class="affix-list admin-report-list">
+      <div class="affix-line admin-report-line" v-for="r in shownScans" :key="'s' + r.id">
+        <div class="admin-report-info">
+          <div class="admin-report-head"><b>{{ r.result.name }}</b>{{ r.result.base_name ? ' · ' + r.result.base_name : '' }} → {{ r.what || '사전·베이스에 없음' }}</div>
+          <div class="admin-report-detail" v-if="r.unmatched.length">못 맞춘 줄: {{ r.unmatched.join(' / ') }}</div>
+          <span class="admin-report-meta">{{ formatDate(r.created_at) }}</span>
+        </div>
+      </div>
+      <div class="empty-state" v-if="!shownScans.length">기록 없음</div>
     </div>
 
     <div class="d-section-title">회원 관리</div>
