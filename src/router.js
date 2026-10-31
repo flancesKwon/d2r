@@ -35,6 +35,7 @@ const UserProfilePage = () => import('./pages/UserProfilePage.vue')
 const ProfileEditPage = () => import('./pages/ProfileEditPage.vue')
 const AdminStatsPage = () => import('./pages/AdminStatsPage.vue')
 const AdminEventPage = () => import('./pages/AdminEventPage.vue')
+const AdminPatchPage = () => import('./pages/AdminPatchPage.vue')
 const EventPage = () => import('./pages/EventPage.vue')
 
 const baseRoutes = [
@@ -70,6 +71,7 @@ const baseRoutes = [
     { path: '/admin', name: 'admin', component: AdminPage, meta: { title: '관리자' } },
     { path: '/admin/stats', name: 'admin-stats', component: AdminStatsPage, meta: { title: '방문 통계' } },
     { path: '/admin/event', name: 'admin-event', component: AdminEventPage, meta: { title: '이벤트 관리' } },
+    { path: '/admin/patch', name: 'admin-patch', component: AdminPatchPage, meta: { title: '패치노트 관리' } },
     { path: '/event/:id', name: 'event', component: EventPage, meta: { title: '이벤트' } },
     { path: '/cube', name: 'cube', component: CubeRecipesPage, meta: { title: '큐브 레시피' } },
     { path: '/runewords', name: 'runewords', component: RunewordFinderPage, meta: { title: '룬워드 찾기' } },

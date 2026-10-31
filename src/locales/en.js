@@ -2037,6 +2037,7 @@ export default {
   '툴팁 캡쳐로 채우기': 'Fill from tooltip screenshot',
   '읽는 중…': 'Reading…',
   '또는 캡쳐를 Ctrl+V': 'or paste a screenshot with Ctrl+V',
+  '아직 인식 정확도가 많이 부족합니다. 채워진 내용을 꼭 확인해 주세요. 계속 개선해 나가겠습니다.': 'Recognition accuracy is still limited. Please double-check the filled-in values. We keep improving it.',
   '툴팁을 찾지 못함': 'No tooltip found in the image',
   '사전에 없는 아이템 - 직접 입력 ({n})': 'Item not in the database - enter it manually ({n})',
   '읽은 내용을 확인해 주세요': 'Please check what was read',

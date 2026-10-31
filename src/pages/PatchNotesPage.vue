@@ -1,9 +1,8 @@
 <script setup>
-import { ref } from 'vue'
-import patchData from '../data/patchNotes.json'
+import { patchNotes as notes, fetchDbPatchNotes } from '../patchStore.js'
 
-const notes = patchData
-const selected = ref(null)
+fetchDbPatchNotes()
+const jump = (id) => document.getElementById('patch-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 </script>
 
 <template>
@@ -17,65 +16,50 @@ const selected = ref(null)
   </div>
 
   <div class="grid-wrap patch-list-wrap">
+    <nav class="patch-index" v-if="notes.length > 1">
+      <a v-for="n in notes" :key="n.id" :href="'#patch-' + n.id" @click.prevent="jump(n.id)">v{{ n.version }}</a>
+    </nav>
     <div class="patch-list">
-      <button class="patch-row" v-for="n in notes" :key="n.id" @click="selected = n">
+      <article class="patch-article" v-for="n in notes" :key="n.id" :id="'patch-' + n.id">
         <div class="patch-row-top">
           <span class="patch-version">v{{ n.version }}</span>
-          <span class="patch-tag" v-for="t in n.tags" :key="t">{{ $t(t) }}</span>
+          <span class="patch-tag" v-for="t in n.tags" :key="t">{{ t }}</span>
+          <span class="patch-date">{{ n.date }}</span>
         </div>
-        <div class="patch-title">{{ $t(n.title) }}</div>
-        <div class="patch-summary">{{ $t(n.summary) }}</div>
-        <div class="patch-date">{{ n.date }}</div>
-      </button>
-    </div>
-  </div>
-
-  <div class="modal-overlay" v-if="selected" @click.self="selected = null">
-    <div class="modal-panel patch-modal">
-      <button class="modal-close" @click="selected = null">✕</button>
-      <div class="d-eyebrow">v{{ selected.version }} · {{ selected.date }}</div>
-      <h1 class="d-name patch-modal-title">{{ $t(selected.title) }}</h1>
-      <div class="patch-tag-row">
-        <span class="patch-tag" v-for="t in selected.tags" :key="t">{{ $t(t) }}</span>
-      </div>
-      <p class="patch-modal-summary">{{ $t(selected.summary) }}</p>
-      <div v-for="(sec, i) in selected.sections" :key="i">
-        <div class="d-section-title">{{ $t(sec.heading) }}</div>
-        <div class="affix-list">
-          <div class="affix-line" v-for="(line, j) in sec.items" :key="j">
-            <span class="a-text">{{ $t(line) }}</span>
-          </div>
-        </div>
-      </div>
+        <h2 class="patch-title">{{ n.title }}</h2>
+        <p class="patch-summary">{{ n.summary }}</p>
+        <section v-for="(sec, i) in n.sections" :key="i" class="patch-sec">
+          <h3 class="patch-sec-title">{{ sec.heading }}</h3>
+          <ul class="patch-items">
+            <li v-for="(line, j) in sec.items" :key="j">{{ line }}</li>
+          </ul>
+        </section>
+      </article>
     </div>
   </div>
   </div>
 </template>
 
 <style scoped>
-/* 벨로그처럼 여백 넉넉한 둥근 카드 느낌 - 톤(어두운 배경, 금색 포인트)은 그대로 두고
-   목록·모달을 각진 테두리 대신 둥근 카드로 바꿈 */
 /* .patch-hero 계열 기본 스타일은 여러 페이지가 공유해서 style.css(전역)로 옮김 */
-
-.patch-list-wrap{max-width:1180px;}
-.patch-list{display:flex; flex-direction:column; gap:14px;}
-.patch-row{
-  display:block; width:100%; text-align:left; border:1px solid var(--border-soft); background:var(--panel);
-  padding:22px 24px; cursor:pointer; transition:transform .15s, box-shadow .15s, border-color .15s; border-radius:16px;
-}
-.patch-row:hover{border-color:var(--gold-dim); transform:translateY(-2px); box-shadow:0 10px 26px -10px rgba(0,0,0,0.55);}
-.patch-row-top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-.patch-version{font-family:'Noto Serif KR', serif; font-weight:700; color:var(--gold); font-size:13px;}
+.patch-list-wrap{max-width:860px;}
+.patch-index{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;}
+.patch-index a{font-size:12px; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:4px 12px; text-decoration:none;}
+.patch-index a:hover{border-color:var(--gold-dim); color:var(--gold);}
+.patch-list{display:flex; flex-direction:column; gap:22px;}
+.patch-article{background:var(--panel); border:1px solid var(--border-soft); border-radius:16px; padding:26px 28px; scroll-margin-top:80px;}
+.patch-row-top{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+.patch-version{font-family:'Noto Serif KR', serif; font-weight:700; color:var(--gold); font-size:14px;}
 .patch-tag{font-size:10.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 10px; border-radius:999px;}
-.patch-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; margin-bottom:6px;}
-.patch-summary{font-size:13px; color:var(--text-muted); margin-bottom:8px; line-height:1.6;}
-.patch-date{font-size:11px; color:var(--text-dim);}
-
-.modal-panel{border-radius:18px;}
-.modal-close{border-radius:10px;}
-.patch-modal{max-width:680px;}
-.patch-modal-title{font-size:24px; margin:10px 0 12px;}
-.patch-tag-row{display:flex; gap:6px; margin-bottom:16px;}
-.patch-modal-summary{font-size:13.5px; color:var(--text-muted); margin-bottom:22px; line-height:1.6;}
-.affix-list{border-radius:14px; overflow:hidden;}
+.patch-date{margin-left:auto; font-size:12px; color:var(--text-dim);}
+.patch-title{font-family:'Noto Serif KR', serif; font-weight:700; font-size:22px; margin:0 0 10px;}
+.patch-summary{font-size:14px; color:var(--text-muted); line-height:1.7; margin:0 0 6px;}
+.patch-sec{margin-top:20px;}
+.patch-sec-title{font-size:15px; font-weight:700; color:var(--gold); margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--border-soft);}
+.patch-items{margin:0; padding-left:20px; font-size:14px; line-height:1.75; color:var(--text);}
+.patch-items li{margin-bottom:3px;}
+@media (max-width:760px){
+  .patch-article{padding:20px 18px;}
+  .patch-title{font-size:19px;}
+}
 </style>

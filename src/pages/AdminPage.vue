@@ -339,6 +339,10 @@ async function removeTradePost(p) {
         <div class="label">이벤트 <span class="go">관리 →</span></div>
         <div class="value accent">🎁</div>
       </router-link>
+      <router-link to="/admin/patch" class="admin-stat-card visit">
+        <div class="label">패치노트 <span class="go">관리 →</span></div>
+        <div class="value accent">📜</div>
+      </router-link>
       <div class="admin-stat-card">
         <div class="label">처리 대기 신고</div>
         <div class="value" :class="{ warn: stats.openReports > 0 }">{{ stats.openReports }}</div>
