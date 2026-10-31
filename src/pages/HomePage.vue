@@ -7,7 +7,7 @@ import { computed, shallowRef, ref } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRouter } from 'vue-router'
 import { guidesState, loadGuides } from '../guideStore.js'
-import patchNotes from '../data/patchNotes.json'
+import { patchNotes, fetchDbPatchNotes } from '../patchStore.js'
 import ladder from '../data/ladder.json'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { fetchPosts } from '../communityStore.js'
@@ -80,7 +80,8 @@ function loadSide() {
 loadSide()
 // 보고 있는 동안 30초마다 최신 글·최신 매물 새로
 useAutoRefresh(() => { loadSide(); trade.value?.loadTradePosts(true) })
-const latestPatches = computed(() => [...patchNotes].sort(byDate).slice(0, 3))
+fetchDbPatchNotes()
+const latestPatches = computed(() => patchNotes.value.slice(0, 3))
 // 거래 데이터(아이템 사전 포함)는 첫 화면을 띄운 뒤에 받음
 const trade = shallowRef(null)
 import('../tradeStore.js').then((m) => { trade.value = m; m.loadTradePosts() })
@@ -197,7 +198,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
         <section class="hm-panel">
           <div class="hm-head small"><h3>{{ $t('패치노트') }}</h3><router-link to="/patch">{{ $t('더보기') }}</router-link></div>
           <router-link v-for="n in latestPatches" :key="n.id" to="/patch" class="hm-line">
-            <span class="hm-line-title">{{ $t(n.title) }}</span><span class="hm-date">{{ shortDate(n.date) }}</span>
+            <span class="hm-line-title">{{ n.title }}</span><span class="hm-date">{{ shortDate(n.date) }}</span>
           </router-link>
         </section>
       </aside>
