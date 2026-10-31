@@ -1224,6 +1224,7 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <input type="file" accept="image/*" hidden :disabled="scanning" @change="onScanFile" />
         </label>
         <small>{{ $t('또는 캡쳐를 Ctrl+V') }}</small>
+        <small class="tooltip-scan-warn">{{ $t('아직 인식 정확도가 많이 부족합니다. 채워진 내용을 꼭 확인해 주세요. 계속 개선해 나가겠습니다.') }}</small>
         <p v-if="scanNote" class="tooltip-scan-note">{{ scanNote }}</p>
       </div>
       <div class="item-picker trade-item-input">

@@ -36,7 +36,7 @@ const browser = (ua) => {
 .vr-tag{font-size:11px; color:var(--text-dim); border:1px solid var(--border); border-radius:4px; padding:0 6px;}
 .vr-tag.bot{color:#e0775f; border-color:#e0775f;}
 .vr-ip{font-size:11px; color:var(--text-dim); font-family:monospace;}
-.vr-note{flex:1; min-width:0; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.vr-note{flex:1 1 100%; order:1; min-width:0; color:var(--text-dim); word-break:break-all;}
 .vr-when{font-size:11px; color:var(--text-dim); white-space:nowrap;}
 .vr-none{font-size:12.5px; color:var(--text-dim);}
 </style>
