@@ -69,8 +69,7 @@ const DB_MENUS = [
     ],
   },
   {
-    key: 'info', label: '정보', to: '/patch', match: ['/patch', '/ladder'],
-    links: [{ label: '패치노트', to: '/patch' }, { label: '레더 시즌 정보', to: '/ladder' }],
+    key: 'info', label: '레더 시즌 정보', to: '/ladder', match: ['/ladder'], links: [],
   },
 ]
 // 커뮤니티는 양쪽 공용 - 거래 모드에선 거래 게시판을 맨 앞에
@@ -84,9 +83,11 @@ const communityMenu = (mode) => ({
   links: mode === 'trade' ? [COMMUNITY_LINKS[2], ...COMMUNITY_LINKS.filter((l, i) => i !== 2)] : COMMUNITY_LINKS,
 })
 
+const PATCH_MENU = { key: 'patch', label: '패치노트', to: '/patch', match: ['/patch'], links: [] }
+
 const mode = useSiteMode()
-const MENUS = computed(() => [...(mode.value === 'trade' ? TRADE_MENUS : DB_MENUS), communityMenu(mode.value)])
-const ALL_MENUS = [...TRADE_MENUS, ...DB_MENUS, communityMenu('db')]
+const MENUS = computed(() => [...(mode.value === 'trade' ? TRADE_MENUS : DB_MENUS), PATCH_MENU, communityMenu(mode.value)])
+const ALL_MENUS = [...TRADE_MENUS, ...DB_MENUS, PATCH_MENU, communityMenu('db')]
 // 주소가 가장 길게 맞는 메뉴 ('/' 는 정확히 같을 때만)
 const activeKey = computed(() => {
   const p = stripLocale(route.path)
