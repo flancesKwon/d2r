@@ -1,6 +1,8 @@
 import { supabase } from './supabase.js'
 import { squashText } from './itemSearch.js'
 import magicAffixData from './data/magicAffixes.json'
+// 게임 공식 한국어 베이스 이름이 사전 표기와 다른 베이스 (코드 -> 게임 이름) - 읽을 때만 같은 이름으로 봄
+import gameBaseNames from './data/baseGameNames.json'
 import { familyLineSlots, craftRecipesFor } from './magicAffixes.js'
 import {
   findItemsByReadName, getItemAffixes, isRollRangeAffix, isRandomClassSkillAffix, isAllowedValue, searchBaseItems, BASE_ITEMS, CLASS_SKILL_NAMES,
@@ -171,7 +173,7 @@ function matchItem(item, scan) {
     const baseName = cleanName(scan.base_name).replace(/^(상급|superior)\s*/i, '')
     const bk = squashText(baseName)
     const allowed = searchBaseItems('', null, item)
-    base = allowed.find((b) => [b.name_ko, b.subtitle].some((n) => squashText(n) === bk)) || null
+    base = allowed.find((b) => [b.name_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === bk)) || null
     // 모델이 글자를 한두 개 틀리게 읽거나(스바이핸더) 사전 이름이 게임과 다르면, 허용 베이스 중 가장 가까운 하나
     if (!base) {
       const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
@@ -320,7 +322,7 @@ function editDistance(a, b) {
 function findBaseByName(text, fuzzy = false, kind = null) {
   const k = squashText(text.replace(/^(상급|superior)\s*/i, ''))
   if (!k) return null
-  const base = BASE_ITEMS.find((b) => [b.name_ko, b.alt_ko, b.subtitle].some((n) => n && squashText(n) === k))
+  const base = BASE_ITEMS.find((b) => [b.name_ko, b.alt_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === k))
   if (base) return { base }
   // 짧은 이름은 낱말이 둘 이상일 때만 한 글자 차이를 봄 (낱말 하나는 접두사·접미사와 헷갈림)
   const maxDist = k.length >= 4 && /\s/.test(text.trim()) ? 2 : k.length >= 5 ? 2 : k.length >= 3 && /\s/.test(text.trim()) ? 1 : 0
@@ -329,7 +331,7 @@ function findBaseByName(text, fuzzy = false, kind = null) {
     const dist = (b, names) => Math.min(...names.filter(Boolean).map((n) => editDistance(squashText(n), k)))
     // 그래도 같으면 이름 길이가 읽은 글자 수에 가까운 쪽 ("페럴 클러"는 "클러"보다 "피어럴 클러")
     const lenGap = (b) => Math.abs(squashText(b.name_ko).length - k.length)
-    const scored = BASE_ITEMS.filter((b) => !kind || b.base_stats?.category === kind).map((b) => ({ b, d: dist(b, [b.name_ko, b.alt_ko]), dName: dist(b, [b.name_ko]), gap: lenGap(b) })).sort((x, y) => x.d - y.d || x.dName - y.dName || x.gap - y.gap)
+    const scored = BASE_ITEMS.filter((b) => !kind || b.base_stats?.category === kind).map((b) => ({ b, d: dist(b, [b.name_ko, b.alt_ko, gameBaseNames[b.code]]), dName: dist(b, [b.name_ko, gameBaseNames[b.code]]), gap: lenGap(b) })).sort((x, y) => x.d - y.d || x.dName - y.dName || x.gap - y.gap)
     const tied = scored[1] && scored[1].d === scored[0].d && scored[1].dName === scored[0].dName && scored[1].gap === scored[0].gap
     if (scored[0] && scored[0].d <= maxDist && !tied) return { base: scored[0].b }
   }
@@ -363,6 +365,11 @@ export function matchEquipTooltip(scan) {
   if (!hit) { hit = findBaseInMagicName(name, kind); quality = 'magic' }
   if (!hit && !baseLine) { hit = findBaseByName(name, true); quality = 'normal' }
   if (!hit) return null
+  // 이름이 같은 베이스("데몬 헤드" 네크로 머리 / "데몬헤드" 투구)는 방어력이 가까운 쪽
+  if (hit.base && scan.defense != null) {
+    const same = BASE_ITEMS.filter((b) => squashText(b.name_ko) === squashText(hit.base.name_ko))
+    if (same.length > 1) hit.base = same.reduce((x, y) => (Math.abs(scan.defense - y.base_stats.maxac) < Math.abs(scan.defense - x.base_stats.maxac) ? y : x))
+  }
 
   const lines = splitAllResist(scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l)))
   const used = new Set()
