@@ -120,7 +120,16 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   // 판매자가 적은 방어력·데미지가 있으면 그 값 (큐브 업그레이드된 유니크 등), 없으면 옵션 수치로 계산
   if (hasFixedBaseStat(item)) Object.assign(meta, { ...computedBaseStat(item, options, ethereal), ...meta })
   if (meta.defense) push(`${t('방어력')}: ${meta.defense}`)
-  if (meta.damage) push(`${t('데미지')}: ${meta.damage}`)
+  // 게임 툴팁처럼 "한손 피해: 19 - 35" (양손 무기는 "양손 피해") - 영어는 Damage
+  if (meta.damage) {
+    const parts = String(meta.damage).split(' / ')
+    const bs = (baseItem || baseForItem(item))?.base_stats
+    const twoOnly = bs && !bs.mindam && bs['2handmindam']
+    parts.forEach((part, i) => {
+      const hand = parts.length > 1 ? ['한손 피해', '양손 피해'][i] : twoOnly ? '양손 피해' : '한손 피해'
+      push(en ? `${t('데미지')}: ${part}` : `${hand}: ${part.replace('~', ' - ')}`)
+    })
+  }
   if (amountLabel && amountLabel !== '1개') push(`${t('수량')}: ${en ? amountLabel.replace(/(\d+)\s*개/, '$1').replace(/(\d+)종 묶음/, '$1') : amountLabel}`)
   // 게임 툴팁 순서: 요구 민첩 -> 요구 힘 -> 요구 레벨
   const req = itemStatReqs(item, { base: baseItem, ethereal })
@@ -150,9 +159,10 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
   for (const m of sortOptionLines(modLines)) push(affixText(m), TOOLTIP_COLORS.magic)
 
   const tail = []
-  if (ethereal) tail.push(t('에테리얼 (수리 불가)'))
+  // 한국어는 게임 표기 (무형·홈 있음)
+  if (ethereal) tail.push(en ? t('에테리얼 (수리 불가)') : '무형 (수리 불가)')
   const sockets = meta.sockets || (item?.category === 'runeword' ? item.extra?.socket_count : null)
-  if (sockets) tail.push(`${t('소켓')} (${sockets})`)
+  if (sockets) tail.push(en ? `${t('소켓')} (${sockets})` : `홈 있음 (${sockets})`)
   if (tail.length) push(tail.join(', '), TOOLTIP_COLORS.magic)
 
   // 아이템 그림 위에 그릴 소켓 구멍 - 박힌 게 있으면 그림 이름, 비었으면 null. 룬워드는 박힌 룬 그림
