@@ -573,7 +573,6 @@ export default {
   '피해 증가 옵션으로 데미지가 정해져서 따로 입력하지 않아요': 'Damage is set by the enhanced damage option, so there is nothing to enter',
   '예: 141': 'e.g. 141',
   '최대 데미지': 'Max damage',
-  '나올 수 있는 데미지': 'Possible damage',
   '베이스 종류 선택': 'Base type',
   '반지·목걸이·주얼·부적': 'Ring / amulet / jewel / charm',
   '모양': 'Graphic',

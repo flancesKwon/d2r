@@ -37,6 +37,7 @@ import {
   baseItemLabel,
   itemsData,
   itemLevelReq,
+  itemStatReqs,
   classSkillsForBase,
   baseForItem,
   hasFixedBaseStat,
@@ -55,7 +56,6 @@ import { itemMatchesQuery, squashText } from '../itemSearch.js'
 import RichEditor from '../components/RichEditor.vue'
 import ItemTooltipCanvas from '../components/ItemTooltipCanvas.vue'
 import { buildTooltip } from '../itemTooltip.js'
-import { itemDamage, formatDamage } from '../itemDamage.js'
 import AffixPicker from '../components/AffixPicker.vue'
 import SocketEditor from '../components/SocketEditor.vue'
 import { emptySocket, socketError, socketLine, mergeSameStatLines, isJewelKind } from '../sockets.js'
@@ -356,7 +356,11 @@ const armorStats = ref({ baseDefense: '', dmgMin: '', dmgMax: '' })
 // 매직·레어·크래프트 요구 레벨 (선택) - 접사마다 달라서 사전으로 못 구함, 판매자가 게임 툴팁 보고 적음
 const levelReq = ref('')
 const levelReqValid = computed(() => /^\d+$/.test(String(levelReq.value)) && Number(levelReq.value) >= 1 && Number(levelReq.value) <= 99)
-const levelReqLines = () => (isAffixQuality.value && levelReqValid.value ? [`요구 레벨 ${Number(levelReq.value)}`] : [])
+const levelReqLines = () => ((isAffixQuality.value || isUniqueOrSet.value) && levelReqValid.value ? [`요구 레벨 ${Number(levelReq.value)}`] : [])
+// 유니크·세트 요구 힘 (선택) - 큐브로 업그레이드하면 달라져서 판매자가 적음
+const strReq = ref('')
+const strReqValid = computed(() => /^\d+$/.test(String(strReq.value)) && Number(strReq.value) >= 1 && Number(strReq.value) <= 300)
+const strReqLines = () => (isUniqueOrSet.value && strReqValid.value ? [`요구 힘 ${Number(strReq.value)}`] : [])
 const filled = (v) => v !== '' && v !== null && v !== undefined
 
 // 룬워드·매직/레어/일반은 베이스로 쓴 실제 방어구/무기를 검색해서 고를 수 있게 함 -
@@ -534,31 +538,17 @@ const uniqueDefenseRange = computed(() =>
 const defenseOutOfRange = computed(() => {
   const v = armorStats.value.baseDefense
   if (!filled(v)) return false
-  const r = uniqueDefenseRange.value || expectedDefense.value
+  // 유니크·세트는 큐브 업그레이드로 범위를 넘을 수 있어 막지 않음 (사는 사람이 요구 레벨·힘·방어력으로 판단)
+  const r = isUniqueOrSet.value ? null : expectedDefense.value
   return !!r && !isAllowedValue(v, r)
 })
-// 유니크·세트 무기 데미지 범위 (한손·양손 중 아무 쪽이나 맞으면 됨, 레벨당 데미지는 99레벨까지)
-const uniqueDamageRange = computed(() => {
-  if (!isUniqueOrSet.value || selectedItem.value?.base_stats?.category !== 'weapon') return null
-  const lo = itemDamage(selectedItem.value, { level: 0, ethereal: form.value.ethereal })
-  const hi = itemDamage(selectedItem.value, { level: 99, ethereal: form.value.ethereal })
-  const hands = ['one', 'two'].filter((h) => lo?.[h] && hi?.[h])
-  if (!hands.length) return null
-  return hands.map((h) => ({ min: [lo[h].min[0], hi[h].min[1]], max: [lo[h].max[0], hi[h].max[1]] }))
-})
-// 범위는 formatDamage 처럼 "35~(238-547)", 한손·양손 둘 다 있으면 " / " 로 이어 붙임
-const damageRangeLabel = (r) => r.map(formatDamage).join(' / ')
-// 입력한 데미지가 맞는지 - 둘 다 입력, 최소 ≤ 최대, 유니크·세트는 나올 수 있는 범위 안
+// 입력한 데미지가 맞는지 - 둘 다 입력, 최소 ≤ 최대
 const damageError = computed(() => {
   const { dmgMin, dmgMax } = armorStats.value
   if (!filled(dmgMin) && !filled(dmgMax)) return ''
   if (!filled(dmgMin) || !filled(dmgMax)) return t('데미지 최소·최대 둘 다 입력')
   const lo = Number(dmgMin), hi = Number(dmgMax)
   if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || hi < lo) return t('데미지 최소~최대 확인')
-  const r = uniqueDamageRange.value
-  if (r && !r.some((d) => lo >= d.min[0] && lo <= d.min[1] && hi >= d.max[0] && hi <= d.max[1])) {
-    return `${t('데미지')} (${damageRangeLabel(r)})`
-  }
   return ''
 })
 // 직업 전용 베이스 자체 옵션 - 게임에서 정해진 범위 안에서만 붙음 (scripts/build-base-items.js)
@@ -654,6 +644,7 @@ function hideBaseItemDropdownSoon() {
 function resetBaseStats() {
   armorStats.value = { baseDefense: '', dmgMin: '', dmgMax: '' }
   levelReq.value = ''
+  strReq.value = ''
   clearBaseItem()
 }
 
@@ -702,11 +693,9 @@ const invalidInputs = computed(() => {
   if (expectedDefense.value && !isAllowedValue(armorStats.value.baseDefense, expectedDefense.value)) {
     bad.push(`${t('기본 방어력')} (${expectedDefense.value.min}~${expectedDefense.value.max})`)
   }
-  if (uniqueDefenseRange.value && !isAllowedValue(armorStats.value.baseDefense, uniqueDefenseRange.value)) {
-    bad.push(`${t('방어력')} (${uniqueDefenseRange.value.min}~${uniqueDefenseRange.value.max})`)
-  }
   if (damageError.value) bad.push(damageError.value)
-  if (isAffixQuality.value && filled(levelReq.value) && !levelReqValid.value) bad.push(t('요구 레벨') + ' (1~99)')
+  if ((isAffixQuality.value || isUniqueOrSet.value) && filled(levelReq.value) && !levelReqValid.value) bad.push(t('요구 레벨') + ' (1~99)')
+  if (isUniqueOrSet.value && filled(strReq.value) && !strReqValid.value) bad.push(t('요구 힘') + ' (1~300)')
   const auto = pickedAutoMod.value
   if (auto && !isAllowedValue(autoModPick.value.value, auto)) bad.push(`${auto.text.replace('{v}', '')} (${auto.min}~${auto.max})`)
   for (const { fam, values } of pickedAffixes.value) {
@@ -836,6 +825,10 @@ async function fillFromTooltip(file) {
     randClassChoice.value = r.randClass
     if (effectiveBaseKind.value === 'armor' && r.defense) armorStats.value.baseDefense = String(r.defense)
     if (effectiveBaseKind.value === 'weapon' && r.dmgMin && r.dmgMax) Object.assign(armorStats.value, { dmgMin: String(r.dmgMin), dmgMax: String(r.dmgMax) })
+    if (isUniqueOrSet.value) {
+      if (r.levelReq) levelReq.value = String(r.levelReq)
+      if (r.strReq) strReq.value = String(r.strReq)
+    }
     const sockets = scan.sockets || 0
     if (sockets > 0 && !isRuneword.value) {
       if (sockets <= uniqueMaxSockets.value) uniqueSockets.value = String(sockets)
@@ -1089,7 +1082,7 @@ function buildAllOptions() {
 function buildCoreOptions() {
   if (isUnidentified.value) {
     // 옵션 수치는 안 받음 (사전 범위 그대로). 소켓 수는 미확인이어도 게임에서 보이니 남김
-    return ['미확인', ...enteredStatLines(), ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
+    return ['미확인', ...enteredStatLines(), ...levelReqLines(), ...strReqLines(), ...itemAffixes.value.map((a) => a.text), ...buildMaterialsOption(), ...(uniqueSockets.value ? [`소켓 ${uniqueSockets.value}개`] : [])]
   }
   const dbOptions = itemAffixes.value.map((a, i) => {
     if (isRandomClassSkillAffix(a)) return resolveRandomClassSkillText(a, randClassChoice.value[i], rolledValues.value[i])
@@ -1097,7 +1090,7 @@ function buildCoreOptions() {
   })
   // 룬워드는 고유 옵션과 박힌 룬 효과가 겹치는 줄(뼈 "화염 저항 +15%" 두 줄 등)을 게임 툴팁처럼 한 줄로 합침
   return [
-    ...(isRuneword.value ? mergeSameStatLines(dbOptions) : dbOptions), ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...levelReqLines(), ...customOptions.value,
+    ...(isRuneword.value ? mergeSameStatLines(dbOptions) : dbOptions), ...buildRandomGroupOptions(), ...buildMaterialsOption(), ...buildBaseStatOptions(), ...levelReqLines(), ...strReqLines(), ...customOptions.value,
   ]
 }
 
@@ -1312,15 +1305,13 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
           <span v-if="baseStatsRef.speed !== null && baseStatsRef.speed !== undefined">{{ $t('공격 속도') }} {{ baseStatsRef.speed }}</span>
           <span>{{ $t('내구도') }} {{ baseStatsRef.durability }}</span>
         </div>
-        <template v-if="isUniqueOrSet && !baseStatFixed">
+        <template v-if="isUniqueOrSet">
           <div class="base-stats-input-row" v-if="baseStatsRef.category === 'armor'">
             <label>
               {{ $t('방어력') }}
               <input
                 type="number" v-model="armorStats.baseDefense" class="write-input"
-                :class="{ invalid: uniqueDefenseRange && outOfRange(armorStats.baseDefense, uniqueDefenseRange) }"
-                :min="uniqueDefenseRange?.min" :max="uniqueDefenseRange?.max"
-                :placeholder="uniqueDefenseRange ? `${uniqueDefenseRange.min}~${uniqueDefenseRange.max}` : $t('예: 141')"
+                min="1" :placeholder="uniqueDefenseRange ? `${uniqueDefenseRange.min}~${uniqueDefenseRange.max}` : $t('예: 141')"
               />
             </label>
           </div>
@@ -1334,8 +1325,17 @@ const socketErrors = computed(() => socketPicks.value.slice(0, socketCount.value
               <input type="number" v-model="armorStats.dmgMax" class="write-input" :class="{ invalid: damageError }" min="1" :placeholder="$t('최대')" />
             </label>
           </div>
-          <div class="unit-hint" v-if="baseStatsRef.category === 'weapon' && uniqueDamageRange">{{ $t('나올 수 있는 데미지') }} {{ damageRangeLabel(uniqueDamageRange) }}{{ form.ethereal ? ` (${$t('에테리얼')})` : '' }}</div>
           <div class="unit-hint affix-error" v-if="damageError">{{ damageError }}</div>
+          <div class="base-stats-input-row">
+            <label>
+              {{ $t('요구 레벨') }}
+              <input type="number" v-model="levelReq" class="write-input" min="1" max="99" :class="{ invalid: filled(levelReq) && !levelReqValid }" :placeholder="itemLevelReq(selectedItem) ? String(itemLevelReq(selectedItem)) : ''" />
+            </label>
+            <label>
+              {{ $t('요구 힘') }}
+              <input type="number" v-model="strReq" class="write-input" min="1" max="300" :class="{ invalid: filled(strReq) && !strReqValid }" :placeholder="itemStatReqs(selectedItem).str ? String(itemStatReqs(selectedItem).str) : ''" />
+            </label>
+          </div>
         </template>
       </div>
 

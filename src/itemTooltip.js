@@ -32,6 +32,7 @@ const META = [
   { key: 'sockets', re: /^소켓 (\d+)개$/ },
   { key: 'unid', re: /^미확인$/ },
   { key: 'lvreq', re: /^요구 레벨 (\d+)$/ },
+  { key: 'strreq', re: /^요구 힘 (\d+)$/ },
 ]
 
 // 방어력 증가·피해 증가가 붙은 유니크·세트는 방어력·데미지를 입력받지 않고 옵션 수치로 계산해서 보여줌.
@@ -116,15 +117,17 @@ export function buildTooltip({ item = null, name = '', category = '', quality = 
     push(en && baseItem ? baseItem.subtitle : baseName(meta.base), TOOLTIP_COLORS.white)
   }
 
-  if (hasFixedBaseStat(item)) Object.assign(meta, computedBaseStat(item, options, ethereal))
+  // 판매자가 적은 방어력·데미지가 있으면 그 값 (큐브 업그레이드된 유니크 등), 없으면 옵션 수치로 계산
+  if (hasFixedBaseStat(item)) Object.assign(meta, { ...computedBaseStat(item, options, ethereal), ...meta })
   if (meta.defense) push(`${t('방어력')}: ${meta.defense}`)
   if (meta.damage) push(`${t('데미지')}: ${meta.damage}`)
   if (amountLabel && amountLabel !== '1개') push(`${t('수량')}: ${en ? amountLabel.replace(/(\d+)\s*개/, '$1').replace(/(\d+)종 묶음/, '$1') : amountLabel}`)
   // 게임 툴팁 순서: 요구 민첩 -> 요구 힘 -> 요구 레벨
   const req = itemStatReqs(item, { base: baseItem, ethereal })
   if (req.dex) push(`${t('요구 민첩')}: ${req.dex}`)
-  if (req.str) push(`${t('요구 힘')}: ${req.str}`)
-  const lv = itemLevelReq(item) ?? (meta.lvreq ? Number(meta.lvreq) : null)
+  const str = meta.strreq ? Number(meta.strreq) : req.str
+  if (str) push(`${t('요구 힘')}: ${str}`)
+  const lv = meta.lvreq ? Number(meta.lvreq) : itemLevelReq(item)
   if (lv) push(`${t('요구 레벨')}: ${lv}`)
   // 미확인 판매 - 게임처럼 빨간 '미확인', 아래 옵션은 사전 범위
   if (meta.unid) push(t('미확인 (옵션은 확인 전 범위)'), TOOLTIP_COLORS.red)

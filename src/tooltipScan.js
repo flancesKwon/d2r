@@ -160,6 +160,15 @@ function splitNoteLines(scan) {
   return out
 }
 
+// 툴팁의 "요구 레벨: 66" / "필요 힘: 140" 줄 수치 (유니크·세트는 업그레이드로 달라질 수 있어 읽어 둠)
+function scanReq(scan, what) {
+  for (const l of scan.lines) {
+    const m = new RegExp(`^(?:요구|필요) ${what}\\s*:\\s*(\\d+)`).exec(l.trim())
+    if (m) return Number(m[1])
+  }
+  return null
+}
+
 function matchItem(item, scan) {
   const affixes = getItemAffixes(item)
   const cleaned = scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l))
@@ -244,6 +253,8 @@ function matchItem(item, scan) {
     item,
     base,
     ethereal: isEthereal(scan),
+    levelReq: scanReq(scan, '레벨'),
+    strReq: scanReq(scan, '힘'),
     defense,
     dmgMin: scan.damage_min,
     dmgMax: scan.damage_max,
