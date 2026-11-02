@@ -138,7 +138,7 @@ export function matchTooltip(scan) {
 }
 
 // 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
-const INDESTRUCTIBLE_LINE = /^((?:내구도|필요 (?:힘|민첩|레벨)|요구 (?:힘|민첩|레벨)|막기 확률|투척 피해|한손 피해|양손 피해|방어력|수량)\s*:.*|.+ 계열 - .+|\(.+ 전용\)|무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
+const INDESTRUCTIBLE_LINE = /^((?:내구도|필요 (?:힘|민첩|레벨)|요구 (?:힘|민첩|레벨)|막기 확률|강타 피해|투척 피해|한손 피해|양손 피해|방어력|수량)\s*:.*|.+ 계열 - .+|\(.+ 전용\)|무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
 // 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
 const ALL_STATS_LINE = /^모든 (?:능력치|속성) \+(\d+)$/
 const expandAllStats = (lines) => lines.flatMap((l) => {
@@ -158,6 +158,15 @@ function splitNoteLines(scan) {
     if (m[2] && !out.sockets) out.sockets = Number(m[2])
   }
   return out
+}
+
+// 툴팁의 "요구 레벨: 66" / "필요 힘: 140" 줄 수치 (유니크·세트는 업그레이드로 달라질 수 있어 읽어 둠)
+function scanReq(scan, what) {
+  for (const l of scan.lines) {
+    const m = new RegExp(`^(?:요구|필요) ${what}\\s*:\\s*(\\d+)`).exec(l.trim())
+    if (m) return Number(m[1])
+  }
+  return null
 }
 
 function matchItem(item, scan) {
@@ -244,6 +253,8 @@ function matchItem(item, scan) {
     item,
     base,
     ethereal: isEthereal(scan),
+    levelReq: scanReq(scan, '레벨'),
+    strReq: scanReq(scan, '힘'),
     defense,
     dmgMin: scan.damage_min,
     dmgMax: scan.damage_max,
