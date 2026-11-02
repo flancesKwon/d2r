@@ -47,6 +47,7 @@ function affixPattern(a) {
 // 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁", 적 저항 "적의 화염 저항 5~10% 감소" / "적 화염 저항 -10%"
 // 직업 이름도 사전("어쌔신", "팔라딘", "네크로맨서"...)과 게임("암살자", "성기사", "강령술사"...)이 다름. 독 피해 "6초 동안 독 피해 12 추가" / "독 피해 +12 (6초에 걸쳐)"도 같게
 export const wordKey = (s) => s
+  .replace(/^적이\s/, '적의 ')
   .replace(/^(적중당 (?:마나|생명력)\s*[\d~]+%)\s*\S+$/, '$1 훔침')
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
@@ -136,7 +137,7 @@ export function matchTooltip(scan) {
 }
 
 // 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
-const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
+const INDESTRUCTIBLE_LINE = /^((?:내구도|필요 (?:힘|민첩|레벨)|요구 (?:힘|민첩|레벨)|막기 확률|투척 피해|한손 피해|양손 피해|방어력|수량)\s*:.*|.+ 계열 - .+|\(.+ 전용\)|무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
 // 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
 const ALL_STATS_LINE = /^모든 (?:능력치|속성) \+(\d+)$/
 const expandAllStats = (lines) => lines.flatMap((l) => {
@@ -204,6 +205,15 @@ function matchItem(item, scan) {
     if (!base && bk) {
       const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
       if (scored[0] && scored[0].d <= 3 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
+    }
+    // 이름을 못 읽었으면 요구 힘·민첩이 같은 베이스가 하나일 때 그것
+    if (!base) {
+      const need = (w) => { const m = scan.lines.map((l) => new RegExp(`^(?:필요|요구) ${w}\\s*:\\s*(\\d+)`).exec(l.trim())).find(Boolean); return m ? Number(m[1]) : null }
+      const str = need('힘'), dex = need('민첩')
+      if (str || dex) {
+        const same = allowed.filter((b) => (!str || b.base_stats.reqstr === str) && (!dex || b.base_stats.reqdex === dex))
+        if (same.length === 1) base = same[0]
+      }
     }
   }
 
