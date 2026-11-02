@@ -841,6 +841,8 @@ async function fillFromTooltip(file) {
       if (sockets <= uniqueMaxSockets.value) uniqueSockets.value = String(sockets)
       else r.unmatched.push(t('소켓 {n}개', { n: sockets }))
     }
+    // 룬워드 베이스가 갖는 직업 스킬·자동 옵션 줄 (소집 + 워셉터의 성기사 스킬 등)
+    if (r.base) { const baseModLines = fillBaseMods(r.unmatched); r.unmatched = r.unmatched.filter((l) => !baseModLines.has(l)) }
     scanNote.value = scanResultNote(r.unmatched, sockets)
   } catch (e) {
     scanNote.value = t(e.message)
