@@ -47,6 +47,8 @@ function affixPattern(a) {
 // 게임 표기 차이도 같게 봄: "(암살자 전용)" 꼬리, 스킬 트리 "무술 기술 +2" / "무술 +2", 생명력 "흡혈" / "훔침", 석궁 "쇠뇌" / "석궁", 적 저항 "적의 화염 저항 5~10% 감소" / "적 화염 저항 -10%"
 // 직업 이름도 사전("어쌔신", "팔라딘", "네크로맨서"...)과 게임("암살자", "성기사", "강령술사"...)이 다름. 독 피해 "6초 동안 독 피해 12 추가" / "독 피해 +12 (6초에 걸쳐)"도 같게
 export const wordKey = (s) => s
+  .replace(/^적이\s/, '적의 ')
+  .replace(/^(적중당 (?:마나|생명력)\s*[\d~]+%)\s*\S+$/, '$1 훔침')
   .replace(/\([^)]*전용\)/g, ' ')
   .replace(/\(캐릭터 레벨에 비례\)|캐릭터 레벨당/g, ' ')
   .replace(/\s기술(?=\s*\+\d)/g, ' ')
@@ -60,7 +62,7 @@ export const wordKey = (s) => s
   .replace('모든 속성', '모든 능력치')
   .replace(/(최대|최소) 공격력/, '$1 피해')
   .replace(/초 동안|초에 걸쳐|초간/g, '초')
-  .replace(/(독 피해.*초.*) 추가$/, '$1')
+  .replace(/^(?=.*초)(.*독 피해.*) 추가$/, '$1')
   .replace(/\(매\s*([\d~]+)\s*초\)/, '($1초마다)')
   .replace(/\s효과(?=\s*적용)/g, '')
   .replace('받는 물리 ', ' ')
@@ -98,6 +100,13 @@ const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('
 // 이름 줄 끝의 * 같은 표시와 따옴표·괄호 기호는 이름이 아님
 const cleanName = (s) => s.replace(/[*'"\[\]【】]/g, '').trim()
 
+// 에테리얼(게임 표기 "무형") - 모델이 ethereal 을 놓쳐도 이름·베이스·줄에 표기가 있으면 에테리얼
+const ETHEREAL_LINE = /^(무형\s*(\(수리 불가\))?|에테리얼|ethereal)$/i
+const ETHEREAL_BASE = /^(무형|에테리얼|ethereal)\s/i
+const isEthereal = (scan) => !!scan.ethereal || ETHEREAL_BASE.test(scan.base_name || '') || (scan.lines || []).some((l) => ETHEREAL_LINE.test(l.trim()))
+// 베이스 이름 앞에 붙는 말 (상급·무형)
+const stripBasePrefix = (s) => s.replace(/^((상급|무형|에테리얼|superior|ethereal)\s*)+/i, '')
+
 // 상급(방어력 증가·피해 증가·명중률 줄이 보이는 것)은 남은 줄에서 읽음. 최대 내구도는 줄로 안 나와서 못 읽음
 function readSuperior(base, lines, used, rejected) {
   const superior = { mods: [], values: {} }
@@ -121,19 +130,34 @@ function addSuperiorDurability(superior, base, scan, affixes) {
 
 // 이름이 같은 아이템이 여럿이면 못 맞춘 줄이 가장 적은 쪽
 export function matchTooltip(scan) {
+  scan = splitNoteLines(scan)
   const results = findItemsByReadName(cleanName(scan.name)).map((item) => matchItem(item, scan))
   if (!results.length) return { item: null, unmatched: [] }
   return results.reduce((best, r) => (r.unmatched.length < best.unmatched.length ? r : best))
 }
 
 // 옵션이 아닌 안내 줄 ("무형 (수리 불가)", 부적 머리말, 완드·철퇴류 베이스가 원래 갖는 언데드 피해)
-const INDESTRUCTIBLE_LINE = /^(무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
+const INDESTRUCTIBLE_LINE = /^((?:내구도|필요 (?:힘|민첩|레벨)|요구 (?:힘|민첩|레벨)|막기 확률|투척 피해|한손 피해|양손 피해|방어력|수량)\s*:.*|.+ 계열 - .+|\(.+ 전용\)|무형\s*\(수리 불가\)|소지품에 보관 시 보너스 획득|허리띠 크기:? \+\d+칸|언데드에게 주는 피해 \+50%)$/
 // 툴팁은 힘·민첩·활력·마력이 같은 수치면 "모든 능력치 +N" 한 줄로 보여줌 - 사전이 네 줄로 갈라 둔 아이템은 풀어서 맞춤
 const ALL_STATS_LINE = /^모든 (?:능력치|속성) \+(\d+)$/
 const expandAllStats = (lines) => lines.flatMap((l) => {
   const m = ALL_STATS_LINE.exec(l)
   return m ? ['힘', '민첩', '활력', '마력'].map((n) => `${n} +${m[1]}`) : [l]
 })
+
+// 모델이 "무형 (수리 불가), 홈 있음 (4)" 처럼 한 줄로 읽은 안내를 에테리얼·소켓 값으로 바꾸고 줄에서 뺌
+const NOTE_LINE = /^(?:(무형(?:\s*[(〔]수리 불가[)〕])?|에테리얼|ethereal)[\s,，]*)?(?:홈 있음\s*[(〔]\s*(\d+)\s*[)〕])?$/i
+function splitNoteLines(scan) {
+  const out = { ...scan, lines: [] }
+  for (const raw of scan.lines || []) {
+    const l = raw.trim()
+    const m = l && NOTE_LINE.exec(l)
+    if (!m) { out.lines.push(raw); continue }
+    if (m[1]) out.ethereal = true
+    if (m[2] && !out.sockets) out.sockets = Number(m[2])
+  }
+  return out
+}
 
 function matchItem(item, scan) {
   const affixes = getItemAffixes(item)
@@ -168,16 +192,28 @@ function matchItem(item, scan) {
 
   // 룬워드는 베이스를 골라야 함 - 허용되는 베이스 중 이름이 같은 것
   let base = null
-  if (item.category === 'runeword' && scan.base_name) {
+  if (item.category === 'runeword' && (scan.base_name || scan.lines?.length)) {
     // 상급 베이스는 이름 앞에 "상급"이 붙음
-    const baseName = cleanName(scan.base_name).replace(/^(상급|superior)\s*/i, '')
+    const baseName = stripBasePrefix(cleanName(scan.base_name || ''))
     const bk = squashText(baseName)
     const allowed = searchBaseItems('', null, item)
-    base = allowed.find((b) => [b.name_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === bk)) || null
+    const sameName = (k) => allowed.find((b) => [b.name_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === k)) || null
+    base = (bk && sameName(bk)) || null
+    // 모델이 베이스 이름을 base_name 이 아닌 줄에 넣은 경우
+    if (!base) lines.some((l, j) => { base = sameName(squashText(stripBasePrefix(cleanName(l)))); if (base) used.add(j); return !!base })
     // 모델이 글자를 한두 개 틀리게 읽거나(스바이핸더) 사전 이름이 게임과 다르면, 허용 베이스 중 가장 가까운 하나
-    if (!base) {
+    if (!base && bk) {
       const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
-      if (scored[0] && scored[0].d <= 2 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
+      if (scored[0] && scored[0].d <= 3 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
+    }
+    // 이름을 못 읽었으면 요구 힘·민첩이 같은 베이스가 하나일 때 그것
+    if (!base) {
+      const need = (w) => { const m = scan.lines.map((l) => new RegExp(`^(?:필요|요구) ${w}\\s*:\\s*(\\d+)`).exec(l.trim())).find(Boolean); return m ? Number(m[1]) : null }
+      const str = need('힘'), dex = need('민첩')
+      if (str || dex) {
+        const same = allowed.filter((b) => (!str || b.base_stats.reqstr === str) && (!dex || b.base_stats.reqdex === dex))
+        if (same.length === 1) base = same[0]
+      }
     }
   }
 
@@ -192,7 +228,7 @@ function matchItem(item, scan) {
   return {
     item,
     base,
-    ethereal: scan.ethereal,
+    ethereal: isEthereal(scan),
     defense,
     dmgMin: scan.damage_min,
     dmgMax: scan.damage_max,
@@ -324,6 +360,8 @@ function findBaseByName(text, fuzzy = false, kind = null) {
   if (!k) return null
   const base = BASE_ITEMS.find((b) => [b.name_ko, b.alt_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === k))
   if (base) return { base }
+  const misc = magicAffixData.miscBases.find((b) => squashText(b.name_ko) === k)
+  if (misc) return { misc: misc.name_ko }
   // 짧은 이름은 낱말이 둘 이상일 때만 한 글자 차이를 봄 (낱말 하나는 접두사·접미사와 헷갈림)
   const maxDist = k.length >= 4 && /\s/.test(text.trim()) ? 2 : k.length >= 5 ? 2 : k.length >= 3 && /\s/.test(text.trim()) ? 1 : 0
   if (fuzzy && maxDist) {
@@ -335,8 +373,7 @@ function findBaseByName(text, fuzzy = false, kind = null) {
     const tied = scored[1] && scored[1].d === scored[0].d && scored[1].dName === scored[0].dName && scored[1].gap === scored[0].gap
     if (scored[0] && scored[0].d <= maxDist && !tied) return { base: scored[0].b }
   }
-  const misc = magicAffixData.miscBases.find((b) => squashText(b.name_ko) === k)
-  return misc ? { misc: misc.name_ko } : null
+  return null
 }
 function findBaseInMagicName(name, kind) {
   const words = name.split(/\s+/).filter(Boolean)
@@ -353,11 +390,12 @@ function findBaseInMagicName(name, kind) {
 }
 
 export function matchEquipTooltip(scan) {
+  scan = splitNoteLines(scan)
   const name = cleanName(scan.name)
   const baseLine = scan.base_name ? cleanName(scan.base_name) : ''
   let quality = 'normal'
   let hit = findBaseByName(name)
-  if (!hit && baseLine) { hit = findBaseByName(baseLine, true); quality = 'rare' }
+  if (!hit && baseLine) { hit = findBaseByName(baseLine, true); quality = scan.name_color === 'blue' ? 'magic' : 'rare' }
   // 툴팁에 피해가 보이면 무기, 방어력이 보이면 방어구 - 이름이 비슷한 베이스가 여럿일 때 가르는 데 씀
   const kind = scan.damage_min != null ? 'weapon' : scan.defense != null ? 'armor' : null
   // 이름이 흰색(일반·소켓 아이템)이면 베이스 이름 하나 - 사전 표기와 한두 글자 달라도 가까운 베이스로 ("페럴 클러" / "피어럴 클러")
@@ -374,7 +412,7 @@ export function matchEquipTooltip(scan) {
   const lines = splitAllResist(scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l)))
   const used = new Set()
   const rejected = []
-  const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
+  const out = { ...hit, quality, lines, ethereal: isEthereal(scan), sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
   // 레어처럼 이름 줄이 둘인 아이템 중 제작법 고정 옵션이 전부 읽히면 크래프트 (예: 블러드 장갑 = 생명력 훔침·생명력·강타)
   // 이름이 같은 베이스("데몬 헤드" 네크로 머리 / "데몬헤드" 투구)는 제작법이 있는 쪽으로
   const craftBases = hit.base ? BASE_ITEMS.filter((b) => squashText(b.name_ko) === squashText(hit.base.name_ko)) : magicAffixData.miscBases.filter((b) => b.name_ko === hit.misc)
