@@ -60,7 +60,7 @@ export const wordKey = (s) => s
   .replace('모든 속성', '모든 능력치')
   .replace(/(최대|최소) 공격력/, '$1 피해')
   .replace(/초 동안|초에 걸쳐|초간/g, '초')
-  .replace(/(독 피해.*초.*) 추가$/, '$1')
+  .replace(/^(?=.*초)(.*독 피해.*) 추가$/, '$1')
   .replace(/\(매\s*([\d~]+)\s*초\)/, '($1초마다)')
   .replace(/\s효과(?=\s*적용)/g, '')
   .replace('받는 물리 ', ' ')
@@ -128,6 +128,7 @@ function addSuperiorDurability(superior, base, scan, affixes) {
 
 // 이름이 같은 아이템이 여럿이면 못 맞춘 줄이 가장 적은 쪽
 export function matchTooltip(scan) {
+  scan = splitNoteLines(scan)
   const results = findItemsByReadName(cleanName(scan.name)).map((item) => matchItem(item, scan))
   if (!results.length) return { item: null, unmatched: [] }
   return results.reduce((best, r) => (r.unmatched.length < best.unmatched.length ? r : best))
@@ -141,6 +142,20 @@ const expandAllStats = (lines) => lines.flatMap((l) => {
   const m = ALL_STATS_LINE.exec(l)
   return m ? ['힘', '민첩', '활력', '마력'].map((n) => `${n} +${m[1]}`) : [l]
 })
+
+// 모델이 "무형 (수리 불가), 홈 있음 (4)" 처럼 한 줄로 읽은 안내를 에테리얼·소켓 값으로 바꾸고 줄에서 뺌
+const NOTE_LINE = /^(?:(무형(?:\s*[(〔]수리 불가[)〕])?|에테리얼|ethereal)[\s,，]*)?(?:홈 있음\s*[(〔]\s*(\d+)\s*[)〕])?$/i
+function splitNoteLines(scan) {
+  const out = { ...scan, lines: [] }
+  for (const raw of scan.lines || []) {
+    const l = raw.trim()
+    const m = l && NOTE_LINE.exec(l)
+    if (!m) { out.lines.push(raw); continue }
+    if (m[1]) out.ethereal = true
+    if (m[2] && !out.sockets) out.sockets = Number(m[2])
+  }
+  return out
+}
 
 function matchItem(item, scan) {
   const affixes = getItemAffixes(item)
@@ -187,7 +202,7 @@ function matchItem(item, scan) {
     // 모델이 글자를 한두 개 틀리게 읽거나(스바이핸더) 사전 이름이 게임과 다르면, 허용 베이스 중 가장 가까운 하나
     if (!base && bk) {
       const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
-      if (scored[0] && scored[0].d <= 2 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
+      if (scored[0] && scored[0].d <= 3 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
     }
   }
 
@@ -363,6 +378,7 @@ function findBaseInMagicName(name, kind) {
 }
 
 export function matchEquipTooltip(scan) {
+  scan = splitNoteLines(scan)
   const name = cleanName(scan.name)
   const baseLine = scan.base_name ? cleanName(scan.base_name) : ''
   let quality = 'normal'
