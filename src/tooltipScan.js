@@ -168,6 +168,7 @@ function matchItem(item, scan) {
   const rolled = {}
   const rejected = []
   const randClass = {}
+  let edOver = null // 룬워드 피해 증가 범위를 넘은 줄 - 상급 베이스의 피해 증가가 합쳐진 것일 수 있음
   affixes.forEach((a, i) => {
     if (isRandomClassSkillAffix(a)) {
       const idx = lines.findIndex((l, j) => !used.has(j) && RANDOM_CLASS_LINE.test(l))
@@ -184,6 +185,7 @@ function matchItem(item, scan) {
     if (!hit) return
     used.add(hit.idx)
     if (isAllowedValue(hit.v, a)) rolled[i] = hit.v
+    else if (a.prop === 'dmg%' && Number(hit.v) > Number(a.max)) edOver = { i, v: Number(hit.v), a, line: lines[hit.idx] }
     else rejected.push(lines[hit.idx])
   })
 
@@ -219,6 +221,18 @@ function matchItem(item, scan) {
   }
 
   const superior = base ? readSuperior(base, lines, used, rejected) : { mods: [], values: {} }
+
+  // 게임은 상급 베이스의 피해 증가(5~15%)를 룬워드 피해 증가에 합쳐 보여줌 - 범위를 넘은 만큼을 상급으로 봄
+  if (edOver) {
+    const mod = SUPERIOR_MODS['dmg%']
+    const sup = Math.max(mod.min, edOver.v - Number(edOver.a.max))
+    const canSup = base && !superior.mods.includes('dmg%') && superiorCombosFor(base).flat().includes('dmg%')
+    if (canSup && sup <= mod.max) {
+      rolled[edOver.i] = String(edOver.v - sup)
+      superior.mods.push('dmg%')
+      superior.values['dmg%'] = String(sup)
+    } else rejected.push(edOver.line)
+  }
 
   addSuperiorDurability(superior, base, scan, affixes)
 
