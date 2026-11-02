@@ -1,5 +1,6 @@
 <script setup>
 import EventBanner from '../components/EventBanner.vue'
+import PatchBanner from '../components/PatchBanner.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
 import SeasonCountdown from '../components/SeasonCountdown.vue'
 // DB 모드 첫 화면(/db) - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
@@ -105,6 +106,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
   <section class="hm-hero">
     <div class="hm-hero-inner">
       <div class="hm-hero-main">
+      <PatchBanner class="hm-patch" />
       <router-link to="/ladder" class="hm-season">
         <span class="hm-dot"></span>{{ $t('래더 시즌 {n}', { n: ladder.seasonNumber }) }} {{ $t(ladder.status) }} · {{ $t('패치') }} {{ ladder.patchVersion }}
       </router-link>
@@ -221,6 +223,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
 .hm-stat dt{font-family:'Noto Serif KR', serif; font-size:30px; font-weight:900; color:var(--text); line-height:1.1;}
 .hm-stat dd{font-size:12.5px; color:var(--text-dim);}
 .hm-stat:hover dt{color:var(--gold);}
+.hm-patch{margin-bottom:14px; max-width:640px;}
 .hm-season{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-muted);
   border:1px solid var(--border); border-radius:999px; padding:6px 14px; margin-bottom:22px; transition:border-color .15s, color .15s;}
 .hm-season:hover{border-color:var(--gold-dim); color:var(--text);}

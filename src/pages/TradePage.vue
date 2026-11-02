@@ -54,6 +54,7 @@ const LOGO = import.meta.env.BASE_URL + 'hero-logo.webp'
 import { ITEM_ICONS } from '../itemIcons.js'
 import { itemMatchesQuery, textMatchesQuery, optionAliasTerm, termMatchesLine } from '../itemSearch.js'
 import EventBanner from '../components/EventBanner.vue'
+import PatchBanner from '../components/PatchBanner.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import RangeInput from '../components/RangeInput.vue'
@@ -1472,6 +1473,7 @@ function variantLines(p) {
   <section class="tr-hero">
     <div class="tr-hero-inner">
       <template v-if="!isSearchRoute">
+        <PatchBanner class="trade-patch" />
         <h1 class="tr-wordmark"><img :src="LOGO" :alt="$t('디아허브')" width="1000" height="296" /></h1>
       </template>
       <div class="tr-back" v-else>
@@ -2020,6 +2022,7 @@ function variantLines(p) {
   .trade-title{white-space:normal; flex-basis:100%;}
 }
 
+.trade-patch{max-width:640px; margin:0 auto 18px;}
 .trade-event-slot{margin:0 0 4px; padding:0;}
 .trade-event-slot:empty{display:none;}
 @media (max-width:640px){ .trade-event-slot{padding:14px 16px 0;} }
