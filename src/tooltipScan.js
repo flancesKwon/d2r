@@ -98,6 +98,13 @@ const RANDOM_CLASS_LINE = new RegExp(`^(${Object.keys(CLASS_CODE_BY_NAME).join('
 // 이름 줄 끝의 * 같은 표시와 따옴표·괄호 기호는 이름이 아님
 const cleanName = (s) => s.replace(/[*'"\[\]【】]/g, '').trim()
 
+// 에테리얼(게임 표기 "무형") - 모델이 ethereal 을 놓쳐도 이름·베이스·줄에 표기가 있으면 에테리얼
+const ETHEREAL_LINE = /^(무형\s*(\(수리 불가\))?|에테리얼|ethereal)$/i
+const ETHEREAL_BASE = /^(무형|에테리얼|ethereal)\s/i
+const isEthereal = (scan) => !!scan.ethereal || ETHEREAL_BASE.test(scan.base_name || '') || (scan.lines || []).some((l) => ETHEREAL_LINE.test(l.trim()))
+// 베이스 이름 앞에 붙는 말 (상급·무형)
+const stripBasePrefix = (s) => s.replace(/^((상급|무형|에테리얼|superior|ethereal)\s*)+/i, '')
+
 // 상급(방어력 증가·피해 증가·명중률 줄이 보이는 것)은 남은 줄에서 읽음. 최대 내구도는 줄로 안 나와서 못 읽음
 function readSuperior(base, lines, used, rejected) {
   const superior = { mods: [], values: {} }
@@ -168,14 +175,17 @@ function matchItem(item, scan) {
 
   // 룬워드는 베이스를 골라야 함 - 허용되는 베이스 중 이름이 같은 것
   let base = null
-  if (item.category === 'runeword' && scan.base_name) {
+  if (item.category === 'runeword' && (scan.base_name || scan.lines?.length)) {
     // 상급 베이스는 이름 앞에 "상급"이 붙음
-    const baseName = cleanName(scan.base_name).replace(/^(상급|superior)\s*/i, '')
+    const baseName = stripBasePrefix(cleanName(scan.base_name || ''))
     const bk = squashText(baseName)
     const allowed = searchBaseItems('', null, item)
-    base = allowed.find((b) => [b.name_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === bk)) || null
+    const sameName = (k) => allowed.find((b) => [b.name_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === k)) || null
+    base = (bk && sameName(bk)) || null
+    // 모델이 베이스 이름을 base_name 이 아닌 줄에 넣은 경우
+    if (!base) lines.some((l, j) => { base = sameName(squashText(stripBasePrefix(cleanName(l)))); if (base) used.add(j); return !!base })
     // 모델이 글자를 한두 개 틀리게 읽거나(스바이핸더) 사전 이름이 게임과 다르면, 허용 베이스 중 가장 가까운 하나
-    if (!base) {
+    if (!base && bk) {
       const scored = allowed.map((b) => ({ b, d: editDistance(squashText(b.name_ko), bk) })).sort((x, y) => x.d - y.d)
       if (scored[0] && scored[0].d <= 2 && (!scored[1] || scored[1].d > scored[0].d)) base = scored[0].b
     }
@@ -192,7 +202,7 @@ function matchItem(item, scan) {
   return {
     item,
     base,
-    ethereal: scan.ethereal,
+    ethereal: isEthereal(scan),
     defense,
     dmgMin: scan.damage_min,
     dmgMax: scan.damage_max,
@@ -374,7 +384,7 @@ export function matchEquipTooltip(scan) {
   const lines = splitAllResist(scan.lines.map((l) => l.trim()).filter((l) => l && !INDESTRUCTIBLE_LINE.test(l)))
   const used = new Set()
   const rejected = []
-  const out = { ...hit, quality, lines, ethereal: scan.ethereal, sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
+  const out = { ...hit, quality, lines, ethereal: isEthereal(scan), sockets: scan.sockets || 0, superior: { mods: [], values: {} }, defense: null, dmgMin: null, dmgMax: null, unmatched: [] }
   // 레어처럼 이름 줄이 둘인 아이템 중 제작법 고정 옵션이 전부 읽히면 크래프트 (예: 블러드 장갑 = 생명력 훔침·생명력·강타)
   // 이름이 같은 베이스("데몬 헤드" 네크로 머리 / "데몬헤드" 투구)는 제작법이 있는 쪽으로
   const craftBases = hit.base ? BASE_ITEMS.filter((b) => squashText(b.name_ko) === squashText(hit.base.name_ko)) : magicAffixData.miscBases.filter((b) => b.name_ko === hit.misc)
