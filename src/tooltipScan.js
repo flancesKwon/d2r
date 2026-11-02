@@ -360,6 +360,8 @@ function findBaseByName(text, fuzzy = false, kind = null) {
   if (!k) return null
   const base = BASE_ITEMS.find((b) => [b.name_ko, b.alt_ko, b.subtitle, gameBaseNames[b.code]].some((n) => n && squashText(n) === k))
   if (base) return { base }
+  const misc = magicAffixData.miscBases.find((b) => squashText(b.name_ko) === k)
+  if (misc) return { misc: misc.name_ko }
   // 짧은 이름은 낱말이 둘 이상일 때만 한 글자 차이를 봄 (낱말 하나는 접두사·접미사와 헷갈림)
   const maxDist = k.length >= 4 && /\s/.test(text.trim()) ? 2 : k.length >= 5 ? 2 : k.length >= 3 && /\s/.test(text.trim()) ? 1 : 0
   if (fuzzy && maxDist) {
@@ -371,8 +373,7 @@ function findBaseByName(text, fuzzy = false, kind = null) {
     const tied = scored[1] && scored[1].d === scored[0].d && scored[1].dName === scored[0].dName && scored[1].gap === scored[0].gap
     if (scored[0] && scored[0].d <= maxDist && !tied) return { base: scored[0].b }
   }
-  const misc = magicAffixData.miscBases.find((b) => squashText(b.name_ko) === k)
-  return misc ? { misc: misc.name_ko } : null
+  return null
 }
 function findBaseInMagicName(name, kind) {
   const words = name.split(/\s+/).filter(Boolean)
@@ -394,7 +395,7 @@ export function matchEquipTooltip(scan) {
   const baseLine = scan.base_name ? cleanName(scan.base_name) : ''
   let quality = 'normal'
   let hit = findBaseByName(name)
-  if (!hit && baseLine) { hit = findBaseByName(baseLine, true); quality = 'rare' }
+  if (!hit && baseLine) { hit = findBaseByName(baseLine, true); quality = scan.name_color === 'blue' ? 'magic' : 'rare' }
   // 툴팁에 피해가 보이면 무기, 방어력이 보이면 방어구 - 이름이 비슷한 베이스가 여럿일 때 가르는 데 씀
   const kind = scan.damage_min != null ? 'weapon' : scan.defense != null ? 'armor' : null
   // 이름이 흰색(일반·소켓 아이템)이면 베이스 이름 하나 - 사전 표기와 한두 글자 달라도 가까운 베이스로 ("페럴 클러" / "피어럴 클러")
