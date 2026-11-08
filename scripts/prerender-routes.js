@@ -82,7 +82,7 @@ for (const it of itemsAll) {
   pages.push({
     en: { links: nearby(it).map((x) => ({ href: `/en/items/${x.id}/`, text: x.name_en })), title: it.name_en, desc: clip(`${it.name_en} — Diablo II: Resurrected ${catEn}${it.level_req ? `, required level ${it.level_req}` : ''}. Stats, variable rolls and listings on DiabloHub.`, 160) },
     p: `items/${it.id}`,
-    title: `${it.name_ko} (${it.name_en})`,
+    title: `${it.name_ko} ${it.category_label} 옵션 (${it.name_en})`,
     desc: clip(`${it.name_ko} ${it.name_en} - ${head}${lines.length ? ' - ' + lines.slice(0, 5).join(', ') : ''}`, 160),
     body: [head, ...lines],
     // 같은 종류에서 자기 앞뒤 6개 (모두가 같은 곳만 가리키면 크롤러가 사전을 다 못 돎)
