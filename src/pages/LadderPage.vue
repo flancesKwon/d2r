@@ -27,8 +27,8 @@ import ladder from '../data/ladder.json'
         <div class="value">{{ $t(ladder.startDate) }}</div>
       </div>
       <div class="ladder-status-item">
-        <div class="label">{{ $t('종료 예상') }}</div>
-        <div class="value">{{ $t(ladder.endDateEstimate) }}</div>
+        <div class="label">{{ $t('종료일') }}</div>
+        <div class="value">{{ $t(ladder.endDate) }}</div>
       </div>
     </div>
 
