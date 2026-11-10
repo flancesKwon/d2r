@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRoute } from 'vue-router'
-import { t } from '../i18n.js'
+import { t, locale } from '../i18n.js'
 import { CATEGORIES, fetchPosts, fetchPinnedPosts } from '../communityStore.js'
 
 const route = useRoute()
@@ -42,14 +42,16 @@ function loadMore() {
 }
 let searchTimer = 0
 watch(searchQuery, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => load(), 300) })
-watch([activeCat, activeTag, sortBy], () => load())
+watch([activeCat, activeTag, sortBy, locale], () => load())
 onMounted(() => load())
 // 보고 있는 동안 30초마다 새 글 ("더 보기"로 더 펼쳐 둔 상태면 그대로)
 useAutoRefresh(() => { if (page.value === 0 && !loading.value) return load() })
 
 // 고정 글(공지)은 전체·공지 목록 맨 위에. 아래 목록에선 중복으로 안 보이게 뺌
 const pinnedPosts = ref([])
-fetchPinnedPosts().then((list) => (pinnedPosts.value = list))
+const loadPinned = () => fetchPinnedPosts().then((list) => (pinnedPosts.value = list))
+loadPinned()
+watch(locale, loadPinned)
 const showPinned = () => !searchQuery.value.trim() && !activeTag.value && (!activeCat.value || activeCat.value === '공지')
 const pinnedIds = () => new Set(showPinned() ? pinnedPosts.value.map((p) => p.id) : [])
 
