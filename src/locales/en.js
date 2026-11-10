@@ -2,9 +2,9 @@
 // 게임 용어는 D2R 영문판 표기를 따름 (Faster Cast Rate, Magic Find ...)
 export default {
   // ── 공통·사이트
-  '디아허브': 'DiabloHub',
-  '디아허브 — 디아블로 2 레저렉션 거래·정보': 'DiabloHub — Diablo II: Resurrected Trading & Database',
-  '디아허브 홈': 'DiabloHub home',
+  '디아허브': 'Diahub',
+  '디아허브 — 디아블로 2 레저렉션 거래·정보': 'Diahub — Diablo II: Resurrected Trading & Database',
+  '디아허브 홈': 'Diahub home',
   '비공식 팬 제작 사이트 · Blizzard Entertainment와 무관': 'Unofficial fan site · Not affiliated with Blizzard Entertainment',
   '모드': 'Mode',
   '주 메뉴': 'Main menu',
@@ -820,7 +820,7 @@ export default {
   '거래 진행·상태': 'Trade flow',
   '자동 정리·규칙': 'Auto cleanup & rules',
   '거래 이용 안내': 'Trading guide',
-  '디아허브 거래게시판': 'DiabloHub trade board',
+  '디아허브 거래게시판': 'Diahub trade board',
   '닫기': 'Close',
   '아이템 그림 보기': 'View item image',
   '상세 보기': 'View details',
@@ -1621,7 +1621,7 @@ export default {
   // 이벤트
   '없는 이벤트': 'Event not found',
   '이벤트 불러오기 실패': 'Could not load the event',
-  '디아허브 이벤트': 'DiabloHub event',
+  '디아허브 이벤트': 'Diahub event',
   '추첨': 'Draw',
   '운영진 추첨 임박 - 이 화면을 열어두면 추첨 장면 바로 표시': 'Staff will run the draw soon — keep this page open to watch it live',
   '추첨 결과': 'Draw results',

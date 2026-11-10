@@ -80,7 +80,7 @@ for (const it of itemsAll) {
   const head = [it.category_label, it.subtitle, it.level_req ? `요구 레벨 ${it.level_req}` : ''].filter(Boolean).join(' · ')
   const catEn = { unique: 'Unique', set: 'Set item', runeword: 'Runeword', gem: it.type_sub === '룬' ? 'Rune' : 'Gem' }[it.category] || ''
   pages.push({
-    en: { links: nearby(it).map((x) => ({ href: `/en/items/${x.id}/`, text: x.name_en })), title: it.name_en, desc: clip(`${it.name_en} — Diablo II: Resurrected ${catEn}${it.level_req ? `, required level ${it.level_req}` : ''}. Stats, variable rolls and listings on DiabloHub.`, 160) },
+    en: { links: nearby(it).map((x) => ({ href: `/en/items/${x.id}/`, text: x.name_en })), title: it.name_en, desc: clip(`${it.name_en} — Diablo II: Resurrected ${catEn}${it.level_req ? `, required level ${it.level_req}` : ''}. Stats, variable rolls and listings on Diahub.`, 160) },
     p: `items/${it.id}`,
     title: `${it.name_ko} ${it.category_label} 옵션 (${it.name_en})`,
     desc: clip(`${it.name_ko} ${it.name_en} - ${head}${lines.length ? ' - ' + lines.slice(0, 5).join(', ') : ''}`, 160),
@@ -117,7 +117,7 @@ const EN_DESC = {
   cube: 'Diablo II: Resurrected Horadric Cube recipes: upgrades, repairs, crafting and uber portals.',
   market: 'Diablo II: Resurrected price guide — coming soon.',
   'trade/history': 'Diablo II: Resurrected listings and completed trade prices by item, broken down by variable rolls.',
-  community: 'DiabloHub community board — questions, builds, trade feedback and season news for Diablo II: Resurrected.',
+  community: 'Diahub community board — questions, builds, trade feedback and season news for Diablo II: Resurrected.',
 }
 const EN_PAGES = new Set(['', 'db', 'items', 'runewords', 'simulator', 'breakpoints', 'sockets', 'craft-sim', 'cube', 'market', 'trade/history', 'community', 'patch', 'ladder', 'guides', 'terms', 'privacy'])
 function enVersion(page) {
@@ -149,7 +149,7 @@ const navHtml = (lang) => (lang === 'en' ? NAV_EN : NAV_KO)
 
 function render({ p, title, desc, body, links, noindex, lang = 'ko', alt }) {
   const url = SITE + (p ? p + '/' : '')
-  const brand = lang === 'en' ? 'DiabloHub' : '디아허브'
+  const brand = lang === 'en' ? 'Diahub' : '디아허브'
   const isRoot = p === '' || p === 'en'
   const fullTitle = isRoot ? title : `${title} — ${brand}`
   let html = template
