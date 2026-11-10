@@ -1,10 +1,12 @@
 // 빌드 가이드 - Supabase tb_guide (supabase/003_guides_builds.sql)
 // 누구나 읽고, 운영진(moderator)·최고관리자(admin)만 쓰고 고치고 지움 (RLS가 막음, 화면은 버튼만 숨김)
 // 003 을 아직 안 돌렸거나 DB에 못 붙으면 사이트에 들어 있던 가이드(guides.json)를 그대로 보여줌
-import { reactive, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { supabase, mustReturnRows } from './supabase.js'
 import { authState } from './profileStore.js'
-import bundledGuides from './data/guides.json'
+import { locale, t } from './i18n.js'
+import bundledKo from './data/guides.json'
+import bundledEn from './data/guides.en.json'
 
 export const GUIDE_CLASSES = [
   { key: 'amazon', name: '아마존' }, { key: 'sorc', name: '소서리스' }, { key: 'necro', name: '네크로맨서' },
@@ -13,7 +15,10 @@ export const GUIDE_CLASSES = [
 ]
 export const GUIDE_TIERS = ['S TIER', 'A TIER', 'B TIER', 'C TIER']
 
-export const guidesState = reactive({ list: bundledGuides, loaded: false, fromDb: false })
+// 가이드는 언어별로 따로 - 한국어 주소엔 한국어 가이드, /en 엔 영어 가이드 (DB tb_guide.lang)
+const BUNDLED = { ko: bundledKo, en: bundledEn }
+
+export const guidesState = reactive({ list: BUNDLED[locale.value], loaded: false, fromDb: false })
 
 function fmtDate(ts) {
   if (!ts) return ''
@@ -48,16 +53,31 @@ function mapGuide(r) {
 
 // 화면에 들어올 때마다 불러도 됨 - 1분 안에 받았으면 그대로 (새 가이드가 새로고침 없이 보이게)
 let guidesAt = 0
+let guidesLang = null
 export async function loadGuides(force = false) {
-  if (!supabase || (guidesState.loaded && !force && Date.now() - guidesAt < 60000)) return
+  const lang = locale.value
+  if (!supabase || (guidesState.loaded && !force && guidesLang === lang && Date.now() - guidesAt < 60000)) return
   guidesAt = Date.now()
-  const { data, error } = await supabase.from('tb_guide').select('*').order('created_at', { ascending: false })
+  guidesLang = lang
+  const { data, error } = await supabase.from('tb_guide').select('*').eq('lang', lang).order('created_at', { ascending: false })
   guidesState.loaded = true
+  // 요청하는 사이 언어가 바뀌었으면 버림 (새 언어 요청이 따로 돌고 있음)
+  if (lang !== locale.value) return
   // 표가 없거나(003 전) 비어 있으면 사이트에 들어 있던 가이드 그대로
-  if (error || !data?.length) return
+  if (error || !data?.length) {
+    guidesState.list = BUNDLED[lang]
+    guidesState.fromDb = false
+    return
+  }
   guidesState.list = data.map(mapGuide)
   guidesState.fromDb = true
 }
+// 언어를 바꾸면 그 언어 가이드로
+watch(locale, (lang) => {
+  guidesState.list = BUNDLED[lang]
+  guidesState.fromDb = false
+  loadGuides(true)
+})
 
 export function getGuide(slug) {
   return guidesState.list.find((g) => g.id === slug) || null
@@ -71,7 +91,7 @@ function toRow(g) {
   const lines = (v) => arr(v).map((s) => String(s).trim()).filter(Boolean)
   return {
     class_key: g.classKey,
-    class_name: cls?.name || g.className || '',
+    class_name: t(cls?.name || g.className || ''),
     title: g.title.trim(),
     tier: g.tier || null,
     description: g.desc?.trim() || null,
@@ -83,6 +103,7 @@ function toRow(g) {
     strengths: lines(g.strengths),
     weaknesses: lines(g.weaknesses),
     published: g.published !== false,
+    lang: locale.value,
   }
 }
 

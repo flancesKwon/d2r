@@ -59,11 +59,13 @@ const filteredGuides = computed(() => {
 
   <div class="toolbar">
     <div class="toolbar-inner">
-      <div class="cat-tabs view-tabs">
-        <button :class="{ active: view === 'list' }" @click="view = 'list'">{{ $t('목록') }}</button>
-        <button :class="{ active: view === 'tier' }" @click="view = 'tier'">{{ $t('티어리스트') }}</button>
+      <div class="view-row">
+        <div class="cat-tabs view-tabs">
+          <button :class="{ active: view === 'list' }" @click="view = 'list'">{{ $t('목록') }}</button>
+          <button :class="{ active: view === 'tier' }" @click="view = 'tier'">{{ $t('티어리스트') }}</button>
+        </div>
+        <router-link v-if="canEditGuides" class="guide-write-btn" :to="{ path: '/guides/new', query: activeClass ? { class: activeClass } : {} }">{{ $t('가이드 쓰기') }}</router-link>
       </div>
-      <router-link v-if="canEditGuides" class="guide-write-btn" :to="{ path: '/guides/new', query: activeClass ? { class: activeClass } : {} }">{{ $t('가이드 쓰기') }}</router-link>
       <div class="cat-tabs">
         <button :class="{ active: activeClass === null }" @click="activeClass = null">{{ $t('전체') }}</button>
         <button
@@ -113,7 +115,10 @@ const filteredGuides = computed(() => {
    그림자 생기게 (커뮤니티/거래게시판과 같은 톤) */
 .cat-tabs button{border-radius:999px;}
 .guide-grid-wide{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;}
-.guide-write-btn{margin-left:auto; padding:8px 16px; border-radius:10px; border:1px solid var(--gold-dim); color:var(--gold); font-size:13px; font-weight:600; white-space:nowrap;}
+
+.view-row{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px;}
+.view-row .view-tabs{margin-bottom:0; flex:none;}
+.guide-write-btn{flex:none; padding:8px 16px; border-radius:10px; border:1px solid var(--gold-dim); color:var(--gold); font-size:13px; font-weight:600; white-space:nowrap;}
 .guide-write-btn:hover{background:var(--panel-2);}
 .guide-draft{font-size:10.5px; color:var(--text-dim); border:1px dashed var(--border); padding:1px 7px; border-radius:999px; margin-left:6px;}
 .guide-card{border-radius:16px; padding:22px 24px;}
@@ -124,7 +129,6 @@ const filteredGuides = computed(() => {
 }
 .guide-class-icon svg{width:14px; height:14px; stroke:var(--gold-dim); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
 .guide-class-badge{border-radius:999px;}
-.view-tabs{margin-bottom:10px;}
 .tier-list{display:flex; flex-direction:column; gap:10px;}
 .tier-row{display:grid; grid-template-columns:72px 1fr; border:1px solid var(--border-soft); background:var(--panel); border-radius:14px; overflow:hidden;}
 .tier-badge{display:flex; align-items:center; justify-content:center; font-family:'Noto Serif KR', serif; font-size:28px; font-weight:900; color:#1b1714;}

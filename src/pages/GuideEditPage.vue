@@ -5,6 +5,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { GUIDE_CLASSES, GUIDE_TIERS, loadGuides, getGuide, saveGuide, canEditGuides, guidesState } from '../guideStore.js'
 import { authState, signIn } from '../profileStore.js'
+import { t } from '../i18n.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,20 +51,20 @@ const saving = ref(false)
 const error = ref('')
 async function submit() {
   error.value = ''
-  if (!form.value.title.trim()) return (error.value = '제목 입력')
-  if (form.value.title.trim().length > 120) return (error.value = '제목은 120자까지')
+  if (!form.value.title.trim()) return (error.value = t('제목 입력'))
+  if (form.value.title.trim().length > 120) return (error.value = t('제목은 120자까지'))
   saving.value = true
   try {
     const g = await saveGuide(form.value)
     router.replace(`/guides/${g.id}`)
   } catch (e) {
-    error.value = e.message || '저장 실패'
+    error.value = t(e.message || '저장 실패')
   } finally {
     saving.value = false
   }
 }
-const pageTitle = computed(() => (editSlug ? '가이드 고치기' : '가이드 쓰기'))
-watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate: true })
+const pageTitle = computed(() => t(editSlug ? '가이드 고치기' : '가이드 쓰기'))
+watch(pageTitle, (title) => (document.title = `${title} — ${t('디아허브')}`), { immediate: true })
 </script>
 
 <template>
@@ -89,7 +90,7 @@ watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate:
       <label class="ge-field">
         <span>{{ $t('직업') }}</span>
         <select v-model="form.classKey" class="ge-input">
-          <option v-for="c in GUIDE_CLASSES" :key="c.key" :value="c.key">{{ c.name }}</option>
+          <option v-for="c in GUIDE_CLASSES" :key="c.key" :value="c.key">{{ $t(c.name) }}</option>
         </select>
       </label>
       <label class="ge-field">
@@ -132,9 +133,9 @@ watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate:
     </div>
 
     <div class="ge-field" v-for="f in LIST_FIELDS" :key="f.key">
-      <span>{{ f.label }}</span>
+      <span>{{ $t(f.label) }}</span>
       <div class="ge-line-row" v-for="(line, i) in form[f.key]" :key="i">
-        <input v-model="form[f.key][i]" class="ge-input" :placeholder="f.placeholder" />
+        <input v-model="form[f.key][i]" class="ge-input" :placeholder="$t(f.placeholder)" />
         <button type="button" class="ge-remove" :aria-label="$t('줄 삭제')" @click="removeLine(f.key, i)">✕</button>
       </div>
       <button type="button" class="ge-add" @click="addLine(f.key)">{{ $t('+ 줄 추가') }}</button>
@@ -143,7 +144,7 @@ watch(pageTitle, (t) => (document.title = `${t} — 디아허브`), { immediate:
     <div class="ge-actions">
       <span class="ge-error" v-if="error">{{ error }}</span>
       <router-link :to="editSlug ? `/guides/${editSlug}` : '/guides'" class="ge-cancel">{{ $t('취소') }}</router-link>
-      <button type="button" class="btn-primary" :disabled="saving" @click="submit">{{ saving ? '저장 중…' : '저장' }}</button>
+      <button type="button" class="btn-primary" :disabled="saving" @click="submit">{{ saving ? $t('저장 중…') : $t('저장') }}</button>
     </div>
   </div>
   </div>

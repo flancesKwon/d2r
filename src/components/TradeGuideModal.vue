@@ -18,7 +18,7 @@ import imgDeal from '../assets/guide/deal.jpg'
 const zoom = ref(null)
 
 const TABS = [
-  { key: 'why', label: '장점' },
+  { key: 'why', label: '이용 장점' },
   { key: 'sell', label: '판매하기' },
   { key: 'buy', label: '구매하기' },
   { key: 'flow', label: '거래 진행·상태' },

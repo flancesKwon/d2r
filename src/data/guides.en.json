@@ -1,0 +1,813 @@
+[
+  {
+    "id": "g-sorc-fire-en",
+    "classKey": "sorc",
+    "className": "Sorceress",
+    "title": "Fire Wall Sorceress — complete beginner guide",
+    "tier": "A TIER",
+    "desc": "Skill tree, gear and leveling order all in one",
+    "date": "2026-09-15",
+    "summary": "A fire Sorceress built around Fire Wall, with Fire Ball as backup. Fire Wall lays flames on the ground that burn monsters walking through, and putting points into Warmth and Inferno raises its damage.",
+    "statPriority": "Strength only for gear requirements, Dexterity only enough to reach max block with your shield (0 if you don't block), everything else into Vitality. You don't need Energy — mana comes from gear and Warmth.",
+    "skillOrder": [
+      {
+        "level": "1~11",
+        "skill": "Hunt with Fire Bolt, Warmth 1, Frozen Armor 1"
+      },
+      {
+        "level": "12~17",
+        "skill": "Raise Fire Ball (prereq: Fire Bolt) + Inferno 1, Blaze 1 (Fire Wall prereq)"
+      },
+      {
+        "level": "18~23",
+        "skill": "Keep raising Fire Ball, Telekinesis 1 → Teleport 1"
+      },
+      {
+        "level": "24~29",
+        "skill": "Put points into Fire Wall first"
+      },
+      {
+        "level": "30~",
+        "skill": "Fire Wall 20 → Fire Mastery 20"
+      },
+      {
+        "level": "After that",
+        "skill": "Warmth · Inferno (Fire Wall synergies) → leftover points into Fire Ball"
+      }
+    ],
+    "keyItems": [
+      "Weapon & shield: Spirit (runeword) sword and shield — faster cast rate, mana, all skills",
+      "Helm: Harlequin Crest or a +Fire Skills circlet",
+      "Armor: Skin of the Vipermagi (faster cast rate, magic resist)",
+      "Gloves & belt: Magefist (faster cast rate, fire skills), Arachnid Mesh",
+      "Charms: +1 Fire Skills Grand Charm, life and resist Small Charms"
+    ],
+    "levelingNotes": [
+      "Normal is fast enough with Fire Bolt → Fire Ball alone.",
+      "Lay Fire Wall across the path monsters take so they get hit several times. Teleport away to gain distance and pull them over the wall.",
+      "Hell has fire immune monsters. Skip them, or deal with them using your mercenary or a second elemental skill.",
+      "Hitting the 63% and 105% cast rate breakpoints makes a big difference — check with the breakpoint calculator."
+    ],
+    "strengths": [
+      "Area damage over time makes clearing packs fast",
+      "Low gear requirements make the early game easy"
+    ],
+    "weaknesses": [
+      "Weak against fire immune monsters",
+      "Dangerous when surrounded by melee monsters — Teleport is a must"
+    ]
+  },
+  {
+    "id": "g-pal-hammer-en",
+    "classKey": "paladin",
+    "className": "Paladin",
+    "title": "Hammerdin stat and skill order",
+    "tier": "S TIER",
+    "desc": "From solo farming to party support — tree variants for each situation",
+    "date": "2026-09-14",
+    "summary": "A Paladin who uses Blessed Hammer with the Concentration aura. Hammers deal magic damage, so few monsters resist them, and points in Vigor and Blessed Aim raise hammer damage.",
+    "statPriority": "Strength only for gear requirements, Dexterity only enough to reach max block with your shield, the rest into Vitality. Mana comes from gear (mana and mana leech).",
+    "skillOrder": [
+      {
+        "level": "1~17",
+        "skill": "Hunt in melee with Might and Zeal, Holy Bolt 1 (hammer prereq)"
+      },
+      {
+        "level": "18",
+        "skill": "Blessed Hammer 1, Blessed Aim 1 → Concentration 1"
+      },
+      {
+        "level": "18~",
+        "skill": "Blessed Hammer 20 first, then Concentration 20"
+      },
+      {
+        "level": "24",
+        "skill": "Holy Shield 1 (prereq: Charge, Blessed Hammer)"
+      },
+      {
+        "level": "After that",
+        "skill": "Vigor 20 → Blessed Aim 20 (hammer synergy)"
+      }
+    ],
+    "keyItems": [
+      "Weapon: Heart of the Oak or a Spirit sword",
+      "Shield: Spirit paladin shield or Stormshield",
+      "Armor: Enigma (Teleport) — otherwise Skin of the Vipermagi",
+      "Helm: Harlequin Crest",
+      "Ring & amulet: The Stone of Jordan, Mara's Kaleidoscope"
+    ],
+    "levelingNotes": [
+      "Blessed Hammer spirals around the character, so dive in between the monsters.",
+      "It is magic damage, so only watch out for magic immune monsters.",
+      "Holy Shield greatly raises your block chance and defense.",
+      "Hitting the 75% and 125% cast rate breakpoints shortens the gap between hammers — check with the breakpoint calculator."
+    ],
+    "strengths": [
+      "Magic damage means few immune monsters",
+      "Holy Shield gives high block and defense, so you are sturdy"
+    ],
+    "weaknesses": [
+      "The hammer path makes killing distant enemies slow",
+      "Heavy mana cost — you need mana gear"
+    ]
+  },
+  {
+    "id": "g-barb-wolf-en",
+    "classKey": "barb",
+    "className": "Barbarian",
+    "title": "Whirlwind Barb vs Frenzy Barb — which one suits you?",
+    "tier": "A TIER",
+    "desc": "Whirlwind and Frenzy Barbarian compared, plus gear recommendations",
+    "date": "2026-09-12",
+    "summary": "A Whirlwind Barbarian spins and slashes through enemies, while a Frenzy Barbarian dual wields and hammers away. Both can raise party life and mana with Battle Orders.",
+    "statPriority": "Strength and Dexterity up to weapon requirements (Dexterity also helps attack rating), the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "Whirlwind",
+        "skill": "Bash → Stun → Concentrate 1, Leap → Leap Attack 1 → Whirlwind 20 (from level 30)"
+      },
+      {
+        "level": "Frenzy",
+        "skill": "Double Swing → Double Throw 1 → Frenzy 20 (from level 24)"
+      },
+      {
+        "level": "Both",
+        "skill": "Shout 1 → Battle Orders · Battle Command, focus on one weapon mastery, Increased Speed · Natural Resistance"
+      }
+    ],
+    "keyItems": [
+      "Whirlwind weapon: Grief (Phase Blade etc.)",
+      "Frenzy weapons: two one-handed weapons (e.g. two Grief)",
+      "Armor: Fortitude or Enigma",
+      "Helm: Arreat's Face",
+      "Swap weapon: Call to Arms — boosts Battle Orders and Battle Command levels"
+    ],
+    "levelingNotes": [
+      "Whirlwind needs level 30, so level with Bash and Double Swing until then.",
+      "Frenzy raises your movement and attack speed the more you hit enemies.",
+      "Swap to Call to Arms and use Battle Orders to greatly raise life and mana."
+    ],
+    "strengths": [
+      "Fast melee kills",
+      "Can buff the party with Battle Orders"
+    ],
+    "weaknesses": [
+      "Few ways to deal with ranged enemies",
+      "Heavily weapon dependent"
+    ]
+  },
+  {
+    "id": "g-necro-bone-en",
+    "classKey": "necro",
+    "className": "Necromancer",
+    "title": "Bone Necro leveling route — Normal to Hell",
+    "tier": "A TIER",
+    "desc": "When to switch from Bone Spear to Bone Spirit",
+    "date": "2026-09-10",
+    "summary": "A Necromancer who fights with Bone Spear and Bone Spirit. Teeth, Bone Wall and Bone Prison are synergies for Bone Spear and Bone Spirit, and bone skills deal magic damage, so immunities are rarely a problem.",
+    "statPriority": "Strength only for gear requirements, Dexterity for blocking with a shield (optional), the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~17",
+        "skill": "Hunt with Teeth, Amplify Damage 1, Bone Armor 1, Corpse Explosion 1"
+      },
+      {
+        "level": "18~29",
+        "skill": "Raise Bone Spear (prereq: Corpse Explosion)"
+      },
+      {
+        "level": "30~",
+        "skill": "Bone Spirit (prereq: Bone Spear)"
+      },
+      {
+        "level": "After that",
+        "skill": "Bone Spear · Bone Spirit 20 → Teeth · Bone Wall · Bone Prison (synergies)"
+      }
+    ],
+    "keyItems": [
+      "Weapon: a wand with bone skills or Wizardspike",
+      "Shield: Homunculus or a Necromancer shield with +Bone Skills",
+      "Helm: Harlequin Crest",
+      "Armor: Enigma or Skin of the Vipermagi"
+    ],
+    "levelingNotes": [
+      "Early in Normal, it is fine to let Raise Skeleton hold the line in front of you.",
+      "Bone Spear pierces in a straight line, so line monsters up and fire.",
+      "Bone Spirit chases enemies and hits them, which makes it good against bosses and single targets."
+    ],
+    "strengths": [
+      "Magic damage means few immune monsters",
+      "Bone Prison and Bone Wall block paths, so you stay safe"
+    ],
+    "weaknesses": [
+      "Slow against wide, scattered packs",
+      "Heavy mana cost — you need mana gear"
+    ]
+  },
+  {
+    "id": "g-amazon-bow-en",
+    "classKey": "amazon",
+    "className": "Amazon",
+    "title": "Multishot Bowazon — ranged area farming",
+    "tier": "A TIER",
+    "desc": "A bow build that sweeps corridors with a fan of arrows",
+    "date": "2026-09-08",
+    "summary": "A bow Amazon who clears packs with Multiple Shot and kills bosses with Guided Arrow. Critical Strike, Penetrate and Pierce make up for damage and attack rating.",
+    "statPriority": "Strength only for gear requirements, mostly Dexterity (bow damage and attack rating), the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~17",
+        "skill": "Hunt with Magic Arrow and Cold Arrow, Multiple Shot (from level 6)"
+      },
+      {
+        "level": "18~",
+        "skill": "Guided Arrow (prereq: Cold Arrow, Multiple Shot), Critical Strike · Penetrate"
+      },
+      {
+        "level": "30~",
+        "skill": "Valkyrie 1 (prereq: Decoy, Evade), Pierce"
+      },
+      {
+        "level": "After that",
+        "skill": "Multiple Shot · Guided Arrow 20 → Critical Strike · Penetrate"
+      }
+    ],
+    "keyItems": [
+      "Bow: Windforce or Lycander's Aim (Buriza-Do Kyanon for a crossbow)",
+      "Helm: Harlequin Crest",
+      "Armor: Enigma or Fortitude",
+      "Gloves & belt: increased attack speed (IAS) stats"
+    ],
+    "levelingNotes": [
+      "Level early on with Magic Arrow so you never worry about mana.",
+      "Switching between Multiple Shot for packs and Guided Arrow for bosses is the efficient way to play.",
+      "Valkyrie holds the line in front of you, which makes survival much easier."
+    ],
+    "strengths": [
+      "Attack from a safe distance",
+      "Handles both area and single target"
+    ],
+    "weaknesses": [
+      "Low survivability when enemies get close",
+      "Heavily bow gear dependent"
+    ]
+  },
+  {
+    "id": "g-druid-wind-en",
+    "classKey": "druid",
+    "className": "Druid",
+    "title": "Hurricane Wind Druid — sustained area damage",
+    "tier": "A TIER",
+    "desc": "An elemental Druid that fills the screen with Tornado and Hurricane",
+    "date": "2026-09-06",
+    "summary": "An elemental Druid who uses Hurricane (cold) and Tornado (physical) together. Twister, Tornado and Hurricane synergize with each other, and Cyclone Armor absorbs elemental damage.",
+    "statPriority": "Strength only for gear requirements, Dexterity for blocking with a shield (optional), the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~17",
+        "skill": "Hunt with Firestorm and Arctic Blast, Cyclone Armor 1"
+      },
+      {
+        "level": "18",
+        "skill": "Twister 1"
+      },
+      {
+        "level": "24~",
+        "skill": "Tornado (prereq: Twister)"
+      },
+      {
+        "level": "30~",
+        "skill": "Hurricane 20 (prereq: Tornado)"
+      },
+      {
+        "level": "After that",
+        "skill": "Tornado 20 → Twister · Cyclone Armor (synergies), Oak Sage 1"
+      }
+    ],
+    "keyItems": [
+      "Weapon: Heart of the Oak or a weapon with +Elemental Skills",
+      "Helm: Jalal's Mane or a Druid helm with +Elemental Skills",
+      "Armor: Enigma or Skin of the Vipermagi",
+      "Ring: The Stone of Jordan"
+    ],
+    "levelingNotes": [
+      "Hurricane is a cold storm that circles the character, so you have to step in among the enemies — always keep Cyclone Armor on.",
+      "Handle cold immune monsters with Tornado (physical)."
+    ],
+    "strengths": [
+      "Two damage types (cold and physical) cover immunities",
+      "Cyclone Armor makes you resistant to elemental damage"
+    ],
+    "weaknesses": [
+      "Weak against monsters immune to both cold and physical",
+      "Heavy mana cost"
+    ]
+  },
+  {
+    "id": "g-assassin-trap-en",
+    "classKey": "assassin",
+    "className": "Assassin",
+    "title": "Trapsin — wiping packs with Lightning Sentry",
+    "tier": "A TIER",
+    "desc": "A ranged, support-style build that deals damage safely with placed traps",
+    "date": "2026-09-04",
+    "summary": "A trap Assassin who lays down Lightning Sentries and finishes with Death Sentry (corpse explosion). Shock Web and Charged Bolt Sentry are synergies for Lightning Sentry.",
+    "statPriority": "Strength and Dexterity only for gear requirements, the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~11",
+        "skill": "Hunt mainly with Fire Blast"
+      },
+      {
+        "level": "12~23",
+        "skill": "Charged Bolt Sentry, Shock Web"
+      },
+      {
+        "level": "24~",
+        "skill": "Lightning Sentry 20 (prereq: Charged Bolt Sentry)"
+      },
+      {
+        "level": "30~",
+        "skill": "Death Sentry (prereq: Lightning Sentry)"
+      },
+      {
+        "level": "After that",
+        "skill": "Shock Web · Charged Bolt Sentry (synergies), Fade · Shadow Master 1"
+      }
+    ],
+    "keyItems": [
+      "Weapon: an Assassin claw with trap skills",
+      "Helm: Harlequin Crest",
+      "Armor: Enigma or Skin of the Vipermagi",
+      "Shield: Stormshield or Spirit",
+      "Belt: Arachnid Mesh"
+    ],
+    "levelingNotes": [
+      "You can place up to 5 sentries at once — group them along the path monsters take.",
+      "Death Sentry needs a corpse to explode. Kill something with Lightning Sentry first, then place it.",
+      "Handle lightning immune monsters with Death Sentry or your mercenary."
+    ],
+    "strengths": [
+      "Attack from a safe distance",
+      "Fast single target boss kills"
+    ],
+    "weaknesses": [
+      "Weak against lightning immune monsters",
+      "Not enough room to place sentries in tight spaces"
+    ]
+  },
+  {
+    "id": "g-warlock-summon-en",
+    "classKey": "warlock",
+    "className": "Warlock",
+    "title": "Demon tree Summoner Warlock — new class starter guide",
+    "tier": "B TIER",
+    "desc": "A starter build for the new class, with Goatman, Tainted and Defiler up front and field demons bound as well",
+    "date": "2026-09-29",
+    "summary": "The Warlock, a new class added with the \"Reign of the Warlock\" DLC, has three skill trees: Chaos, Eldritch and Demon. This guide is the basic Demon tree build: summons in front, with the Warlock's own tools — Bind Demon and Consume — for improvising mid-fight.",
+    "statPriority": "Invest mainly in Vitality and add Strength only up to gear requirements. Early on, when you rely heavily on summons, survival comes first.",
+    "skillOrder": [
+      {
+        "level": "1~20",
+        "skill": "Summon Goatman 20 (main summon)"
+      },
+      {
+        "level": "21~30",
+        "skill": "Demonic Mastery 10 (2 summons) → 20 (3 summons). Demons absorbed with Consume count toward this number"
+      },
+      {
+        "level": "31~40",
+        "skill": "Spread points across Summon Tainted and Summon Defiler (summon variety)"
+      },
+      {
+        "level": "41~",
+        "skill": "Death Mark, Bind Demon. 10 hard points can bind a Champion, 15 a Unique, 20 a Super Unique (3.2)"
+      },
+      {
+        "level": "After that",
+        "skill": "Finish with self-buff skills: Blood Oath · Engorge · Blood Boil · Consume"
+      }
+    ],
+    "keyItems": [
+      "Offhand: Grimoire (Warlock only) — to hold a two-handed weapon in one hand, you need a Grimoire in the other (3.2)",
+      "Armor: mostly maximum life and elemental resists",
+      "Ring & amulet: mana recovery and resists",
+      "Weapon: a dagger, or consider a runeword with Warlock skills"
+    ],
+    "levelingNotes": [
+      "The core of the Warlock is Bind Demon — you bind demon monsters in the field and borrow their abilities. Since 3.2, elite demons can only be bound if you have hard points in Bind Demon.",
+      "Absorbing a demon with Consume gives you a buff. Since 3.2, the higher the difficulty that demon came from, the bigger the bonus (Hell > Nightmare > Normal).",
+      "Since 3.2, life potions are 150% as effective, which makes early survival easier."
+    ],
+    "strengths": [
+      "Play safely with summons up front",
+      "Bind and Consume let you adapt mid-fight"
+    ],
+    "weaknesses": [
+      "A learning curve before you get used to managing summons",
+      "Binding elite demons takes many points in Bind Demon"
+    ]
+  },
+  {
+    "id": "g-sorc-blizzard-en",
+    "classKey": "sorc",
+    "className": "Sorceress",
+    "title": "Blizzard Sorceress — the standard season starter",
+    "tier": "A TIER",
+    "desc": "A cold Sorceress that grows well on little gear, the safest pick for a season start",
+    "date": "2026-09-19",
+    "summary": "A cold Sorceress who freezes and kills over a wide area with Blizzard, and uses Glacial Spike to freeze and hit between Blizzard cooldowns. Blizzard gets stronger the more points you put into Ice Bolt, Ice Blast and Glacial Spike.",
+    "statPriority": "Strength only for gear requirements, Dexterity only enough to reach max block with your shield (0 if you don't block), the rest into Vitality. Mana comes from gear and mercenary auras.",
+    "skillOrder": [
+      {
+        "level": "1~17",
+        "skill": "Hunt with Ice Bolt and Frost Nova, Frozen Armor 1, Static Field 1"
+      },
+      {
+        "level": "18~23",
+        "skill": "Glacial Spike (prereq: Ice Blast), Telekinesis 1 → Teleport 1"
+      },
+      {
+        "level": "24~29",
+        "skill": "Put points into Blizzard first (prereq: Frost Nova, Glacial Spike)"
+      },
+      {
+        "level": "30~",
+        "skill": "Blizzard 20 → Cold Mastery (lowers cold resistance of enemies that are not cold immune)"
+      },
+      {
+        "level": "After that",
+        "skill": "Glacial Spike 20 → Ice Blast · Ice Bolt (Blizzard synergies)"
+      }
+    ],
+    "keyItems": [
+      "Weapon & shield: Spirit (sword and shield) or Heart of the Oak",
+      "Helm: Harlequin Crest",
+      "Armor: Enigma or Skin of the Vipermagi (Stealth early on)",
+      "Gloves: Magefist",
+      "Belt: Arachnid Mesh",
+      "Amulet: Mara's Kaleidoscope",
+      "Ring: The Stone of Jordan",
+      "Mercenary: Act 2 mercenary + Insight (mana regeneration)"
+    ],
+    "levelingNotes": [
+      "Blizzard has a cooldown — freeze enemies with Glacial Spike in between so you aren't just standing there taking hits.",
+      "Deal with cold immune monsters using your mercenary or Static Field, or skip them.",
+      "Hitting the 63% and 105% cast rate breakpoints makes a big difference — check with the breakpoint calculator."
+    ],
+    "strengths": [
+      "Strong on little gear, so great for a season start",
+      "Wide area attacks and freezing keep you safe"
+    ],
+    "weaknesses": [
+      "Weak against cold immune monsters",
+      "The Blizzard cooldown makes single targets slower"
+    ]
+  },
+  {
+    "id": "g-sorc-lightning-en",
+    "classKey": "sorc",
+    "className": "Sorceress",
+    "title": "Lightning Sorceress — Terror Zone farming",
+    "tier": "A TIER",
+    "desc": "A lightning Sorceress that bounces Chain Lightning through packs of monsters",
+    "date": "2026-09-20",
+    "summary": "A lightning Sorceress who uses Chain Lightning as the main attack and Lightning for single targets. Chain Lightning gets stronger the more points you put into Charged Bolt, Lightning and Nova, and it is more efficient the more monsters there are.",
+    "statPriority": "Strength only for gear requirements, Dexterity only enough to reach max block with your shield (0 if you don't block), the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~11",
+        "skill": "Hunt with Charged Bolt, Static Field 1, Frozen Armor 1"
+      },
+      {
+        "level": "12~17",
+        "skill": "Lightning (prereq: Charged Bolt), Nova 1 (prereq: Static Field)"
+      },
+      {
+        "level": "18~23",
+        "skill": "Put points into Chain Lightning first (prereq: Lightning), Telekinesis 1 → Teleport 1"
+      },
+      {
+        "level": "24~29",
+        "skill": "Energy Shield 1 (prereq: Teleport, Chain Lightning)"
+      },
+      {
+        "level": "30~",
+        "skill": "Chain Lightning 20 → Lightning Mastery 20"
+      },
+      {
+        "level": "After that",
+        "skill": "Lightning · Charged Bolt (Chain Lightning synergies)"
+      }
+    ],
+    "keyItems": [
+      "Helm: Griffon's Eye (lowers enemy lightning resistance)",
+      "Weapon & shield: Spirit (sword and shield) or Heart of the Oak",
+      "Armor: Enigma or Skin of the Vipermagi",
+      "Gloves: Magefist",
+      "Belt: Arachnid Mesh",
+      "Ring: The Stone of Jordan",
+      "Mercenary: Act 2 mercenary + Infinity (Conviction aura breaks lightning immunity)"
+    ],
+    "levelingNotes": [
+      "Lightning immune monsters can only be killed with the Conviction aura from an Infinity mercenary — skip them until then.",
+      "Chain Lightning bounces between monsters, so fire it into the middle of a pack.",
+      "Hitting the 63% and 105% cast rate breakpoints makes a big difference."
+    ],
+    "strengths": [
+      "Very fast kills where monsters are many (Terror Zones)",
+      "Teleport makes getting around quick"
+    ],
+    "weaknesses": [
+      "Weak against lightning immune monsters before an Infinity mercenary",
+      "Damage varies a lot, so single targets are inconsistent"
+    ]
+  },
+  {
+    "id": "g-amazon-javazon-en",
+    "classKey": "amazon",
+    "className": "Amazon",
+    "title": "Lightning Fury Amazon — javelin area damage",
+    "tier": "A TIER",
+    "desc": "A javelin Amazon that clears packs with Lightning Fury and bosses with Charged Strike",
+    "date": "2026-09-21",
+    "summary": "A javelin Amazon who throws Lightning Fury to clear packs and kills melee bosses with Charged Strike. Lightning Fury gets stronger the more points you put into Charged Strike, Lightning Bolt, Power Strike and Lightning Strike.",
+    "statPriority": "Strength only for gear requirements, Dexterity moderately for attack rating, the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~5",
+        "skill": "Hunt with Jab"
+      },
+      {
+        "level": "6~11",
+        "skill": "Power Strike (prereq: Jab), Poison Javelin 1"
+      },
+      {
+        "level": "12~17",
+        "skill": "Lightning Bolt 1 (prereq: Poison Javelin), Dodge · Avoid 1"
+      },
+      {
+        "level": "18~29",
+        "skill": "Charged Strike (prereq: Power Strike, Lightning Bolt), Plague Javelin 1 (prereq: Lightning Bolt)"
+      },
+      {
+        "level": "30~",
+        "skill": "Lightning Fury 20 (prereq: Plague Javelin), Lightning Strike 1 (prereq: Charged Strike), Valkyrie 1 (prereq: Decoy, Evade)"
+      },
+      {
+        "level": "After that",
+        "skill": "Charged Strike 20 → Lightning Bolt · Power Strike · Lightning Strike (synergies)"
+      }
+    ],
+    "keyItems": [
+      "Weapon: Titan's Revenge or Thunderstroke (javelin)",
+      "Shield: Lidless Wall or Spirit",
+      "Helm: Griffon's Eye",
+      "Armor: Enigma or Chains of Honor",
+      "Belt: Arachnid Mesh",
+      "Mercenary: Act 2 mercenary + Infinity (breaks lightning immunity)"
+    ],
+    "levelingNotes": [
+      "Lightning Fury spreads lightning around the monster it hits — aim at the middle of a pack.",
+      "Charged Strike is a melee attack, so it is good for killing a single boss.",
+      "Skip lightning immune monsters if you don't have an Infinity mercenary."
+    ],
+    "strengths": [
+      "Very fast pack clearing",
+      "Has attacks for both packs and bosses"
+    ],
+    "weaknesses": [
+      "Weak against lightning immune monsters before an Infinity mercenary",
+      "Heavily dependent on javelin gear (Titan's Revenge etc.)"
+    ]
+  },
+  {
+    "id": "g-necro-summon-en",
+    "classKey": "necro",
+    "className": "Necromancer",
+    "title": "Summoner Necromancer — staying safe with a skeleton army",
+    "tier": "A TIER",
+    "desc": "A summoner Necro that puts Skeleton Warriors, Skeletal Mages and Golems up front and cleans up with Corpse Explosion",
+    "date": "2026-09-22",
+    "summary": "You summon Skeleton Warriors and Skeletal Mages to fight for you, while the Necromancer helps with curses and Corpse Explosion. Even with little gear, the skeletons take the hits for you, so leveling is safe.",
+    "statPriority": "Strength only for gear requirements, Dexterity for blocking with a shield (optional), the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~5",
+        "skill": "Raise Skeleton · Skeleton Mastery, Amplify Damage 1"
+      },
+      {
+        "level": "6~11",
+        "skill": "Clay Golem 1, Corpse Explosion 1 (prereq: Teeth)"
+      },
+      {
+        "level": "12~23",
+        "skill": "Raise Skeletal Mage 1 (prereq: Raise Skeleton), Golem Mastery 1 (prereq: Clay Golem)"
+      },
+      {
+        "level": "24~",
+        "skill": "Summon Resist (prereq: Golem Mastery), Decrepify 1 (prereq: Weaken → Terror)"
+      },
+      {
+        "level": "After that",
+        "skill": "Raise Skeleton 20 → Skeleton Mastery 20 → Summon Resist, then Corpse Explosion if there is anything left"
+      }
+    ],
+    "keyItems": [
+      "Shield: Homunculus or Spirit",
+      "Helm: Harlequin Crest",
+      "Armor: Enigma or Skin of the Vipermagi",
+      "Weapon: Arm of King Leoric or a wand with +Summoning Skills",
+      "Mercenary: Act 2 mercenary + Insight"
+    ],
+    "levelingNotes": [
+      "Skeletons need corpses to be raised — keep refilling them from the monsters you kill.",
+      "Clear packs in one go with the Amplify Damage curse + Corpse Explosion.",
+      "Decrepify is good against bosses (slows them and reduces their damage)."
+    ],
+    "strengths": [
+      "The skeletons take the hits, so you stay safe",
+      "Can start with little gear"
+    ],
+    "weaknesses": [
+      "Kills are slower than elemental builds",
+      "In narrow paths the skeletons block the way"
+    ]
+  },
+  {
+    "id": "g-pal-smiter-en",
+    "classKey": "paladin",
+    "className": "Paladin",
+    "title": "Smiter Paladin — Uber Tristram specialist",
+    "tier": "A TIER",
+    "desc": "A shield Paladin that kills Uber bosses with Smite, which always hits",
+    "date": "2026-09-23",
+    "summary": "A single target Paladin who bashes with the shield using Smite (always hits) at high speed through the Fanaticism aura. It specializes in strong single targets such as Uber Tristram and Uber bosses rather than pack farming.",
+    "statPriority": "Strength only for gear requirements, Dexterity only enough to reach max block with your shield, the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~11",
+        "skill": "Level with Sacrifice 1, Smite and Might"
+      },
+      {
+        "level": "12~23",
+        "skill": "Charge 1 (prereq: Smite), hunt with Zeal (prereq: Sacrifice), Blessed Aim 1"
+      },
+      {
+        "level": "24~29",
+        "skill": "Holy Bolt · Blessed Hammer 1 → Holy Shield 1 (prereq: Charge, Blessed Hammer)"
+      },
+      {
+        "level": "30~",
+        "skill": "Concentration 1 → Fanaticism 1 (prereq: Concentration)"
+      },
+      {
+        "level": "After that",
+        "skill": "Smite 20 → Fanaticism 20 → Holy Shield 20 → resist auras"
+      }
+    ],
+    "keyItems": [
+      "Weapon: Grief (Phase Blade etc.)",
+      "Shield: Herald of Zakarum",
+      "Helm: Guillaume's Face",
+      "Armor: Fortitude",
+      "Gloves: Dracul's Grasp",
+      "Ring: Raven Frost (cannot be frozen)",
+      "Mercenary: Act 2 mercenary + Insight or Infinity"
+    ],
+    "levelingNotes": [
+      "Smite always hits, so you don't have to worry about attack rating.",
+      "Against Uber Mephisto and Baal, cannot be frozen (Raven Frost) and resists are a must.",
+      "Pack hunting is slow, so share farming with other builds."
+    ],
+    "strengths": [
+      "Very strong against strong single targets (always hits)",
+      "Holy Shield gives a high block chance, so you are sturdy"
+    ],
+    "weaknesses": [
+      "Slow at killing packs",
+      "Heavily dependent on gear such as Grief and Dracul's Grasp"
+    ]
+  },
+  {
+    "id": "g-warlock-echo-en",
+    "classKey": "warlock",
+    "className": "Warlock",
+    "title": "Echoing Strike Warlock — two-handed weapon burst damage",
+    "tier": "A TIER",
+    "desc": "An Eldritch tree Warlock that throws echoes of a two-handed weapon to cut through packs and bosses alike",
+    "date": "2026-09-24",
+    "summary": "An Eldritch tree build that sends out echoes of your weapon with Echoing Strike, piercing and cutting through packs. Echoing Strike uses weapon damage (90% since 3.2) and gets stronger the more points you put into Mirrored Blades and Blade Warp. You need Levitation Mastery to hold a two-handed weapon together with a Grimoire.",
+    "statPriority": "Strength up to weapon requirements, Dexterity moderately for attack rating, the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~5",
+        "skill": "Levitation Mastery 1 (two-handed weapon + Grimoire)"
+      },
+      {
+        "level": "6~11",
+        "skill": "Hunt with Cleave (prereq: Levitation Mastery)"
+      },
+      {
+        "level": "12~17",
+        "skill": "Put points into Echoing Strike first (prereq: Levitation Mastery)"
+      },
+      {
+        "level": "18~23",
+        "skill": "Blade Warp 1 (prereq: Echoing Strike, movement skill), Psychic Ward 1 (prereq: Cleave)"
+      },
+      {
+        "level": "24~29",
+        "skill": "Eldritch Blast 1 (prereq: Mind Ward)"
+      },
+      {
+        "level": "30~",
+        "skill": "Mirrored Blades 1 (prereq: Blade Warp, Eldritch Blast), Echoing Strike 20"
+      },
+      {
+        "level": "After that",
+        "skill": "Mirrored Blades · Blade Warp 20 (synergies) → Levitation Mastery"
+      }
+    ],
+    "keyItems": [
+      "Weapon: a two-handed weapon with high base damage",
+      "Offhand: Grimoire (required to hold a two-handed weapon in one hand, 3.2)",
+      "Armor: Enigma or Chains of Honor",
+      "Helm: Harlequin Crest",
+      "Belt: Arachnid Mesh",
+      "Mercenary: Act 2 mercenary + Insight"
+    ],
+    "levelingNotes": [
+      "Since 3.2, to hold a two-handed weapon in one hand you need a Grimoire in the other hand (a shield won't do).",
+      "Blade Warp is your main movement skill until you get Enigma (Teleport).",
+      "It uses weapon damage as is, so your damage changes a lot every time you swap weapons."
+    ],
+    "strengths": [
+      "Very high damage against both packs and bosses",
+      "Blade Warp makes getting around fast"
+    ],
+    "weaknesses": [
+      "Heavily weapon dependent",
+      "Busy to play"
+    ]
+  },
+  {
+    "id": "g-warlock-fire-en",
+    "classKey": "warlock",
+    "className": "Warlock",
+    "title": "Fire Warlock — the fastest leveling",
+    "tier": "A TIER",
+    "desc": "A Chaos tree Warlock that pushes through Normal and Nightmare fast with Ring of Fire and Flame Wave",
+    "date": "2026-09-25",
+    "summary": "A Chaos tree fire build that sweeps the way ahead with Flame Wave and burns everything around you with Ring of Fire. Flame Wave gets stronger the more points you put into Ring of Fire and Apocalypse, and you add Apocalypse from level 30. Damage was reduced in 3.2, but leveling speed is still fast.",
+    "statPriority": "Strength only for gear requirements, the rest into Vitality.",
+    "skillOrder": [
+      {
+        "level": "1~5",
+        "skill": "Hunt with Miasma Bolt"
+      },
+      {
+        "level": "6~17",
+        "skill": "Ring of Fire (no prereq), Sigil: Lethargy 1"
+      },
+      {
+        "level": "18~23",
+        "skill": "Put points into Flame Wave first (prereq: Ring of Fire), Sigil: Rancor 1 (prereq: Sigil: Lethargy)"
+      },
+      {
+        "level": "24~29",
+        "skill": "Sigil: Death 1 (prereq: Sigil: Rancor)"
+      },
+      {
+        "level": "30~",
+        "skill": "Apocalypse (prereq: Flame Wave, Sigil: Death)"
+      },
+      {
+        "level": "After that",
+        "skill": "Flame Wave 20 → Ring of Fire · Apocalypse (synergies)"
+      }
+    ],
+    "keyItems": [
+      "Weapon: Spirit or Heart of the Oak (faster cast rate, all skills)",
+      "Offhand: Grimoire",
+      "Helm: Harlequin Crest",
+      "Armor: Enigma or Skin of the Vipermagi",
+      "Gloves: Magefist",
+      "Belt: Arachnid Mesh",
+      "Mercenary: Act 2 mercenary + Infinity (Conviction aura breaks fire immunity)"
+    ],
+    "levelingNotes": [
+      "Normal and Nightmare are fast enough with Flame Wave alone.",
+      "In Hell, fire immune monsters can only be killed with an Infinity mercenary.",
+      "Hitting the 75% and 125% cast rate breakpoints makes a big difference (same table as the Necromancer)."
+    ],
+    "strengths": [
+      "Very fast leveling",
+      "Can start with little gear"
+    ],
+    "weaknesses": [
+      "Weak against fire immune monsters in Hell",
+      "The 3.2 nerf leaves late game damage lower than other builds"
+    ]
+  }
+]
