@@ -5,6 +5,7 @@
 import { supabase, mustReturnRows } from './supabase.js'
 import { visitorId } from './visitTracker.js'
 import { authState, isStaff } from './profileStore.js'
+import { locale } from './i18n.js'
 
 export const CATEGORIES = ['공지', '질문', '거래', '잡담', '공략', '건의', '버그제보']
 // 글쓰기에서 고를 수 있는 카테고리 - 공지는 운영진만
@@ -74,6 +75,8 @@ export async function fetchPosts({ category = null, tag = null, q = '', sort = '
     .from('tb_community_post')
     .select(`*, ${POST_AUTHOR}`, { count: 'exact' })
     .is('deleted_at', null)
+  // 작성자 기준 목록(프로필·마이페이지)은 언어 상관없이 전부
+  if (!authorId) query = query.eq('lang', locale.value)
   if (category) query = query.eq('category', category)
   if (tag) query = query.contains('tags', [tag])
   if (authorId) query = query.eq('author_id', authorId)
@@ -91,7 +94,7 @@ export async function fetchPosts({ category = null, tag = null, q = '', sort = '
 export async function fetchPinnedPosts() {
   if (!supabase) return []
   const { data, error } = await supabase.from('tb_community_post').select(`*, ${POST_AUTHOR}`)
-    .eq('pinned', true).is('deleted_at', null).order('created_at', { ascending: false }).limit(5)
+    .eq('pinned', true).eq('lang', locale.value).is('deleted_at', null).order('created_at', { ascending: false }).limit(5)
   return error ? [] : data.map(mapPost)
 }
 // 고정·고정 해제 (운영진, DB 함수가 다시 확인)
@@ -157,7 +160,7 @@ export async function createPost({ category, title, content, tags = [] }) {
   const uid = needLogin()
   const rows = await mustReturnRows(
     supabase.from('tb_community_post')
-      .insert({ author_id: uid, category, title: title.trim(), content, tags })
+      .insert({ author_id: uid, category, title: title.trim(), content, tags, lang: locale.value })
       .select('id'),
     '글 등록 실패'
   )

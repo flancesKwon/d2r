@@ -4,7 +4,7 @@ import PatchBanner from '../components/PatchBanner.vue'
 import TerrorZoneBadge from '../components/TerrorZoneBadge.vue'
 import SeasonCountdown from '../components/SeasonCountdown.vue'
 // DB 모드 첫 화면(/db) - 검색을 앞에, 자주 쓰는 도구·빌드·최신 글(거래·커뮤니티·패치)은 데이터에서 최신순으로
-import { computed, shallowRef, ref } from 'vue'
+import { computed, shallowRef, ref, watch } from 'vue'
 import { useAutoRefresh } from '../useAutoRefresh.js'
 import { useRouter } from 'vue-router'
 import { guidesState, loadGuides } from '../guideStore.js'
@@ -79,6 +79,7 @@ function loadSide() {
   fetchPosts({ pageSize: 5 }).then((r) => (latestCommunity.value = r.posts)).catch(() => {})
 }
 loadSide()
+watch(locale, loadSide)
 // 보고 있는 동안 30초마다 최신 글·최신 매물 새로
 useAutoRefresh(() => { loadSide(); trade.value?.loadTradePosts(true) })
 fetchDbPatchNotes()
