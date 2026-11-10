@@ -1,5 +1,5 @@
 <script setup>
-import { t } from '../i18n.js'
+import { t, locale, itemName } from '../i18n.js'
 import { computed, watch } from 'vue'
 import { askConfirm, showAlert } from '../dialog.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -10,21 +10,23 @@ import { ITEM_ICONS } from '../itemIcons.js'
 import { skillPairsIn } from '../skillAliases.js'
 
 // 추천 장비 문장 안의 아이템 이름(유니크·세트·룬워드)을 아이템 사전 링크로 - 긴 이름부터 찾아서 겹침 방지
-const LINKABLE = itemsData.filter((it) => ['unique', 'set', 'runeword'].includes(it.category) && it.name_ko.length >= 2)
-  .sort((a, b) => b.name_ko.length - a.name_ko.length)
+// 보는 언어의 이름으로 찾음 (영어 가이드는 영어 이름)
+const LINKABLE = itemsData.filter((it) => ['unique', 'set', 'runeword'].includes(it.category))
+const linkables = computed(() => LINKABLE.map((it) => ({ it, name: itemName(it) })).filter((x) => x.name && x.name.length >= 2)
+  .sort((a, b) => b.name.length - a.name.length))
 function linkSegments(text) {
   const out = []
   let rest = text
   while (rest) {
     let best = null
-    for (const it of LINKABLE) {
-      const i = rest.indexOf(it.name_ko)
-      if (i >= 0 && (best === null || i < best.i)) best = { i, it }
+    for (const { it, name } of linkables.value) {
+      const i = rest.indexOf(name)
+      if (i >= 0 && (best === null || i < best.i)) best = { i, it, name }
     }
     if (!best) { out.push({ text: rest }); break }
     if (best.i) out.push({ text: rest.slice(0, best.i) })
-    out.push({ text: best.it.name_ko, item: best.it })
-    rest = rest.slice(best.i + best.it.name_ko.length)
+    out.push({ text: best.name, item: best.it })
+    rest = rest.slice(best.i + best.name.length)
   }
   return out
 }
@@ -38,7 +40,7 @@ watch(guide, (g) => { if (g) document.title = `${g.title} — ${t('디아허브'
 // 가이드에 나온 스킬의 예전 이름 (눈보라 = 블리자드) - 가이드는 게임 공식 이름으로 씀
 const skillPairs = computed(() => {
   const g = guide.value
-  if (!g) return []
+  if (!g || locale.value !== 'ko') return []
   const text = [g.summary, g.statPriority, ...g.skillOrder.map((s) => s.skill), ...g.levelingNotes, ...g.strengths, ...g.weaknesses].join(' / ')
   return skillPairsIn(text, g.classKey)
 })
@@ -111,7 +113,7 @@ const related = computed(() =>
           <div class="affix-line" v-for="(item, i) in guide.keyItems" :key="i">
             <span class="a-text">
               <template v-for="(seg, k) in linkSegments(item)" :key="k">
-                <router-link v-if="seg.item" class="item-link" :class="seg.item.category" :to="{ path: `/items/${seg.item.id}`, query: { q: seg.item.name_ko } }">
+                <router-link v-if="seg.item" class="item-link" :class="seg.item.category" :to="{ path: `/items/${seg.item.id}`, query: { q: seg.text } }">
                   <img v-if="iconUrl(seg.item)" :src="iconUrl(seg.item)" alt="" />{{ seg.text }}
                 </router-link>
                 <template v-else>{{ seg.text }}</template>

@@ -52,6 +52,15 @@ for (const g of read('guides.json')) {
   })
 }
 
+// 영어 빌드 가이드 (/en/guides/<id>) - 영어 가이드 본문이 따로 있음
+const enGuidePages = read('guides.en.json').map((g) => ({
+  p: `en/guides/${g.id}`,
+  title: g.title,
+  desc: clip(`${g.className} ${g.tier || ''} build - ${g.desc || g.summary || ''}`, 150),
+  body: [g.summary, ...(g.skillOrder || []).map((s) => `${s.level}: ${s.skill}`), ...(g.keyItems || [])],
+  lang: 'en',
+}))
+
 // 같은 종류 아이템끼리 이어 주려고 분류별 목록을 미리 모음 (정적 링크용)
 const itemsAll = read('items.json')
 const byCat = new Map()
@@ -104,7 +113,7 @@ const privatePages = [
   { p: 'guides/new', title: '가이드 쓰기' },
 ].map((pg) => ({ ...pg, noindex: true }))
 
-// 영어판 (/en/...) - 화면 문구가 번역된 주요 화면 + 아이템. 가이드는 본문이 한국어라 안 만듦
+// 영어판 (/en/...) - 화면 문구가 번역된 주요 화면 + 아이템 + 영어 빌드 가이드
 const EN_DESC = {
   '': 'Diablo II: Resurrected item trading for the Asia, Americas and Europe realms — search listings by item, type and stats, plus a full item database and calculators.',
   db: 'Diablo II: Resurrected database and tools — items, runewords, cube recipes, breakpoint and IAS calculators, skill planner, build guides.',
@@ -206,6 +215,13 @@ for (const page of [...pages, ...privatePages]) {
     n++
     if (!pg.noindex) sitemap.push(urlOf(pg.p))
   }
+}
+for (const pg of enGuidePages) {
+  const dir = path.join(dist, pg.p)
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(path.join(dir, 'index.html'), render(pg))
+  n++
+  sitemap.push(urlOf(pg.p))
 }
 fs.writeFileSync(path.join(dist, '404.html'), template)
 const urls = sitemap.map((u) => `  <url><loc>${u}</loc></url>`).join('\n')
