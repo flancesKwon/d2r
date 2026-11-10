@@ -1,5 +1,5 @@
 <script setup>
-// 메인 시즌 일정 - 종료까지 카운트다운 + 종료·패치·다음 시즌 오픈 (src/data/ladder.json 의 schedule, 한국 시간)
+// 메인 시즌 일정 - 다음 시즌 오픈까지 카운트다운 + 이전 시즌 종료·패치·오픈 (src/data/ladder.json 의 schedule, 한국 시간)
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import ladder from '../data/ladder.json'
 import { t, locale } from '../i18n.js'
@@ -10,9 +10,7 @@ let timer
 onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 1000) })
 onUnmounted(() => clearInterval(timer))
 
-// 시즌이 끝났으면 다음 시즌 오픈까지
-const ended = computed(() => now.value >= Date.parse(sc.endAt))
-const left = computed(() => Math.max(0, Date.parse(ended.value ? sc.openAt : sc.endAt) - now.value))
+const left = computed(() => Math.max(0, Date.parse(sc.openAt) - now.value))
 const units = computed(() => {
   const s = Math.floor(left.value / 1000)
   const p = (n) => String(n).padStart(2, '0')
@@ -28,27 +26,26 @@ const fmt = (iso, withTime) => new Date(iso).toLocaleString(locale.value === 'ko
   timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short', ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
 })
 const rows = computed(() => [
-  { key: 'end', label: t('시즌 {n} 종료', { n: ladder.seasonNumber }), date: fmt(sc.endAt, true), on: !ended.value },
+  { key: 'end', label: t('시즌 {n} 종료', { n: sc.prevSeason }), date: fmt(sc.prevEndAt, true) },
   { key: 'patch', label: t('{v} 패치 배포', { v: sc.nextPatch }), date: fmt(sc.patchAt) },
-  { key: 'open', label: t('시즌 {n} 오픈', { n: sc.nextSeason }), date: fmt(sc.openAt, true), on: ended.value },
+  { key: 'open', label: t('시즌 {n} 오픈', { n: ladder.seasonNumber }), date: fmt(sc.openAt, true), on: true },
 ])
 </script>
 
 <template>
-  <section class="sc-card" :aria-label="$t('시즌 일정')">
+  <section class="sc-card" v-if="left > 0" :aria-label="$t('시즌 일정')">
     <div class="sc-left">
-      <div class="sc-title">{{ ended ? $t('시즌 {n} 오픈까지', { n: sc.nextSeason }) : $t('시즌 {n} 종료까지', { n: ladder.seasonNumber }) }} <span v-if="sc.estimate" class="sc-est">({{ $t('예상') }})</span></div>
+      <div class="sc-title">{{ $t('시즌 {n} 오픈까지', { n: ladder.seasonNumber }) }}</div>
       <div class="sc-units">
         <div class="sc-unit" v-for="x in units" :key="x.u"><b>{{ x.n }}</b><span>{{ $t(x.u) }}</span></div>
       </div>
-      <div class="sc-note" v-if="sc.estimate">{{ $t('블리자드 공식 발표 전 예상 일정 · 한국 시간 기준') }}</div>
+      <div class="sc-note">{{ $t('한국 시간 기준') }}</div>
     </div>
     <ul class="sc-rows">
       <li v-for="r in rows" :key="r.key">
         <span class="sc-dot" :class="{ on: r.on }"></span>
         <span class="sc-label">{{ r.label }}</span>
         <span class="sc-date">{{ r.date }}</span>
-        <span class="sc-tag" v-if="sc.estimate">{{ $t('예상') }}</span>
       </li>
     </ul>
   </section>
