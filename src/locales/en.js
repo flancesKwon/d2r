@@ -1160,8 +1160,6 @@ export default {
   '일치하는 레시피 없음': 'No matching recipes',
   '래더 시즌 {n}': 'Ladder Season {n}',
   '패치': 'Patch',
-  '디아블로 2 레저렉션': 'Diablo II: Resurrected',
-  '정보 · 계산기 · 도구': 'Data · calculators · tools',
   '옵션으로 찾기 — 예) 패캐, 올스': 'Search by stats — e.g. fcr, all skills',
   '아이템 이름 — 예) 샤코, 수수께끼, 베르': 'Item name — e.g. Shako, Enigma, Ber',
   '추천': 'Try',

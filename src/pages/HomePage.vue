@@ -98,6 +98,7 @@ const stats = computed(() => [
 // 매물 이름·가격 (영어면 사전 영어 이름) - 거래 데이터를 늦게 받아서 그 전엔 원문
 const tradeName = (p) => (trade.value ? itemName(trade.value.getTradeItem(p.itemId), p.itemName) : p.itemName)
 const tradePrice = (s) => (trade.value && locale.value !== 'ko' ? trade.value.parsePriceTokens(s).map((tk) => (tk.item ? itemName(tk.item, tk.text) : t(tk.text).replace(/(\d+)\s*개/g, '×$1'))).join('') : s)
+const LOGO = import.meta.env.BASE_URL + 'hero-logo.webp'
 const shortDate = (d) => (d || '').slice(5).replace('-', '.')
 </script>
 
@@ -111,7 +112,7 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
       <router-link to="/ladder" class="hm-season">
         <span class="hm-dot"></span>{{ $t('래더 시즌 {n}', { n: ladder.seasonNumber }) }} {{ $t(ladder.status) }} · {{ $t('패치') }} {{ ladder.patchVersion }}
       </router-link>
-      <h1>{{ $t('디아블로 2 레저렉션') }}<br /><span>{{ $t('정보 · 계산기 · 도구') }}</span></h1>
+      <h1 class="hm-wordmark"><img :src="LOGO" :alt="$t('디아허브')" width="1000" height="296" /></h1>
       <SeasonCountdown v-if="ladder.schedule" />
       <EventBanner class="hm-event" />
       <TerrorZoneBadge />
@@ -224,13 +225,14 @@ const shortDate = (d) => (d || '').slice(5).replace('-', '.')
 .hm-stat dt{font-family:'Noto Serif KR', serif; font-size:30px; font-weight:900; color:var(--text); line-height:1.1;}
 .hm-stat dd{font-size:12.5px; color:var(--text-dim);}
 .hm-stat:hover dt{color:var(--gold);}
+.hm-hero-main{min-width:0;}
 .hm-patch{margin-bottom:14px; max-width:640px;}
 .hm-season{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-muted);
   border:1px solid var(--border); border-radius:999px; padding:6px 14px; margin-bottom:22px; transition:border-color .15s, color .15s;}
 .hm-season:hover{border-color:var(--gold-dim); color:var(--text);}
 .hm-dot{width:7px; height:7px; border-radius:999px; background:#6fbf73; box-shadow:0 0 8px #6fbf73;}
-.hm-hero h1{font-size:clamp(30px, 4.4vw, 50px); line-height:1.18; letter-spacing:-0.02em; margin-bottom:30px; color:var(--text);}
-.hm-hero h1 span{color:var(--gold); font-weight:700;}
+.hm-wordmark{line-height:0; margin-bottom:30px;}
+.hm-wordmark img{display:block; width:clamp(260px, 46vw, 460px); height:auto; mix-blend-mode:screen;}
 
 .hm-search{display:flex; align-items:center; gap:6px; max-width:660px; padding:6px; border-radius:16px;
   background:rgba(28,24,21,0.85); border:1px solid var(--border); box-shadow:0 18px 50px -20px rgba(0,0,0,0.8);}
