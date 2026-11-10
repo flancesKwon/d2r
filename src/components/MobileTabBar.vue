@@ -32,7 +32,7 @@ const TABS = {
     { to: '/items', label: '아이템', icon: P.book, match: (p) => under(p, '/items') },
     { to: '/runewords', label: '도구', icon: P.tool, match: (p) => ['/runewords', '/craft-sim', '/simulator', '/cube', '/breakpoints', '/sockets'].some((x) => under(p, x)) },
     { to: '/community', label: '커뮤니티', icon: P.chat, match: (p) => under(p, '/community') },
-    { to: '/guides', label: '가이드', icon: P.guide, match: (p) => under(p, '/guides') || under(p, '/patch') || under(p, '/ladder') },
+    { to: '/guides', label: '가이드', icon: P.guide, match: (p) => under(p, '/guides') || under(p, '/ladder') },
   ],
 }
 const tabs = computed(() => TABS[mode.value].map((tab) => ({ ...tab, label: t(tab.label), here: tab.match(stripLocale(route.path)) })))
