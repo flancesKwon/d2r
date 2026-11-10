@@ -1412,6 +1412,7 @@ export default {
   '미발표': 'Not announced',
   '오픈 예정': 'Upcoming',
   '한국 시간 기준': 'Korea time',
+  '북미 서버(태평양 시간) 기준': 'North America server (Pacific time)',
   '시즌 {n} 오픈까지': 'Time until Season {n} opens',
   '종료일': 'End date',
   '시즌 일정': 'Season schedule',

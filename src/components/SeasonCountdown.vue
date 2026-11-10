@@ -1,5 +1,6 @@
 <script setup>
-// 메인 시즌 일정 - 다음 시즌 오픈까지 카운트다운 + 이전 시즌 종료·패치·오픈 (src/data/ladder.json 의 schedule, 한국 시간)
+// 메인 시즌 일정 - 다음 시즌 오픈까지 카운트다운 + 이전 시즌 종료·패치·오픈 (src/data/ladder.json 의 schedule)
+// 표시 시각: 한국어 = 아시아(한국 시간), 영어 = 북미(태평양 시간)
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import ladder from '../data/ladder.json'
 import { t, locale } from '../i18n.js'
@@ -23,7 +24,7 @@ const units = computed(() => {
 })
 
 const fmt = (iso, withTime) => new Date(iso).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US', {
-  timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short', ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
+  timeZone: locale.value === 'ko' ? 'Asia/Seoul' : 'America/Los_Angeles', month: 'long', day: 'numeric', weekday: 'short', ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
 })
 const rows = computed(() => [
   { key: 'end', label: t('시즌 {n} 종료', { n: sc.prevSeason }), date: fmt(sc.prevEndAt, true) },
@@ -39,7 +40,7 @@ const rows = computed(() => [
       <div class="sc-units">
         <div class="sc-unit" v-for="x in units" :key="x.u"><b>{{ x.n }}</b><span>{{ $t(x.u) }}</span></div>
       </div>
-      <div class="sc-note">{{ $t('한국 시간 기준') }}</div>
+      <div class="sc-note">{{ locale === 'ko' ? $t('한국 시간 기준') : $t('북미 서버(태평양 시간) 기준') }}</div>
     </div>
     <ul class="sc-rows">
       <li v-for="r in rows" :key="r.key">
