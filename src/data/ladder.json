@@ -1,17 +1,17 @@
 {
-  "_source": "블리자드 공지 'Diablo II: Resurrected Ladder Season 15 Now Live' (2026-08) - https://news.blizzard.com/en-us/article/24296140",
+  "_source": "블리자드 공지 'Diablo II: Resurrected Ladder Season 16' - https://news.blizzard.com/en-us/article/24316567 (시즌 15 종료 11/9 11am PST, 시즌 16 아시아 11/14 10am KST)",
   "seasonNumber": 15,
   "seasonName": "래더 시즌 15",
-  "status": "진행 중",
+  "status": "종료",
   "startDate": "2026-08-22 오전 9시 (한국)",
-  "endDateEstimate": "11월 23일(월) 예상, 미발표",
+  "endDate": "2026-11-10 오전 4시 (한국)",
   "schedule": {
-    "estimate": true,
+    "estimate": false,
     "nextSeason": 16,
     "nextPatch": "3.4",
-    "endAt": "2026-11-23T00:00:00+09:00",
-    "patchAt": "2026-11-24T00:00:00+09:00",
-    "openAt": "2026-11-28T09:00:00+09:00"
+    "endAt": "2026-11-10T04:00:00+09:00",
+    "patchAt": "2026-11-10T00:00:00+09:00",
+    "openAt": "2026-11-14T10:00:00+09:00"
   },
   "patchVersion": "3.3",
   "highlights": [
@@ -37,7 +37,7 @@
     "시즌 14 아이템은 시즌 15 종료 전까지 꺼낼 것 (이후 덮어써져 사라짐)"
   ],
   "faq": [
-    { "q": "시즌 15 종료일", "a": "미발표. 지금까지 시즌은 보통 3~4개월." },
+    { "q": "시즌 15 종료일", "a": "2026-11-10 오전 4시(한국). 블리자드 기준 11월 9일 오전 11시(PST)." },
     { "q": "지난 시즌 공유 창고 아이템", "a": "꺼내기 전용 '지난 시즌' 탭에 남음. 시즌 15 종료 전까지 안 꺼내면 사라짐." },
     { "q": "레더 순위 보상", "a": "순위표 등재 외 보상은 공지 없음." }
   ]

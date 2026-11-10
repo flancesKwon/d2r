@@ -10,7 +10,9 @@ let timer
 onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 1000) })
 onUnmounted(() => clearInterval(timer))
 
-const left = computed(() => Math.max(0, Date.parse(sc.endAt) - now.value))
+// 시즌이 끝났으면 다음 시즌 오픈까지
+const ended = computed(() => now.value >= Date.parse(sc.endAt))
+const left = computed(() => Math.max(0, Date.parse(ended.value ? sc.openAt : sc.endAt) - now.value))
 const units = computed(() => {
   const s = Math.floor(left.value / 1000)
   const p = (n) => String(n).padStart(2, '0')
@@ -26,16 +28,16 @@ const fmt = (iso, withTime) => new Date(iso).toLocaleString(locale.value === 'ko
   timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short', ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
 })
 const rows = computed(() => [
-  { key: 'end', label: t('시즌 {n} 종료', { n: ladder.seasonNumber }), date: fmt(sc.endAt), on: true },
+  { key: 'end', label: t('시즌 {n} 종료', { n: ladder.seasonNumber }), date: fmt(sc.endAt, true), on: !ended.value },
   { key: 'patch', label: t('{v} 패치 배포', { v: sc.nextPatch }), date: fmt(sc.patchAt) },
-  { key: 'open', label: t('시즌 {n} 오픈', { n: sc.nextSeason }), date: fmt(sc.openAt, true) },
+  { key: 'open', label: t('시즌 {n} 오픈', { n: sc.nextSeason }), date: fmt(sc.openAt, true), on: ended.value },
 ])
 </script>
 
 <template>
   <section class="sc-card" :aria-label="$t('시즌 일정')">
     <div class="sc-left">
-      <div class="sc-title">{{ $t('시즌 {n} 종료까지', { n: ladder.seasonNumber }) }} <span v-if="sc.estimate" class="sc-est">({{ $t('예상') }})</span></div>
+      <div class="sc-title">{{ ended ? $t('시즌 {n} 오픈까지', { n: sc.nextSeason }) : $t('시즌 {n} 종료까지', { n: ladder.seasonNumber }) }} <span v-if="sc.estimate" class="sc-est">({{ $t('예상') }})</span></div>
       <div class="sc-units">
         <div class="sc-unit" v-for="x in units" :key="x.u"><b>{{ x.n }}</b><span>{{ $t(x.u) }}</span></div>
       </div>
