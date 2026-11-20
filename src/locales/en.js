@@ -1441,7 +1441,7 @@ export default {
   '지난 시즌 공유 창고 아이템': 'Last season\'s shared stash items',
   '레더 순위 보상': 'Ladder ranking rewards',
   '순위표 등재 외 보상은 공지 없음.': 'No rewards announced beyond appearing on the leaderboard.',
-  '래더 시즌 16 · 3.4 패치 (예정)': 'Ladder Season 16 · Patch 3.4 (upcoming)',
+  '래더 시즌 16 · 3.4 패치': 'Ladder Season 16 · Patch 3.4',
   '시즌 16 시작 11/14(한국). 래더 전용 아이템 10종 논레더에 풀리고 유니크·세트 20여 종 조정 (악마술사의 군림 한정).': 'Season 16 starts 11/14 (KST). 10 ladder-only items come to non-ladder and about 20 uniques and sets are adjusted (Reign of the Warlock only).',
   '시즌 15 종료 11/10(화) 오전 4시 → 3.4 패치 11/10 → 시즌 16 시작 11/14 오전 10시(한국)': 'Season 15 ends 11/10 (Tue) 4 AM → patch 3.4 on 11/10 → Season 16 starts 11/14 10 AM (KST)',
   '북미 11/13 오후 5시(PST) · 유럽 11/14 오전 1시(BST) · 아시아 11/14 오전 10시(KST)': 'NA 11/13 5 PM (PST) · EU 11/14 1 AM (BST) · Asia 11/14 10 AM (KST)',
