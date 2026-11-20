@@ -102,7 +102,7 @@ const sets = new Map(load('sets.json').map((s) => [s.index, s]))
 
 let filled = 0
 for (const it of items) {
-  if (it.category !== 'set') continue
+  if (it.category !== 'set' || it.season) continue
   const row = setItemById.get(Number(it.id.slice(1)))
   if (!row) throw new Error(`setitems.json 에 ${it.id} ${it.name_en} 없음`)
   const itemBonus = []
