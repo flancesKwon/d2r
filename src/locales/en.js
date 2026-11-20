@@ -1400,6 +1400,7 @@ export default {
   '래더 시즌 16': 'Ladder Season 16',
   "래더 전용이던 아이템 10종이 온라인 논레더에 풀림 (악마술사의 군림 한정): 천사의 의복, 재앙의 재, 점멸박쥐의 형상, 유혈자, 새김등뼈, 마날드 치유, 눈살, 도적의 활, 전투가지, 호신부": "10 formerly ladder-only items are now available on online non-ladder (Reign of the Warlock only): Angelic Raiment, Bane Ash, Blinkbat's Form, Bloodletter, Gravenspine, Manald Heal, Pluckeye, Rogue's Bow, The Battlebranch, The Ward",
   "유니크·세트 20여 종 상향 (온라인 래더·오프라인, 악마술사의 군림 한정) - 자세한 수치는 패치노트": "About 20 uniques and set items buffed (online ladder and offline, Reign of the Warlock only) — see the patch notes for exact numbers",
+  "아이템 사전: 상향된 아이템은 이름 뒤에 (시즌)이 붙은 항목으로 따로 있음. 원래 항목은 논레더 수치 그대로": "Item database: the buffed versions are separate entries marked (Season). The original entries keep the non-ladder values",
   "시즌 16 모드: 확장팩 이전 래더·하드코어 래더(원작 4막), 래더·하드코어 래더(5막)": "Season 16 modes: Pre-Expansion Ladder and Hardcore Ladder (original four acts), and Ladder and Hardcore Ladder (five acts)",
   "버그 수정: 우버 고대인 주얼 드롭, 생명력 재생 멈춤, 속박된 악마 행동, 공포의 영역 설정 저장 등": "Bug fixes: Uber Ancients jewel drop, life regen stalling, bound demon behavior, Terror Zone setting not saving, and more",
   "시즌 일정: 월요일 이전 시즌 종료 → 화요일 패치 → 금요일 새 시즌 시작 (북미 기준)": "Season schedule: previous season ends Monday → patch Tuesday → new season Friday (North America)",
