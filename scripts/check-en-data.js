@@ -44,7 +44,8 @@ const miscNames = new Set(misc.map((m) => norm(display(m.code))).concat(misc.map
 // 퀘스트 유니크(왕들의 지팡이 등)는 게임 표의 *ItemName(Staff·Hammer)을 베이스로 씀
 const baseNames = new Set([...load('weapons.json'), ...load('armor.json'), ...misc].flatMap((b) => [norm(b.name), norm(display(b.code))]).concat(uniques.map((u) => norm(u['*ItemName']))))
 
-for (const it of items) {
+// 시즌 항목(이름 뒤에 (시즌)/(Season) 붙인 복사본)은 게임 이름이 따로 없어 원본 항목으로만 검사 (옵션 문구는 아래 4번에서 같이 검사)
+for (const it of items.filter((i) => !i.season)) {
   const where = `${it.id} ${it.name_ko}`
   if (!it.name_en) { err(`${where}: 영어 이름 없음`); continue }
   if (it.category === 'unique') {
